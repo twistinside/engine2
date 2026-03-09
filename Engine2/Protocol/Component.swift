@@ -5,6 +5,4 @@
 //  Created by Karl Groff on 3/8/26.
 //
 
-protocol Component: Codable, Equatable {
-    static var type: ComponentType { get }
-}
+protocol Component: Codable, Equatable {}

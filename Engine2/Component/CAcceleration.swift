@@ -6,7 +6,5 @@
 //
 
 struct CAcceleration: Component {
-    static let type: ComponentType = .acceleration
-
     let acceleration: SIMD3<Float>
 }

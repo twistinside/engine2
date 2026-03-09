@@ -11,12 +11,9 @@ protocol Positionable: Entity {
 
 extension Positionable {
     var position: SIMD3<Float> {
-        guard let positionComponents = WPrimary.components[.position] as? [CPosition] else {
-            fatalError("Couldn't find positions for entities.")
+        guard let position = world.positionComponents[self.id]?.position else {
+            fatalError("There is no position for the positionable entity with ID: \(self.id)")
         }
-        guard id.index < positionComponents.count else {
-            fatalError("Couldn't find position for entity: \(self.id)")
-        }
-        return positionComponents[id.index].position
+        return position
     }
 }

@@ -6,5 +6,7 @@
 //
 
 class SMovement: System {
-    
+    func update(world: inout World, deltaTime: Float) {
+        // no op
+    }
 }
