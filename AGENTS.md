@@ -175,11 +175,24 @@ tracking is ever needed for debugging, add that separately.
 - Do not reintroduce a closed enum registry for component identity.
 - Keep component storage per-type.
 - Keep systems data-oriented.
+- Comment executable logic generously. If a method does real work, prefer a
+  short doc comment plus inline comments at the important steps so control flow
+  and state changes are obvious when reading the code.
+- When the user asks for ideas, architecture notes, or future direction to be
+  captured for later, prefer adding or updating DocC content under
+  `Engine2/Engine2.docc/` rather than leaving that intent only in chat or code
+  comments.
+- For not-yet-implemented direction, mark the DocC content clearly as proposed
+  or future work, and link new conceptual articles from the DocC landing page
+  when they represent durable engine design.
 - Preserve or improve `EntityID.generation` semantics.
 - Prefer adding capability protocols over deepening inheritance.
 - Keep the game-object layer ergonomic, but keep the ECS layer authoritative.
 - If adding selection/UI inspection, typed lookup by `EntityID` is a valid
   direction.
+- Mirror the app/source tree under `Engine2Tests/`. For example, tests for
+  `Engine2/System/SMovement.swift` should live in
+  `Engine2Tests/System/SMovementTests.swift`.
 
 ## Current Gaps / Known TODOs
 
@@ -187,7 +200,8 @@ tracking is ever needed for debugging, add that separately.
 - `reserveEntityID()` is still a stub.
 - `ComponentStore` still needs removal and richer mutation/query helpers.
 - Motion integration system is not implemented yet.
-- Movement system is still a placeholder.
+- Movement is currently handled in `SMovement`, but the broader motion/collision
+  pipeline is still incomplete.
 - Tests do not yet cover sparse-set behavior, generation safety, or motion
   integration.
 

@@ -5,7 +5,7 @@
 //  Created by Karl Groff on 3/8/26.
 //
 
-protocol Movable: Entity, Positionable {
+protocol Movable: Positionable {
     var acceleration: SIMD3<Float> { get }
     var impulse: SIMD3<Float> { get }
     var velocity: SIMD3<Float> { get }

@@ -18,8 +18,4 @@ class World {
     func reserveEntityID() -> EntityID {
         return EntityID(index: 1, generation: 1)
     }
-
-    func update(delta: Double) {
-        // no op
-    }
 }

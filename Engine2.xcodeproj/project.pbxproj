@@ -17,9 +17,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-			A61E75D13C8B4C5EA4F10201 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
-			CB1B38352F5E1E1000A375C6 /* Engine2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Engine2.app; sourceTree = BUILT_PRODUCTS_DIR; };
-			CB1B38422F5E1E1000A375C6 /* Engine2Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A61E75D13C8B4C5EA4F10201 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
+		CB1B38352F5E1E1000A375C6 /* Engine2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Engine2.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB1B38422F5E1E1000A375C6 /* Engine2Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -53,14 +53,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-			CB1B382C2F5E1E1000A375C6 = {
-				isa = PBXGroup;
-				children = (
-					A61E75D13C8B4C5EA4F10201 /* AGENTS.md */,
-					CB1B38372F5E1E1000A375C6 /* Engine2 */,
-					CB1B38452F5E1E1000A375C6 /* Engine2Tests */,
-					CB1B38362F5E1E1000A375C6 /* Products */,
-				);
+		CB1B382C2F5E1E1000A375C6 = {
+			isa = PBXGroup;
+			children = (
+				A61E75D13C8B4C5EA4F10201 /* AGENTS.md */,
+				CB1B38372F5E1E1000A375C6 /* Engine2 */,
+				CB1B38452F5E1E1000A375C6 /* Engine2Tests */,
+				CB1B38362F5E1E1000A375C6 /* Products */,
+			);
 			sourceTree = "<group>";
 		};
 		CB1B38362F5E1E1000A375C6 /* Products */ = {
