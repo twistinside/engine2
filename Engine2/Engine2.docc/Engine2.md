@@ -21,6 +21,7 @@ This documentation catalog serves two purposes:
 ### Architecture
 
 - <doc:Engine-Architecture>
+- <doc:Rendering-Architecture>
 
 ### Scheduling
 
