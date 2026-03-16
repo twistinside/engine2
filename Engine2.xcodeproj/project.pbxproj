@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		D1E200A13C8C000000000001 /* Engine2Macros in Frameworks */ = {isa = PBXBuildFile; productRef = D1E200A13C8C000000000004 /* Engine2Macros */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		CB1B38432F5E1E1000A375C6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -44,7 +40,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D1E200A13C8C000000000001 /* Engine2Macros in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,7 +92,6 @@
 			);
 			name = Engine2;
 			packageProductDependencies = (
-				D1E200A13C8C000000000004 /* Engine2Macros */,
 			);
 			productName = Engine2;
 			productReference = CB1B38352F5E1E1000A375C6 /* Engine2.app */;
@@ -155,7 +149,6 @@
 			mainGroup = CB1B382C2F5E1E1000A375C6;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				D1E200A13C8C000000000005 /* XCLocalSwiftPackageReference "Engine2Macros" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = CB1B38362F5E1E1000A375C6 /* Products */;
@@ -471,19 +464,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		D1E200A13C8C000000000005 /* XCLocalSwiftPackageReference "Engine2Macros" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Engine2Macros;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		D1E200A13C8C000000000004 /* Engine2Macros */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = Engine2Macros;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CB1B382D2F5E1E1000A375C6 /* Project object */;
 }

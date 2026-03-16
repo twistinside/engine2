@@ -5,7 +5,6 @@
 //  Created by Karl Groff on 3/8/26.
 //
 
-import Engine2Macros
 import OSLog
 
 /// Applies one frame of accumulated motion by first updating velocity and then
@@ -16,8 +15,12 @@ class SMovement: System {
         category: "SMovement"
     )
 
-    @SignpostedUpdate(signposter: Self.signposter)
     func update(world: inout World, deltaTime: Float) {
+        let signpostState = Self.signposter.beginInterval("SMovement.update")
+        defer {
+            Self.signposter.endInterval("SMovement.update", signpostState)
+        }
+
         // Most entities will have no explicit motion input this frame, so reuse
         // one zero-value accumulator instead of constructing a new default each iteration.
         let zeroAccumulator = CMotionAccumulator(acceleration: .zero, impulse: .zero)
