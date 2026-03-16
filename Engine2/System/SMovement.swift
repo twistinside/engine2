@@ -5,9 +5,18 @@
 //  Created by Karl Groff on 3/8/26.
 //
 
+import Engine2Macros
+import OSLog
+
 /// Applies one frame of accumulated motion by first updating velocity and then
 /// advancing position from the new velocity.
 class SMovement: System {
+    private static let signposter = OSSignposter(
+        subsystem: "Engine2",
+        category: "SMovement"
+    )
+
+    @SignpostedUpdate(signposter: Self.signposter)
     func update(world: inout World, deltaTime: Float) {
         // Most entities will have no explicit motion input this frame, so reuse
         // one zero-value accumulator instead of constructing a new default each iteration.

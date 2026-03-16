@@ -58,6 +58,10 @@ The current simulation model is a fixed-step loop:
 
 This model keeps systems working in terms of simulation time rather than render-frame timing.
 
+At the application boundary, a higher-level app task is responsible for deciding when to sample real time and call `Engine.update(deltaTime:)`.
+
+That outer loop belongs to the app layer rather than `Engine` so the engine stays reusable in tests, tools, and future host applications with different lifecycle needs.
+
 Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation step, and several simulation steps can happen before one draw.
 
 ## Current Limits

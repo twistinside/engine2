@@ -9,6 +9,12 @@ import Testing
 @testable import Engine2
 
 struct EngineTests {
+    @Test func defaultFixedTimeStepIsPositive() async throws {
+        let engine = Engine()
+
+        #expect(engine.fixedTimeStep > .zero)
+    }
+
     @Test func updateAccumulatesTimeUntilFixedStepBoundary() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
