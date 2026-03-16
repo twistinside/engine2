@@ -9,7 +9,6 @@ import Testing
 @testable import Engine2
 
 struct SMovementTests {
-    @MainActor
     @Test func integratesVelocityAndClearsAccumulator() async throws {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)

@@ -20,13 +20,27 @@ This keeps timing and scheduling logic out of ``World``.
 
 ``World`` is the authoritative container for simulation state.
 
-It owns the component stores and entity identity lifecycle. The world is not the scheduler and should not decide when simulation advances.
+It owns the component stores, simulation-scoped resources, and entity identity lifecycle. The world is not the scheduler and should not decide when simulation advances.
 
 ### Systems
 
 ``System`` implementations contain simulation logic.
 
 They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
+
+### Presentation and Rendering
+
+Rendering is an engine subsystem, but it is not itself a simulation ``System``.
+
+The world may contain abstract presentation state such as mesh handles, material handles, camera data, visibility flags, or render style. Backend-specific render state should remain inside the render layer.
+
+The intended boundary is:
+
+1. systems update `World`
+2. a presentation export or extraction step builds render-facing frame data
+3. the renderer consumes that exported frame data
+
+This keeps `World` authoritative without making it the owner of Metal or other backend objects.
 
 ### Entity Facades
 
@@ -44,6 +58,8 @@ The current simulation model is a fixed-step loop:
 
 This model keeps systems working in terms of simulation time rather than render-frame timing.
 
+Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation step, and several simulation steps can happen before one draw.
+
 ## Current Limits
 
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
@@ -52,6 +68,7 @@ The current engine is still early. Several important behaviors are intentionally
 - world/entity translation at spawn time is still skeletal
 - systems currently run in a single ordered list
 - overload protection for the fixed-step loop has not been added yet
+- the extraction boundary between simulation and rendering is still only documented direction
 
 ## Topics
 

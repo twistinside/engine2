@@ -12,7 +12,6 @@ class Entity {
     init(in world: World) {
         self.id = world.reserveEntityID()
         self.world = world
-
         world.add(self)
     }
 }

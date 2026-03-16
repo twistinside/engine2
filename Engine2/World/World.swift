@@ -6,9 +6,12 @@
 //
 
 class World {
+    // MARK: Components
     var motionAccumulatorComponents = ComponentStore<CMotionAccumulator>()
     var positionComponents = ComponentStore<CPosition>()
     var velocityComponents = ComponentStore<CVelocity>()
+
+    // MARK: Resources
 
     @discardableResult
     func add(_ entity: Entity) -> EntityID {

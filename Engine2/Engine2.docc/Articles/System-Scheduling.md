@@ -68,6 +68,8 @@ It is useful to think in coarse simulation phases, then let the dependency graph
 
 The exact phase list is expected to evolve with the engine.
 
+Only the export side of presentation belongs in the simulation schedule. Actual rendering and Metal submission should happen after export, from the frozen presentation data, rather than as a world-mutating system.
+
 ## Cadence
 
 Some systems should not need to run every simulation step.
