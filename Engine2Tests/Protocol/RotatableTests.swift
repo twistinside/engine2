@@ -12,7 +12,7 @@ import simd
 struct RotatableTests {
     @Test func rotationReadsFromWorldStore() async throws {
         let world = World()
-        let entity = TestRotatableEntity(id: EntityID(index: 0, generation: 0), in: world)
+        let entity = TestRotatableEntity(unregisteredID: EntityID(index: 0, generation: 0), in: world)
         let expectedRotation = simd_quatf(angle: .pi / 4, axis: SIMD3<Float>(0, 1, 0))
 
         world.rotationComponents.insert(CRotation(rotation: expectedRotation), for: entity.id)
