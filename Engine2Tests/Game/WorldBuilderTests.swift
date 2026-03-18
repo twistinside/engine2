@@ -1,0 +1,30 @@
+//
+//  WorldBuilderTests.swift
+//  Engine2Tests
+//
+//  Created by Codex on 3/17/26.
+//
+
+import Testing
+import simd
+@testable import Engine2
+
+struct WorldBuilderTests {
+    @Test func basicWorldBuilderSeedsDefaultBall() async throws {
+        let world = BasicWorldBuilder().buildWorld()
+
+        #expect(world.positionComponents.entities.count == 1)
+
+        let entity = try #require(world.positionComponents.entities.first)
+        let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
+
+        #expect(world.positionComponents[entity]?.position == .zero)
+        #expect(world.velocityComponents[entity]?.velocity == .zero)
+        #expect(world.motionAccumulatorComponents[entity]?.acceleration == .zero)
+        #expect(world.motionAccumulatorComponents[entity]?.impulse == .zero)
+        #expect(world.rotationComponents[entity]?.rotation.vector == expectedRotation.vector)
+        #expect(world.angularVelocityComponents[entity]?.angularVelocity == .zero)
+        #expect(world.angularMotionAccumulatorComponents[entity]?.angularAcceleration == .zero)
+        #expect(world.angularMotionAccumulatorComponents[entity]?.angularImpulse == .zero)
+    }
+}

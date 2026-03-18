@@ -1,5 +1,5 @@
 //
-//  AppEngineLoopTests.swift
+//  GameLoopTests.swift
 //  Engine2Tests
 //
 //  Created by Codex on 3/15/26.
@@ -39,7 +39,7 @@ private actor TestSleeper {
     }
 }
 
-struct AppEngineLoopTests {
+struct GameLoopTests {
     @Test @MainActor func appTaskFeedsElapsedTimeIntoEngine() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
@@ -68,7 +68,7 @@ struct AppEngineLoopTests {
                 .failure(CancellationError())
             ]
         )
-        let appEngineLoop = AppEngineLoop(
+        let gameLoop = GameLoop(
             engine: engine,
             pollInterval: .milliseconds(500),
             clockFactory: {
@@ -77,17 +77,17 @@ struct AppEngineLoopTests {
             sleeper: sleeper.sleep(for:)
         )
 
-        appEngineLoop.start()
+        gameLoop.start()
 
         for _ in 0..<100 {
-            if !appEngineLoop.isRunning {
+            if !gameLoop.isRunning {
                 break
             }
 
             await Task.yield()
         }
 
-        #expect(appEngineLoop.isRunning == false)
+        #expect(gameLoop.isRunning == false)
         #expect(world.velocityComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.accumulatedTime == .zero)

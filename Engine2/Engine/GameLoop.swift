@@ -1,8 +1,8 @@
 //
-//  AppEngineLoop.swift
+//  GameLoop.swift
 //  Engine2
 //
-//  Created by Codex on 3/15/26.
+//  Created by Karl Groff on 3/17/26.
 //
 
 /// Owns the app-level async task that polls wall time and advances the engine.
@@ -10,7 +10,7 @@
 /// This sits above `Engine`: the app decides when the simulation loop should
 /// run, while `Engine` still owns fixed-step accumulation and system order.
 @MainActor
-final class AppEngineLoop {
+final class GameLoop {
     typealias ClockFactory = () -> SystemClock
     typealias Sleeper = @Sendable (Duration) async throws -> Void
 
@@ -42,7 +42,7 @@ final class AppEngineLoop {
         self.sleeper = sleeper
         self.clock = nil
 
-        precondition(self.pollInterval > .zero, "AppEngineLoop requires a positive poll interval")
+        precondition(self.pollInterval > .zero, "GameLoop requires a positive poll interval")
     }
 
     /// Starts the app-owned update task if it is not already running.

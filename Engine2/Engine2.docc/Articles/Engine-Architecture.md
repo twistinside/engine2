@@ -16,6 +16,18 @@ At the moment, it:
 
 This keeps timing and scheduling logic out of ``World``.
 
+### Game and World Builders
+
+``Game`` sits above ``Engine`` and owns session bootstrap policy.
+
+It decides which ``WorldBuilder`` to use for a new game, generated scenario, or
+loaded save, and it can rebuild or replace the active world inside the engine
+when the session changes.
+
+``WorldBuilder`` types are not simulation ``System`` implementations. They are
+one-shot construction helpers that produce a fully bootstrapped ``World`` before
+or between simulation runs.
+
 ### World
 
 ``World`` is the authoritative container for simulation state.
