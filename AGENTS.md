@@ -14,6 +14,14 @@ The project is moving toward a hybrid model:
 This repo is still early and partially skeletal. Preserve direction and intent
 when filling in missing pieces.
 
+## MCP Tooling Preferences
+
+- Prefer the `sosumi` MCP server for Apple and Xcode documentation lookups.
+- Prefer the `xcode` MCP server for interacting with Xcode itself, including
+  project-aware build, test, and IDE-side actions.
+- When both are relevant, use `sosumi` for documentation/reference gathering
+  and `xcode` for actions against the open Xcode project.
+
 ## Current Structure
 
 - `Engine2/World/World.swift`
