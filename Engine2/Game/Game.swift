@@ -42,8 +42,8 @@ final class Game {
         systems: [any System] = [SMovement(), SRotation()],
         pollInterval: Duration? = nil,
         clockFactory: @escaping GameLoop.ClockFactory = { SystemClock() },
-        sleeper: @escaping GameLoop.Sleeper = { duration in
-            try await SuspendingClock().sleep(for: duration)
+        sleeper: @escaping GameLoop.Sleeper = { deadline in
+            try await SuspendingClock().sleep(until: deadline)
         }
     ) {
         self.worldBuilder = worldBuilder

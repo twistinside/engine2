@@ -27,21 +27,21 @@ private final class SampledInstantSource {
 private actor TestSleeper {
     private let results: [Result<Void, any Error>]
     private var nextIndex = 0
-    private var requestedDurations: [Duration] = []
+    private var requestedDeadlines: [SuspendingClock.Instant] = []
 
     init(results: [Result<Void, any Error>]) {
         self.results = results
     }
 
-    func sleep(for duration: Duration) async throws {
-        requestedDurations.append(duration)
+    func sleep(until deadline: SuspendingClock.Instant) async throws {
+        requestedDeadlines.append(deadline)
         let index = min(nextIndex, results.count - 1)
         nextIndex += 1
         try results[index].get()
     }
 
-    func recordedDurations() -> [Duration] {
-        requestedDurations
+    func recordedDeadlines() -> [SuspendingClock.Instant] {
+        requestedDeadlines
     }
 }
 
@@ -80,7 +80,7 @@ struct GameLoopTests {
             clockFactory: {
                 SystemClock(timeSource: instantSource.next)
             },
-            sleeper: sleeper.sleep(for:)
+            sleeper: sleeper.sleep(until:)
         )
 
         gameLoop.start()
@@ -111,8 +111,6 @@ struct GameLoopTests {
         let scheduleTimeSource = SampledInstantSource(
             samples: [
                 baseInstant,
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(110)),
                 baseInstant.advanced(by: .milliseconds(110))
             ]
         )
@@ -129,7 +127,7 @@ struct GameLoopTests {
                 SystemClock(timeSource: engineTimeSource.next)
             },
             scheduleTimeSource: scheduleTimeSource.next,
-            sleeper: sleeper.sleep(for:)
+            sleeper: sleeper.sleep(until:)
         )
 
         gameLoop.start()
@@ -142,10 +140,15 @@ struct GameLoopTests {
             await Task.yield()
         }
 
-        let requestedDurations = await sleeper.recordedDurations()
+        let requestedDeadlines = await sleeper.recordedDeadlines()
 
         #expect(gameLoop.isRunning == false)
-        #expect(requestedDurations == [.milliseconds(100), .milliseconds(90)])
+        #expect(
+            requestedDeadlines == [
+                baseInstant.advanced(by: .milliseconds(100)),
+                baseInstant.advanced(by: .milliseconds(200))
+            ]
+        )
         #expect(engine.accumulatedTime == .milliseconds(10))
     }
 }

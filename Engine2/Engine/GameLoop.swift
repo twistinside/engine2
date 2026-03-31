@@ -14,7 +14,7 @@
 final class GameLoop {
     typealias ClockFactory = () -> SystemClock
     typealias TimeSource = () -> SystemClock.Instant
-    typealias Sleeper = @Sendable (Duration) async throws -> Void
+    typealias Sleeper = @Sendable (SystemClock.Instant) async throws -> Void
     typealias RunningStateDidChange = @MainActor (Bool) -> Void
 
     let engine: Engine
@@ -39,8 +39,8 @@ final class GameLoop {
         pollInterval: Duration? = nil,
         clockFactory: @escaping ClockFactory = { SystemClock() },
         scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
-        sleeper: @escaping Sleeper = { duration in
-            try await SuspendingClock().sleep(for: duration)
+        sleeper: @escaping Sleeper = { deadline in
+            try await SuspendingClock().sleep(until: deadline)
         }
     ) {
         self.engine = engine
@@ -109,7 +109,7 @@ final class GameLoop {
                 // sleeping for a fixed relative interval. That avoids turning
                 // normal wake-up jitter into long-term drift that forces extra
                 // catch-up steps.
-                try await sleeper(scheduledSleepDuration(until: nextWakeDeadline))
+                try await sleeper(nextWakeDeadline)
             } catch {
                 return
             }
@@ -122,13 +122,6 @@ final class GameLoop {
             self.clock = clock
             nextWakeDeadline = advancedDeadline(after: nextWakeDeadline)
         }
-    }
-
-    /// Converts the next absolute wake deadline into the remaining relative
-    /// sleep duration. Late wake-ups collapse to zero so the loop can catch up
-    /// immediately instead of sleeping a full extra poll interval.
-    private func scheduledSleepDuration(until deadline: SystemClock.Instant) -> Duration {
-        max(.zero, scheduleTimeSource().duration(to: deadline))
     }
 
     /// Advances to the first future deadline after the current wall-clock time.
