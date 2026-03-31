@@ -24,6 +24,10 @@ It decides which ``WorldBuilder`` to use for a new game, generated scenario, or
 loaded save, and it can rebuild or replace the active world inside the engine
 when the session changes.
 
+`Game` also owns the higher-level loop that polls wall time and advances the
+engine. The app should keep one top-level `Game` reference and start or stop it
+with host lifecycle events.
+
 ``WorldBuilder`` types are not simulation ``System`` implementations. They are
 one-shot construction helpers that produce a fully bootstrapped ``World`` before
 or between simulation runs.
@@ -70,9 +74,12 @@ The current simulation model is a fixed-step loop:
 
 This model keeps systems working in terms of simulation time rather than render-frame timing.
 
-At the application boundary, a higher-level app task is responsible for deciding when to sample real time and call `Engine.update(deltaTime:)`.
+At the application boundary, host code decides when the session should run or
+pause. ``Game`` owns the polling loop that samples real time and feeds that
+delta into ``Engine.update(deltaTime:)``.
 
-That outer loop belongs to the app layer rather than `Engine` so the engine stays reusable in tests, tools, and future host applications with different lifecycle needs.
+That outer loop stays above `Engine` so the engine remains reusable in tests,
+tools, and future host applications with different lifecycle needs.
 
 Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation step, and several simulation steps can happen before one draw.
 

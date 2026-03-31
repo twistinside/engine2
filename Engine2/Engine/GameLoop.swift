@@ -5,24 +5,30 @@
 //  Created by Karl Groff on 3/17/26.
 //
 
-/// Owns the app-level async task that polls wall time and advances the engine.
+/// Owns the async task that polls wall time and advances the engine.
 ///
-/// This sits above `Engine`: the app decides when the simulation loop should
-/// run, while `Engine` still owns fixed-step accumulation and system order.
+/// This sits above `Engine`: a higher-level owner decides when the simulation
+/// loop should run, while `Engine` still owns fixed-step accumulation and
+/// system order.
 @MainActor
 final class GameLoop {
     typealias ClockFactory = () -> SystemClock
+    typealias TimeSource = () -> SystemClock.Instant
     typealias Sleeper = @Sendable (Duration) async throws -> Void
+    typealias RunningStateDidChange = @MainActor (Bool) -> Void
 
     let engine: Engine
     let pollInterval: Duration
 
     private let clockFactory: ClockFactory
+    private let scheduleTimeSource: TimeSource
     private let sleeper: Sleeper
 
     private var clock: SystemClock?
     private var runID: UInt64 = 0
     private var updateTask: Task<Void, Never>?
+
+    var runningStateDidChange: RunningStateDidChange?
 
     var isRunning: Bool {
         updateTask != nil
@@ -32,6 +38,7 @@ final class GameLoop {
         engine: Engine = Engine(),
         pollInterval: Duration? = nil,
         clockFactory: @escaping ClockFactory = { SystemClock() },
+        scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
         sleeper: @escaping Sleeper = { duration in
             try await SuspendingClock().sleep(for: duration)
         }
@@ -39,6 +46,7 @@ final class GameLoop {
         self.engine = engine
         self.pollInterval = pollInterval ?? engine.fixedTimeStep
         self.clockFactory = clockFactory
+        self.scheduleTimeSource = scheduleTimeSource
         self.sleeper = sleeper
         self.clock = nil
 
@@ -57,30 +65,51 @@ final class GameLoop {
         runID += 1
 
         let currentRunID = runID
+        let firstWakeDeadline = scheduleTimeSource().advanced(by: pollInterval)
         updateTask = Task { @MainActor [weak self] in
-            await self?.runLoop(runID: currentRunID)
+            await self?.runLoop(
+                runID: currentRunID,
+                nextWakeDeadline: firstWakeDeadline
+            )
         }
+        runningStateDidChange?(true)
     }
 
     /// Cancels the current update task, if one exists.
     func stop() {
+        guard updateTask != nil else {
+            clock = nil
+            return
+        }
+
         runID += 1
         updateTask?.cancel()
         updateTask = nil
         clock = nil
+        runningStateDidChange?(false)
     }
 
-    private func runLoop(runID: UInt64) async {
+    private func runLoop(
+        runID: UInt64,
+        nextWakeDeadline initialWakeDeadline: SystemClock.Instant
+    ) async {
+        var nextWakeDeadline = initialWakeDeadline
+
         defer {
             // Ignore cleanup from an older task if a newer run has already started.
             if self.runID == runID {
                 updateTask = nil
+                runningStateDidChange?(false)
             }
         }
 
         while !Task.isCancelled {
             do {
-                try await sleeper(pollInterval)
+                // Sleep until the next absolute deadline instead of repeatedly
+                // sleeping for a fixed relative interval. That avoids turning
+                // normal wake-up jitter into long-term drift that forces extra
+                // catch-up steps.
+                try await sleeper(scheduledSleepDuration(until: nextWakeDeadline))
             } catch {
                 return
             }
@@ -91,7 +120,27 @@ final class GameLoop {
 
             engine.update(deltaTime: clock.consumeDeltaTime())
             self.clock = clock
+            nextWakeDeadline = advancedDeadline(after: nextWakeDeadline)
         }
+    }
+
+    /// Converts the next absolute wake deadline into the remaining relative
+    /// sleep duration. Late wake-ups collapse to zero so the loop can catch up
+    /// immediately instead of sleeping a full extra poll interval.
+    private func scheduledSleepDuration(until deadline: SystemClock.Instant) -> Duration {
+        max(.zero, scheduleTimeSource().duration(to: deadline))
+    }
+
+    /// Advances to the first future deadline after the current wall-clock time.
+    private func advancedDeadline(after previousDeadline: SystemClock.Instant) -> SystemClock.Instant {
+        var nextWakeDeadline = previousDeadline.advanced(by: pollInterval)
+        let currentTime = scheduleTimeSource()
+
+        while currentTime.duration(to: nextWakeDeadline) <= .zero {
+            nextWakeDeadline = nextWakeDeadline.advanced(by: pollInterval)
+        }
+
+        return nextWakeDeadline
     }
 
     deinit {

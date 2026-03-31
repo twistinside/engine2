@@ -27,15 +27,21 @@ private final class SampledInstantSource {
 private actor TestSleeper {
     private let results: [Result<Void, any Error>]
     private var nextIndex = 0
+    private var requestedDurations: [Duration] = []
 
     init(results: [Result<Void, any Error>]) {
         self.results = results
     }
 
-    func sleep(for _: Duration) async throws {
+    func sleep(for duration: Duration) async throws {
+        requestedDurations.append(duration)
         let index = min(nextIndex, results.count - 1)
         nextIndex += 1
         try results[index].get()
+    }
+
+    func recordedDurations() -> [Duration] {
+        requestedDurations
     }
 }
 
@@ -91,5 +97,55 @@ struct GameLoopTests {
         #expect(world.velocityComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.accumulatedTime == .zero)
+    }
+
+    @Test @MainActor func appTaskRebasesSleepAgainstAbsoluteDeadlinesAfterOversleep() async throws {
+        let engine = Engine(world: World(), fixedTimeStep: .milliseconds(100), systems: [])
+        let baseInstant = SuspendingClock().now
+        let engineTimeSource = SampledInstantSource(
+            samples: [
+                baseInstant,
+                baseInstant.advanced(by: .milliseconds(110))
+            ]
+        )
+        let scheduleTimeSource = SampledInstantSource(
+            samples: [
+                baseInstant,
+                baseInstant,
+                baseInstant.advanced(by: .milliseconds(110)),
+                baseInstant.advanced(by: .milliseconds(110))
+            ]
+        )
+        let sleeper = TestSleeper(
+            results: [
+                .success(()),
+                .failure(CancellationError())
+            ]
+        )
+        let gameLoop = GameLoop(
+            engine: engine,
+            pollInterval: .milliseconds(100),
+            clockFactory: {
+                SystemClock(timeSource: engineTimeSource.next)
+            },
+            scheduleTimeSource: scheduleTimeSource.next,
+            sleeper: sleeper.sleep(for:)
+        )
+
+        gameLoop.start()
+
+        for _ in 0..<100 {
+            if !gameLoop.isRunning {
+                break
+            }
+
+            await Task.yield()
+        }
+
+        let requestedDurations = await sleeper.recordedDurations()
+
+        #expect(gameLoop.isRunning == false)
+        #expect(requestedDurations == [.milliseconds(100), .milliseconds(90)])
+        #expect(engine.accumulatedTime == .milliseconds(10))
     }
 }
