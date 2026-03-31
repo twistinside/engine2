@@ -8,12 +8,14 @@
 import SwiftUI
 
 struct ContentView: View {
+    let gameState: Game.State
+
     var body: some View {
         VStack {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
-            Text("Hello, world!")
+            Text(gameState.isRunning ? "Simulation Running" : "Simulation Paused")
         }
         .padding()
     }

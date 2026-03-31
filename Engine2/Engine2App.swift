@@ -10,25 +10,21 @@ import SwiftUI
 @main
 struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var gameLoop: GameLoop
-
-    private let game: Game
+    @State private var game: Game
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
-        let game = Game()
-        self.game = game
-        _gameLoop = State(initialValue: GameLoop(engine: game.engine))
+        _game = State(initialValue: Game())
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(gameState: game.state)
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
             if isRunningTests {
-                gameLoop.stop()
+                game.stop()
                 return
             }
 
@@ -36,11 +32,11 @@ struct Engine2App: App {
             // than any individual view's lifecycle.
             switch newPhase {
             case .active:
-                gameLoop.start()
+                game.start()
             case .inactive, .background:
-                gameLoop.stop()
+                game.stop()
             @unknown default:
-                gameLoop.stop()
+                game.stop()
             }
         }
     }

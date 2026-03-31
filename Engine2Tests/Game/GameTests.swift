@@ -9,16 +9,18 @@ import Testing
 @testable import Engine2
 
 struct GameTests {
-    @Test func initBuildsEngineWorldFromBuilder() async throws {
+    @Test @MainActor func initBuildsEngineWorldFromBuilder() async throws {
         let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
 
         let game = Game(worldBuilder: builder)
 
         let entity = try #require(game.world.positionComponents.entities.first)
         #expect(game.world.positionComponents[entity]?.position == SIMD3<Float>(3, 4, 5))
+        #expect(game.state.fixedTimeStep == .seconds(1.0 / 60.0))
+        #expect(game.state.isRunning == false)
     }
 
-    @Test func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
+    @Test @MainActor func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
         let builder = IncrementingWorldBuilder()
 
         let game = Game(worldBuilder: builder)
@@ -35,6 +37,21 @@ struct GameTests {
         #expect(builder.buildCount == 2)
         #expect(game.world !== firstWorld)
         #expect(game.world.positionComponents[secondEntity]?.position == SIMD3<Float>(2, 0, 0))
+    }
+
+    @Test @MainActor func startAndStopDriveExposedState() async throws {
+        let game = Game(
+            worldBuilder: TestWorldBuilder(position: .zero),
+            pollInterval: .seconds(60)
+        )
+
+        #expect(game.state.isRunning == false)
+
+        game.start()
+        #expect(game.state.isRunning == true)
+
+        game.stop()
+        #expect(game.state.isRunning == false)
     }
 }
 
