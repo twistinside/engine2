@@ -25,8 +25,8 @@ class SMovement: System {
         // one zero-value accumulator instead of constructing a new default each iteration.
         let zeroAccumulator = CMotionAccumulator(acceleration: .zero, impulse: .zero)
 
-        // Drive iteration from the position store and skip incomplete motion rows.
-        let entities = world.positionComponents.entities
+        // Drive iteration from the velocity store and skip incomplete motion rows.
+        let entities = world.velocityComponents.entities
 
         for entity in entities {
             guard

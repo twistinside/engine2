@@ -29,8 +29,8 @@ class SRotation: System {
             angularImpulse: .zero
         )
 
-        // Drive iteration from the rotation store and skip incomplete angular rows.
-        let entities = world.rotationComponents.entities
+        // Drive iteration from the angular-velocity store and skip incomplete angular rows.
+        let entities = world.angularVelocityComponents.entities
 
         for entity in entities {
             guard
