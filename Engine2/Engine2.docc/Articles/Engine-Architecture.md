@@ -60,7 +60,7 @@ This keeps `World` authoritative without making it the owner of Metal or other b
 
 ### Entity Facades
 
-``Entity`` subclasses such as ``Missile`` remain useful as typed, ergonomic objects at the game boundary, UI boundary, and inspection layer.
+``Entity`` subclasses such as ``Ball`` remain useful as typed, ergonomic objects at the game boundary, UI boundary, and inspection layer.
 
 They are not the runtime source of truth. Runtime truth lives in the world's component stores.
 
@@ -87,8 +87,10 @@ Drawing is expected to run on its own presentation cadence. A draw can occur wit
 
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
 
-- entity ID reservation is still placeholder logic
-- world/entity translation at spawn time is still skeletal
+- entity ID reservation is monotonic only; destruction, generation incrementing,
+  and index reuse have not been added yet
+- world/entity translation at spawn time covers the current capability protocols,
+  but lifecycle and reseeding semantics are still intentionally small
 - systems currently run in a single ordered list
 - overload protection for the fixed-step loop has not been added yet
 - the extraction boundary between simulation and rendering is still only documented direction

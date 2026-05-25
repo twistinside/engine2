@@ -1,5 +1,5 @@
 //
-//  Rotating.swift
+//  Rotatable.swift
 //  Engine2
 //
 //  Created by Codex on 3/15/26.

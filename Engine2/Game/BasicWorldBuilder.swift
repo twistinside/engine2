@@ -13,7 +13,7 @@ struct BasicWorldBuilder: WorldBuilder {
     func buildWorld() -> World {
         let world = World()
 
-        _ = Ball(in: world)
+        let ball = Ball(in: world)
 
         return world
     }
