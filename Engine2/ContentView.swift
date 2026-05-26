@@ -11,12 +11,16 @@ struct ContentView: View {
     let gameState: Game.State
 
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
+        ZStack(alignment: .bottomLeading) {
+            MetalSceneView()
+                .ignoresSafeArea()
+
             Text(gameState.isRunning ? "Simulation Running" : "Simulation Paused")
+                .font(.caption)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                .padding()
         }
-        .padding()
     }
 }
