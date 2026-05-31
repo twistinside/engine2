@@ -11,11 +11,10 @@ class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<CAngularMotionAccumulator>()
     var angularVelocityComponents = ComponentStore<CAngularVelocity>()
-    var motionAccumulatorComponents = ComponentStore<CMotionAccumulator>()
+    var motionComponents = ComponentStore<CMotion>()
     var positionComponents = ComponentStore<CPosition>()
     var rotationComponents = ComponentStore<CRotation>()
     var scaleComponents = ComponentStore<CScale>()
-    var velocityComponents = ComponentStore<CVelocity>()
 
     // MARK: Resources
     private static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
@@ -45,17 +44,18 @@ class World {
 
         // Movable
         precondition(
-            (state.velocity == nil && state.acceleration == nil && state.impulse == nil) || entity is Movable,
+            (
+                state.velocity == nil &&
+                state.accelerationIntent == nil &&
+                state.impulse == nil
+            ) || entity is Movable,
             "Initial movement state requires Movable conformance"
         )
         if entity is Movable {
-            velocityComponents.insert(
-                CVelocity(velocity: state.velocity ?? .zero),
-                for: entity.id
-            )
-            motionAccumulatorComponents.insert(
-                CMotionAccumulator(
-                    acceleration: state.acceleration ?? .zero,
+            motionComponents.insert(
+                CMotion(
+                    velocity: state.velocity ?? .zero,
+                    accelerationIntent: state.accelerationIntent ?? .idle,
                     impulse: state.impulse ?? .zero
                 ),
                 for: entity.id

@@ -12,7 +12,7 @@ class Ball: Entity, Movable, Rotatable {
         in world: World,
         position: SIMD3<Float> = .zero,
         velocity: SIMD3<Float> = .zero,
-        acceleration: SIMD3<Float> = .zero,
+        accelerationIntent: CMotion.AccelerationIntent = .idle,
         impulse: SIMD3<Float> = .zero,
         rotation: simd_quatf = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1)),
         angularVelocity: SIMD3<Float> = .zero,
@@ -24,7 +24,7 @@ class Ball: Entity, Movable, Rotatable {
             from: Entity.InitialState(
                 position: position,
                 velocity: velocity,
-                acceleration: acceleration,
+                accelerationIntent: accelerationIntent,
                 impulse: impulse,
                 rotation: rotation,
                 angularVelocity: angularVelocity,

@@ -25,8 +25,22 @@ struct WorldTests {
 
         #expect(world.positionComponents[entity.id]?.position == expectedPosition)
         #expect(world.scaleComponents[entity.id]?.scale == expectedScale)
-        #expect(world.velocityComponents[entity.id] == nil)
+        #expect(world.motionComponents[entity.id] == nil)
         #expect(world.rotationComponents[entity.id] == nil)
+    }
+
+    @Test func addSeedsAccelerationIntentForMovableEntity() async throws {
+        let world = World()
+        let entity = TestMovableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
+        let expectedIntent = CMotion.AccelerationIntent.accelerating(SIMD3<Float>(1, 2, 3))
+
+        world.add(
+            entity,
+            from: Entity.InitialState(accelerationIntent: expectedIntent)
+        )
+
+        #expect(world.motionComponents[entity.id]?.accelerationIntent == expectedIntent)
+        #expect(entity.accelerationIntent == expectedIntent)
     }
 
     @Test func reserveEntityIDReturnsUniqueHandles() async throws {
@@ -43,3 +57,4 @@ struct WorldTests {
 }
 
 private final class TestSpawnEntity: Entity, Positionable, Scalable {}
+private final class TestMovableSpawnEntity: Entity, Movable {}

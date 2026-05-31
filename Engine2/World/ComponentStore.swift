@@ -34,6 +34,19 @@ struct ComponentStore<C: Component> {
         entities.append(entity)
     }
 
+    /// Mutates an existing component row in place.
+    ///
+    /// This keeps hot systems from rebuilding and reinserting whole component
+    /// values when they only need to adjust fields on an existing dense row.
+    @discardableResult
+    mutating func update(for entity: EntityID, _ body: (inout C) -> Void) -> Bool {
+        guard let denseIndex = sparse[entity.index] else { return false }
+        guard entities.indices.contains(denseIndex), entities[denseIndex] == entity else { return false }
+
+        body(&dense[denseIndex])
+        return true
+    }
+
     /// Returns the component currently owned by this exact entity, if present.
     ///
     /// The lookup starts from the sparse index, then re-checks the full

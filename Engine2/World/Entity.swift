@@ -20,7 +20,7 @@ class Entity {
 
         // Movable
         var velocity: SIMD3<Float>? = nil
-        var acceleration: SIMD3<Float>? = nil
+        var accelerationIntent: CMotion.AccelerationIntent? = nil
         var impulse: SIMD3<Float>? = nil
 
         // Orientable

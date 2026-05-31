@@ -50,6 +50,8 @@ and intent when filling in missing pieces.
     - `entities`: entity IDs aligned with `dense`
     - `sparse`: entity index -> dense index
   - Lookup re-checks the full `EntityID`, including generation.
+  - Use `update(for:_:)` for existing component mutations so systems update the
+    dense row in place instead of rebuilding and reinserting replacement rows.
   - Removal, compaction, richer mutation helpers, and join/query helpers are
     still missing.
 
@@ -76,8 +78,7 @@ and intent when filling in missing pieces.
 
 - `Engine2/Component/*.swift`
   - `CPosition`
-  - `CVelocity`
-  - `CMotionAccumulator`
+  - `CMotion`
   - `CRotation`
   - `CAngularVelocity`
   - `CAngularMotionAccumulator`
@@ -85,7 +86,9 @@ and intent when filling in missing pieces.
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
 
 - `Engine2/System/*.swift`
-  - `SMovement` integrates translational accumulator input into velocity, moves
+  - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s
+    per-frame accumulator.
+  - `SMovement` integrates `CMotion` accumulator input into velocity, moves
     position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity,
     advances rotation, normalizes it, then clears the accumulator.
@@ -163,6 +166,9 @@ If future UI code needs current data, prefer:
 This is a key design decision from the conversation:
 
 - systems should iterate `ComponentStore`s directly
+- systems should mutate existing component rows with `ComponentStore.update(for:_:)`
+  when changing component fields; reserve `insert` for spawn/registration,
+  adding a missing row, or intentional row replacement/reset
 - systems should not read/write motion through entity property wrappers inside
   hot loops
 - object facades are for gameplay ergonomics, scripting-ish code, UI, and
@@ -202,19 +208,23 @@ future spawn helpers for data that is not broadly engine-level.
 
 The project has moved toward a motion contribution model.
 
-Use `CMotionAccumulator` for per-frame motion inputs:
+Use `CMotion` for translational motion state:
 
-- `acceleration`: continuous influences that scale with `dt`
-- `impulse`: instantaneous velocity changes that do not scale with `dt`
+- `velocity`: integrated world-space velocity
+- `accelerationIntent`: persistent drive state such as idle or accelerating
+- `accumulator.acceleration`: per-frame continuous influences that scale with
+  `dt`
+- `accumulator.impulse`: per-frame instantaneous velocity changes that do not
+  scale with `dt`
 
 Design intent:
 
 - gameplay systems emit motion contributions
-- one integration system updates velocity
-- movement system then updates position
+- persistent drive state is converted into accumulator input before movement
+- movement updates velocity, then updates position
 
-Avoid having many systems directly mutate `CVelocity` unless they are doing
-explicit override/constraint/collision resolution work.
+Avoid having many systems directly overwrite `CMotion.velocity` unless they are
+doing explicit override/constraint/collision resolution work.
 
 The runtime-first version of this model is aggregate accumulation, not a
 per-entity heap of arbitrary contribution objects. If source-level contribution
@@ -229,6 +239,29 @@ The angular equivalent is `CAngularMotionAccumulator`:
 transform advancement. If collision, constraints, or staged scheduling become
 substantial, consider splitting those phases while preserving the same
 accumulator semantics.
+
+### Component Updates Should Be In-Place
+
+When a component row already exists, prefer `ComponentStore.update(for:_:)` over
+constructing a replacement component and passing it back through `insert`.
+
+Use `insert` for:
+
+- spawn-time component creation
+- adding a row that may not exist yet
+- explicit reset/reseed operations where replacing the full component is the
+  intended behavior
+
+Use `update(for:_:)` for:
+
+- per-frame system mutation
+- changing one or two fields on an existing component
+- clearing accumulators after integration
+- updating transform, motion, or other dense-row state in hot paths
+
+This keeps systems data-oriented and avoids extra sparse lookups, generation
+checks, and whole-value reconstruction when the dense row can be safely mutated
+in place.
 
 ## Deep-Dive Notes From Current Code
 
@@ -292,6 +325,8 @@ placeholder types.
 - Do not reintroduce a closed enum registry for component identity.
 - Keep component storage per-type.
 - Keep systems data-oriented.
+- In systems and other mutation-heavy paths, use `ComponentStore.update(for:_:)`
+  for existing rows instead of `insert`-as-replace.
 - Keep `World.add(_:from:)` as a capability-to-component boundary unless a
   clearly better spawn API replaces it.
 - Add explicit contribution APIs when needed instead of making many systems or

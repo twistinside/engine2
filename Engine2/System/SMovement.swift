@@ -21,35 +21,32 @@ class SMovement: System {
             Self.signposter.endInterval("SMovement.update", signpostState)
         }
 
-        // Most entities will have no explicit motion input this frame, so reuse
-        // one zero-value accumulator instead of constructing a new default each iteration.
-        let zeroAccumulator = CMotionAccumulator(acceleration: .zero, impulse: .zero)
-
-        // Drive iteration from the velocity store and skip incomplete motion rows.
-        let entities = world.velocityComponents.entities
+        // Drive iteration from the motion store and skip incomplete transform rows.
+        let entities = world.motionComponents.entities
 
         for entity in entities {
-            guard
-                let position = world.positionComponents[entity],
-                let velocity = world.velocityComponents[entity]
-            else {
+            guard let position = world.positionComponents[entity] else {
                 continue
             }
 
-            let accumulator = world.motionAccumulatorComponents[entity] ?? zeroAccumulator
+            var updatedPosition: SIMD3<Float>?
+            world.motionComponents.update(for: entity) { motion in
+                // Continuous acceleration scales with `deltaTime`; impulse is an immediate
+                // velocity delta. Position then advances using the updated velocity.
+                let updatedVelocity = motion.velocity + motion.acceleration * deltaTime + motion.impulse
+                let newPosition = position.position + updatedVelocity * deltaTime
+                updatedPosition = newPosition
 
-            // Continuous acceleration scales with `deltaTime`; impulse is an immediate
-            // velocity delta. Position then advances using the updated velocity.
-            let updatedVelocity = velocity.velocity + accumulator.acceleration * deltaTime + accumulator.impulse
-            let updatedPosition = position.position + updatedVelocity * deltaTime
+                motion.velocity = updatedVelocity
+                motion.accumulator = .zero
+            }
 
-            world.velocityComponents.insert(CVelocity(velocity: updatedVelocity), for: entity)
-            world.positionComponents.insert(CPosition(position: updatedPosition), for: entity)
+            guard let updatedPosition else {
+                continue
+            }
 
-            // Motion contributions are per-frame inputs, so clear the accumulator
-            // after they have been consumed.
-            if world.motionAccumulatorComponents[entity] != nil {
-                world.motionAccumulatorComponents.insert(zeroAccumulator, for: entity)
+            world.positionComponents.update(for: entity) { position in
+                position.position = updatedPosition
             }
         }
     }

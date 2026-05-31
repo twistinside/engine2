@@ -14,7 +14,7 @@ struct BallTests {
         let world = World()
         let expectedPosition = SIMD3<Float>(1, 2, 3)
         let expectedVelocity = SIMD3<Float>(4, 5, 6)
-        let expectedAcceleration = SIMD3<Float>(0.25, 0.5, 0.75)
+        let expectedAccelerationIntent = CMotion.AccelerationIntent.accelerating(SIMD3<Float>(1, 0, 0))
         let expectedImpulse = SIMD3<Float>(-1, 0.5, 2)
         let expectedRotation = simd_quatf(angle: .pi / 3, axis: SIMD3<Float>(0, 1, 0))
         let expectedAngularVelocity = SIMD3<Float>(0.1, 0.2, 0.3)
@@ -25,7 +25,7 @@ struct BallTests {
             in: world,
             position: expectedPosition,
             velocity: expectedVelocity,
-            acceleration: expectedAcceleration,
+            accelerationIntent: expectedAccelerationIntent,
             impulse: expectedImpulse,
             rotation: expectedRotation,
             angularVelocity: expectedAngularVelocity,
@@ -35,7 +35,8 @@ struct BallTests {
 
         #expect(ball.position == expectedPosition)
         #expect(ball.velocity == expectedVelocity)
-        #expect(ball.acceleration == expectedAcceleration)
+        #expect(ball.acceleration == .zero)
+        #expect(ball.accelerationIntent == expectedAccelerationIntent)
         #expect(ball.impulse == expectedImpulse)
         #expect(ball.rotation.vector == expectedRotation.vector)
         #expect(ball.angularVelocity == expectedAngularVelocity)
@@ -52,6 +53,7 @@ struct BallTests {
         #expect(ball.position == .zero)
         #expect(ball.velocity == .zero)
         #expect(ball.acceleration == .zero)
+        #expect(ball.accelerationIntent == .idle)
         #expect(ball.impulse == .zero)
         #expect(ball.rotation.vector == expectedRotation.vector)
         #expect(ball.angularVelocity == .zero)

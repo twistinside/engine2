@@ -7,29 +7,37 @@
 
 protocol Movable: Positionable {
     var acceleration: SIMD3<Float> { get }
+    var accelerationIntent: CMotion.AccelerationIntent { get }
     var impulse: SIMD3<Float> { get }
     var velocity: SIMD3<Float> { get }
 }
 
 extension Movable {
     var acceleration: SIMD3<Float> {
-        guard let accumulator = world.motionAccumulatorComponents[self.id] else {
-            fatalError("There is no motion accumulator for the movable entity with ID: \(self.id)")
+        guard let motion = world.motionComponents[self.id] else {
+            fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
-        return accumulator.acceleration
+        return motion.acceleration
+    }
+
+    var accelerationIntent: CMotion.AccelerationIntent {
+        guard let motion = world.motionComponents[self.id] else {
+            fatalError("There is no motion component for the movable entity with ID: \(self.id)")
+        }
+        return motion.accelerationIntent
     }
 
     var impulse: SIMD3<Float> {
-        guard let accumulator = world.motionAccumulatorComponents[self.id] else {
-            fatalError("There is no motion accumulator for the movable entity with ID: \(self.id)")
+        guard let motion = world.motionComponents[self.id] else {
+            fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
-        return accumulator.impulse
+        return motion.impulse
     }
 
     var velocity: SIMD3<Float> {
-        guard let velocity = world.velocityComponents[self.id]?.velocity else {
-            fatalError("There is no velocity for the movable entity with ID: \(self.id)")
+        guard let motion = world.motionComponents[self.id] else {
+            fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
-        return velocity
+        return motion.velocity
     }
 }

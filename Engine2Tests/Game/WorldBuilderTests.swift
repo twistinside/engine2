@@ -19,9 +19,10 @@ struct WorldBuilderTests {
         let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
 
         #expect(world.positionComponents[entity]?.position == .zero)
-        #expect(world.velocityComponents[entity]?.velocity == .zero)
-        #expect(world.motionAccumulatorComponents[entity]?.acceleration == .zero)
-        #expect(world.motionAccumulatorComponents[entity]?.impulse == .zero)
+        #expect(world.motionComponents[entity]?.velocity == .zero)
+        #expect(world.motionComponents[entity]?.acceleration == .zero)
+        #expect(world.motionComponents[entity]?.accelerationIntent == .idle)
+        #expect(world.motionComponents[entity]?.impulse == .zero)
         #expect(world.rotationComponents[entity]?.rotation.vector == expectedRotation.vector)
         #expect(world.angularVelocityComponents[entity]?.angularVelocity == .zero)
         #expect(world.angularMotionAccumulatorComponents[entity]?.angularAcceleration == .zero)

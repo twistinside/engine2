@@ -6,5 +6,5 @@
 //
 
 struct CPosition: Component {
-    let position: SIMD3<Float>
+    var position: SIMD3<Float>
 }
