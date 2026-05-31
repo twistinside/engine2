@@ -13,7 +13,7 @@ struct WorldBuilderTests {
     @Test func basicWorldBuilderSeedsDefaultBall() async throws {
         let world = BasicWorldBuilder().buildWorld()
 
-        #expect(world.positionComponents.entities.count == 1)
+        #expect(world.positionComponents.entities.count == 4)
 
         let entity = try #require(world.positionComponents.entities.first)
         let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
