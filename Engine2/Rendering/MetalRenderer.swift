@@ -6,8 +6,10 @@
 //
 
 import Dispatch
+import Foundation
 import Metal
 import MetalKit
+import ModelIO
 import QuartzCore
 
 @MainActor
@@ -24,9 +26,15 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// renderer creates.
     let device: any MTLDevice
 
-    /// Fixed pipeline for the first renderer milestone: one vertex shader, one
-    /// fragment shader, and no external resources.
+    /// Fixed pipeline for this simple USD-backed renderer.
     private let renderPipelineState: any MTLRenderPipelineState
+
+    /// Metal 4 resource binding table. Each draw updates buffer slot 0 to point
+    /// at the current mesh's vertex buffer before encoding the draw.
+    private let argumentTable: any MTL4ArgumentTable
+
+    /// Static model loaded from USDZ through Model I/O and MetalKit.
+    private let model: USDRenderModel
 
     /// Metal 4 submits reusable command buffers through a queue instead of
     /// committing work directly from the command buffer.
@@ -43,6 +51,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     init(
         device: any MTLDevice,
         renderPipelineState: any MTLRenderPipelineState,
+        argumentTable: any MTL4ArgumentTable,
+        model: USDRenderModel,
         commandQueue: any MTL4CommandQueue,
         commandAllocators: [any MTL4CommandAllocator]
     ) {
@@ -50,10 +60,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
         self.device = device
         self.renderPipelineState = renderPipelineState
+        self.argumentTable = argumentTable
+        self.model = model
         self.commandQueue = commandQueue
         self.frames = commandAllocators.map(FrameResources.init(commandAllocator:))
 
         super.init()
+
+        commandQueue.addResidencySet(model.residencySet)
     }
 
     /// Registers the drawable resources that MetalKit owns so Metal 4 can keep
@@ -68,10 +82,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
-    /// Draws a hard-coded triangle into the current drawable using MetalKit's
-    /// Metal 4 render pass descriptor. This is the smallest useful rendering
-    /// milestone: a real pipeline and draw call, but no engine-driven
-    /// presentation state yet.
+    /// Draws the USDZ hello triangle into the current drawable using MetalKit's
+    /// Metal 4 render pass descriptor. This is still a tiny renderer, but the
+    /// geometry now flows through the same Model I/O -> MetalKit path that real
+    /// static mesh assets can use.
     func draw(in view: MTKView) {
         // Pick the next frame slot before touching the drawable. If all slots
         // are still in flight, this applies back pressure here instead of
@@ -119,10 +133,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        // The shader creates positions and colors from `vertex_id`, so this
-        // first triangle does not need a vertex buffer or argument table.
         renderEncoder.setRenderPipelineState(renderPipelineState)
-        renderEncoder.drawPrimitives(primitiveType: .triangle, vertexStart: 0, vertexCount: 3)
+        draw(model, with: renderEncoder)
 
         // Ending the encoder finalizes the render pass. The pass first clears
         // the drawable using the view's clear color, then stores the triangle
@@ -155,13 +167,41 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         return frame
     }
 
+    private func draw(_ model: USDRenderModel, with renderEncoder: any MTL4RenderCommandEncoder) {
+        for mesh in model.meshes {
+            guard let vertexBuffer = mesh.vertexBuffers.first else {
+                continue
+            }
+
+            // MetalKit may suballocate mesh buffers from a larger MTLBuffer, so
+            // the GPU address passed to Metal 4 needs the mesh buffer's offset.
+            argumentTable.setAddress(
+                vertexBuffer.buffer.gpuAddress + UInt64(vertexBuffer.offset),
+                index: 0
+            )
+            renderEncoder.setArgumentTable(argumentTable, stages: .vertex)
+
+            for submesh in mesh.submeshes {
+                let indexBuffer = submesh.indexBuffer
+
+                renderEncoder.drawIndexedPrimitives(
+                    primitiveType: submesh.primitiveType,
+                    indexCount: submesh.indexCount,
+                    indexType: submesh.indexType,
+                    indexBuffer: indexBuffer.buffer.gpuAddress + UInt64(indexBuffer.offset),
+                    indexBufferLength: indexBuffer.length
+                )
+            }
+        }
+    }
+
     /// Builds the fixed render pipeline from the app's default Metal library.
     /// Keeping this here makes the SwiftUI wrapper responsible only for view
     /// creation and device setup.
     static func makeRenderPipelineState(device: any MTLDevice) throws -> any MTLRenderPipelineState {
         guard let library = device.makeDefaultLibrary(),
-              let vertexFunction = library.makeFunction(name: "helloTriangleVertex"),
-              let fragmentFunction = library.makeFunction(name: "helloTriangleFragment")
+              let vertexFunction = library.makeFunction(name: "modelVertex"),
+              let fragmentFunction = library.makeFunction(name: "modelFragment")
         else {
             throw MetalRendererError.missingShaderFunction
         }
@@ -173,6 +213,94 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
 
         return try device.makeRenderPipelineState(descriptor: descriptor)
+    }
+
+    static func makeArgumentTable(device: any MTLDevice) throws -> any MTL4ArgumentTable {
+        let descriptor = MTL4ArgumentTableDescriptor()
+        descriptor.label = "USD Mesh Argument Table"
+        descriptor.maxBufferBindCount = 1
+
+        return try device.makeArgumentTable(descriptor: descriptor)
+    }
+}
+
+struct USDRenderModel {
+    let meshes: [MTKMesh]
+    let residencySet: any MTLResidencySet
+
+    static func load(named name: String, device: any MTLDevice) throws -> USDRenderModel {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "usdz") else {
+            throw MetalRendererError.missingModel(name)
+        }
+
+        let allocator = MTKMeshBufferAllocator(device: device)
+        let vertexDescriptor = makeVertexDescriptor()
+        let asset = MDLAsset(url: url, vertexDescriptor: vertexDescriptor, bufferAllocator: allocator)
+        let meshes = try MTKMesh.newMeshes(asset: asset, device: device).metalKitMeshes
+        let residencySet = try makeResidencySet(named: name, for: meshes, device: device)
+
+        return USDRenderModel(meshes: meshes, residencySet: residencySet)
+    }
+
+    private static func makeVertexDescriptor() -> MDLVertexDescriptor {
+        let vertexDescriptor = MDLVertexDescriptor()
+        vertexDescriptor.attributes[0] = MDLVertexAttribute(
+            name: MDLVertexAttributePosition,
+            format: .float3,
+            offset: 0,
+            bufferIndex: 0
+        )
+        vertexDescriptor.attributes[1] = MDLVertexAttribute(
+            name: MDLVertexAttributeColor,
+            format: .float3,
+            offset: MemoryLayout<SIMD3<Float>>.stride,
+            bufferIndex: 0
+        )
+        vertexDescriptor.layouts[0] = MDLVertexBufferLayout(stride: MemoryLayout<SIMD3<Float>>.stride * 2)
+
+        return vertexDescriptor
+    }
+
+    private static func makeResidencySet(
+        named name: String,
+        for meshes: [MTKMesh],
+        device: any MTLDevice
+    ) throws -> any MTLResidencySet {
+        let descriptor = MTLResidencySetDescriptor()
+        descriptor.label = "\(name) USD Buffers"
+        descriptor.initialCapacity = meshes.reduce(0) { count, mesh in
+            count + mesh.vertexBuffers.count + mesh.submeshes.count
+        }
+
+        let residencySet = try device.makeResidencySet(descriptor: descriptor)
+        var addedBuffers = Set<ObjectIdentifier>()
+
+        for mesh in meshes {
+            for vertexBuffer in mesh.vertexBuffers {
+                add(vertexBuffer.buffer, to: residencySet, tracking: &addedBuffers)
+            }
+
+            for submesh in mesh.submeshes {
+                add(submesh.indexBuffer.buffer, to: residencySet, tracking: &addedBuffers)
+            }
+        }
+
+        residencySet.commit()
+        return residencySet
+    }
+
+    private static func add(
+        _ buffer: any MTLBuffer,
+        to residencySet: any MTLResidencySet,
+        tracking addedBuffers: inout Set<ObjectIdentifier>
+    ) {
+        let identifier = ObjectIdentifier(buffer as AnyObject)
+
+        guard addedBuffers.insert(identifier).inserted else {
+            return
+        }
+
+        residencySet.addAllocation(buffer)
     }
 }
 
@@ -203,4 +331,5 @@ private final class FrameResources: @unchecked Sendable {
 
 private enum MetalRendererError: Error {
     case missingShaderFunction
+    case missingModel(String)
 }

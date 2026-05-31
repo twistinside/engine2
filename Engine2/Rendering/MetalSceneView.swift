@@ -43,7 +43,9 @@ struct MetalSceneView: NSViewRepresentable {
         init() {
             guard let device = MTLCreateSystemDefaultDevice(),
                   let commandQueue = device.makeMTL4CommandQueue(),
-                  let renderPipelineState = try? MetalRenderer.makeRenderPipelineState(device: device)
+                  let renderPipelineState = try? MetalRenderer.makeRenderPipelineState(device: device),
+                  let argumentTable = try? MetalRenderer.makeArgumentTable(device: device),
+                  let triangle = try? USDRenderModel.load(named: "PrettyTriangle", device: device)
             else {
                 renderer = nil
                 return
@@ -63,6 +65,8 @@ struct MetalSceneView: NSViewRepresentable {
             renderer = MetalRenderer(
                 device: device,
                 renderPipelineState: renderPipelineState,
+                argumentTable: argumentTable,
+                model: triangle,
                 commandQueue: commandQueue,
                 commandAllocators: commandAllocators
             )
