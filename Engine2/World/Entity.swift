@@ -45,7 +45,7 @@ class Entity {
     }
 
     /// Reserves an ID and registers the fully initialized entity with the world.
-    convenience init(in world: World, from state: InitialState = .empty) {
+    convenience init(in world: World, from state: InitialState) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
         world.add(self, from: state)
     }
