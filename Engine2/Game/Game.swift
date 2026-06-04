@@ -39,7 +39,7 @@ final class Game {
     init(
         worldBuilder: any WorldBuilder = BasicWorldBuilder(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        systems: [any System] = [SMovement(), SRotation()],
+        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation()],
         pollInterval: Duration? = nil,
         clockFactory: @escaping GameLoop.ClockFactory = { SystemClock() },
         sleeper: @escaping GameLoop.Sleeper = { deadline in

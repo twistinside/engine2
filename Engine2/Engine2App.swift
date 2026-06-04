@@ -20,7 +20,7 @@ struct Engine2App: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(gameState: game.state)
+            ContentView(game: game)
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
             if isRunningTests {

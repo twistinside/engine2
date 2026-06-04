@@ -8,19 +8,40 @@
 import SwiftUI
 
 struct ContentView: View {
-    let gameState: Game.State
+    let game: Game
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            MetalSceneView()
+        ZStack {
+            MetalSceneView {
+                RenderFrame.extract(from: game.world)
+            }
                 .ignoresSafeArea()
 
-            Text(gameState.isRunning ? "Simulation Running" : "Simulation Paused")
+            Button {
+                toggleSimulation()
+            } label: {
+                Label(
+                    game.state.isRunning ? "Simulation Running" : "Simulation Paused",
+                    systemImage: game.state.isRunning ? "pause.fill" : "play.fill"
+                )
                 .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 6))
+            }
+                .buttonStyle(.glass)
+                .controlSize(.small)
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
+            EntityMotionPane(game: game)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        }
+    }
+
+    private func toggleSimulation() {
+        if game.state.isRunning {
+            game.stop()
+        } else {
+            game.start()
         }
     }
 }

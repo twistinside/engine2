@@ -30,11 +30,18 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private let renderPipelineState: any MTLRenderPipelineState
 
     /// Metal 4 resource binding table. Each draw updates buffer slot 0 to point
-    /// at the current mesh's vertex buffer before encoding the draw.
+    /// at the current mesh's vertex buffer and slot 1 to point at the current
+    /// render instance before encoding the draw.
     private let argumentTable: any MTL4ArgumentTable
 
     /// Static model loaded from USDZ through Model I/O and MetalKit.
     private let model: USDRenderModel
+
+    /// Supplies the latest ECS-derived presentation snapshot for each draw.
+    private let renderFrameProvider: @MainActor () -> RenderFrame
+
+    /// Keeps dynamic per-frame instance buffers resident for Metal 4 queue use.
+    private let frameResidencySet: any MTLResidencySet
 
     /// Metal 4 submits reusable command buffers through a queue instead of
     /// committing work directly from the command buffer.
@@ -53,21 +60,26 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         renderPipelineState: any MTLRenderPipelineState,
         argumentTable: any MTL4ArgumentTable,
         model: USDRenderModel,
+        renderFrameProvider: @escaping @MainActor () -> RenderFrame,
+        frameResidencySet: any MTLResidencySet,
         commandQueue: any MTL4CommandQueue,
-        commandAllocators: [any MTL4CommandAllocator]
+        frames: [FrameResources]
     ) {
-        precondition(!commandAllocators.isEmpty, "MetalRenderer requires at least one command allocator.")
+        precondition(!frames.isEmpty, "MetalRenderer requires at least one frame resource set.")
 
         self.device = device
         self.renderPipelineState = renderPipelineState
         self.argumentTable = argumentTable
         self.model = model
+        self.renderFrameProvider = renderFrameProvider
+        self.frameResidencySet = frameResidencySet
         self.commandQueue = commandQueue
-        self.frames = commandAllocators.map(FrameResources.init(commandAllocator:))
+        self.frames = frames
 
         super.init()
 
         commandQueue.addResidencySet(model.residencySet)
+        commandQueue.addResidencySet(frameResidencySet)
     }
 
     /// Registers the drawable resources that MetalKit owns so Metal 4 can keep
@@ -118,6 +130,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Attach this frame's allocator before encoding. A Metal 4 command
         // buffer does not own command storage until `beginCommandBuffer`.
         commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)
+        let instanceCount = frame.write(renderFrameProvider().instances)
 
         // The descriptor already contains the current drawable texture and the
         // clear color configured on `MTKView`. The pipeline state tells Metal
@@ -134,7 +147,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
 
         renderEncoder.setRenderPipelineState(renderPipelineState)
-        draw(model, with: renderEncoder)
+        draw(model, instanceCount: instanceCount, frame: frame, with: renderEncoder)
 
         // Ending the encoder finalizes the render pass. The pass first clears
         // the drawable using the view's clear color, then stores the triangle
@@ -167,30 +180,46 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         return frame
     }
 
-    private func draw(_ model: USDRenderModel, with renderEncoder: any MTL4RenderCommandEncoder) {
-        for mesh in model.meshes {
-            guard let vertexBuffer = mesh.vertexBuffers.first else {
-                continue
-            }
+    private func draw(
+        _ model: USDRenderModel,
+        instanceCount: Int,
+        frame: FrameResources,
+        with renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        guard instanceCount > 0 else {
+            return
+        }
 
-            // MetalKit may suballocate mesh buffers from a larger MTLBuffer, so
-            // the GPU address passed to Metal 4 needs the mesh buffer's offset.
+        for instanceIndex in 0..<instanceCount {
             argumentTable.setAddress(
-                vertexBuffer.buffer.gpuAddress + UInt64(vertexBuffer.offset),
-                index: 0
+                frame.instanceBuffer.gpuAddress + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride),
+                index: 1
             )
-            renderEncoder.setArgumentTable(argumentTable, stages: .vertex)
 
-            for submesh in mesh.submeshes {
-                let indexBuffer = submesh.indexBuffer
+            for mesh in model.meshes {
+                guard let vertexBuffer = mesh.vertexBuffers.first else {
+                    continue
+                }
 
-                renderEncoder.drawIndexedPrimitives(
-                    primitiveType: submesh.primitiveType,
-                    indexCount: submesh.indexCount,
-                    indexType: submesh.indexType,
-                    indexBuffer: indexBuffer.buffer.gpuAddress + UInt64(indexBuffer.offset),
-                    indexBufferLength: indexBuffer.length
+                // MetalKit may suballocate mesh buffers from a larger MTLBuffer, so
+                // the GPU address passed to Metal 4 needs the mesh buffer's offset.
+                argumentTable.setAddress(
+                    vertexBuffer.buffer.gpuAddress + UInt64(vertexBuffer.offset),
+                    index: 0
                 )
+                renderEncoder.setArgumentTable(argumentTable, stages: .vertex)
+
+                for submesh in mesh.submeshes {
+                    let indexBuffer = submesh.indexBuffer
+
+                    renderEncoder.drawIndexedPrimitives(
+                        primitiveType: submesh.primitiveType,
+                        indexCount: submesh.indexCount,
+                        indexType: submesh.indexType,
+                        indexBuffer: indexBuffer.buffer.gpuAddress + UInt64(indexBuffer.offset),
+                        indexBufferLength: indexBuffer.length
+                    )
+                }
             }
         }
     }
@@ -218,9 +247,43 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     static func makeArgumentTable(device: any MTLDevice) throws -> any MTL4ArgumentTable {
         let descriptor = MTL4ArgumentTableDescriptor()
         descriptor.label = "USD Mesh Argument Table"
-        descriptor.maxBufferBindCount = 1
+        descriptor.maxBufferBindCount = 2
 
         return try device.makeArgumentTable(descriptor: descriptor)
+    }
+
+    static func makeFrameResources(
+        device: any MTLDevice,
+        count: Int = maximumFramesInFlight
+    ) throws -> (frames: [FrameResources], residencySet: any MTLResidencySet) {
+        let descriptor = MTLResidencySetDescriptor()
+        descriptor.label = "Render Frame Buffers"
+        descriptor.initialCapacity = count
+
+        let residencySet = try device.makeResidencySet(descriptor: descriptor)
+        var frames: [FrameResources] = []
+
+        for _ in 0..<count {
+            guard let commandAllocator = device.makeCommandAllocator(),
+                  let instanceBuffer = device.makeBuffer(
+                    length: MemoryLayout<GPUInstance>.stride * FrameResources.maximumInstanceCount,
+                    options: [.storageModeShared]
+                  )
+            else {
+                throw MetalRendererError.missingFrameResource
+            }
+
+            residencySet.addAllocation(instanceBuffer)
+            frames.append(
+                FrameResources(
+                    commandAllocator: commandAllocator,
+                    instanceBuffer: instanceBuffer
+                )
+            )
+        }
+
+        residencySet.commit()
+        return (frames, residencySet)
     }
 }
 
@@ -304,16 +367,35 @@ struct USDRenderModel {
     }
 }
 
-private final class FrameResources: @unchecked Sendable {
+private struct GPUInstance {
+    var transform: SIMD4<Float>
+
+    init(_ instance: RenderInstance) {
+        transform = SIMD4<Float>(
+            instance.clipPosition.x,
+            instance.clipPosition.y,
+            instance.scale,
+            0
+        )
+    }
+}
+
+final class FrameResources: @unchecked Sendable {
+    static let maximumInstanceCount = 256
+
     /// The allocator that backs command encoding for one frame slot.
     let commandAllocator: any MTL4CommandAllocator
+
+    /// CPU-written, GPU-read transform data for entities in the current frame.
+    let instanceBuffer: any MTLBuffer
 
     /// Starts available. A draw call waits on it before reusing the allocator,
     /// and the queue feedback handler signals it after GPU completion.
     private let availability = DispatchSemaphore(value: 1)
 
-    init(commandAllocator: any MTL4CommandAllocator) {
+    init(commandAllocator: any MTL4CommandAllocator, instanceBuffer: any MTLBuffer) {
         self.commandAllocator = commandAllocator
+        self.instanceBuffer = instanceBuffer
     }
 
     /// Blocks the main actor only when the CPU outruns all in-flight frame
@@ -327,9 +409,24 @@ private final class FrameResources: @unchecked Sendable {
     func markAvailable() {
         availability.signal()
     }
+
+    func write(_ instances: [RenderInstance]) -> Int {
+        let instanceCount = min(instances.count, Self.maximumInstanceCount)
+        let destination = instanceBuffer.contents().bindMemory(
+            to: GPUInstance.self,
+            capacity: Self.maximumInstanceCount
+        )
+
+        for index in 0..<instanceCount {
+            destination[index] = GPUInstance(instances[index])
+        }
+
+        return instanceCount
+    }
 }
 
 private enum MetalRendererError: Error {
     case missingShaderFunction
     case missingModel(String)
+    case missingFrameResource
 }

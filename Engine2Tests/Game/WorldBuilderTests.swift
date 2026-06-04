@@ -18,10 +18,10 @@ struct WorldBuilderTests {
         let entity = try #require(world.positionComponents.entities.first)
         let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
 
-        #expect(world.positionComponents[entity]?.position == .zero)
-        #expect(world.motionComponents[entity]?.velocity == .zero)
+        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(-2, -1, 0))
+        #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(0.65, 0.45, 0))
         #expect(world.motionComponents[entity]?.acceleration == .zero)
-        #expect(world.motionComponents[entity]?.accelerationIntent == .idle)
+        #expect(world.motionComponents[entity]?.accelerationIntent == .accelerating(SIMD3<Float>(0.02, 0.01, 0)))
         #expect(world.motionComponents[entity]?.impulse == .zero)
         #expect(world.rotationComponents[entity]?.rotation.vector == expectedRotation.vector)
         #expect(world.angularVelocityComponents[entity]?.angularVelocity == .zero)

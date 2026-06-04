@@ -11,8 +11,10 @@ import SwiftUI
 
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
+    var renderFrameProvider: @MainActor () -> RenderFrame
+
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(renderFrameProvider: renderFrameProvider)
     }
 
     func makeNSView(context: Context) -> MTKView {
@@ -34,32 +36,27 @@ struct MetalSceneView: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: MTKView, context: Context) {}
+    func updateNSView(_ nsView: MTKView, context: Context) {
+        context.coordinator.renderFrameProvider = renderFrameProvider
+    }
 
     @MainActor
     final class Coordinator {
-        let renderer: MetalRenderer?
+        var renderFrameProvider: @MainActor () -> RenderFrame
+        var renderer: MetalRenderer?
 
-        init() {
+        init(renderFrameProvider: @escaping @MainActor () -> RenderFrame) {
+            self.renderFrameProvider = renderFrameProvider
+            self.renderer = nil
+
             guard let device = MTLCreateSystemDefaultDevice(),
                   let commandQueue = device.makeMTL4CommandQueue(),
                   let renderPipelineState = try? MetalRenderer.makeRenderPipelineState(device: device),
                   let argumentTable = try? MetalRenderer.makeArgumentTable(device: device),
-                  let triangle = try? USDRenderModel.load(named: "PrettyTriangle", device: device)
+                  let triangle = try? USDRenderModel.load(named: "PrettyTriangle", device: device),
+                  let frameResources = try? MetalRenderer.makeFrameResources(device: device)
             else {
-                renderer = nil
                 return
-            }
-
-            var commandAllocators: [any MTL4CommandAllocator] = []
-
-            for _ in 0..<MetalRenderer.maximumFramesInFlight {
-                guard let commandAllocator = device.makeCommandAllocator() else {
-                    renderer = nil
-                    return
-                }
-
-                commandAllocators.append(commandAllocator)
             }
 
             renderer = MetalRenderer(
@@ -67,8 +64,12 @@ struct MetalSceneView: NSViewRepresentable {
                 renderPipelineState: renderPipelineState,
                 argumentTable: argumentTable,
                 model: triangle,
+                renderFrameProvider: { [weak self] in
+                    self?.renderFrameProvider() ?? .empty
+                },
+                frameResidencySet: frameResources.residencySet,
                 commandQueue: commandQueue,
-                commandAllocators: commandAllocators
+                frames: frameResources.frames
             )
         }
     }
