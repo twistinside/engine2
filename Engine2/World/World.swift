@@ -15,6 +15,7 @@ class World {
     var positionComponents = ComponentStore<CPosition>()
     var rotationComponents = ComponentStore<CRotation>()
     var scaleComponents = ComponentStore<CScale>()
+    var selectableComponents = ComponentStore<CSelectable>()
 
     // MARK: Resources
     private static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
@@ -95,6 +96,15 @@ class World {
         if entity is Scalable {
             scaleComponents.insert(
                 CScale(scale: state.scale ?? SIMD3<Float>(repeating: 1)),
+                for: entity.id
+            )
+        }
+
+        // Selectable
+        precondition(state.selectionState == nil || entity is Selectable, "Initial state.selectionState requires Selectable conformance")
+        if entity is Selectable {
+            selectableComponents.insert(
+                CSelectable(selectionState: state.selectionState ?? .unselected),
                 for: entity.id
             )
         }

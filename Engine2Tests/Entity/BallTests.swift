@@ -20,6 +20,7 @@ struct BallTests {
         let expectedAngularVelocity = SIMD3<Float>(0.1, 0.2, 0.3)
         let expectedAngularAcceleration = SIMD3<Float>(0.4, 0.5, 0.6)
         let expectedAngularImpulse = SIMD3<Float>(0.7, 0.8, 0.9)
+        let expectedSelectionState = CSelectable.SelectionState.highlighted
 
         let ball = Ball(
             in: world,
@@ -30,7 +31,8 @@ struct BallTests {
             rotation: expectedRotation,
             angularVelocity: expectedAngularVelocity,
             angularAcceleration: expectedAngularAcceleration,
-            angularImpulse: expectedAngularImpulse
+            angularImpulse: expectedAngularImpulse,
+            selectionState: expectedSelectionState
         )
 
         #expect(ball.position == expectedPosition)
@@ -42,6 +44,7 @@ struct BallTests {
         #expect(ball.angularVelocity == expectedAngularVelocity)
         #expect(ball.angularAcceleration == expectedAngularAcceleration)
         #expect(ball.angularImpulse == expectedAngularImpulse)
+        #expect(ball.selectionState == expectedSelectionState)
         #expect(world.scaleComponents[ball.id] == nil)
     }
 
@@ -59,5 +62,6 @@ struct BallTests {
         #expect(ball.angularVelocity == .zero)
         #expect(ball.angularAcceleration == .zero)
         #expect(ball.angularImpulse == .zero)
+        #expect(ball.selectionState == .unselected)
     }
 }

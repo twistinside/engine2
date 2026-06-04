@@ -27,6 +27,7 @@ struct WorldTests {
         #expect(world.scaleComponents[entity.id]?.scale == expectedScale)
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.rotationComponents[entity.id] == nil)
+        #expect(world.selectableComponents[entity.id] == nil)
     }
 
     @Test func addSeedsAccelerationIntentForMovableEntity() async throws {
@@ -41,6 +42,20 @@ struct WorldTests {
 
         #expect(world.motionComponents[entity.id]?.accelerationIntent == expectedIntent)
         #expect(entity.accelerationIntent == expectedIntent)
+    }
+
+    @Test func addSeedsSelectionStateForSelectableEntity() async throws {
+        let world = World()
+        let entity = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
+        let expectedState = CSelectable.SelectionState.selected
+
+        world.add(
+            entity,
+            from: Entity.InitialState(selectionState: expectedState)
+        )
+
+        #expect(world.selectableComponents[entity.id]?.selectionState == expectedState)
+        #expect(entity.selectionState == expectedState)
     }
 
     @Test func reserveEntityIDReturnsUniqueHandles() async throws {
@@ -58,3 +73,4 @@ struct WorldTests {
 
 private final class TestSpawnEntity: Entity, Positionable, Scalable {}
 private final class TestMovableSpawnEntity: Entity, Movable {}
+private final class TestSelectableSpawnEntity: Entity, Selectable {}

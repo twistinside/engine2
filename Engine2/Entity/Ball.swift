@@ -7,7 +7,7 @@
 
 import simd
 
-class Ball: Entity, Movable, Rotatable {
+class Ball: Entity, Movable, Rotatable, Selectable {
     convenience init(
         in world: World,
         position: SIMD3<Float> = .zero,
@@ -17,7 +17,8 @@ class Ball: Entity, Movable, Rotatable {
         rotation: simd_quatf = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1)),
         angularVelocity: SIMD3<Float> = .zero,
         angularAcceleration: SIMD3<Float> = .zero,
-        angularImpulse: SIMD3<Float> = .zero
+        angularImpulse: SIMD3<Float> = .zero,
+        selectionState: CSelectable.SelectionState = .unselected
     ) {
         self.init(
             in: world,
@@ -29,7 +30,8 @@ class Ball: Entity, Movable, Rotatable {
                 rotation: rotation,
                 angularVelocity: angularVelocity,
                 angularAcceleration: angularAcceleration,
-                angularImpulse: angularImpulse
+                angularImpulse: angularImpulse,
+                selectionState: selectionState
             )
         )
     }

@@ -33,6 +33,9 @@ class Entity {
 
         // Scalable
         var scale: SIMD3<Float>? = nil
+
+        // Selectable
+        var selectionState: CSelectable.SelectionState? = nil
     }
 
     /// Creates a live entity handle without registering it in the world.
