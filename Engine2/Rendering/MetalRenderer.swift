@@ -11,6 +11,7 @@ import Metal
 import MetalKit
 import ModelIO
 import QuartzCore
+import simd
 
 @MainActor
 final class MetalRenderer: NSObject, MTKViewDelegate {
@@ -130,7 +131,12 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Attach this frame's allocator before encoding. A Metal 4 command
         // buffer does not own command storage until `beginCommandBuffer`.
         commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)
-        let instanceCount = frame.write(renderFrameProvider().instances)
+        let renderFrame = renderFrameProvider()
+        let instanceCount = frame.write(
+            renderFrame.instances,
+            camera: renderFrame.camera,
+            drawableSize: view.drawableSize
+        )
 
         // The descriptor already contains the current drawable texture and the
         // clear color configured on `MTKView`. The pipeline state tells Metal
@@ -368,15 +374,10 @@ struct USDRenderModel {
 }
 
 private struct GPUInstance {
-    var transform: SIMD4<Float>
+    var modelViewProjectionMatrix: simd_float4x4
 
-    init(_ instance: RenderInstance) {
-        transform = SIMD4<Float>(
-            instance.clipPosition.x,
-            instance.clipPosition.y,
-            instance.scale,
-            0
-        )
+    init(_ instance: RenderInstance, viewProjectionMatrix: simd_float4x4) {
+        modelViewProjectionMatrix = viewProjectionMatrix * instance.transform.matrix
     }
 }
 
@@ -410,15 +411,24 @@ final class FrameResources: @unchecked Sendable {
         availability.signal()
     }
 
-    func write(_ instances: [RenderInstance]) -> Int {
+    func write(
+        _ instances: [RenderInstance],
+        camera: Camera,
+        drawableSize: CGSize
+    ) -> Int {
         let instanceCount = min(instances.count, Self.maximumInstanceCount)
+        let aspectRatio = Float(drawableSize.width / max(drawableSize.height, 1))
+        let viewProjectionMatrix = camera.viewProjectionMatrix(aspectRatio: aspectRatio)
         let destination = instanceBuffer.contents().bindMemory(
             to: GPUInstance.self,
             capacity: Self.maximumInstanceCount
         )
 
         for index in 0..<instanceCount {
-            destination[index] = GPUInstance(instances[index])
+            destination[index] = GPUInstance(
+                instances[index],
+                viewProjectionMatrix: viewProjectionMatrix
+            )
         }
 
         return instanceCount

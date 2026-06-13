@@ -14,8 +14,7 @@ struct ModelVertex {
 };
 
 struct ModelInstance {
-    // xy = clip-space translation, z = uniform scale
-    float4 transform;
+    float4x4 modelViewProjectionMatrix;
 };
 
 struct VertexOut {
@@ -28,10 +27,7 @@ vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
                              constant ModelInstance *instance [[buffer(1)]]) {
     VertexOut out;
 
-    float3 position = vertices[vertexID].position * instance->transform.z;
-    position.xy += instance->transform.xy;
-
-    out.position = float4(position, 1.0);
+    out.position = instance->modelViewProjectionMatrix * float4(vertices[vertexID].position, 1.0);
     out.color = half4(half3(vertices[vertexID].color), 1.0h);
 
     return out;

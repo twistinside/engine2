@@ -20,7 +20,7 @@ final class Engine {
     init(
         world: World = World(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation()]
+        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation(), SCameraOrbit()]
     ) {
         self.world = world
         self.fixedTimeStep = fixedTimeStep

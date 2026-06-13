@@ -5,10 +5,13 @@
 //  Created by Codex on 5/31/26.
 //
 
+import simd
+
 /// Flat presentation data extracted from ECS state for one render pass.
 struct RenderFrame: Equatable {
-    static let empty = RenderFrame(instances: [])
+    static let empty = RenderFrame(camera: Camera(), instances: [])
 
+    var camera: Camera
     var instances: [RenderInstance]
 
     /// Builds a renderer-facing snapshot from authoritative ECS component rows.
@@ -18,24 +21,39 @@ struct RenderFrame: Equatable {
                 return nil
             }
 
-            return RenderInstance(worldPosition: position)
+            return RenderInstance(
+                transform: Transform(
+                    position: position,
+                    rotation: world.rotationComponents[entity]?.rotation ?? Transform.identityRotation,
+                    scale: world.scaleComponents[entity]?.scale ?? RenderInstance.defaultScale
+                )
+            )
         }
 
-        return RenderFrame(instances: instances)
+        return RenderFrame(camera: world.camera, instances: instances)
     }
 }
 
 /// Minimal per-entity presentation state.
 struct RenderInstance: Equatable {
-    /// Clip-space translation used by the temporary renderer.
-    ///
-    /// This is intentionally presentation data, not ECS state. A future camera
-    /// or render extraction stage should replace this fixed world-to-clip scale.
-    var clipPosition: SIMD2<Float>
-    var scale: Float
+    /// Default world-space size for renderable entities that do not advertise scale yet.
+    static let defaultScale = SIMD3<Float>(repeating: 0.5)
 
-    init(worldPosition: SIMD3<Float>, scale: Float = 0.12) {
-        self.clipPosition = SIMD2<Float>(worldPosition.x, worldPosition.y) / 4
-        self.scale = scale
+    var transform: Transform
+
+    init(transform: Transform) {
+        self.transform = transform
+    }
+
+    init(
+        worldPosition: SIMD3<Float>,
+        rotation: simd_quatf = Transform.identityRotation,
+        scale: SIMD3<Float> = defaultScale
+    ) {
+        self.transform = Transform(
+            position: worldPosition,
+            rotation: rotation,
+            scale: scale
+        )
     }
 }

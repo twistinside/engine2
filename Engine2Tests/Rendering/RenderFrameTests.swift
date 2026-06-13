@@ -5,6 +5,7 @@
 //  Created by Codex on 5/31/26.
 //
 
+import simd
 import Testing
 @testable import Engine2
 
@@ -23,6 +24,33 @@ struct RenderFrameTests {
             frame.instances == [
                 RenderInstance(worldPosition: SIMD3<Float>(2, -4, 0)),
                 RenderInstance(worldPosition: SIMD3<Float>(-1, 3, 0))
+            ]
+        )
+    }
+
+    @Test func extractIncludesCameraRotationAndScale() async throws {
+        let world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
+        let scale = SIMD3<Float>(2, 3, 4)
+
+        world.camera = Camera(position: SIMD3<Float>(1, 2, 3), orthographicHeight: 12)
+        world.positionComponents.insert(CPosition(position: SIMD3<Float>(3, 4, 5)), for: entity)
+        world.rotationComponents.insert(CRotation(rotation: rotation), for: entity)
+        world.scaleComponents.insert(CScale(scale: scale), for: entity)
+
+        let frame = RenderFrame.extract(from: world)
+
+        #expect(frame.camera == world.camera)
+        #expect(
+            frame.instances == [
+                RenderInstance(
+                    transform: Transform(
+                        position: SIMD3<Float>(3, 4, 5),
+                        rotation: rotation,
+                        scale: scale
+                    )
+                )
             ]
         )
     }
