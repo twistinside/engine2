@@ -71,4 +71,31 @@ struct EngineTests {
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.accumulatedTime == .zero)
     }
+
+    @Test func pausedUpdateRunsAlwaysSystemsButSkipsSimulationSystems() async throws {
+        let world = World()
+        let entity = EntityID(index: 0, generation: 0)
+
+        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        world.motionComponents.insert(
+            CMotion(velocity: SIMD3<Float>(10, 0, 0)),
+            for: entity
+        )
+        world.input.apply(.mouseButtonDown(.left, position: .zero))
+
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .milliseconds(100),
+            alwaysSystems: [SInputHistory(), SInputCleanup()],
+            systems: [SMovement()]
+        )
+        engine.isSimulationRunning = false
+
+        engine.update(deltaTime: .milliseconds(100))
+
+        #expect(world.positionComponents[entity]?.position == .zero)
+        #expect(world.input.history.count == 1)
+        #expect(world.input.history[0].tokens == ["LMB"])
+        #expect(engine.accumulatedTime == .zero)
+    }
 }

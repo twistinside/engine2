@@ -18,6 +18,7 @@ final class Game {
     /// Minimal session state intended for SwiftUI and other presentation code.
     struct State {
         var fixedTimeStep: Duration
+        var isLoopRunning = false
         var isRunning = false
     }
 
@@ -39,7 +40,13 @@ final class Game {
     init(
         worldBuilder: any WorldBuilder = BasicWorldBuilder(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation(), SCameraOrbit()],
+        alwaysSystems: [any System] = [
+            SInputMapping(),
+            SCameraInput(),
+            SInputHistory(),
+            SInputCleanup()
+        ],
+        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation()],
         pollInterval: Duration? = nil,
         clockFactory: @escaping GameLoop.ClockFactory = { SystemClock() },
         sleeper: @escaping GameLoop.Sleeper = { deadline in
@@ -50,9 +57,11 @@ final class Game {
         let engine = Engine(
             world: worldBuilder.buildWorld(),
             fixedTimeStep: fixedTimeStep,
+            alwaysSystems: alwaysSystems,
             systems: systems
         )
         self.engine = engine
+        engine.isSimulationRunning = false
         self.state = State(fixedTimeStep: fixedTimeStep)
 
         let gameLoop = GameLoop(
@@ -63,7 +72,7 @@ final class Game {
         )
         self.gameLoop = gameLoop
         gameLoop.runningStateDidChange = { [weak self] isRunning in
-            self?.state.isRunning = isRunning
+            self?.state.isLoopRunning = isRunning
         }
     }
 
@@ -85,11 +94,30 @@ final class Game {
 
     /// Starts the session's polling loop if it is not already active.
     func start() {
+        resumeSimulation()
         gameLoop.start()
     }
 
     /// Stops the session's polling loop if it is active.
     func stop() {
+        pauseSimulation()
         gameLoop.stop()
+    }
+
+    /// Enables simulation systems while leaving the app-owned loop running.
+    func resumeSimulation() {
+        engine.isSimulationRunning = true
+        state.isRunning = true
+        gameLoop.start()
+    }
+
+    /// Disables simulation systems while always-running input/tool systems continue.
+    func pauseSimulation() {
+        engine.isSimulationRunning = false
+        state.isRunning = false
+    }
+
+    func handleInput(_ event: InputEvent) {
+        engine.world.input.apply(event)
     }
 }

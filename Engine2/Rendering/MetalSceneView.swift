@@ -12,13 +12,17 @@ import SwiftUI
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderFrameProvider: @MainActor () -> RenderFrame
+    var inputHandler: @MainActor (InputEvent) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(renderFrameProvider: renderFrameProvider)
+        Coordinator(
+            renderFrameProvider: renderFrameProvider,
+            inputHandler: inputHandler
+        )
     }
 
-    func makeNSView(context: Context) -> MTKView {
-        let view = MTKView(frame: .zero, device: context.coordinator.renderer?.device)
+    func makeNSView(context: Context) -> InputMetalView {
+        let view = InputMetalView(frame: .zero, device: context.coordinator.renderer?.device)
 
         view.autoResizeDrawable = true
         view.clearColor = MTLClearColor(red: 0.05, green: 0.07, blue: 0.09, alpha: 1)
@@ -31,22 +35,38 @@ struct MetalSceneView: NSViewRepresentable {
         view.sampleCount = 1
 
         view.delegate = context.coordinator.renderer
+        view.inputHandler = { event in
+            MainActor.assumeIsolated {
+                context.coordinator.inputHandler(event)
+            }
+        }
         context.coordinator.renderer?.configure(view)
 
         return view
     }
 
-    func updateNSView(_ nsView: MTKView, context: Context) {
+    func updateNSView(_ nsView: InputMetalView, context: Context) {
         context.coordinator.renderFrameProvider = renderFrameProvider
+        context.coordinator.inputHandler = inputHandler
+        nsView.inputHandler = { event in
+            MainActor.assumeIsolated {
+                context.coordinator.inputHandler(event)
+            }
+        }
     }
 
     @MainActor
     final class Coordinator {
         var renderFrameProvider: @MainActor () -> RenderFrame
+        var inputHandler: @MainActor (InputEvent) -> Void
         var renderer: MetalRenderer?
 
-        init(renderFrameProvider: @escaping @MainActor () -> RenderFrame) {
+        init(
+            renderFrameProvider: @escaping @MainActor () -> RenderFrame,
+            inputHandler: @escaping @MainActor (InputEvent) -> Void
+        ) {
             self.renderFrameProvider = renderFrameProvider
+            self.inputHandler = inputHandler
             self.renderer = nil
 
             guard let device = MTLCreateSystemDefaultDevice(),

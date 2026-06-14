@@ -11,21 +11,30 @@ final class Engine {
     private let fixedTimeStepSeconds: Float
 
     private(set) var accumulatedTime: Duration = .zero
-    private var systems: [any System]
+    private var alwaysSystems: [any System]
+    private var simulationSystems: [any System]
 
     let fixedTimeStep: Duration
 
+    var isSimulationRunning = true
     var world: World
 
     init(
         world: World = World(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation(), SCameraOrbit()]
+        alwaysSystems: [any System] = [
+            SInputMapping(),
+            SCameraInput(),
+            SInputHistory(),
+            SInputCleanup()
+        ],
+        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation()]
     ) {
         self.world = world
         self.fixedTimeStep = fixedTimeStep
         self.fixedTimeStepSeconds = fixedTimeStep.seconds
-        self.systems = systems
+        self.alwaysSystems = alwaysSystems
+        self.simulationSystems = systems
     }
 
     /// Adds real frame time, then runs as many fixed simulation steps as fit.
@@ -47,6 +56,24 @@ final class Engine {
 
     /// Advances the world by one fixed simulation step.
     func step() {
+        run(&alwaysSystems)
+
+        if isSimulationRunning {
+            run(&simulationSystems)
+        }
+    }
+
+    /// Appends an always-running system to the execution pipeline in call order.
+    func addAlwaysSystem(_ system: some System) {
+        alwaysSystems.append(system)
+    }
+
+    /// Appends a simulation-gated system to the execution pipeline in call order.
+    func addSystem(_ system: some System) {
+        simulationSystems.append(system)
+    }
+
+    private func run(_ systems: inout [any System]) {
         for index in systems.indices {
             // Pull the existential out, mutate it, then store it back so stateful
             // systems can preserve any internal state across steps.
@@ -54,10 +81,5 @@ final class Engine {
             system.update(world: &world, deltaTime: fixedTimeStepSeconds)
             systems[index] = system
         }
-    }
-
-    /// Appends a system to the execution pipeline in call order.
-    func addSystem(_ system: some System) {
-        systems.append(system)
     }
 }

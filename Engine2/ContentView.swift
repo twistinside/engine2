@@ -14,6 +14,8 @@ struct ContentView: View {
         ZStack {
             MetalSceneView {
                 RenderFrame.extract(from: game.world)
+            } inputHandler: { event in
+                game.handleInput(event)
             }
                 .ignoresSafeArea()
 
@@ -31,7 +33,7 @@ struct ContentView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
-            EntityMotionPane(game: game)
+            InputHistoryPane(game: game)
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
@@ -39,9 +41,9 @@ struct ContentView: View {
 
     private func toggleSimulation() {
         if game.state.isRunning {
-            game.stop()
+            game.pauseSimulation()
         } else {
-            game.start()
+            game.resumeSimulation()
         }
     }
 }
