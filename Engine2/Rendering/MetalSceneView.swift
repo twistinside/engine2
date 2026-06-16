@@ -25,7 +25,7 @@ struct MetalSceneView: NSViewRepresentable {
         let view = InputMetalView(frame: .zero, device: context.coordinator.renderer?.device)
 
         view.autoResizeDrawable = true
-        view.clearColor = MTLClearColor(red: 0.05, green: 0.07, blue: 0.09, alpha: 1)
+        view.clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1)
         view.colorPixelFormat = MetalRenderer.colorPixelFormat
         view.depthStencilPixelFormat = .invalid
         view.enableSetNeedsDisplay = false

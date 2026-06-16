@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
+    @State private var debugOptions = AppDebugOptions()
     @State private var game: Game
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -20,7 +21,15 @@ struct Engine2App: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(game: game)
+            ContentView(
+                game: game,
+                debugOptions: debugOptions
+            )
+        }
+        .commands {
+            CommandMenu("Debug") {
+                Toggle("Show Input History", isOn: $debugOptions.showsInputHistory)
+            }
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
             if isRunningTests {

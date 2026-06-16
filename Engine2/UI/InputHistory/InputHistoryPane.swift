@@ -19,19 +19,26 @@ struct InputHistoryPane: View {
                 VStack(alignment: .leading, spacing: 10) {
                     InputHistoryHeader(entryCount: entries.count)
 
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 6) {
-                            ForEach(entries) { entry in
-                                InputHistoryRow(entry: entry)
-                            }
+                    List(entries) { entry in
+                        InputHistoryRow(entry: entry)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(
+                                EdgeInsets(
+                                    top: 4,
+                                    leading: 0,
+                                    bottom: 4,
+                                    trailing: 0
+                                )
+                            )
                         }
-                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                     .frame(maxHeight: 460)
                 }
                 .padding(14)
                 .frame(width: 320, alignment: .leading)
                 .glassEffect(
-                    .regular.tint(.cyan.opacity(0.08)),
+                    .regular,
                     in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                 )
             }

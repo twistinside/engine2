@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     let game: Game
+    let debugOptions: AppDebugOptions
 
     var body: some View {
         ZStack {
@@ -33,9 +34,11 @@ struct ContentView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
-            InputHistoryPane(game: game)
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            if debugOptions.showsInputHistory {
+                InputHistoryPane(game: game)
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
         }
     }
 

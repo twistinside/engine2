@@ -27,12 +27,7 @@ struct InputHistoryRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 38, alignment: .trailing)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .glassEffect(
-            .clear.interactive(),
-            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-        )
+        .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Frame \(entry.frameIndex), \(entry.tokenText), \(entry.frameCount) frames")
     }
