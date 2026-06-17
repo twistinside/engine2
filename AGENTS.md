@@ -7,7 +7,7 @@ coherent runtime shape. The project is moving toward a hybrid model:
 
 - ECS component stores are the runtime source of truth.
 - Entity objects are ergonomic, typed facades over ECS state.
-- Capability protocols such as `Movable` and `Positionable` are kept as the
+- Capability protocols such as `PMovable` and `PPositionable` are kept as the
   game-facing/UI-facing surface.
 - Systems should operate directly on component stores in hot paths.
 
@@ -16,15 +16,14 @@ and intent when filling in missing pieces.
 
 ## MCP Tooling Preferences
 
-- Prefer the `sosumi` MCP server for Apple and Xcode documentation lookups.
-- Prefer the `xcode` MCP server for interacting with Xcode itself, including
-  project-aware build, test, and IDE-side actions.
-- When both are relevant, use `sosumi` for documentation/reference gathering
-  and `xcode` for actions against the open Xcode project.
+- Prefer the project-aware Xcode tooling available in the current session for
+  builds, tests, file reads, and other IDE-side actions.
+- Prefer the Apple documentation tooling available in the current session for
+  framework and API lookups before falling back to general web search.
 
 ## Current Structure
 
-- `Engine2/World/World.swift`
+- `Engine2/Engine2/Game/World/World.swift`
   - Central world object.
   - Owns component stores.
   - `add(_:from:)` translates advertised entity capabilities into component
@@ -32,19 +31,19 @@ and intent when filling in missing pieces.
   - `reserveEntityID()` currently allocates monotonically increasing indices
     with generation `0`; generation reuse/destruction is still future work.
 
-- `Engine2/World/Entity.swift`
+- `Engine2/Engine2/Game/World/Entity.swift`
   - Base `Entity` superclass.
   - Holds `id` and `world`.
   - `InitialState` carries common spawn-time transform and motion seed values.
   - `init(unregisteredID:in:)` is for tests and future reconstruction paths.
   - `init(in:from:)` reserves an ID and registers the entity with `World`.
 
-- `Engine2/World/EntityID.swift`
+- `Engine2/Engine2/Game/World/EntityID.swift`
   - Entity handle with `index` and `generation`.
   - `generation` should remain meaningful; do not silently regress to
     index-only identity semantics.
 
-- `Engine2/World/ComponentStore.swift`
+- `Engine2/Engine2/Game/World/ComponentStore.swift`
   - Sparse-set style storage:
     - `dense`: component values
     - `entities`: entity IDs aligned with `dense`
@@ -55,28 +54,27 @@ and intent when filling in missing pieces.
   - Removal, compaction, richer mutation helpers, and join/query helpers are
     still missing.
 
-- `Engine2/Protocol/Component.swift`
+- `Engine2/Engine2/Engine/Protocol/PComponent.swift`
   - Marker protocol for components.
 
-- `Engine2/Protocol/Positionable.swift`
-  - Convenience protocol for entity objects that can expose a live `position`
-    backed by the world component store.
+- `Engine2/Engine2/Engine/Protocol/PResource.swift`
+  - Marker protocol for shared resources and resource-like storage roles.
 
-- `Engine2/Protocol/Movable.swift`
-  - Convenience protocol for entity objects that can expose live `velocity`,
-    `acceleration`, and `impulse` backed by world component stores.
+- `Engine2/Engine2/Engine/Protocol/PSystem.swift`
+  - Core system protocol used by the engine's ordered execution lists.
 
-- `Engine2/Protocol/Orientable.swift`
-  - Convenience protocol for entity objects that expose live `rotation`.
+- `Engine2/Engine2/Engine/System/Position/Protocol/*.swift`
+  - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
+  - `PMovable` exposes live motion state backed by `World.motionComponents`.
+  - `POrientable` exposes live `rotation`.
+  - `PRotatable` exposes live angular velocity and angular accumulator input.
+  - `PScalable` exposes live `scale`.
+  - `PClock` abstracts elapsed-time sampling for the fixed-step engine.
 
-- `Engine2/Protocol/Rotatable.swift`
-  - Convenience protocol for entity objects that expose live angular velocity
-    and angular motion contributions.
+- `Engine2/Engine2/Engine/System/Selection/PSelectable.swift`
+  - Convenience protocol for entity objects that expose live selection state.
 
-- `Engine2/Protocol/Scalable.swift`
-  - Convenience protocol for entity objects that expose live `scale`.
-
-- `Engine2/Component/*.swift`
+- `Engine2/Engine2/Engine/System/Position/Component/*.swift`
   - `CPosition`
   - `CMotion`
   - `CRotation`
@@ -85,37 +83,60 @@ and intent when filling in missing pieces.
   - `CScale`
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
 
-- `Engine2/System/*.swift`
+- `Engine2/Engine2/Engine/System/Selection/CSelectable.swift`
+  - Selection-state component used by `PSelectable` entities and selection UI.
+
+- `Engine2/Engine2/Engine/System/Input/**/*.swift`
+  - `InputState` is the authoritative input resource stored on `World`.
+  - `SInputMapping` translates raw input into higher-level camera actions.
+  - `SInputHistory` records compact input history rows for debug UI.
+  - `SInputCleanup` clears per-frame transient input after always-running input
+    systems have consumed it.
+
+- `Engine2/Engine2/Engine/System/Position/System/*.swift`
   - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s
     per-frame accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves
     position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity,
     advances rotation, normalizes it, then clears the accumulator.
-  - These are real systems, but the broader scheduling/collision/presentation
-    pipeline is still incomplete.
 
-- `Engine2/Engine/*.swift`
+- `Engine2/Engine2/Engine/System/SCameraInput.swift`
+  - Applies mapped camera orbit and zoom input to `World.camera`.
+
+- `Engine2/Engine2/Engine/*.swift`
   - `Engine` owns fixed-step accumulation and ordered system execution.
-  - `Clock`, `ManualClock`, and `SystemClock` keep time sampling outside system
-    logic.
-  - `GameLoop` owns the app-level async polling task and feeds elapsed time into
-    `Engine`.
+  - `PClock`, `ManualClock`, and `SystemClock` keep time sampling outside
+    system logic.
+  - `Engine` currently maintains separate always-running and
+    simulation-gated system lists.
 
-- `Engine2/Game/*.swift`
+- `Engine2/Engine2/Game/*.swift`
   - `Game` owns session bootstrap policy above `Engine`.
-  - `WorldBuilder` creates fully bootstrapped worlds.
+  - `GameLoop` owns the app-level async polling task and feeds elapsed time
+    into `Engine`.
+
+- `Engine2/Engine2/Game/World/*.swift`
+  - `PWorldBuilder` creates fully bootstrapped worlds.
   - `BasicWorldBuilder` currently seeds a default `Ball`.
 
-- `Engine2/Entity/Ball.swift`
+- `Engine2/Engine2/Game/Entity/Ball.swift`
   - Example entity object/facade.
   - Represents the intended style of game object API more than a finished
     implementation.
 
-- `Engine2Tests/`
+- `Engine2/Engine2/Render/*.swift`
+  - `RenderFrame.extract(from:)` is the current simulation-to-render extraction
+    boundary.
+  - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
+  - `MetalRenderer` owns backend-specific Metal 4 state and consumes
+    `RenderFrame`.
+
+- `Engine2/Engine2Tests/`
   - Swift Testing coverage exists for the engine loop, clocks, world builder,
     spawn seeding, movement, rotation, rotation codability/equality, and several
     capability protocol read paths.
+  - The test tree mirrors the app/source tree where practical.
 
 ## High-Level Direction
 
@@ -125,7 +146,7 @@ Protocols are staying.
 
 They serve two purposes:
 
-- ergonomic game-level typing (`Ball: Movable`, `Ship: Collidable`, etc.)
+- ergonomic game-level typing (`Ball: PMovable`, `Ball: PSelectable`, etc.)
 - a clean bridge to UI and tooling, where code wants typed objects rather than
   raw component rows
 
@@ -348,9 +369,10 @@ placeholder types.
 - Keep the game-object layer ergonomic, but keep the ECS layer authoritative.
 - If adding selection/UI inspection, typed lookup by `EntityID` is a valid
   direction.
-- Mirror the app/source tree under `Engine2Tests/`. For example, tests for
-  `Engine2/System/SMovement.swift` should live in
-  `Engine2Tests/System/SMovementTests.swift`.
+- Mirror the app/source tree under `Engine2/Engine2Tests/`. For example, tests
+  for `Engine2/Engine2/Engine/System/Position/System/SMovement.swift` should
+  live in
+  `Engine2/Engine2Tests/Engine/System/Position/System/SMovementTests.swift`.
 
 ## Current Gaps / Known TODOs
 
@@ -368,7 +390,7 @@ placeholder types.
 - Capability accessors are strict live reads with `fatalError`; optional
   inspection/editor lookup paths do not exist yet.
 - Tests do not yet cover component removal, dense iteration with stale
-  generations, `Positionable`/`Movable` protocol reads directly, spawn
+  generations, `PPositionable`/`PMovable` protocol reads directly, spawn
   precondition failures, or fixed-step overload policy.
 
 ## Working Assumption for Contributors
