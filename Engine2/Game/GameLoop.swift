@@ -1,0 +1,142 @@
+//
+//  GameLoop.swift
+//  Engine2
+//
+//  Created by Karl Groff on 3/17/26.
+//
+
+/// Owns the async task that polls wall time and advances the engine.
+///
+/// This sits above `Engine`: a higher-level owner decides when the simulation
+/// loop should run, while `Engine` still owns fixed-step accumulation and
+/// system order.
+@MainActor
+final class GameLoop {
+    typealias ClockFactory = () -> SystemClock
+    typealias TimeSource = () -> SystemClock.Instant
+    typealias Sleeper = @Sendable (SystemClock.Instant) async throws -> Void
+    typealias RunningStateDidChange = @MainActor (Bool) -> Void
+
+    let engine: Engine
+    let pollInterval: Duration
+
+    private let clockFactory: ClockFactory
+    private let scheduleTimeSource: TimeSource
+    private let sleeper: Sleeper
+
+    private var clock: SystemClock?
+    private var runID: UInt64 = 0
+    private var updateTask: Task<Void, Never>?
+
+    var runningStateDidChange: RunningStateDidChange?
+
+    var isRunning: Bool {
+        updateTask != nil
+    }
+
+    init(
+        engine: Engine = Engine(),
+        pollInterval: Duration? = nil,
+        clockFactory: @escaping ClockFactory = { SystemClock() },
+        scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
+        sleeper: @escaping Sleeper = { deadline in
+            try await SuspendingClock().sleep(until: deadline)
+        }
+    ) {
+        self.engine = engine
+        self.pollInterval = pollInterval ?? engine.fixedTimeStep
+        self.clockFactory = clockFactory
+        self.scheduleTimeSource = scheduleTimeSource
+        self.sleeper = sleeper
+        self.clock = nil
+
+        precondition(self.pollInterval > .zero, "GameLoop requires a positive poll interval")
+    }
+
+    /// Starts the app-owned update task if it is not already running.
+    func start() {
+        guard updateTask == nil else {
+            return
+        }
+
+        // Rebase wall-clock sampling when the app becomes active so inactive
+        // time does not get replayed into the simulation on resume.
+        clock = clockFactory()
+        runID += 1
+
+        let currentRunID = runID
+        let firstWakeDeadline = scheduleTimeSource().advanced(by: pollInterval)
+        updateTask = Task { @MainActor [weak self] in
+            await self?.runLoop(
+                runID: currentRunID,
+                nextWakeDeadline: firstWakeDeadline
+            )
+        }
+        runningStateDidChange?(true)
+    }
+
+    /// Cancels the current update task, if one exists.
+    func stop() {
+        guard updateTask != nil else {
+            clock = nil
+            return
+        }
+
+        runID += 1
+        updateTask?.cancel()
+        updateTask = nil
+        clock = nil
+        runningStateDidChange?(false)
+    }
+
+    private func runLoop(
+        runID: UInt64,
+        nextWakeDeadline initialWakeDeadline: SystemClock.Instant
+    ) async {
+        var nextWakeDeadline = initialWakeDeadline
+
+        defer {
+            // Ignore cleanup from an older task if a newer run has already started.
+            if self.runID == runID {
+                updateTask = nil
+                runningStateDidChange?(false)
+            }
+        }
+
+        while !Task.isCancelled {
+            do {
+                // Sleep until the next absolute deadline instead of repeatedly
+                // sleeping for a fixed relative interval. That avoids turning
+                // normal wake-up jitter into long-term drift that forces extra
+                // catch-up steps.
+                try await sleeper(nextWakeDeadline)
+            } catch {
+                return
+            }
+
+            guard var clock else {
+                return
+            }
+
+            engine.update(deltaTime: clock.consumeDeltaTime())
+            self.clock = clock
+            nextWakeDeadline = advancedDeadline(after: nextWakeDeadline)
+        }
+    }
+
+    /// Advances to the first future deadline after the current wall-clock time.
+    private func advancedDeadline(after previousDeadline: SystemClock.Instant) -> SystemClock.Instant {
+        var nextWakeDeadline = previousDeadline.advanced(by: pollInterval)
+        let currentTime = scheduleTimeSource()
+
+        while currentTime.duration(to: nextWakeDeadline) <= .zero {
+            nextWakeDeadline = nextWakeDeadline.advanced(by: pollInterval)
+        }
+
+        return nextWakeDeadline
+    }
+
+    deinit {
+        updateTask?.cancel()
+    }
+}

@@ -55,7 +55,7 @@ struct GameTests {
     }
 }
 
-private struct TestWorldBuilder: WorldBuilder {
+private struct TestWorldBuilder: PWorldBuilder {
     let position: SIMD3<Float>
 
     func buildWorld() -> World {
@@ -65,7 +65,7 @@ private struct TestWorldBuilder: WorldBuilder {
     }
 }
 
-private final class IncrementingWorldBuilder: WorldBuilder {
+private final class IncrementingWorldBuilder: PWorldBuilder {
     private(set) var buildCount = 0
 
     func buildWorld() -> World {

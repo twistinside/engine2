@@ -102,7 +102,7 @@ This keeps simulation deterministic while still fitting a display-driven render 
 
 ## Practical Naming Guidance
 
-Prefer domain names for concrete types and reserve `Resource` for protocol or storage classification.
+Prefer domain names for concrete types and reserve `PResource` for protocol or storage classification.
 
 For example:
 
@@ -125,4 +125,4 @@ This boundary preserves the current engine direction:
 ### Related Symbols
 
 - ``World``
-- ``Resource``
+- ``PResource``

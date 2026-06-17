@@ -37,25 +37,25 @@ class World {
     /// caller intent.
     @discardableResult
     func add(_ entity: Entity, from state: Entity.InitialState = .empty) -> EntityID {
-        // Positionable
-        precondition(state.position == nil || entity is Positionable, "Initial state.position requires Positionable conformance")
-        if entity is Positionable {
+        // PPositionable
+        precondition(state.position == nil || entity is PPositionable, "Initial state.position requires PPositionable conformance")
+        if entity is PPositionable {
             positionComponents.insert(
                 CPosition(position: state.position ?? .zero),
                 for: entity.id
             )
         }
 
-        // Movable
+        // PMovable
         precondition(
             (
                 state.velocity == nil &&
                 state.accelerationIntent == nil &&
                 state.impulse == nil
-            ) || entity is Movable,
-            "Initial movement state requires Movable conformance"
+            ) || entity is PMovable,
+            "Initial movement state requires PMovable conformance"
         )
-        if entity is Movable {
+        if entity is PMovable {
             motionComponents.insert(
                 CMotion(
                     velocity: state.velocity ?? .zero,
@@ -66,21 +66,21 @@ class World {
             )
         }
 
-        // Orientable
-        precondition(state.rotation == nil || entity is Orientable, "Initial state.rotation requires Orientable conformance")
-        if entity is Orientable {
+        // POrientable
+        precondition(state.rotation == nil || entity is POrientable, "Initial state.rotation requires POrientable conformance")
+        if entity is POrientable {
             rotationComponents.insert(
                 CRotation(rotation: state.rotation ?? Self.identityRotation),
                 for: entity.id
             )
         }
 
-        // Rotatable
+        // PRotatable
         precondition(
-            (state.angularVelocity == nil && state.angularAcceleration == nil && state.angularImpulse == nil) || entity is Rotatable,
-            "Initial angular state requires Rotatable conformance"
+            (state.angularVelocity == nil && state.angularAcceleration == nil && state.angularImpulse == nil) || entity is PRotatable,
+            "Initial angular state requires PRotatable conformance"
         )
-        if entity is Rotatable {
+        if entity is PRotatable {
             angularVelocityComponents.insert(
                 CAngularVelocity(angularVelocity: state.angularVelocity ?? .zero),
                 for: entity.id
@@ -94,18 +94,18 @@ class World {
             )
         }
 
-        // Scalable
-        precondition(state.scale == nil || entity is Scalable, "Initial state.scale requires Scalable conformance")
-        if entity is Scalable {
+        // PScalable
+        precondition(state.scale == nil || entity is PScalable, "Initial state.scale requires PScalable conformance")
+        if entity is PScalable {
             scaleComponents.insert(
                 CScale(scale: state.scale ?? SIMD3<Float>(repeating: 1)),
                 for: entity.id
             )
         }
 
-        // Selectable
-        precondition(state.selectionState == nil || entity is Selectable, "Initial state.selectionState requires Selectable conformance")
-        if entity is Selectable {
+        // PSelectable
+        precondition(state.selectionState == nil || entity is PSelectable, "Initial state.selectionState requires PSelectable conformance")
+        if entity is PSelectable {
             selectableComponents.insert(
                 CSelectable(selectionState: state.selectionState ?? .unselected),
                 for: entity.id

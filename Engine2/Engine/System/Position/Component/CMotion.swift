@@ -10,7 +10,7 @@
 /// `velocity` is integrated state, `accelerationIntent` is persistent drive
 /// state, and `accumulator` is per-frame contribution input consumed by
 /// `SMovement`.
-struct CMotion: Component {
+struct CMotion: PComponent {
     var accelerationIntent: AccelerationIntent {
         didSet {
             if accelerationIntent == .idle {

@@ -7,7 +7,7 @@
 
 import simd
 
-class Ball: Entity, Movable, Rotatable, Selectable {
+class Ball: Entity, PMovable, PRotatable, PSelectable {
     convenience init(
         in world: World,
         position: SIMD3<Float> = .zero,

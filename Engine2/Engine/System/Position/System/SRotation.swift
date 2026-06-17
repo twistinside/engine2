@@ -10,7 +10,7 @@ import simd
 
 /// Applies one frame of accumulated angular motion by first updating angular
 /// velocity and then advancing orientation from the new angular velocity.
-class SRotation: System {
+class SRotation: PSystem {
     private static let signposter = OSSignposter(
         subsystem: "Engine2",
         category: "SRotation"

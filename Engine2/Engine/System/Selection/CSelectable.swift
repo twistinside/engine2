@@ -7,7 +7,7 @@
 
 /// Selection state for entities that can participate in UI, tooling, or
 /// renderer selection feedback.
-struct CSelectable: Component {
+struct CSelectable: PComponent {
     var selectionState: SelectionState = .unselected
 
     enum SelectionState: Codable, Equatable {

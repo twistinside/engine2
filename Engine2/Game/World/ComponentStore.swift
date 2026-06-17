@@ -7,10 +7,10 @@
 
 /// Sparse-set style storage for a single component type.
 ///
-/// Component values live in `dense`, the owning `EntityID`s stay aligned in
+/// PComponent values live in `dense`, the owning `EntityID`s stay aligned in
 /// `entities`, and `sparse` maps an entity index back to the dense slot when a
 /// live row exists for that entity generation.
-struct ComponentStore<C: Component> {
+struct ComponentStore<C: PComponent> {
     var dense: [C] = []
     var entities: [EntityID] = []
     var sparse: [Int: Int] = [:]

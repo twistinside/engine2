@@ -34,4 +34,4 @@ struct RotatingTests {
     }
 }
 
-private final class TestRotatingEntity: Entity, Rotatable {}
+private final class TestRotatingEntity: Entity, PRotatable {}

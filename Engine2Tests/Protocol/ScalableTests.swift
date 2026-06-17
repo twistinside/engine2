@@ -20,4 +20,4 @@ struct ScalableTests {
     }
 }
 
-private final class TestScalableEntity: Entity, Scalable {}
+private final class TestScalableEntity: Entity, PScalable {}

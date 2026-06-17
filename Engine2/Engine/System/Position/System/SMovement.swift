@@ -9,7 +9,7 @@ import OSLog
 
 /// Applies one frame of accumulated motion by first updating velocity and then
 /// advancing position from the new velocity.
-class SMovement: System {
+class SMovement: PSystem {
     private static let signposter = OSSignposter(
         subsystem: "Engine2",
         category: "SMovement"

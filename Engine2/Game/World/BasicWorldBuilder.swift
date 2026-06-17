@@ -1,5 +1,5 @@
 //
-//  WorldBuilder.swift
+//  PWorldBuilder.swift
 //  Engine2
 //
 //  Created by Codex on 3/17/26.
@@ -9,7 +9,7 @@
 ///
 /// The default world starts with a few moving balls so the bootstrap path
 /// exercises normal entity-to-component creation and renderer extraction.
-struct BasicWorldBuilder: WorldBuilder {
+struct BasicWorldBuilder: PWorldBuilder {
     func buildWorld() -> World {
         let world = World()
 

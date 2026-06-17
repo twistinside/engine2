@@ -15,26 +15,26 @@ class Entity {
     struct InitialState {
         static let empty = InitialState()
 
-        // Positionable
+        // PPositionable
         var position: SIMD3<Float>? = nil
 
-        // Movable
+        // PMovable
         var velocity: SIMD3<Float>? = nil
         var accelerationIntent: CMotion.AccelerationIntent? = nil
         var impulse: SIMD3<Float>? = nil
 
-        // Orientable
+        // POrientable
         var rotation: simd_quatf? = nil
 
-        // Rotatable
+        // PRotatable
         var angularVelocity: SIMD3<Float>? = nil
         var angularAcceleration: SIMD3<Float>? = nil
         var angularImpulse: SIMD3<Float>? = nil
 
-        // Scalable
+        // PScalable
         var scale: SIMD3<Float>? = nil
 
-        // Selectable
+        // PSelectable
         var selectionState: CSelectable.SelectionState? = nil
     }
 

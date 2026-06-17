@@ -6,7 +6,7 @@
 //
 
 /// Deterministic test clock that only advances when the caller says so.
-struct ManualClock: Clock {
+struct ManualClock: PClock {
     private(set) var currentTime: Duration = .zero
     private var lastSample: Duration = .zero
 

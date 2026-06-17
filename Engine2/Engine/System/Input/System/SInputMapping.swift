@@ -6,7 +6,7 @@
 //
 
 /// Converts raw input state into engine-level action values.
-struct SInputMapping: System {
+struct SInputMapping: PSystem {
     var pointerOrbitSensitivity: Float = 0.01
     var scrollZoomSensitivity: Float = 0.04
 

@@ -23,4 +23,4 @@ struct SelectableTests {
     }
 }
 
-private final class TestSelectableEntity: Entity, Selectable {}
+private final class TestSelectableEntity: Entity, PSelectable {}

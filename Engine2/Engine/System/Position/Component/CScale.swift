@@ -5,6 +5,6 @@
 //  Created by Codex on 3/15/26.
 //
 
-struct CScale: Component {
+struct CScale: PComponent {
     let scale: SIMD3<Float>
 }

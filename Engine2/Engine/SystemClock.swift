@@ -13,7 +13,7 @@ import Foundation
 /// `SuspendingClock` is monotonic and pauses while the machine is suspended, so
 /// simulation time does not try to "catch up" after sleep. Wrapping it here
 /// keeps the engine on a simple synchronous polling API.
-struct SystemClock: Clock {
+struct SystemClock: PClock {
     typealias Instant = SuspendingClock.Instant
     typealias TimeSource = () -> Instant
 

@@ -20,7 +20,7 @@ This keeps timing and scheduling logic out of ``World``.
 
 ``Game`` sits above ``Engine`` and owns session bootstrap policy.
 
-It decides which ``WorldBuilder`` to use for a new game, generated scenario, or
+It decides which ``PWorldBuilder`` to use for a new game, generated scenario, or
 loaded save, and it can rebuild or replace the active world inside the engine
 when the session changes.
 
@@ -28,7 +28,7 @@ when the session changes.
 engine. The app should keep one top-level `Game` reference and start or stop it
 with host lifecycle events.
 
-``WorldBuilder`` types are not simulation ``System`` implementations. They are
+``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are
 one-shot construction helpers that produce a fully bootstrapped ``World`` before
 or between simulation runs.
 
@@ -40,13 +40,13 @@ It owns the component stores, simulation-scoped resources, and entity identity l
 
 ### Systems
 
-``System`` implementations contain simulation logic.
+``PSystem`` implementations contain simulation logic.
 
 They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
 
 ### Presentation and Rendering
 
-Rendering is an engine subsystem, but it is not itself a simulation ``System``.
+Rendering is an engine subsystem, but it is not itself a simulation ``PSystem``.
 
 The world may contain abstract presentation state such as mesh handles, material handles, camera data, visibility flags, or render style. Backend-specific render state should remain inside the render layer.
 
@@ -101,6 +101,6 @@ The current engine is still early. Several important behaviors are intentionally
 
 - ``Engine``
 - ``World``
-- ``System``
+- ``PSystem``
 - ``Entity``
 - ``ComponentStore``

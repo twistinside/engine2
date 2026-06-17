@@ -122,6 +122,6 @@ This rendering approach fits the broader engine direction:
 ### Related Symbols
 
 - ``Engine``
-- ``Resource``
+- ``PResource``
 - ``World``
 - ``ComponentStore``

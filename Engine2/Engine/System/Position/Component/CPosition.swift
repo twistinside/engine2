@@ -5,6 +5,6 @@
 //  Created by Karl Groff on 3/8/26.
 //
 
-struct CPosition: Component {
+struct CPosition: PComponent {
     var position: SIMD3<Float>
 }

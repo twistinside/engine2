@@ -9,7 +9,7 @@
 ///
 /// This keeps long-lived decisions such as "keep thrusting forward" separate
 /// from the transient accumulator fields consumed and cleared by `SMovement`.
-struct SAccelerationIntent: System {
+struct SAccelerationIntent: PSystem {
     mutating func update(world: inout World, deltaTime: Float) {
         let entities = world.motionComponents.entities
 

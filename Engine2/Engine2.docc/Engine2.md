@@ -8,7 +8,7 @@ The current codebase is intentionally small, but the core direction is already e
 
 - ``World`` owns authoritative simulation state.
 - ``Engine`` owns fixed-step orchestration and system execution.
-- ``System`` implementations operate on component stores, not object facades, in hot paths.
+- ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
 - ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
 - Rendering is an engine subsystem with an explicit extraction boundary rather than a second gameplay state model.
 

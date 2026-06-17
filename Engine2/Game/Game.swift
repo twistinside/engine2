@@ -23,7 +23,7 @@ final class Game {
     }
 
     @ObservationIgnored
-    private(set) var worldBuilder: any WorldBuilder
+    private(set) var worldBuilder: any PWorldBuilder
 
     @ObservationIgnored
     let engine: Engine
@@ -38,15 +38,15 @@ final class Game {
     }
 
     init(
-        worldBuilder: any WorldBuilder = BasicWorldBuilder(),
+        worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        alwaysSystems: [any System] = [
+        alwaysSystems: [any PSystem] = [
             SInputMapping(),
             SCameraInput(),
             SInputHistory(),
             SInputCleanup()
         ],
-        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation()],
+        systems: [any PSystem] = [SAccelerationIntent(), SMovement(), SRotation()],
         pollInterval: Duration? = nil,
         clockFactory: @escaping GameLoop.ClockFactory = { SystemClock() },
         sleeper: @escaping GameLoop.Sleeper = { deadline in
@@ -83,7 +83,7 @@ final class Game {
 
     /// Replaces the current builder, optionally rebuilding the world immediately.
     func replaceWorldBuilder(
-        _ worldBuilder: any WorldBuilder,
+        _ worldBuilder: any PWorldBuilder,
         rebuildWorldImmediately: Bool = true
     ) {
         self.worldBuilder = worldBuilder

@@ -11,8 +11,8 @@ final class Engine {
     private let fixedTimeStepSeconds: Float
 
     private(set) var accumulatedTime: Duration = .zero
-    private var alwaysSystems: [any System]
-    private var simulationSystems: [any System]
+    private var alwaysSystems: [any PSystem]
+    private var simulationSystems: [any PSystem]
 
     let fixedTimeStep: Duration
 
@@ -22,13 +22,13 @@ final class Engine {
     init(
         world: World = World(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        alwaysSystems: [any System] = [
+        alwaysSystems: [any PSystem] = [
             SInputMapping(),
             SCameraInput(),
             SInputHistory(),
             SInputCleanup()
         ],
-        systems: [any System] = [SAccelerationIntent(), SMovement(), SRotation()]
+        systems: [any PSystem] = [SAccelerationIntent(), SMovement(), SRotation()]
     ) {
         self.world = world
         self.fixedTimeStep = fixedTimeStep
@@ -50,7 +50,7 @@ final class Engine {
     }
 
     /// Samples real time from a clock, then feeds that delta into the fixed-step loop.
-    func tick<C: Clock>(using clock: inout C) {
+    func tick<C: PClock>(using clock: inout C) {
         update(deltaTime: clock.consumeDeltaTime())
     }
 
@@ -64,16 +64,16 @@ final class Engine {
     }
 
     /// Appends an always-running system to the execution pipeline in call order.
-    func addAlwaysSystem(_ system: some System) {
+    func addAlwaysSystem(_ system: some PSystem) {
         alwaysSystems.append(system)
     }
 
     /// Appends a simulation-gated system to the execution pipeline in call order.
-    func addSystem(_ system: some System) {
+    func addSystem(_ system: some PSystem) {
         simulationSystems.append(system)
     }
 
-    private func run(_ systems: inout [any System]) {
+    private func run(_ systems: inout [any PSystem]) {
         for index in systems.indices {
             // Pull the existential out, mutate it, then store it back so stateful
             // systems can preserve any internal state across steps.

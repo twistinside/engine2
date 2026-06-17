@@ -7,7 +7,7 @@
 
 import simd
 
-struct CRotation: Component {
+struct CRotation: PComponent {
     let rotation: simd_quatf
 }
 
