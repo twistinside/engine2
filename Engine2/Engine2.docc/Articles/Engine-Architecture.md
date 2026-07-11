@@ -1,6 +1,7 @@
 # Engine Architecture
 Engine2 is organized around a small set of responsibilities that are meant to stay separate as the engine grows.
-## Current Runtime Roles
+The engine, world, and ECS systems described here are the internal architecture of the authoritative ``SimulationRuntime``. See <doc:Runtime-Architecture> for the top-level application model and runtime-boundary vocabulary.
+## Current Simulation Roles
 ### Engine
 ``Engine`` owns time accumulation and simulation orchestration.
 At the moment, it:
@@ -9,19 +10,20 @@ At the moment, it:
 - runs always-running systems in a stable call order
 - runs simulation systems in a second stable call order only when simulation is enabled
 This keeps timing and scheduling logic out of ``World``.
-### Game and World Builders
-``Game`` sits above ``Engine`` and owns session bootstrap policy.
-It decides which ``PWorldBuilder`` to use for a new game, generated scenario, or loaded save, and it can rebuild or replace the active world inside the engine when the session changes.
-`Game` also owns the higher-level loop that polls wall time and advances the engine. The app should keep one top-level `Game` reference and start or stop it with host lifecycle events.
+### Simulation Runtime and World Builders
+``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap and lifecycle policy.
+It accepts a ``PWorldBuilder`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. It also owns ``SimulationLoop``, which polls wall time and advances the engine in response to host lifecycle events.
 ``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
+The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes that contract. Consumer-defined builders, entity types, components, and presentation descriptions belong to Game Content. The App supplies that content while constructing the Simulation Runtime; the runtime does not discover content through global registries. See <doc:Game-Content-Architecture>.
 ### World
 ``World`` is the authoritative container for simulation state.
 It owns the component stores, simulation-scoped resources, and entity identity lifecycle. The world is not the scheduler and should not decide when simulation advances.
 ### Systems
 ``PSystem`` implementations contain simulation logic.
 They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
+``Engine`` owns the invariant schedule required for a valid simulation, including position and orientation mechanics. Future consumer-defined behavior may be admitted through controlled extension points, but Game Content does not assemble or replace the required schedule.
 ### Presentation and Rendering
-Rendering is an engine subsystem, but it is not itself a simulation ``PSystem``.
+Rendering belongs to the proposed Render Runtime and is not itself a simulation ``PSystem``.
 The world may contain abstract presentation state such as mesh handles, material handles, camera data, visibility flags, or render style. Backend-specific render state should remain inside the render layer.
 The intended boundary is:
 1. systems update `World`
@@ -31,16 +33,15 @@ This keeps `World` authoritative without making it the owner of Metal or other b
 
 ### Entity Facades
 ``Entity`` subclasses such as ``Ball`` remain useful as typed, ergonomic objects at the game boundary, UI boundary, and inspection layer.
-They are not the runtime source of truth. Runtime truth lives in the world's component stores.
+They are not the simulation source of truth. Authoritative gameplay state lives in the world's component stores.
 
 ## Fixed-Step Simulation
 The current simulation model is a fixed-step loop:
 1. Real frame time is added to the engine's accumulator.
-2. The engine executes as many fixed simulation steps as fit inside that accumulated time.
-3. Each step runs the registered systems against the current world state.
+2. The engine executes as many fixed simulation ticks as fit inside that accumulated time.
+3. Each tick runs the registered systems against the current world state.
 This model keeps systems working in terms of simulation time rather than render-frame timing.
-At the application boundary, host code decides when the session should run or pause. ``Game`` owns the polling loop that samples real time and feeds that
-delta into ``Engine.update(deltaTime:)`` through ``GameLoop``. That outer loop stays above `Engine` so the engine remains reusable in tests, tools, and future host applications with different lifecycle needs. Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation step, and several simulation steps can happen before one draw.
+At the application boundary, host code decides when the session should run or pause. ``SimulationRuntime`` owns ``SimulationLoop``, which samples real time and feeds that delta into ``Engine.update(deltaTime:)``. That outer loop stays above `Engine` so the engine remains reusable in tests, tools, and future host applications with different lifecycle needs. Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation tick, and several simulation ticks can happen before one draw.
 ## Current Limits
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
 - entity ID reservation is monotonic only; destruction, generation incrementing, and index reuse have not been added yet
@@ -55,3 +56,6 @@ The current engine is still early. Several important behaviors are intentionally
 - ``PSystem``
 - ``Entity``
 - ``ComponentStore``
+### Related Architecture
+- <doc:Runtime-Architecture>
+- <doc:Game-Content-Architecture>

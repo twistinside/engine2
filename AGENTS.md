@@ -1,11 +1,54 @@
 # Engine2 AGENTS Guide
 ## Repo Summary
 Engine2 is a compact Swift ECS experiment with a small but increasingly coherent runtime shape. The project is moving toward a hybrid model:
-- ECS component stores are the runtime source of truth.
+- ECS component stores are the simulation source of truth.
 - Entity objects are ergonomic, typed facades over ECS state.
 - Capability protocols such as `PMovable` and `PPositionable` are kept as the game-facing/UI-facing surface.
 - Systems should operate directly on component stores in hot paths.
 This repo is still early, but several core paths now exist. Preserve direction and intent when filling in missing pieces.
+
+## Runtime Architecture
+The proposed top-level application architecture is documented in `Engine2/Engine2.docc/Articles/Runtime-Architecture.md`.
+
+Use these terms consistently:
+- A **Runtime** is a long-lived top-level application object with its own state, lifecycle, cadence, and explicit boundaries. Runtime types use the full `Runtime` suffix, such as `InputRuntime`, `SimulationRuntime`, and `RenderRuntime`.
+- The App owns and wires runtimes. Runtimes do not discover one another through global mutable state.
+- The **Simulation Runtime** is authoritative for gameplay state and contains `Engine`, `World`, ECS resources, and ECS systems. It is first among peers semantically, but it does not own the lifecycles of other runtimes.
+- An ECS **System** is scheduled logic inside the Simulation Runtime, not a top-level runtime. Keep the `S` prefix reserved for systems.
+- A **Snapshot** is an immutable point-in-time boundary value. Snapshot types use a descriptive `Snapshot` suffix rather than an `S` prefix.
+- An **Event** is an immutable fact published within a runtime's authority. Optional peer runtimes may observe it; the publisher must remain correct when no consumer exists.
+- Prefer snapshots and events for peer-runtime choreography. Directed request/result workflows should represent deliberate dependencies and normally be coordinated by the App.
+- Runtimes may differ in usefulness without peers. Independence means explicit ownership and lifecycle safety, not equal standalone capability.
+- There is no universal frame cadence. Input delivery, fixed Simulation Runtime ticks, render frames, and future Audio/Network/Storage work may advance independently.
+
+Current types implement part of this direction:
+- `SimulationRuntime` is the app-facing Simulation Runtime lifecycle boundary; `SimulationLoop`, `Engine`, and `World` are its internal mechanisms.
+- `InputMetalView` in UI and `InputState` in Simulation currently split input collection from simulation-facing state; a future Input Runtime boundary should publish immutable input snapshots.
+- `RenderFrame` is the current simulation-to-render snapshot representation; `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities.
+
+Do not rename or wrap existing types solely to match the vocabulary. Introduce a runtime boundary when it creates concrete ownership, lifecycle, cadence, or testing value.
+
+## Game Content Architecture
+The proposed consumer-content boundary is documented in `Engine2/Engine2.docc/Articles/Game-Content-Architecture.md`.
+
+Use these terms and constraints consistently:
+- **Game Content** is consumer-defined game code, descriptions, catalogs, and assets used to construct and configure runtimes. It is not a runtime and has no independent cadence or lifecycle.
+- The App is the composition root. It constructs Game Content, then supplies the relevant portions to independently constructed runtimes.
+- Use **Asset** for packaged source content such as models, textures, sounds, animations, and levels. Do not conflate assets with ECS or runtime resources, even though SwiftPM calls bundled files resources.
+- Content refers to assets through strongly typed, backend-neutral identities such as future `MeshID`, `MaterialID`, and `SoundID` values. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
+- Runtimes privately resolve content assets into backend resources. Game Content does not own runtime caches, GPU allocations, decoded audio, or runtime lifecycle.
+- Continuous presentation can be described through abstract ECS state and snapshots. Ephemeral presentation should normally derive from Simulation Runtime events plus consumer-supplied presentation rules.
+- Consumer Game Content may eventually define entities, components, optional behaviors, world builders, render/audio descriptions, asset catalogs, and event-presentation mappings through deliberate public Engine2 APIs.
+- The Simulation Runtime owns invariant systems and their foundational schedule. Future Game Content behavior must enter through controlled extension points rather than replacing that foundation.
+- The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; a future Render Runtime owns its render-snapshot contract.
+- Do not make every current type public. Design the smallest coherent extension surface needed by external content while keeping engine storage and backend internals encapsulated.
+- The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
+
+Current example ownership:
+- `Ball` and `BasicWorldBuilder` are example Game Content.
+- `PrettyTriangle.usda` and `PrettyTriangle.usdz` are example render assets, not reusable Render Runtime implementation.
+- `ModelShaders.metal` is Render Runtime backend implementation unless a future explicit shader/material extension point makes part of it consumer content.
+- Debug panes and app commands are example App tooling.
 ## Code Quality
 Swift is a strongly typed language. In most cases, you should strongy type any piece of data being passed. if a type is being stored as an `Int` or `String` consider whether a bespoke type makes more sense. If adding or concatenating the data doesn't make sense, then we should consider that `Int` or `String` is going to allow that.
 If there is a known list of possibilities for a type, consider `enum`.
@@ -13,21 +56,21 @@ If there is a known list of possibilities for a type, consider `enum`.
 - Prefer the project-aware Xcode tooling available in the current session for builds, tests, file reads, and other IDE-side actions.
 - Prefer the Apple documentation tooling available in the current session for framework and API lookups before falling back to general web search.
 ## Current Structure
-- `Engine2/Engine2/Game/World/World.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/ECS/World.swift`
   - Central world object.
   - Owns component stores.
   - `add(_:from:)` translates advertised entity capabilities into component rows and validates that seed values match those capabilities.
   - `reserveEntityID()` currently allocates monotonically increasing indices with generation `0`; generation reuse/destruction is still future work.
-- `Engine2/Engine2/Game/World/Entity.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/ECS/Entity.swift`
   - Base `Entity` superclass.
   - Holds `id` and `world`.
   - `InitialState` carries common spawn-time transform and motion seed values.
   - `init(unregisteredID:in:)` is for tests and future reconstruction paths.
   - `init(in:from:)` reserves an ID and registers the entity with `World`.
-- `Engine2/Engine2/Game/World/EntityID.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/ECS/EntityID.swift`
   - Entity handle with `index` and `generation`.
   - `generation` should remain meaningful; do not silently regress to index-only identity semantics.
-- `Engine2/Engine2/Game/World/ComponentStore.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/ECS/ComponentStore.swift`
   - Sparse-set style storage:
     - `dense`: component values
     - `entities`: entity IDs aligned with `dense`
@@ -35,22 +78,26 @@ If there is a known list of possibilities for a type, consider `enum`.
   - Lookup re-checks the full `EntityID`, including generation.
   - Use `update(for:_:)` for existing component mutations so systems update the dense row in place instead of rebuilding and reinserting replacement rows.
   - Removal, compaction, richer mutation helpers, and join/query helpers are still missing.
-- `Engine2/Engine2/Engine/Protocol/PComponent.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PComponent.swift`
   - Marker protocol for components.
-- `Engine2/Engine2/Engine/Protocol/PResource.swift`
-  - Marker protocol for shared resources and resource-like storage roles.
-- `Engine2/Engine2/Engine/Protocol/PSystem.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PResource.swift`
+  - Marker protocol for long-lived resource and resource-like storage roles inside an owning runtime or world.
+  - Sharing mechanism is not what defines a resource; ownership, lifetime, and non-entity cardinality are the important traits.
+- `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PSystem.swift`
   - Core system protocol used by the engine's ordered execution lists.
-- `Engine2/Engine2/Engine/System/Position/Protocol/*.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
+  - Simulation-owned construction interface for producing fully bootstrapped worlds.
+- `Engine2/Engine2/Simulation Runtime/Engine/Infrastructure/Clock/*.swift`
+  - `PClock`, `ManualClock`, and `SystemClock` keep elapsed-time sampling in engine infrastructure and outside system logic.
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.
   - `POrientable` exposes live `rotation`.
   - `PRotatable` exposes live angular velocity and angular accumulator input.
   - `PScalable` exposes live `scale`.
-  - `PClock` abstracts elapsed-time sampling for the fixed-step engine.
-- `Engine2/Engine2/Engine/System/Selection/PSelectable.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Selection/PSelectable.swift`
   - Convenience protocol for entity objects that expose live selection state.
-- `Engine2/Engine2/Engine/System/Position/Component/*.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Position/Component/*.swift`
   - `CPosition`
   - `CMotion`
   - `CRotation`
@@ -58,41 +105,43 @@ If there is a known list of possibilities for a type, consider `enum`.
   - `CAngularMotionAccumulator`
   - `CScale`
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
-- `Engine2/Engine2/Engine/System/Selection/CSelectable.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
-- `Engine2/Engine2/Engine/System/Input/**/*.swift`
-  - `InputState` is the authoritative input resource stored on `World`.
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
+  - `InputState` is the current authoritative simulation-facing input resource stored on `World`.
+  - The proposed Input Runtime will eventually separate platform input collection from immutable input snapshots consumed by the Simulation Runtime.
   - `SInputMapping` translates raw input into higher-level camera actions.
   - `SInputHistory` records compact input history rows for debug UI.
-  - `SInputCleanup` clears per-frame transient input after always-running input systems have consumed it.
-- `Engine2/Engine2/Engine/System/Position/System/*.swift`
-  - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-frame accumulator.
+  - `SInputCleanup` clears per-tick transient input after always-running input systems have consumed it.
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Position/System/*.swift`
+  - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-tick accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
-- `Engine2/Engine2/Engine/System/SCameraInput.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/System/SCameraInput.swift`
   - Applies mapped camera orbit and zoom input to `World.camera`.
-- `Engine2/Engine2/Engine/*.swift`
+- `Engine2/Engine2/Simulation Runtime/Engine/*.swift`
   - `Engine` owns fixed-step accumulation and ordered system execution.
-  - `PClock`, `ManualClock`, and `SystemClock` keep time sampling outside system logic.
   - `Engine` currently maintains separate always-running and simulation-gated system lists.
-- `Engine2/Engine2/Game/*.swift`
-  - `Game` owns session bootstrap policy above `Engine`.
-  - `GameLoop` owns the app-level async polling task and feeds elapsed time into `Engine`.
-- `Engine2/Engine2/Game/World/*.swift`
-  - `PWorldBuilder` creates fully bootstrapped worlds.
-  - `BasicWorldBuilder` currently seeds a default `Ball`.
-- `Engine2/Engine2/Game/Entity/Ball.swift`
+- `Engine2/Engine2/Simulation Runtime/SimulationRuntime.swift`
+  - `SimulationRuntime` owns session bootstrap and app-facing lifecycle policy above `Engine`.
+- `Engine2/Engine2/Simulation Runtime/SimulationLoop.swift`
+  - `SimulationLoop` owns the app-level async polling task and feeds elapsed time into `Engine`.
+- `Engine2/Engine2/Game Content/BasicWorldBuilder.swift`
+  - Example Game Content builder that currently seeds the default `Ball` entities.
+- `Engine2/Engine2/Game Content/Entity/Ball.swift`
   - Example entity object/facade.
   - Represents the intended style of game object API more than a finished implementation.
-- `Engine2/Engine2/Render/*.swift`
-  - `RenderFrame.extract(from:)` is the current simulation-to-render extraction boundary.
+- `Engine2/Engine2/Render Runtime/*.swift`
+  - `RenderFrame.extract(from:)` is the current simulation-to-render snapshot boundary.
   - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
   - `MetalRenderer` owns backend-specific Metal 4 state and consumes `RenderFrame`.
+- `Engine2/Engine2/UI/Input/InputMetalView.swift`
+  - Platform input collection currently lives in the experimental SwiftUI-facing UI layer.
 - `Engine2/Engine2Tests/`
   - Swift Testing coverage exists for the engine loop, clocks, world builder, spawn seeding, movement, rotation, rotation codability/equality, and several capability protocol read paths.
   - The test tree mirrors the app/source tree where practical.
 ### Folder Organization
-New game systems are added to `Engine2/Engine2/Engine/System/<system name>.`
+New simulation systems are added to `Engine2/Engine2/Simulation Runtime/Engine/System/<system name>.`
 When a new system is created, the requisite components, resources, and protocols will be added in their own subfolders. The `System` folders are organized in funcitonal blocks to ensure proximity of files used in that `System`.
 ## High-Level Direction
 ### 1. Keep Protocols
@@ -110,7 +159,7 @@ Intent:
 Important:
 - systems should not use these objects in hot loops
 - these objects are facades/bridges, not the simulation backend
-### 3. ECS Is the Runtime Truth
+### 3. ECS Is the Simulation Truth
 The world's component stores are authoritative.
 Entity classes should read from component stores through protocol default implementations. They are not meant to duplicate gameplay state as a second authoritative model.
 If future UI code needs current data, prefer:
@@ -141,8 +190,8 @@ The project has moved toward a motion contribution model.
 Use `CMotion` for translational motion state:
 - `velocity`: integrated world-space velocity
 - `accelerationIntent`: persistent drive state such as idle or accelerating
-- `accumulator.acceleration`: per-frame continuous influences that scale with `dt`
-- `accumulator.impulse`: per-frame instantaneous velocity changes that do not scale with `dt`
+- `accumulator.acceleration`: per-tick continuous influences that scale with `dt`
+- `accumulator.impulse`: per-tick instantaneous velocity changes that do not scale with `dt`
 Design intent:
 - gameplay systems emit motion contributions
 - persistent drive state is converted into accumulator input before movement
@@ -160,7 +209,7 @@ Use `insert` for:
 - adding a row that may not exist yet
 - explicit reset/reseed operations where replacing the full component is the intended behavior
 Use `update(for:_:)` for:
-- per-frame system mutation
+- per-tick system mutation
 - changing one or two fields on an existing component
 - clearing accumulators after integration
 - updating transform, motion, or other dense-row state in hot paths
@@ -175,14 +224,21 @@ However, the store does not yet remove or compact dense rows. If a future free l
 ### Facades Are Live Handles
 Entity objects hold an `unowned` world reference and computed protocol accessors fatal-error when required backing rows are missing. That is acceptable for strict live game objects, but UI inspection or editor tooling may eventually need optional, non-crashing lookup APIs.
 ### Engine Loop Boundaries Are Clear
-`Engine` owns fixed-step accumulation and ordered system execution. `GameLoop` is the app-level driver that polls wall time on the main actor. Keep wall-clock sampling, app lifecycle, and session rebuild policy above `Engine` so the core engine remains easy to test.
+`Engine` owns fixed-step accumulation and ordered system execution. `SimulationRuntime` owns app-facing lifecycle and session policy, while `SimulationLoop` polls wall time on the main actor. Keep those responsibilities above `Engine` so the core engine remains easy to test.
 The fixed-step loop does not yet have overload protection. If large deltas become possible, prefer explicit max-step/backlog policy over silently running unbounded catch-up work.
 ### Rendering Docs Are Directional
-The DocC render articles are proposed architecture, not implemented code. Their important constraint is still sound: keep backend-specific Metal state out of `World`; store only abstract presentation state or handles in ECS; extract a flat render frame for the renderer.
+The DocC runtime and render articles contain proposed architecture, not only implemented code. Their important constraints are:
+- keep backend-specific Metal state out of `World`
+- store only abstract presentation state or handles in ECS
+- publish an immutable render snapshot without requiring a Render Runtime to exist
+- let the Render Runtime consume completed snapshots according to its own cadence
 ### Documentation Can Drift Quickly
 The code has already moved past earlier examples such as `Missile` and `CAcceleration`. When editing docs or contributor guidance, check current source names first and update examples to match durable concepts rather than stale placeholder types.
 ## Guidance for Future Changes
 - Do not reintroduce a global static world lookup model.
+- Do not introduce process-global mutable resources or runtime service locators to connect runtimes.
+- Keep runtime dependencies explicit and wire them at the App boundary.
+- Prefer immutable snapshots and events over direct peer-runtime references.
 - Do not reintroduce a closed enum registry for component identity.
 - Keep component storage per-type.
 - Keep systems data-oriented.
@@ -197,7 +253,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - Prefer adding capability protocols over deepening inheritance.
 - Keep the game-object layer ergonomic, but keep the ECS layer authoritative.
 - If adding selection/UI inspection, typed lookup by `EntityID` is a valid direction.
-- Mirror the app/source tree under `Engine2/Engine2Tests/`. For example, tests for `Engine2/Engine2/Engine/System/Position/System/SMovement.swift` should live in `Engine2/Engine2Tests/Engine/System/Position/System/SMovementTests.swift`.
+- Mirror the app/source tree under `Engine2/Engine2Tests/`. For example, tests for `Engine2/Engine2/Simulation Runtime/Engine/System/Position/System/SMovement.swift` should live in `Engine2/Engine2Tests/Simulation Runtime/Engine/System/Position/System/SMovementTests.swift`.
 ## Current Gaps / Known TODOs
 - Entity destruction, index reuse, and generation incrementing are not implemented.
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.

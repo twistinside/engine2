@@ -10,11 +10,11 @@ import simd
 
 @MainActor
 struct EntityMotionPane: View {
-    let game: Game
+    let simulation: SimulationRuntime
 
     var body: some View {
         TimelineView(.animation) { _ in
-            let rows = EntityMotionRow.extract(from: game.world)
+            let rows = EntityMotionRow.extract(from: simulation.world)
 
             GlassEffectContainer(spacing: 8) {
                 VStack(alignment: .leading, spacing: 10) {

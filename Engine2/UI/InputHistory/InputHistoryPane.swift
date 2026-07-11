@@ -9,11 +9,11 @@ import SwiftUI
 
 @MainActor
 struct InputHistoryPane: View {
-    let game: Game
+    let simulation: SimulationRuntime
 
     var body: some View {
         TimelineView(.animation) { _ in
-            let entries = game.world.input.history
+            let entries = simulation.world.input.history
 
             GlassEffectContainer(spacing: 8) {
                 VStack(alignment: .leading, spacing: 10) {

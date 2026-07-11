@@ -57,12 +57,12 @@
          <EnvironmentVariable
             key = "MTL_HUD_ENABLED"
             value = "1"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "MTL_HUD_LOG_ENABLED"
             value = "1"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </EnvironmentVariable>
       </EnvironmentVariables>
       <BuildableProductRunnable
