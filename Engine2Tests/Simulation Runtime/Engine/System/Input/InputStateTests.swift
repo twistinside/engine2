@@ -34,6 +34,60 @@ struct InputStateTests {
         #expect(input.keyboard.keys.isEmpty)
     }
 
+    @Test func mouseButtonUpRemovesHeldButtonAndUpdatesPointerPosition() {
+        var input = InputState()
+
+        input.apply(.mouseButtonDown(.right, position: SIMD2<Float>(2, 3)))
+        input.apply(.mouseButtonUp(.right, position: SIMD2<Float>(8, 9)))
+
+        #expect(input.mouse.buttons.isEmpty)
+        #expect(input.mouse.position == SIMD2<Float>(8, 9))
+    }
+
+    @Test func historyTokensHaveStableOrderingAndRoundedDeltas() {
+        var input = InputState()
+        input.apply(.mouseButtonDown(.other(5), position: .zero))
+        input.apply(.mouseButtonDown(.middle, position: .zero))
+        input.apply(.mouseButtonDown(.right, position: .zero))
+        input.apply(.mouseButtonDown(.left, position: .zero))
+        input.apply(
+            .mouseDragged(
+                delta: SIMD2<Float>(1.6, -1.6),
+                position: .zero
+            )
+        )
+        input.apply(.scroll(delta: SIMD2<Float>(0, 0.4)))
+        input.apply(
+            .keyDown(
+                KeyboardKey.make(
+                    keyCode: 6,
+                    charactersIgnoringModifiers: "z"
+                )
+            )
+        )
+        input.apply(
+            .keyDown(
+                KeyboardKey.make(
+                    keyCode: 0,
+                    charactersIgnoringModifiers: "a"
+                )
+            )
+        )
+
+        #expect(
+            input.currentHistoryTokens() == [
+                "LMB",
+                "RMB",
+                "MMB",
+                "M5",
+                "Mouse dx:+2 dy:-2",
+                "Wheel:+0",
+                "A",
+                "Z"
+            ]
+        )
+    }
+
     @Test func cleanupClearsDeltasAndActionsButPreservesHeldState() async throws {
         var input = InputState()
         let key = KeyboardKey.make(keyCode: 49, charactersIgnoringModifiers: " ")

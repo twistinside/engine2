@@ -51,10 +51,46 @@ struct CameraTests {
         #expect(normalizedCenter.z > 0)
         #expect(normalizedCenter.z < 1)
     }
+
+    @Test func projectionUsesUnitAspectRatioForInvalidDrawableShapes() {
+        let camera = Camera(
+            projection: .perspective(
+                verticalFieldOfView: .pi / 2,
+                near: 0.1,
+                far: 100
+            )
+        )
+        let expected = camera.projectionMatrix(aspectRatio: 1)
+
+        for invalidAspectRatio in [
+            Float.zero,
+            -2,
+            .infinity,
+            .nan
+        ] {
+            #expect(
+                camera.projectionMatrix(
+                    aspectRatio: invalidAspectRatio
+                ).isApproximately(expected)
+            )
+        }
+    }
 }
 
 private extension Float {
     func isApproximately(_ other: Float, tolerance: Float = 0.0001) -> Bool {
         abs(self - other) <= tolerance
+    }
+}
+
+private extension simd_float4x4 {
+    func isApproximately(
+        _ other: simd_float4x4,
+        tolerance: Float = 0.0001
+    ) -> Bool {
+        simd_length(columns.0 - other.columns.0) <= tolerance
+            && simd_length(columns.1 - other.columns.1) <= tolerance
+            && simd_length(columns.2 - other.columns.2) <= tolerance
+            && simd_length(columns.3 - other.columns.3) <= tolerance
     }
 }

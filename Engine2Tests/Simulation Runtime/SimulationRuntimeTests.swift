@@ -49,9 +49,70 @@ struct SimulationRuntimeTests {
 
         simulation.start()
         #expect(simulation.state.isRunning == true)
+        #expect(simulation.state.isLoopRunning == true)
 
         simulation.stop()
         #expect(simulation.state.isRunning == false)
+        #expect(simulation.state.isLoopRunning == false)
+    }
+
+    @Test @MainActor func replacingBuilderCanDeferWorldReconstruction() throws {
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+        )
+        let originalWorld = simulation.world
+
+        simulation.replaceWorldBuilder(
+            TestWorldBuilder(position: SIMD3<Float>(9, 0, 0)),
+            rebuildWorldImmediately: false
+        )
+
+        #expect(simulation.world === originalWorld)
+
+        simulation.rebuildWorld()
+
+        let entity = try #require(
+            simulation.world.positionComponents.entities.first
+        )
+        #expect(simulation.world !== originalWorld)
+        #expect(
+            simulation.world.positionComponents[entity]?.position ==
+            SIMD3<Float>(9, 0, 0)
+        )
+    }
+
+    @Test @MainActor func replacingBuilderRebuildsImmediatelyByDefault() throws {
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+        )
+        let originalWorld = simulation.world
+
+        simulation.replaceWorldBuilder(
+            TestWorldBuilder(position: SIMD3<Float>(5, 0, 0))
+        )
+
+        let entity = try #require(
+            simulation.world.positionComponents.entities.first
+        )
+        #expect(simulation.world !== originalWorld)
+        #expect(
+            simulation.world.positionComponents[entity]?.position ==
+            SIMD3<Float>(5, 0, 0)
+        )
+    }
+
+    @Test @MainActor func handleInputAppliesEventToActiveWorld() {
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: .zero)
+        )
+        let key = KeyboardKey.make(
+            keyCode: 13,
+            charactersIgnoringModifiers: "w"
+        )
+
+        simulation.handleInput(.keyDown(key))
+
+        #expect(simulation.world.input.keyboard.keys == [key])
     }
 }
 

@@ -46,6 +46,39 @@ private actor TestSleeper {
 }
 
 struct SimulationLoopTests {
+    @Test @MainActor func startAndStopAreIdempotentAndReportLifecycleOnce() {
+        let engine = Engine(world: World(), systems: [])
+        var clockCreationCount = 0
+        var runningStates: [Bool] = []
+        let simulationLoop = SimulationLoop(
+            engine: engine,
+            pollInterval: .seconds(60),
+            clockFactory: {
+                clockCreationCount += 1
+                return SystemClock()
+            },
+            sleeper: { _ in
+                try await Task.sleep(for: .seconds(60))
+            }
+        )
+        simulationLoop.runningStateDidChange = { isRunning in
+            runningStates.append(isRunning)
+        }
+
+        simulationLoop.start()
+        simulationLoop.start()
+
+        #expect(simulationLoop.isRunning)
+        #expect(clockCreationCount == 1)
+        #expect(runningStates == [true])
+
+        simulationLoop.stop()
+        simulationLoop.stop()
+
+        #expect(simulationLoop.isRunning == false)
+        #expect(runningStates == [true, false])
+    }
+
     @Test @MainActor func appTaskFeedsElapsedTimeIntoEngine() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)

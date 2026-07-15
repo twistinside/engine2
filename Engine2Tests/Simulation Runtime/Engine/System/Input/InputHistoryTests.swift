@@ -58,4 +58,14 @@ struct InputHistoryTests {
         #expect(input.history[0].tokens == ["Mouse dx:+5 dy:+0"])
         #expect(input.history[2].tokens == ["Mouse dx:+3 dy:+0"])
     }
+
+    @Test func zeroHistoryLimitRetainsNoRows() {
+        var input = InputState()
+        input.historyLimit = 0
+        input.apply(.mouseButtonDown(.left, position: .zero))
+
+        input.recordHistoryFrame()
+
+        #expect(input.history.isEmpty)
+    }
 }

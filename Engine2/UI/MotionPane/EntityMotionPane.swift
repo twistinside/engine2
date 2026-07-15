@@ -84,7 +84,7 @@ struct EntityMotionPane: View {
     }
 }
 
-private struct EntityMotionRow: Identifiable, Equatable {
+struct EntityMotionRow: Identifiable, Equatable {
     let id: EntityID
     let position: SIMD3<Float>
     let speed: Float

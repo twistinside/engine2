@@ -29,4 +29,20 @@ struct SMovementTests {
         #expect(world.motionComponents[entity]?.acceleration == .zero)
         #expect(world.motionComponents[entity]?.impulse == .zero)
     }
+
+    @Test func incompleteEntityWithoutPositionIsLeftUnchanged() {
+        var world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        var expectedMotion = CMotion(
+            velocity: SIMD3<Float>(1, 2, 3),
+            impulse: SIMD3<Float>(4, 5, 6)
+        )
+        expectedMotion.accumulator.acceleration = SIMD3<Float>(7, 8, 9)
+        world.motionComponents.insert(expectedMotion, for: entity)
+
+        SMovement().update(world: &world, deltaTime: 0.5)
+
+        #expect(world.motionComponents[entity] == expectedMotion)
+        #expect(world.positionComponents[entity] == nil)
+    }
 }

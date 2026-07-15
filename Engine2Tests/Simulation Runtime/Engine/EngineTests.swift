@@ -98,4 +98,52 @@ struct EngineTests {
         #expect(world.input.history[0].tokens == ["LMB"])
         #expect(engine.accumulatedTime == .zero)
     }
+
+    @Test func updateRunsMultipleFixedStepsAndRetainsRemainder() {
+        let world = World()
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .milliseconds(100),
+            alwaysSystems: [],
+            systems: [StatefulSystem()]
+        )
+
+        engine.update(deltaTime: .milliseconds(250))
+
+        #expect(world.camera.position.x == 2)
+        #expect(engine.accumulatedTime == .milliseconds(50))
+    }
+
+    @Test func appendedSystemsRunInAlwaysThenSimulationOrder() {
+        let recorder = ExecutionRecorder()
+        let engine = Engine(alwaysSystems: [], systems: [])
+
+        engine.addSystem(RecordingSystem(name: "simulation", recorder: recorder))
+        engine.addAlwaysSystem(RecordingSystem(name: "always", recorder: recorder))
+        engine.step()
+
+        #expect(recorder.entries == ["always", "simulation"])
+    }
+}
+
+private struct StatefulSystem: PSystem {
+    private var updateCount: Float = 0
+
+    mutating func update(world: inout World, deltaTime: Float) {
+        updateCount += 1
+        world.camera.position.x = updateCount
+    }
+}
+
+private final class ExecutionRecorder {
+    var entries: [String] = []
+}
+
+private struct RecordingSystem: PSystem {
+    let name: String
+    let recorder: ExecutionRecorder
+
+    mutating func update(world: inout World, deltaTime: Float) {
+        recorder.entries.append(name)
+    }
 }

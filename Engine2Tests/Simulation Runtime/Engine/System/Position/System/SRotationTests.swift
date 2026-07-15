@@ -70,6 +70,31 @@ struct SRotationTests {
         ))
         #expect(world.angularMotionAccumulatorComponents[entity] == nil)
     }
+
+    @Test func incompleteEntityWithoutRotationIsLeftUnchanged() {
+        var world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        let expectedVelocity = CAngularVelocity(
+            angularVelocity: SIMD3<Float>(1, 2, 3)
+        )
+        let expectedAccumulator = CAngularMotionAccumulator(
+            angularAcceleration: SIMD3<Float>(4, 5, 6),
+            angularImpulse: SIMD3<Float>(7, 8, 9)
+        )
+        world.angularVelocityComponents.insert(expectedVelocity, for: entity)
+        world.angularMotionAccumulatorComponents.insert(
+            expectedAccumulator,
+            for: entity
+        )
+
+        SRotation().update(world: &world, deltaTime: 0.5)
+
+        #expect(world.angularVelocityComponents[entity] == expectedVelocity)
+        #expect(
+            world.angularMotionAccumulatorComponents[entity] == expectedAccumulator
+        )
+        #expect(world.rotationComponents[entity] == nil)
+    }
 }
 
 private func quaternionVectorsApproximatelyEqual(
