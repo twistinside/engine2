@@ -381,6 +381,8 @@ private struct GPUInstance {
     }
 }
 
+/// Resources encoded on the main actor and released by Metal completion
+/// callbacks. The semaphore protects slot availability across those contexts.
 final class FrameResources: @unchecked Sendable {
     static let maximumInstanceCount = 256
 
@@ -407,7 +409,7 @@ final class FrameResources: @unchecked Sendable {
     }
 
     /// Releases this frame slot for reuse by a later draw call.
-    func markAvailable() {
+    nonisolated func markAvailable() {
         availability.signal()
     }
 

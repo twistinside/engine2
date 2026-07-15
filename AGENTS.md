@@ -80,6 +80,7 @@ If there is a known list of possibilities for a type, consider `enum`.
   - Removal, compaction, richer mutation helpers, and join/query helpers are still missing.
 - `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PComponent.swift`
   - Marker protocol for components.
+  - Explicitly `nonisolated` so component `Codable` and `Equatable` value semantics do not inherit the app target's default `MainActor` isolation.
 - `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PResource.swift`
   - Marker protocol for long-lived resource and resource-like storage roles inside an owning runtime or world.
   - Sharing mechanism is not what defines a resource; ownership, lifetime, and non-entity cardinality are the important traits.
