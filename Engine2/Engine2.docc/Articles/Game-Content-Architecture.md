@@ -107,7 +107,7 @@ struct CAudioEmitter: PComponent {
 }
 ```
 
-The Simulation Runtime owns these component rows because they are authoritative abstract game state. Snapshot extraction copies only the data another runtime needs:
+The Simulation Runtime owns these component rows because they are authoritative abstract game state. A publisher-owned `SimulationSnapshot` carries observable abstract state across the runtime boundary. The Render Runtime can project that source state into a private render-oriented value such as:
 
 ```swift
 struct RenderInstanceSnapshot {
@@ -117,7 +117,7 @@ struct RenderInstanceSnapshot {
 }
 ```
 
-The Render Runtime resolves `MeshID` and `MaterialID` through the render assets supplied by Game Content. It privately owns the resulting meshes, textures, buffers, and pipelines.
+The Render Runtime owns that projection and resolves `MeshID` and `MaterialID` through the render assets supplied by Game Content. It privately owns the resulting meshes, textures, buffers, and pipelines.
 
 ```text
 Game Content asset
@@ -126,7 +126,10 @@ Game Content asset
 Stable asset identity in ECS
         |
         v
-Immutable runtime snapshot
+Publisher-owned SimulationSnapshot
+        |
+        v
+Render-owned projection
         |
         v
 Runtime-owned backend resource
@@ -141,7 +144,7 @@ Continuous presentation belongs naturally in state and snapshots. Examples inclu
 - listener position and orientation
 - music or ambient context
 
-Ephemeral occurrences should normally begin as Simulation Runtime events. For example, the Simulation Runtime can publish that a weapon fired without naming an Audio Runtime or a sound file.
+Ephemeral occurrences may begin as Simulation Runtime events. For example, the Simulation Runtime can publish that a weapon fired without naming an Audio Runtime or a sound file.
 
 Game Content can supply the presentation rule that gives the event a particular sound:
 
@@ -153,9 +156,18 @@ Audio Runtime behavior:    resolve and play the matching asset
 
 This keeps gameplay semantic, presentation game-specific, and backend execution runtime-owned.
 
+A snapshot-only consumer needs any visible occurrence represented in durable snapshot state. Render does not consume simulation events, so a muzzle flash, explosion, or similar effect needs snapshot-visible identity and lifetime long enough for Render to observe it even when intermediate simulation snapshots are skipped.
+
 ## The App Constructs Runtimes From Game Content
 
 The App is the composition root. It creates one game-content value, then supplies the relevant portions to independently constructed runtimes.
+
+The example app now implements the first version of this boundary with
+`BasicGameContent`. It supplies `BasicWorldBuilder` to ``SimulationRuntime``
+and a `RenderAssetCatalog` to the current render path. ``Ball`` advertises only
+the backend-neutral `MeshID.ball`; Game Content maps that ID to `Ball.usdz`, and
+the renderer privately turns the packaged asset into Model I/O and Metal
+resources. Neither ``World`` nor ``Ball`` contains a filename or backend object.
 
 A future construction shape may resemble:
 
@@ -188,7 +200,7 @@ The important ownership rules are:
 - A runtime may transform content into private caches or backend resources.
 - Game Content remains reusable across runtime reconstruction and new game sessions when practical.
 
-The runtime that performs work owns the interface presented at that boundary. Simulation therefore owns ``PWorldBuilder`` because it defines what is required to construct a valid ``World``. Likewise, a Render Runtime owns the render-snapshot contract it consumes. Game Content supplies conforming values and descriptions without owning runtime protocols or invariant scheduling.
+The runtime that performs work owns the construction interfaces it consumes. Simulation therefore owns ``PWorldBuilder`` because it defines what is required to construct a valid ``World``. Runtime publications follow a complementary ownership rule: a publisher owns the snapshot and event vocabulary describing its authority, while a consumer owns the projections and private operational models it derives. Simulation owns `SimulationSnapshot`; Render owns its transformation into a private render snapshot. Game Content supplies conforming values and descriptions without owning runtime protocols, publication schemas, or invariant scheduling. See <doc:Runtime-Communication>.
 
 ## Game Content Is a Natural Consumer Module
 
@@ -240,7 +252,9 @@ Current project elements map onto Game Content as follows:
 | --- | --- |
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
-| `PrettyTriangle.usdz` and `PrettyTriangle.usda` | Example render assets that should move out of reusable runtime implementation |
+| `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
+| `BasicGameContent` | Example App-supplied composition of world construction and render asset mappings |
+| `MeshID` and `RenderAssetCatalog` | Backend-neutral asset identity and the Render-owned catalog input contract |
 | `ModelShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
 | Debug panes and app commands | Example App tooling, not reusable Game Content or runtime core |
 
@@ -248,6 +262,7 @@ The first extraction should move example content out of reusable engine targets 
 
 ## Related Direction
 
+- <doc:Runtime-Communication>
 - <doc:Runtime-Architecture>
 - <doc:Engine-Architecture>
 - <doc:Rendering-Architecture>

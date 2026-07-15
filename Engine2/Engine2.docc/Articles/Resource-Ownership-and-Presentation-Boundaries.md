@@ -1,6 +1,7 @@
 # Resource Ownership and Presentation Boundaries
 This article captures the intended boundary between simulation state, presentation state, and backend rendering state in Engine2.
 See <doc:Runtime-Architecture> for the canonical top-level ownership model and runtime-boundary vocabulary.
+See <doc:Runtime-Communication> for snapshot and event publication ownership.
 See <doc:Game-Content-Architecture> for the distinction between packaged game assets, ECS resources, and runtime-owned backend resources.
 ## Status
 Partially implemented.
@@ -51,13 +52,16 @@ It should own Metal-specific state and any caches or services that exist only to
 - drawable or target encoding
 This keeps backend lifetime concerns and platform-specific details isolated from simulation code.
 ## Extraction Is the Translation Boundary
-The clean runtime boundary between simulation and rendering is an extraction or export phase.
-That phase should:
-1. read the world's abstract presentation state
-2. build a flat, immutable `RenderFrame` that currently serves as the render snapshot
-3. publish that snapshot without requiring a Render Runtime to be present
-`World` should not directly emit Metal-facing structs as part of its core API, and the renderer should not read arbitrary gameplay state during drawing.
-The current code takes a first step here with ``RenderFrame.extract(from:)``. The intended direction is to keep that extraction narrow, possibly through a dedicated `RenderWorldView` or other explicit extraction source, so rendering depends on only the data it actually needs while leaving ``World`` free of renderer-specific API surface.
+The current code combines the simulation-to-render translation in ``RenderFrame.extract(from:)``. It reads abstract state from ``World`` and builds a flat immutable value that the renderer consumes.
+
+The proposed runtime boundary separates publication from render projection:
+
+1. the Simulation Runtime publishes a completed, backend-neutral `SimulationSnapshot`
+2. the Render Runtime selects the latest value according to its own cadence
+3. Render projects the fields it needs into a private `RenderFrame` or future render snapshot
+4. Render resolves abstract identities into its privately owned backend resources
+
+`World` should not directly emit Metal-facing structs as part of its core API, and the renderer should not read live gameplay state during drawing. The Render Runtime owns the destination projection while Simulation remains unaware of render-specific fields and backend choices.
 ## Draw Cadence Is Separate From Simulation Cadence
 Simulation stepping and drawing should not be treated as the same event.
 Under a fixed-step engine:
@@ -67,9 +71,10 @@ Under a fixed-step engine:
 In a Metal view-driven application, the view still dictates when a drawable is available. That should control when the renderer submits work, not when gameplay state advances.
 The intended presentation model is:
 1. simulation updates `World`
-2. extraction publishes a new immutable render snapshot
-3. front and back render frames swap
-4. the Render Runtime draws from the latest completed snapshot when presentation requests a draw
+2. Simulation publishes a new immutable simulation snapshot
+3. Render projects the latest available value into private render state
+4. private front and back render frames swap
+5. the Render Runtime draws from the latest completed value when presentation requests a draw
 This keeps simulation deterministic while still fitting a display-driven render loop.
 ## Practical Naming Guidance
 Prefer domain names for concrete types and reserve `PResource` for protocol or storage classification. Snapshot values use a descriptive `Snapshot` suffix rather than the `S` prefix, which remains reserved for ECS systems. Runtime types use the full `Runtime` suffix.
@@ -82,11 +87,12 @@ That keeps architectural intent readable while still allowing typed resource acc
 This boundary preserves the current engine direction:
 - `World` remains authoritative for simulation and abstract presentation state
 - ``PSystem`` implementations continue to operate on ECS data in hot paths
-- the Simulation Runtime publishes presentation snapshots without depending on a Render Runtime
-- the Render Runtime remains a projection of authoritative game state rather than a second gameplay model
+- the Simulation Runtime publishes its own observation snapshot without depending on a Render Runtime
+- the Render Runtime owns a private projection of authoritative game state rather than a second gameplay model
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 ### Related Symbols
 - ``World``

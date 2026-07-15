@@ -71,7 +71,7 @@ The important constraint is lifecycle safety and explicit inputs, not artificial
 
 A **Runtime boundary** is the point where ownership changes and one runtime's mutable implementation state stops being visible. Values crossing that boundary should normally be strongly typed and immutable.
 
-Two boundary-value semantics are currently canonical.
+Two boundary-value semantics are currently canonical. See <doc:Runtime-Communication> for the proposed publication, ownership, projection, and delivery model.
 
 ### Snapshots
 
@@ -83,17 +83,19 @@ Snapshots are:
 - safe to ignore when no consumer exists
 - sufficient for a late consumer to converge on current state
 - published without naming a required receiving runtime
+- owned as vocabulary by the runtime whose state they describe
 
 Examples include:
 
 - `InputSnapshot`
-- `RenderSnapshot`
-- `AudioListenerSnapshot`
-- `GameSnapshot`
+- `SimulationSnapshot`
+- `AchievementSnapshot`
 
 Snapshot types should use a descriptive `Snapshot` suffix rather than an `S` prefix. The `S` prefix remains reserved for ECS systems.
 
-The current ``RenderFrame`` is the first implemented form of a render snapshot. Future naming may adopt `RenderSnapshot` when the runtime boundary becomes explicit; documentation should distinguish the currently implemented type from the proposed architectural term.
+A receiving runtime may derive its own private snapshot or operational model from a publisher-owned snapshot. For example, the Simulation Runtime publishes `SimulationSnapshot`; the Render Runtime projects that value into its own render-oriented snapshot. Simulation owns the source vocabulary, Render owns the projection and destination model, and the App owns the connection.
+
+The current ``RenderFrame`` combines simulation extraction and the render-oriented destination value in one early implementation. Future work should separate that shortcut without renaming or wrapping the current type solely for architectural symmetry.
 
 ### Events
 
@@ -108,12 +110,16 @@ For example, the Simulation Runtime might publish facts such as:
 
 Audio, Achievement, Network, or tooling runtimes may observe those events when present. The Simulation Runtime does not require any particular reaction and remains correct when no consumer exists.
 
+Like snapshots, event schemas belong to their publisher's authority. A consumer may transform an event into private behavior or state, but it does not redefine the fact that the publisher reported.
+
 Events and snapshots complement one another:
 
 - a snapshot answers "what is true now?"
 - an event answers "what just happened?"
 
 A runtime that starts late can converge from the latest snapshot. Ephemeral events that occurred while it was absent may be intentionally missed. If historical delivery becomes necessary, that requires an explicit durable record or journal rather than silently changing ordinary event semantics.
+
+Snapshots and events form independent logical publication lanes. Snapshots use replaceable latest-value semantics; events use ordered-stream semantics within one publisher's authority. Their concrete transport, buffering, subscription, and correlation mechanisms remain proposed work.
 
 ## Prefer Choreography Between Peer Runtimes
 
@@ -126,17 +132,19 @@ Peer runtimes should usually communicate through choreography:
 For example:
 
 ```text
-InputRuntime       -- InputSnapshot  --> SimulationRuntime
-SimulationRuntime  -- RenderSnapshot --> RenderRuntime
-SimulationRuntime  -- GameEvent      --> AudioRuntime
-SimulationRuntime  -- GameEvent      --> AchievementRuntime
+InputRuntime       -- InputSnapshot + InputEvent           --> SimulationRuntime
+SimulationRuntime  -- SimulationSnapshot                   --> RenderRuntime
+SimulationRuntime  -- SimulationSnapshot + SimulationEvent --> AudioRuntime
+SimulationRuntime  -- SimulationSnapshot + SimulationEvent --> AchievementRuntime
 ```
 
-The arrows show App-owned wiring, not direct ownership between the runtimes.
+The arrows show App-owned, explicitly typed wiring, not direct ownership between the runtimes. Rendering consumes the simulation snapshot and derives a private render model; it does not require a simulation event lane.
+
+Engine2 should not connect these publications through a process-global event bus, process-global snapshot database, or runtime service locator. A reusable App-owned router or exchange may eventually implement the connections, but it must preserve the explicit typed topology and may not make arbitrary publishers globally discoverable.
 
 Avoid making directed commands the default peer-to-peer boundary. "AudioRuntime, play this sound" couples the Simulation Runtime to an audio capability. "A weapon fired" states a fact within the Simulation Runtime's authority and allows an optional Audio Runtime to decide how that fact should sound.
 
-Directed request-and-result workflows are still valid when a dependency is intentional, but the App should normally coordinate them. For example, the App can ask a Storage Runtime to load a saved `GameSnapshot`, then construct or replace the Simulation Runtime with the result. The Simulation Runtime does not need to own or discover the Storage Runtime.
+Directed request-and-result workflows are still valid when a dependency is intentional, but the App should normally coordinate them. For example, the App can ask a Storage Runtime to load a saved `GameCheckpoint`, then construct or replace the Simulation Runtime with the result. The Simulation Runtime does not need to own or discover the Storage Runtime.
 
 ## Runtimes Advance at Different Cadences
 
@@ -147,7 +155,7 @@ There is no single universal application frame.
 - The Render Runtime submits work according to presentation cadence.
 - Audio, Network, and Storage runtimes may be event-driven or use their own scheduling policies.
 
-One host update may therefore collect input, execute zero or several simulation ticks, publish one new render snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
+One host update may therefore collect input, execute zero or several simulation ticks, publish one new simulation snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
 
 The word **tick** refers specifically to one fixed Simulation Runtime simulation advancement. A render frame refers to one presentation attempt. An input snapshot describes the input interval or point in time defined by the Input Runtime.
 
@@ -183,13 +191,14 @@ The current implementation maps onto the proposed model as follows:
 | ``Engine`` | Fixed-step scheduler inside the Simulation Runtime |
 | ``World`` | Authoritative simulation state inside the Simulation Runtime |
 | `InputMetalView` and `InputState` | UI input collection and simulation-input responsibilities that are not yet separated by an Input Runtime boundary |
-| ``RenderFrame`` | Current simulation-to-render snapshot value |
+| ``RenderFrame`` | Current combined extraction and render-snapshot value; a future Render Runtime projection should derive its private model from a publisher-owned simulation snapshot |
 | `MetalSceneView` and `MetalRenderer` | Early Render Runtime ownership and backend responsibilities |
 
 Future changes should introduce the remaining boundaries incrementally. Add a runtime boundary when it creates real ownership, lifecycle, cadence, or testing value.
 
 ## Related Direction
 
+- <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 - <doc:Engine-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>
