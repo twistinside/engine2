@@ -7,8 +7,10 @@
 
 import simd
 
-class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
+class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable,
+    PSphereCollidable {
     let initialMeshID = MeshID.ball
+    let initialBoundingSphereRadius: Float = 1
 
     convenience init(
         in world: World,

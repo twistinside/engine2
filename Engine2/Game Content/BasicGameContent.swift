@@ -26,4 +26,9 @@ struct BasicGameContent {
         )
     }
 
+    /// Drop-in content configuration for visually exercising sphere response.
+    /// Use `BasicGameContent.collisionDemo` in `Engine2App.init()`.
+    static var collisionDemo: BasicGameContent {
+        BasicGameContent(worldBuilder: CollisionWorldBuilder())
+    }
 }

@@ -11,6 +11,7 @@ class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<CAngularMotionAccumulator>()
     var angularVelocityComponents = ComponentStore<CAngularVelocity>()
+    var boundingSphereComponents = ComponentStore<CBoundingSphere>()
     var motionComponents = ComponentStore<CMotion>()
     var positionComponents = ComponentStore<CPosition>()
     var renderableComponents = ComponentStore<CRenderable>()
@@ -43,6 +44,16 @@ class World {
         if entity is PPositionable {
             positionComponents.insert(
                 CPosition(position: state.position ?? .zero),
+                for: entity.id
+            )
+        }
+
+        // PSphereCollidable
+        if let collidable = entity as? any PSphereCollidable {
+            boundingSphereComponents.insert(
+                CBoundingSphere(
+                    radius: collidable.initialBoundingSphereRadius
+                ),
                 for: entity.id
             )
         }

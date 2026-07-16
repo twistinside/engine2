@@ -18,6 +18,7 @@ struct BasicWorldBuilderTests {
         #expect(world.rotationComponents.entities.count == 4)
         #expect(world.angularVelocityComponents.entities.count == 4)
         #expect(world.angularMotionAccumulatorComponents.entities.count == 4)
+        #expect(world.boundingSphereComponents.entities.count == 4)
         #expect(world.renderableComponents.entities.count == 4)
         #expect(world.selectableComponents.entities.count == 4)
 
@@ -68,6 +69,7 @@ struct BasicWorldBuilderTests {
                     .angularImpulse == .zero
             )
             #expect(world.renderableComponents[entity]?.meshID == .ball)
+            #expect(world.boundingSphereComponents[entity]?.radius == 1)
             #expect(
                 world.selectableComponents[entity]?.selectionState == .unselected
             )

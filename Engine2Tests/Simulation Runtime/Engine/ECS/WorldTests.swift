@@ -26,6 +26,7 @@ struct WorldTests {
         #expect(world.positionComponents[entity.id]?.position == expectedPosition)
         #expect(world.scaleComponents[entity.id]?.scale == expectedScale)
         #expect(world.motionComponents[entity.id] == nil)
+        #expect(world.boundingSphereComponents[entity.id] == nil)
         #expect(world.renderableComponents[entity.id] == nil)
         #expect(world.rotationComponents[entity.id] == nil)
         #expect(world.selectableComponents[entity.id] == nil)
@@ -72,6 +73,22 @@ struct WorldTests {
         #expect(entity.meshID == entity.initialMeshID)
     }
 
+    @Test func addSeedsBoundingSphereForCollidableEntity() {
+        let world = World()
+        let entity = TestSphereCollidableSpawnEntity(
+            unregisteredID: world.reserveEntityID(),
+            in: world
+        )
+
+        world.add(
+            entity,
+            from: Entity.InitialState(position: SIMD3<Float>(1, 2, 3))
+        )
+
+        #expect(world.boundingSphereComponents[entity.id]?.radius == 2)
+        #expect(entity.boundingSphereRadius == 2)
+    }
+
     @Test func reserveEntityIDReturnsUniqueHandles() async throws {
         let world = World()
         let first = world.reserveEntityID()
@@ -90,4 +107,7 @@ private final class TestMovableSpawnEntity: Entity, PMovable {}
 private final class TestSelectableSpawnEntity: Entity, PSelectable {}
 private final class TestRenderableSpawnEntity: Entity, PRenderable {
     let initialMeshID = MeshID.ball
+}
+private final class TestSphereCollidableSpawnEntity: Entity, PSphereCollidable {
+    let initialBoundingSphereRadius: Float = 2
 }

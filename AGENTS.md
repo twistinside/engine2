@@ -110,6 +110,11 @@ Current example ownership:
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Collision/**/*.swift`
+  - `CBoundingSphere` is a position-centered coarse collision bound.
+  - `PSphereCollidable` seeds the bound from Game Content entities and exposes its live radius.
+  - `SSphereCollision` performs an O(n²) all-pairs pass after movement, separates overlaps, and applies equal-unit-mass elastic response.
+  - Layers, triggers, static bodies, mass, collision events, broad-phase indexing, and swept collision detection remain future work.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
   - `InputState` is the current authoritative simulation-facing input resource stored on `World`.
   - The proposed Input Runtime will eventually separate platform input collection from immutable input snapshots consumed by the Simulation Runtime.
@@ -131,6 +136,11 @@ Current example ownership:
   - `SimulationLoop` owns the app-level async polling task and feeds elapsed time into `Engine`.
 - `Engine2/Engine2/Game Content/BasicWorldBuilder.swift`
   - Example Game Content builder that currently seeds the default `Ball` entities.
+- `Engine2/Engine2/Game Content/CollisionWorldBuilder.swift`
+  - Visual collision demo with two isolated pairs of radius-1 balls that meet after one second.
+  - Select it through `BasicGameContent.collisionDemo` without changing Simulation Runtime infrastructure.
+- `Engine2/Engine2/Game Content/BasicGameContent.swift`
+  - App-supplied example content value that groups world construction with the render asset catalog.
 - `Engine2/Engine2/Game Content/Model/MeshID.swift`
   - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
 - `Engine2/Engine2/Game Content/Entity/Ball.swift`
@@ -273,6 +283,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.
 - Systems still run in one ordered list; the DocC scheduling graph/stage model is proposed, not implemented.
 - `SMovement` and `SRotation` currently combine integration and transform advancement; the future collision/constraint pipeline may need a more explicit phase split.
+- `SSphereCollision` is intentionally discrete and O(n²); fast bodies can tunnel and multi-contact results remain pair-order dependent until collision phases and broad-phase data structures mature.
 - Rendering extraction, render resources, and presentation buffers are only documented direction.
 - Capability accessors are strict live reads with `fatalError`; optional inspection/editor lookup paths do not exist yet.
 - Tests do not yet cover component removal, dense iteration with stale generations, spawn precondition failures, or fixed-step overload policy.

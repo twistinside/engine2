@@ -28,7 +28,12 @@ final class Engine {
             SInputHistory(),
             SInputCleanup()
         ],
-        systems: [any PSystem] = [SAccelerationIntent(), SMovement(), SRotation()]
+        systems: [any PSystem] = [
+            SAccelerationIntent(),
+            SMovement(),
+            SSphereCollision(),
+            SRotation()
+        ]
     ) {
         self.world = world
         self.fixedTimeStep = fixedTimeStep

@@ -5,6 +5,12 @@ Partially implemented. Parts of this model are not implemented yet.
 The current engine already runs two ordered system lists:
 - always-running systems for input and tooling
 - simulation-gated systems for gameplay state advancement
+
+The default gameplay order is currently `SAccelerationIntent`, ``SMovement``,
+`SSphereCollision`, then `SRotation`. Collision runs after movement so it sees
+the completed positions for the fixed step and can correct overlap before the
+next step begins. This explicit array order is the current implementation, not
+yet scheduler metadata.
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
@@ -73,3 +79,4 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 - ``World``
 - ``PSystem``
 - ``SMovement``
+- `SSphereCollision`
