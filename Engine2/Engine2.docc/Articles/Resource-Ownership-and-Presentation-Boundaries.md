@@ -7,7 +7,8 @@ See <doc:Game-Content-Architecture> for the distinction between packaged game as
 Partially implemented.
 The current code already reflects the core ownership split:
 - ``World`` owns simulation-scoped state such as `camera` and `input`
-- render-specific Metal objects remain owned by ``MetalRenderer``
+- render-specific Metal objects remain owned by the `MetalResourceStore`
+  retained by ``MetalRenderer``
 - ``RenderFrame`` acts as the current translation boundary into presentation data
 ## Resource Scope Follows Runtime Ownership
 Engine2 should treat `resource` as a storage, cardinality, and lifetime role inside an owning runtime, not as the primary naming vocabulary for every type.
@@ -48,6 +49,7 @@ It should own Metal-specific state and any caches or services that exist only to
 - device and queue setup
 - pipeline compilation and caching
 - GPU resource allocation
+- Metal 4 residency sets grouped by allocation lifetime
 - pass configuration
 - drawable or target encoding
 This keeps backend lifetime concerns and platform-specific details isolated from simulation code.

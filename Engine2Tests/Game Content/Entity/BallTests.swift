@@ -44,6 +44,7 @@ struct BallTests {
         #expect(ball.angularVelocity == expectedAngularVelocity)
         #expect(ball.angularAcceleration == expectedAngularAcceleration)
         #expect(ball.angularImpulse == expectedAngularImpulse)
+        #expect(ball.meshID == .ball)
         #expect(ball.selectionState == expectedSelectionState)
         #expect(world.scaleComponents[ball.id] == nil)
     }
@@ -62,6 +63,7 @@ struct BallTests {
         #expect(ball.angularVelocity == .zero)
         #expect(ball.angularAcceleration == .zero)
         #expect(ball.angularImpulse == .zero)
+        #expect(ball.meshID == .ball)
         #expect(ball.selectionState == .unselected)
     }
 }

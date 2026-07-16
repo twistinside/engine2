@@ -26,6 +26,7 @@ struct WorldTests {
         #expect(world.positionComponents[entity.id]?.position == expectedPosition)
         #expect(world.scaleComponents[entity.id]?.scale == expectedScale)
         #expect(world.motionComponents[entity.id] == nil)
+        #expect(world.renderableComponents[entity.id] == nil)
         #expect(world.rotationComponents[entity.id] == nil)
         #expect(world.selectableComponents[entity.id] == nil)
     }
@@ -58,6 +59,19 @@ struct WorldTests {
         #expect(entity.selectionState == expectedState)
     }
 
+    @Test func addSeedsMeshIdentityForRenderableEntity() async throws {
+        let world = World()
+        let entity = TestRenderableSpawnEntity(
+            unregisteredID: world.reserveEntityID(),
+            in: world
+        )
+
+        world.add(entity)
+
+        #expect(world.renderableComponents[entity.id]?.meshID == entity.initialMeshID)
+        #expect(entity.meshID == entity.initialMeshID)
+    }
+
     @Test func reserveEntityIDReturnsUniqueHandles() async throws {
         let world = World()
         let first = world.reserveEntityID()
@@ -74,3 +88,6 @@ struct WorldTests {
 private final class TestSpawnEntity: Entity, PPositionable, PScalable {}
 private final class TestMovableSpawnEntity: Entity, PMovable {}
 private final class TestSelectableSpawnEntity: Entity, PSelectable {}
+private final class TestRenderableSpawnEntity: Entity, PRenderable {
+    let initialMeshID = MeshID(rawValue: "test-renderable")
+}

@@ -6,6 +6,10 @@ The current codebase already has:
 - ``RenderFrame.extract(from:)`` as an early combined simulation-extraction and render-snapshot path
 - ``MetalSceneView`` as the SwiftUI/MetalKit bridge
 - ``MetalRenderer`` as the backend-specific Metal 4 renderer
+- `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
+  command queue, typed state caches, decoded models, and frame-resource ring
+- `MetalResidencyManager` as the owner of committed static-asset and
+  frame-allocation residency sets
 - a typed `MeshID` and `RenderAssetCatalog` boundary between Game Content and renderer-owned resources
 The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
@@ -20,8 +24,9 @@ The authoritative simulation state should remain in ECS component stores. Render
 
 The current `CRenderable` component demonstrates that distinction. It stores a
 `MeshID`, while `BasicGameContent` maps `MeshID.ball` to the packaged
-`Ball.usdz` asset. ``MetalRenderer`` receives that catalog and privately owns
-the decoded meshes, buffers, and residency sets.
+`Ball.usdz` asset. The Render Runtime's `MetalResourceStore` receives that
+catalog and privately owns the decoded meshes, buffers, compiled state, and
+residency organization consumed by ``MetalRenderer``.
 ## Rendering Projects Published Simulation State
 Today, ``RenderFrame.extract(from:)`` reads the subset of ``World`` state needed by the current renderer: camera plus renderable entities' mesh identity, position, optional rotation, and optional scale. Positioned entities without `CRenderable` presentation state are deliberately excluded. This remains a compact implemented shortcut that combines source access with render-oriented projection.
 
@@ -81,6 +86,56 @@ ECS components should prefer stable renderer-facing handles or keys over raw Met
 For example, gameplay code can refer to a mesh ID, material ID, visibility flag, or render style, and the Render Runtime can project and resolve those values to actual pipeline keys and Metal resources.
 This keeps Metal-specific ownership and lifetime concerns inside the render layer.
 The identities, presentation descriptions, and source assets that differentiate a particular game belong to Game Content. The Render Runtime receives the relevant catalogs during App construction and privately resolves them into backend resources. See <doc:Game-Content-Architecture>.
+
+## Device-Scoped Metal Resources
+
+`MetalResourceStore` is the current device-scoped root for backend resources.
+One store owns exactly one `MTLDevice`; selecting a different device requires a
+different store and a different set of compiled and allocated objects.
+
+The store eagerly creates the resources required by the current renderer:
+
+- an `MTL4Compiler` and `MTL4CommandQueue`
+- loaded shader libraries keyed by `MetalShaderLibraryID`
+- Metal 4 render pipelines keyed by `MetalRenderPipelineID`
+- depth-stencil states keyed by `MetalDepthStencilStateID`
+- argument tables keyed by `MetalArgumentTableID`
+- decoded models resolved from backend-neutral `MeshID` values
+- the fixed frame-resource ring
+
+Each cached object is stored with the recipe or source that produced it. Loading
+the same identity and definition is idempotent; attempting to reuse an identity
+for a different definition is an error. Required resources are compiled before
+drawing begins, so ``MetalRenderer.draw(in:)`` never performs shader or pipeline
+compilation.
+
+Pipeline recipes include every field that currently determines compatibility,
+including shader functions, color format, and sample count. Future vertex
+layouts, function constants, blend state, and attachment variants should extend
+the recipe or introduce a deliberate variant key instead of silently sharing a
+pipeline ID.
+
+## Metal 4 Residency Sets
+
+Residency and Swift object ownership are separate responsibilities. The resource
+store strongly retains models, buffers, pipeline states, and other backend
+objects. `MetalResidencyManager` groups only objects conforming to
+`MTLAllocation` so the Metal 4 command queue can ensure those allocations are
+resident when submitted work uses them.
+
+The current implementation uses two Render Runtime-owned sets:
+
+- **Static Render Assets** contains immutable model vertex and index buffers.
+- **Render Frame Buffers** contains the CPU-written instance buffers in the
+  frame ring.
+
+MetalKit and Core Animation continue to own their drawable-related allocations.
+Their view and layer residency sets are registered with the command queue when
+the `MTKView` is configured rather than copied into an engine-owned set.
+
+Pipeline states, shader libraries, depth-stencil states, compilers, and argument
+tables are retained in typed caches but are not `MTLAllocation` values and do
+not belong in these residency sets.
 ## Intended Frame Shape
 A likely long-term frame flow is:
 1. simulation systems update ECS state

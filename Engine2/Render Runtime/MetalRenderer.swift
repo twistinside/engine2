@@ -23,82 +23,59 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// the render pipeline state.
     static let colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
 
-    /// The GPU device shared by the MetalKit view and every object this
-    /// renderer creates.
-    let device: any MTLDevice
+    /// Device-scoped owner for every backend object used by this renderer.
+    let resources: MetalResourceStore
+
+    /// The MetalKit view must use the same device as the resource store.
+    var device: any MTLDevice {
+        resources.device
+    }
 
     /// Fixed pipeline for this simple USD-backed renderer.
     private let renderPipelineState: any MTLRenderPipelineState
+
+    /// Explicit depth behavior, even while the current view has no depth
+    /// attachment. Future pipelines can select a different cached state.
+    private let depthStencilState: any MTLDepthStencilState
 
     /// Metal 4 resource binding table. Each draw updates buffer slot 0 to point
     /// at the current mesh's vertex buffer and slot 1 to point at the current
     /// render instance before encoding the draw.
     private let argumentTable: any MTL4ArgumentTable
 
-    /// Static model loaded from USDZ through Model I/O and MetalKit.
-    private let model: USDRenderModel
-
     /// Supplies the latest ECS-derived presentation snapshot for each draw.
     private let renderFrameProvider: @MainActor () -> RenderFrame
-
-    /// Keeps dynamic per-frame instance buffers resident for Metal 4 queue use.
-    private let frameResidencySet: any MTLResidencySet
-
-    /// Metal 4 submits reusable command buffers through a queue instead of
-    /// committing work directly from the command buffer.
-    private let commandQueue: any MTL4CommandQueue
-
-    /// Per-frame allocator ownership is tracked separately from command buffer
-    /// creation because command buffers are cheap reusable recording objects,
-    /// while allocators own the backing memory for encoded commands.
-    private let frames: [FrameResources]
 
     /// Index into `frames` for the next draw call.
     private var frameIndex = 0
 
     init(
-        device: any MTLDevice,
-        renderPipelineState: any MTLRenderPipelineState,
-        argumentTable: any MTL4ArgumentTable,
-        model: USDRenderModel,
-        renderFrameProvider: @escaping @MainActor () -> RenderFrame,
-        frameResidencySet: any MTLResidencySet,
-        commandQueue: any MTL4CommandQueue,
-        frames: [FrameResources]
-    ) {
-        precondition(!frames.isEmpty, "MetalRenderer requires at least one frame resource set.")
+        resources: MetalResourceStore,
+        renderFrameProvider: @escaping @MainActor () -> RenderFrame
+    ) throws {
+        precondition(
+            !resources.frames.isEmpty,
+            "MetalRenderer requires at least one frame resource set."
+        )
 
-        self.device = device
-        self.renderPipelineState = renderPipelineState
-        self.argumentTable = argumentTable
-        self.model = model
+        self.resources = resources
+        self.renderPipelineState = try resources.renderPipelineState(for: .model)
+        self.depthStencilState = try resources.depthStencilState(for: .disabled)
+        self.argumentTable = try resources.argumentTable(for: .model)
         self.renderFrameProvider = renderFrameProvider
-        self.frameResidencySet = frameResidencySet
-        self.commandQueue = commandQueue
-        self.frames = frames
 
         super.init()
-
-        commandQueue.addResidencySet(model.residencySet)
-        commandQueue.addResidencySet(frameResidencySet)
     }
 
     /// Registers the drawable resources that MetalKit owns so Metal 4 can keep
     /// them resident for command buffers submitted through this queue.
     func configure(_ view: MTKView) {
-        commandQueue.addResidencySet(view.residencySet)
-
-        if let layer = view.layer as? CAMetalLayer {
-            commandQueue.addResidencySet(layer.residencySet)
-        }
+        resources.residency.registerExternalResources(for: view)
     }
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
-    /// Draws the USDZ hello triangle into the current drawable using MetalKit's
-    /// Metal 4 render pass descriptor. This is still a tiny renderer, but the
-    /// geometry now flows through the same Model I/O -> MetalKit path that real
-    /// static mesh assets can use.
+    /// Draws the models selected by the latest immutable render frame.
     func draw(in view: MTKView) {
         // Pick the next frame slot before touching the drawable. If all slots
         // are still in flight, this applies back pressure here instead of
@@ -126,7 +103,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
         // Drawable ownership is explicit in Metal 4: wait before encoding work
         // that targets it, then signal when submitted work has completed.
-        commandQueue.waitForDrawable(drawable)
+        resources.commandQueue.waitForDrawable(drawable)
 
         // Attach this frame's allocator before encoding. A Metal 4 command
         // buffer does not own command storage until `beginCommandBuffer`.
@@ -153,10 +130,16 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
 
         renderEncoder.setRenderPipelineState(renderPipelineState)
-        draw(model, instanceCount: instanceCount, frame: frame, with: renderEncoder)
+        renderEncoder.setDepthStencilState(depthStencilState)
+        draw(
+            renderFrame.instances,
+            instanceCount: instanceCount,
+            frame: frame,
+            with: renderEncoder
+        )
 
         // Ending the encoder finalizes the render pass. The pass first clears
-        // the drawable using the view's clear color, then stores the triangle
+        // the drawable using the view's clear color, then stores the model
         // color output into the drawable texture.
         renderEncoder.endEncoding()
 
@@ -174,20 +157,20 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Submit the recorded work first, then tell the queue which drawable is
         // associated with that work. `present()` requests display once the queue
         // has completed rendering to the drawable.
-        commandQueue.commit([commandBuffer], options: commitOptions)
-        commandQueue.signalDrawable(drawable)
+        resources.commandQueue.commit([commandBuffer], options: commitOptions)
+        resources.commandQueue.signalDrawable(drawable)
         drawable.present()
     }
 
     /// Advances through the fixed-size frame resource ring.
     private func nextFrame() -> FrameResources {
-        let frame = frames[frameIndex]
-        frameIndex = (frameIndex + 1) % frames.count
+        let frame = resources.frames[frameIndex]
+        frameIndex = (frameIndex + 1) % resources.frames.count
         return frame
     }
 
     private func draw(
-        _ model: USDRenderModel,
+        _ instances: [RenderInstance],
         instanceCount: Int,
         frame: FrameResources,
         with renderEncoder: any MTL4RenderCommandEncoder
@@ -197,6 +180,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
 
         for instanceIndex in 0..<instanceCount {
+            // Missing catalog entries make only the affected instance
+            // unrenderable; they do not invalidate the rest of the frame.
+            guard let model = resources.model(
+                for: instances[instanceIndex].meshID
+            ) else {
+                continue
+            }
+
             argumentTable.setAddress(
                 frame.instanceBuffer.gpuAddress + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride),
                 index: 1
@@ -230,85 +221,76 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-    /// Builds the fixed render pipeline from the app's default Metal library.
-    /// Keeping this here makes the SwiftUI wrapper responsible only for view
-    /// creation and device setup.
-    static func makeRenderPipelineState(device: any MTLDevice) throws -> any MTLRenderPipelineState {
-        guard let library = device.makeDefaultLibrary(),
-              let vertexFunction = library.makeFunction(name: "modelVertex"),
-              let fragmentFunction = library.makeFunction(name: "modelFragment")
-        else {
-            throw MetalRendererError.missingShaderFunction
-        }
-
-        let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.label = "Hello Triangle Pipeline"
-        descriptor.vertexFunction = vertexFunction
-        descriptor.fragmentFunction = fragmentFunction
-        descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
-
-        return try device.makeRenderPipelineState(descriptor: descriptor)
-    }
-
-    static func makeArgumentTable(device: any MTLDevice) throws -> any MTL4ArgumentTable {
-        let descriptor = MTL4ArgumentTableDescriptor()
-        descriptor.label = "USD Mesh Argument Table"
-        descriptor.maxBufferBindCount = 2
-
-        return try device.makeArgumentTable(descriptor: descriptor)
-    }
-
-    static func makeFrameResources(
-        device: any MTLDevice,
-        count: Int = maximumFramesInFlight
-    ) throws -> (frames: [FrameResources], residencySet: any MTLResidencySet) {
-        let descriptor = MTLResidencySetDescriptor()
-        descriptor.label = "Render Frame Buffers"
-        descriptor.initialCapacity = count
-
-        let residencySet = try device.makeResidencySet(descriptor: descriptor)
-        var frames: [FrameResources] = []
-
-        for _ in 0..<count {
-            guard let commandAllocator = device.makeCommandAllocator(),
-                  let instanceBuffer = device.makeBuffer(
-                    length: MemoryLayout<GPUInstance>.stride * FrameResources.maximumInstanceCount,
-                    options: [.storageModeShared]
-                  )
-            else {
-                throw MetalRendererError.missingFrameResource
-            }
-
-            residencySet.addAllocation(instanceBuffer)
-            frames.append(
-                FrameResources(
-                    commandAllocator: commandAllocator,
-                    instanceBuffer: instanceBuffer
-                )
-            )
-        }
-
-        residencySet.commit()
-        return (frames, residencySet)
-    }
 }
 
 struct USDRenderModel {
     let meshes: [MTKMesh]
-    let residencySet: any MTLResidencySet
 
-    static func load(named name: String, device: any MTLDevice) throws -> USDRenderModel {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "usdz") else {
-            throw MetalRendererError.missingModel(name)
+    /// Unique Metal allocations retained by this decoded model. The resource
+    /// store decides which residency set owns their residency lifetime.
+    var allocations: [any MTLAllocation] {
+        var allocations: [any MTLAllocation] = []
+        var addedAllocations = Set<ObjectIdentifier>()
+
+        for mesh in meshes {
+            for vertexBuffer in mesh.vertexBuffers {
+                append(
+                    vertexBuffer.buffer,
+                    to: &allocations,
+                    tracking: &addedAllocations
+                )
+            }
+
+            for submesh in mesh.submeshes {
+                append(
+                    submesh.indexBuffer.buffer,
+                    to: &allocations,
+                    tracking: &addedAllocations
+                )
+            }
+        }
+
+        return allocations
+    }
+
+    /// Resolves every Game Content model reference into renderer-owned Metal
+    /// resources. The catalog itself never receives those backend objects.
+    static func load(
+        catalog: RenderAssetCatalog,
+        device: any MTLDevice
+    ) throws -> [MeshID: USDRenderModel] {
+        var models: [MeshID: USDRenderModel] = [:]
+
+        for (meshID, asset) in catalog.models {
+            models[meshID] = try load(asset, device: device)
+        }
+
+        return models
+    }
+
+    private static func load(
+        _ modelAsset: ModelAssetReference,
+        device: any MTLDevice
+    ) throws -> USDRenderModel {
+        guard let url = Bundle.main.url(
+            forResource: modelAsset.resourceName,
+            withExtension: modelAsset.format.rawValue
+        ) else {
+            throw MetalRendererError.missingModel(modelAsset.resourceName)
         }
 
         let allocator = MTKMeshBufferAllocator(device: device)
         let vertexDescriptor = makeVertexDescriptor()
-        let asset = MDLAsset(url: url, vertexDescriptor: vertexDescriptor, bufferAllocator: allocator)
-        let meshes = try MTKMesh.newMeshes(asset: asset, device: device).metalKitMeshes
-        let residencySet = try makeResidencySet(named: name, for: meshes, device: device)
-
-        return USDRenderModel(meshes: meshes, residencySet: residencySet)
+        let modelIOAsset = MDLAsset(
+            url: url,
+            vertexDescriptor: vertexDescriptor,
+            bufferAllocator: allocator
+        )
+        let meshes = try MTKMesh.newMeshes(
+            asset: modelIOAsset,
+            device: device
+        ).metalKitMeshes
+        return USDRenderModel(meshes: meshes)
     }
 
     private static func makeVertexDescriptor() -> MDLVertexDescriptor {
@@ -330,50 +312,22 @@ struct USDRenderModel {
         return vertexDescriptor
     }
 
-    private static func makeResidencySet(
-        named name: String,
-        for meshes: [MTKMesh],
-        device: any MTLDevice
-    ) throws -> any MTLResidencySet {
-        let descriptor = MTLResidencySetDescriptor()
-        descriptor.label = "\(name) USD Buffers"
-        descriptor.initialCapacity = meshes.reduce(0) { count, mesh in
-            count + mesh.vertexBuffers.count + mesh.submeshes.count
-        }
-
-        let residencySet = try device.makeResidencySet(descriptor: descriptor)
-        var addedBuffers = Set<ObjectIdentifier>()
-
-        for mesh in meshes {
-            for vertexBuffer in mesh.vertexBuffers {
-                add(vertexBuffer.buffer, to: residencySet, tracking: &addedBuffers)
-            }
-
-            for submesh in mesh.submeshes {
-                add(submesh.indexBuffer.buffer, to: residencySet, tracking: &addedBuffers)
-            }
-        }
-
-        residencySet.commit()
-        return residencySet
-    }
-
-    private static func add(
-        _ buffer: any MTLBuffer,
-        to residencySet: any MTLResidencySet,
-        tracking addedBuffers: inout Set<ObjectIdentifier>
+    private func append(
+        _ allocation: any MTLAllocation,
+        to allocations: inout [any MTLAllocation],
+        tracking addedAllocations: inout Set<ObjectIdentifier>
     ) {
-        let identifier = ObjectIdentifier(buffer as AnyObject)
+        let identifier = ObjectIdentifier(allocation as AnyObject)
 
-        guard addedBuffers.insert(identifier).inserted else {
+        guard addedAllocations.insert(identifier).inserted else {
             return
         }
 
-        residencySet.addAllocation(buffer)
+        allocations.append(allocation)
     }
 }
 
-private struct GPUInstance {
+struct GPUInstance {
     var modelViewProjectionMatrix: simd_float4x4
 
     init(_ instance: RenderInstance, viewProjectionMatrix: simd_float4x4) {
@@ -438,7 +392,5 @@ final class FrameResources: @unchecked Sendable {
 }
 
 private enum MetalRendererError: Error {
-    case missingShaderFunction
     case missingModel(String)
-    case missingFrameResource
 }

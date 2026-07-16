@@ -7,7 +7,9 @@
 
 import simd
 
-class Ball: Entity, PMovable, PRotatable, PSelectable {
+class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
+    let initialMeshID = MeshID.ball
+
     convenience init(
         in world: World,
         position: SIMD3<Float> = .zero,
