@@ -1,10 +1,3 @@
-//
-//  CMotion.swift
-//  Engine2
-//
-//  Created by Codex on 5/31/26.
-//
-
 /// Translational motion state for movable entities.
 ///
 /// `velocity` is integrated state, `accelerationIntent` is persistent drive
@@ -42,6 +35,10 @@ struct CMotion: PComponent {
         )
     }
 
+    /// Aggregate translational contributions waiting for movement integration.
+    ///
+    /// Acceleration is continuous and scales with the fixed-step duration;
+    /// impulse is instantaneous and changes velocity without time scaling.
     struct Accumulator: Codable, Equatable {
         static let zero = Accumulator(acceleration: .zero, impulse: .zero)
 
@@ -49,6 +46,11 @@ struct CMotion: PComponent {
         var impulse: SIMD3<Float>
     }
 
+    /// Persistent drive decision converted into accumulator input each tick.
+    ///
+    /// Intent survives movement integration, unlike transient contributions,
+    /// and therefore models states such as sustained thrust without allowing
+    /// gameplay code to overwrite integrated velocity directly.
     enum AccelerationIntent: Codable, Equatable {
         case idle
         case accelerating(SIMD3<Float>)

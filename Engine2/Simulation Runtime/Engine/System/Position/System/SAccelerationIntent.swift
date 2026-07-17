@@ -1,10 +1,3 @@
-//
-//  SAccelerationIntent.swift
-//  Engine2
-//
-//  Created by Codex on 5/31/26.
-//
-
 /// Emits persistent acceleration intent into the per-frame motion accumulator.
 ///
 /// This keeps long-lived decisions such as "keep thrusting forward" separate

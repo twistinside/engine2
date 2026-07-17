@@ -1,10 +1,3 @@
-//
-//  RenderFrameTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 5/31/26.
-//
-
 import simd
 import Testing
 @testable import Engine2

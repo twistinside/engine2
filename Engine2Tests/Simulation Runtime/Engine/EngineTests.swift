@@ -1,10 +1,3 @@
-//
-//  EngineTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/10/26.
-//
-
 import Testing
 @testable import Engine2
 

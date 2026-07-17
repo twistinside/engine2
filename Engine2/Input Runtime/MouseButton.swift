@@ -1,10 +1,3 @@
-//
-//  MouseButton.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 /// Platform-neutral mouse button identity.
 enum MouseButton: Hashable, Comparable, Sendable {
     case left

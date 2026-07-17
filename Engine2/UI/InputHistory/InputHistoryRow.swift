@@ -1,12 +1,6 @@
-//
-//  InputHistoryRow.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import SwiftUI
 
+/// Compact visual representation of one coalesced fixed-step input history entry.
 struct InputHistoryRow: View {
     let entry: InputHistoryEntry
 

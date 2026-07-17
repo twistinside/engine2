@@ -1,10 +1,3 @@
-//
-//  InputEvent.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import simd
 
 /// Platform-neutral input received from a host adapter by `InputRuntime`.

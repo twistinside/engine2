@@ -1,17 +1,22 @@
-//
-//  Entity.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import simd
 
+/// Stable, typed game-object facade over component state owned by a `World`.
+///
+/// An entity retains its generational identity and an unowned reference to the
+/// world that stores its authoritative data. Capability protocols add live,
+/// ergonomic accessors for game code and tooling; simulation systems should
+/// iterate component stores directly instead of using entity objects in hot
+/// paths.
 class Entity {
     let id: EntityID
     unowned let world: World
 
-    /// Optional spawn values used to seed authoritative world components.
+    /// Common optional values used to seed authoritative component rows.
+    ///
+    /// Only values shared by foundational engine capabilities belong here.
+    /// Specialized Game Content should use concrete entity initializers,
+    /// builders, or focused spawn helpers instead of growing this into a
+    /// universal descriptor.
     struct InitialState {
         static let empty = InitialState()
 

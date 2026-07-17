@@ -1,10 +1,3 @@
-//
-//  SimulationRuntime.swift
-//  Engine2
-//
-//  Created by Codex on 3/17/26.
-//
-
 import Observation
 
 /// App-facing lifecycle boundary for the simulation runtime.

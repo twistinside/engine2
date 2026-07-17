@@ -1,10 +1,3 @@
-//
-//  SimulationTick.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 /// Identity of a completed fixed Simulation Runtime step.
 ///
 /// A tick identifies simulation progress without carrying wall-clock or render

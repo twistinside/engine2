@@ -1,10 +1,3 @@
-//
-//  MetalRenderer.swift
-//  Engine2
-//
-//  Created by Codex on 5/25/26.
-//
-
 import Dispatch
 import Foundation
 import Metal
@@ -12,6 +5,12 @@ import MetalKit
 import ModelIO
 import simd
 
+/// Metal 4 backend that renders the latest completed simulation presentation.
+///
+/// `MetalRenderer` samples a narrow presentation source at render cadence,
+/// projects it into private `RenderFrame` data, and encodes GPU work using one
+/// device-scoped `MetalResourceStore`. It never reads live ECS storage, and it
+/// does not own or control the Simulation Runtime lifecycle.
 @MainActor
 final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Keep a small ring of per-frame command allocators so the CPU can encode
@@ -230,6 +229,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
 }
 
+/// Renderer-owned decoded mesh data for one packaged USD model.
+///
+/// The value groups MetalKit meshes and exposes the unique allocations needed
+/// for explicit Metal 4 residency. Game Content supplies only the abstract
+/// asset reference and never receives these backend objects.
 struct USDRenderModel {
     let meshes: [MTKMesh]
 
@@ -334,6 +338,10 @@ struct USDRenderModel {
     }
 }
 
+/// CPU-side layout written to the per-frame GPU instance buffer.
+///
+/// Its single matrix matches `ModelInstance` in `ModelShaders.metal` and folds
+/// the camera projection, view transform, and entity transform into one value.
 struct GPUInstance {
     var modelViewProjectionMatrix: simd_float4x4
 
@@ -398,6 +406,7 @@ final class FrameResources: @unchecked Sendable {
     }
 }
 
+/// Internal asset-resolution failures surfaced while constructing render resources.
 private enum MetalRendererError: Error {
     case missingModel(String)
 }

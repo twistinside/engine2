@@ -1,10 +1,3 @@
-//
-//  SRotation.swift
-//  Engine2
-//
-//  Created by Codex on 3/16/26.
-//
-
 import OSLog
 import simd
 

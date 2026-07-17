@@ -53,6 +53,8 @@ Current example ownership:
 - `ModelShaders.metal` is Render Runtime backend implementation unless a future explicit shader/material extension point makes part of it consumer content.
 - Debug panes and app commands are example App tooling.
 ## Code Quality
+- Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
+- Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
 - One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.

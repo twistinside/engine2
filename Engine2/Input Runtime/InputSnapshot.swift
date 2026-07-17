@@ -1,10 +1,3 @@
-//
-//  InputSnapshot.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 import simd
 
 /// Immutable, platform-neutral raw input state published by `InputRuntime`.

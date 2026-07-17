@@ -1,10 +1,8 @@
-//
-//  PPositionable.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
+/// Capability for entity facades whose live position is stored in ECS state.
+///
+/// The default accessor resolves `CPosition` from the entity's world and treats
+/// a missing row as a violated registration invariant. Systems should query the
+/// component store directly when processing positions in bulk.
 protocol PPositionable: Entity {
     var position: SIMD3<Float> { get }
 }

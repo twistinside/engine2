@@ -1,13 +1,10 @@
-//
-//  EntityMotionPane.swift
-//  Engine2
-//
-//  Created by Codex on 5/31/26.
-//
-
 import SwiftUI
 import simd
 
+/// Debug overlay that presents a read-only projection of live ECS motion rows.
+///
+/// The pane extracts lightweight `EntityMotionRow` values for display and does
+/// not turn entity facades into a simulation iteration path.
 @MainActor
 struct EntityMotionPane: View {
     let simulation: SimulationRuntime
@@ -84,6 +81,10 @@ struct EntityMotionPane: View {
     }
 }
 
+/// Display projection joining one entity's position with its current speed.
+///
+/// Rows are derived on demand from component stores and carry no authority back
+/// into the simulation.
 struct EntityMotionRow: Identifiable, Equatable {
     let id: EntityID
     let position: SIMD3<Float>

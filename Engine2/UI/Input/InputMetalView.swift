@@ -1,10 +1,3 @@
-//
-//  InputMetalView.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import AppKit
 import MetalKit
 import simd

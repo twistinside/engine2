@@ -1,10 +1,3 @@
-//
-//  SimulationLoop.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/17/26.
-//
-
 /// Owns the async task that polls wall time and advances the engine.
 ///
 /// This sits above `Engine`: a higher-level owner decides when the simulation
@@ -12,10 +5,19 @@
 /// system order.
 @MainActor
 final class SimulationLoop {
+    /// Factory that creates a fresh elapsed-time sampler for each loop session.
     typealias ClockFactory = () -> SystemClock
+
+    /// Monotonic source used to schedule the next asynchronous poll.
     typealias TimeSource = () -> SystemClock.Instant
+
+    /// Injectable suspension boundary that sleeps until the requested instant.
     typealias Sleeper = @Sendable (SystemClock.Instant) async throws -> Void
+
+    /// Main-actor notification emitted when the polling task starts or stops.
     typealias RunningStateDidChange = @MainActor (Bool) -> Void
+
+    /// Main-actor notification carrying the latest completed simulation tick.
     typealias FixedStepsDidComplete = @MainActor (SimulationTick) -> Void
 
     let engine: Engine

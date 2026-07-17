@@ -1,10 +1,3 @@
-//
-//  Engine.swift
-//  Engine2
-//
-//  Created by Codex on 3/10/26.
-//
-
 /// Owns simulation orchestration: frame-time accumulation, fixed-step timing,
 /// and ordered system execution against the world state.
 final class Engine {

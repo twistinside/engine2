@@ -1,10 +1,3 @@
-//
-//  RenderFrame.swift
-//  Engine2
-//
-//  Created by Codex on 5/31/26.
-//
-
 import simd
 
 /// Render Runtime-owned projection for one simulation presentation snapshot.

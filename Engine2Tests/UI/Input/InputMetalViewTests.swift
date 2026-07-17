@@ -1,10 +1,3 @@
-//
-//  InputMetalViewTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 7/15/26.
-//
-
 import AppKit
 import Testing
 @testable import Engine2

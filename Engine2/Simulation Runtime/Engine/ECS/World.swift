@@ -1,12 +1,12 @@
-//
-//  World.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import simd
 
+/// Authoritative ECS state container for one Simulation Runtime session.
+///
+/// `World` owns per-component sparse stores and simulation resources. Entity
+/// objects are only typed facades over these rows, while systems operate on the
+/// stores directly. Registration is capability-driven: `add(_:from:)` converts
+/// an entity's advertised protocols and validated seed values into component
+/// rows at the ECS boundary.
 class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<CAngularMotionAccumulator>()

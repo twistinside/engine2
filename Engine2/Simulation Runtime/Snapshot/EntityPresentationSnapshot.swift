@@ -1,10 +1,3 @@
-//
-//  EntityPresentationSnapshot.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 import simd
 
 /// Immutable presentation facts for one presented entity at a completed tick.

@@ -1,12 +1,11 @@
-//
-//  Engine2App.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import SwiftUI
 
+/// The application composition root for Engine2's independently owned runtimes.
+///
+/// `Engine2App` constructs Game Content, wires the Input and Simulation
+/// Runtimes explicitly, and supplies their narrow capabilities to the UI and
+/// Render Runtime boundary. It also applies app-scene lifecycle policy so no
+/// runtime needs to discover or control a peer through global state.
 @main
 struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase

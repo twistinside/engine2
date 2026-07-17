@@ -1,10 +1,3 @@
-//
-//  CameraTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 6/13/26.
-//
-
 import simd
 import Testing
 @testable import Engine2

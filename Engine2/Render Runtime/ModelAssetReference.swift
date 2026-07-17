@@ -1,10 +1,3 @@
-//
-//  ModelAssetReference.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 /// Packaged source model that a Render Runtime can resolve privately.
 ///
 /// This value deliberately contains no Model I/O or Metal objects. Game

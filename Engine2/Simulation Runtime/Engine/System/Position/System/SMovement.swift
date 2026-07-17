@@ -1,10 +1,3 @@
-//
-//  SMovement.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import OSLog
 
 /// Applies one frame of accumulated motion by first updating velocity and then

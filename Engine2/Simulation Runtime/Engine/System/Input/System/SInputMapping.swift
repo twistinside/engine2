@@ -1,10 +1,3 @@
-//
-//  SInputMapping.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 /// Converts raw input state into engine-level action values.
 struct SInputMapping: PSystem {
     var pointerOrbitSensitivity: Float = 0.01

@@ -1,10 +1,3 @@
-//
-//  PRenderable.swift
-//  Engine2
-//
-//  Created by Codex on 7/15/26.
-//
-
 /// Capability for entities that advertise continuous mesh presentation.
 protocol PRenderable: Entity {
     /// Mesh used when the entity is first registered with its world.

@@ -1,10 +1,3 @@
-//
-//  SimulationPresentationSnapshot.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 /// Immutable Simulation Runtime presentation output for one completed tick.
 ///
 /// The snapshot preserves abstract presentation facts while excluding mutable

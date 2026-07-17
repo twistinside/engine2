@@ -1,10 +1,9 @@
-//
-//  PMovable.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
+/// Capability for positioned entity facades backed by translational motion state.
+///
+/// Accessors expose integrated velocity, persistent acceleration intent, and
+/// the current tick's acceleration and impulse contributions from `CMotion`.
+/// They are ergonomic live reads for game code and tooling, not the iteration
+/// surface for movement systems.
 protocol PMovable: PPositionable {
     var acceleration: SIMD3<Float> { get }
     var accelerationIntent: CMotion.AccelerationIntent { get }

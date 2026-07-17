@@ -1,14 +1,13 @@
-//
-//  InputState.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import simd
 
-/// Simulation-owned input state derived from immutable Input Runtime snapshots.
+/// Authoritative simulation-facing input imported at fixed-step boundaries.
+///
+/// `InputState` rebases or derives transients from immutable Input Runtime
+/// snapshots, then lets ordered input systems map, record, consume, and clear
+/// them inside the Simulation Runtime. It never exposes mutable platform input
+/// state across the runtime boundary.
 struct InputState {
+    /// Imported pointer state, including per-tick motion and scroll transients.
     struct Mouse {
         var position: SIMD2<Float> = .zero
         var delta: SIMD2<Float> = .zero
@@ -16,10 +15,15 @@ struct InputState {
         var buttons = Set<MouseButton>()
     }
 
+    /// Persistent keyboard state from the latest imported input publication.
     struct Keyboard {
         var keys = Set<KeyboardKey>()
     }
 
+    /// Higher-level transient commands derived from raw device state.
+    ///
+    /// Mapping systems populate these values for gameplay systems to consume in
+    /// the same fixed step; cleanup resets them before the next step.
     struct Actions {
         var cameraOrbitDelta: SIMD2<Float> = .zero
         var cameraZoomDelta: Float = 0

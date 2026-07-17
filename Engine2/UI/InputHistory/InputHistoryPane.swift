@@ -1,12 +1,9 @@
-//
-//  InputHistoryPane.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import SwiftUI
 
+/// Debug overlay that presents the Simulation Runtime's retained input history.
+///
+/// The timeline refreshes at presentation cadence while the displayed rows
+/// remain simulation-owned facts recorded only at fixed-step boundaries.
 @MainActor
 struct InputHistoryPane: View {
     let simulation: SimulationRuntime

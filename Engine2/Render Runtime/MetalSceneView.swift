@@ -1,14 +1,13 @@
-//
-//  MetalSceneView.swift
-//  Engine2
-//
-//  Created by Codex on 5/25/26.
-//
-
 import Metal
 import MetalKit
 import SwiftUI
 
+/// SwiftUI bridge that hosts the Render Runtime's MetalKit view and renderer.
+///
+/// The bridge wires a read-only simulation presentation source to a
+/// coordinator-owned `MetalRenderer` and an input sink to the platform view.
+/// Rendering therefore samples completed snapshots instead of reading live
+/// `World` state or directly calling the Simulation Runtime.
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
@@ -52,6 +51,11 @@ struct MetalSceneView: NSViewRepresentable {
         nsView.delegate = nil
     }
 
+    /// Owns the renderer for the lifetime of one SwiftUI representable view.
+    ///
+    /// Initialization may leave `renderer` unavailable when the current device
+    /// cannot construct the required Metal resources; the host view remains
+    /// safe to create and simply submits no render work.
     @MainActor
     final class Coordinator {
         var renderer: MetalRenderer?

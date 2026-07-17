@@ -1,10 +1,3 @@
-//
-//  BasicGameContent.swift
-//  Engine2
-//
-//  Created by Codex on 7/15/26.
-//
-
 /// Example consumer content assembled by the App composition root.
 ///
 /// This value owns game-specific construction and asset descriptions, but it

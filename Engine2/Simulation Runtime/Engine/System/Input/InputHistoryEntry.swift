@@ -1,10 +1,3 @@
-//
-//  InputHistoryEntry.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 /// One non-empty fixed-step input snapshot for the practice-mode history pane.
 struct InputHistoryEntry: Identifiable, Equatable {
     let id: Int

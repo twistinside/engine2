@@ -1,10 +1,3 @@
-//
-//  SimulationRuntimeTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/17/26.
-//
-
 import Testing
 @testable import Engine2
 

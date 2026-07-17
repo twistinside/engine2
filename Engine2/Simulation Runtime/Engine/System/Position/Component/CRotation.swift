@@ -1,17 +1,16 @@
-//
-//  CRotation.swift
-//  Engine2
-//
-//  Created by Codex on 3/15/26.
-//
-
 import simd
 
+/// Authoritative world-space orientation for one entity.
+///
+/// The quaternion is encoded through its SIMD vector so the component retains
+/// stable `Codable` and exact `Equatable` value semantics independent of app
+/// actor isolation.
 struct CRotation: PComponent {
     let rotation: simd_quatf
 }
 
 extension CRotation: Codable {
+    /// Serialized representation used to reconstruct the quaternion exactly.
     private enum CodingKeys: String, CodingKey {
         case vector
     }

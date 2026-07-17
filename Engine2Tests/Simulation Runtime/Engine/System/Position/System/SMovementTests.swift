@@ -1,10 +1,3 @@
-//
-//  SMovementTests.swift
-//  Engine2Tests
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import Testing
 @testable import Engine2
 

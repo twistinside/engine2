@@ -1,12 +1,11 @@
-//
-//  ContentView.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import SwiftUI
 
+/// Root application view that composes rendering and app-level debug controls.
+///
+/// The view receives runtime capabilities from the App composition root. It
+/// does not own simulation truth: the Metal scene consumes immutable
+/// presentation snapshots, while controls invoke the Simulation Runtime's
+/// explicit lifecycle API.
 struct ContentView: View {
     let inputRuntime: InputRuntime
     let simulation: SimulationRuntime

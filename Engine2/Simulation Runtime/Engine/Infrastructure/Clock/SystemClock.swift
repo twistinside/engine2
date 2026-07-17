@@ -1,10 +1,3 @@
-//
-//  SystemClock.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/11/26.
-//
-
 
 import Foundation
 
@@ -14,7 +7,10 @@ import Foundation
 /// simulation time does not try to "catch up" after sleep. Wrapping it here
 /// keeps the engine on a simple synchronous polling API.
 struct SystemClock {
+    /// Monotonic timestamp sampled from the underlying suspending clock.
     typealias Instant = SuspendingClock.Instant
+
+    /// Injectable monotonic timestamp provider used by deterministic tests.
     typealias TimeSource = () -> Instant
 
     private let timeSource: TimeSource

@@ -1,10 +1,3 @@
-//
-//  InputRevision.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 /// Monotonic identity for an immutable value published by `InputRuntime`.
 ///
 /// A new session starts whenever the runtime is restarted. Sequence numbers
