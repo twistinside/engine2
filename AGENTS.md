@@ -24,7 +24,8 @@ Use these terms consistently:
 Current types implement part of this direction:
 - `SimulationRuntime` is the app-facing Simulation Runtime lifecycle boundary; `SimulationLoop`, `Engine`, and `World` are its internal mechanisms.
 - `InputMetalView` in UI and `InputState` in Simulation currently split input collection from simulation-facing state; a future Input Runtime boundary should publish immutable input snapshots.
-- `RenderFrame` is the current simulation-to-render snapshot representation; `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities.
+- `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value; `RenderFrame` is the Render Runtime-owned private projection derived from it.
+- `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities and no longer read live `World` state.
 
 Do not rename or wrap existing types solely to match the vocabulary. Introduce a runtime boundary when it creates concrete ownership, lifecycle, cadence, or testing value.
 
@@ -40,7 +41,7 @@ Use these terms and constraints consistently:
 - Continuous presentation can be described through abstract ECS state and snapshots. Ephemeral presentation should normally derive from Simulation Runtime events plus consumer-supplied presentation rules.
 - Consumer Game Content may eventually define entities, components, optional behaviors, world builders, render/audio descriptions, asset catalogs, and event-presentation mappings through deliberate public Engine2 APIs.
 - The Simulation Runtime owns invariant systems and their foundational schedule. Future Game Content behavior must enter through controlled extension points rather than replacing that foundation.
-- The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; a future Render Runtime owns its render-snapshot contract.
+- The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; Render owns `RenderFrame` and its projection from the publisher-owned `SimulationPresentationSnapshot` contract.
 - Do not make every current type public. Design the smallest coherent extension surface needed by external content while keeping engine storage and backend internals encapsulated.
 - The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
 
@@ -140,8 +141,13 @@ Current example ownership:
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
   - `CRenderable` stores only an abstract `MeshID` in ECS state.
   - `PRenderable` seeds that component from Game Content entities and exposes its live value.
+- `Engine2/Engine2/Simulation Runtime/Snapshot/*.swift`
+  - `SimulationTick` identifies completed fixed steps without wall-clock or render-cadence meaning.
+  - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
+  - `PSimulationPresentationSource` exposes that latest-value publication as a read-only capability without exposing the wider Simulation Runtime API.
+  - Ordinary live publication uses latest-value semantics; retained replay history remains an explicit future recorder concern.
 - `Engine2/Engine2/Render Runtime/*.swift`
-  - `RenderFrame.extract(from:)` is the current simulation-to-render snapshot boundary and includes only entities with explicit `CRenderable` presentation state.
+  - `RenderFrame.project(from:)` converts a `SimulationPresentationSnapshot` into private render instances and preserves the source tick identity.
   - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references.
   - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
   - `MetalRenderer` consumes `RenderFrame` using backend-specific state retained by its `MetalResourceStore`.

@@ -34,12 +34,14 @@ struct EngineTests {
         #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(4, 5, 6))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(1, 2, 3))
         #expect(engine.accumulatedTime == .milliseconds(490))
+        #expect(engine.completedTick == .zero)
 
         engine.update(deltaTime: .milliseconds(10))
 
         #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.accumulatedTime == .zero)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
     @Test func pausedUpdateRunsAlwaysSystemsButSkipsSimulationSystems() async throws {
@@ -82,6 +84,7 @@ struct EngineTests {
 
         #expect(world.camera.position.x == 2)
         #expect(engine.accumulatedTime == .milliseconds(50))
+        #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
     @Test func appendedSystemsRunInAlwaysThenSimulationOrder() {
@@ -93,6 +96,17 @@ struct EngineTests {
         engine.step()
 
         #expect(recorder.entries == ["always", "simulation"])
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+    }
+
+    @Test func replacingWorldStartsANewTickTimeline() {
+        let engine = Engine(alwaysSystems: [], systems: [])
+        engine.step()
+
+        engine.replaceWorld(with: World())
+
+        #expect(engine.completedTick == .zero)
+        #expect(engine.accumulatedTime == .zero)
     }
 }
 

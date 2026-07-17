@@ -13,11 +13,17 @@ struct SimulationRuntimeTests {
         let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
 
         let simulation = SimulationRuntime(worldBuilder: builder)
+        let presentationSource: any PSimulationPresentationSource = simulation
 
         let entity = try #require(simulation.world.positionComponents.entities.first)
         #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Float>(3, 4, 5))
         #expect(simulation.state.fixedTimeStep == .seconds(1.0 / 60.0))
         #expect(simulation.state.isRunning == false)
+        #expect(presentationSource.latestPresentationSnapshot.tick == .zero)
+        #expect(
+            presentationSource.latestPresentationSnapshot.entityPresentations.first?.position ==
+                SIMD3<Float>(3, 4, 5)
+        )
     }
 
     @Test @MainActor func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
@@ -37,6 +43,11 @@ struct SimulationRuntimeTests {
         #expect(builder.buildCount == 2)
         #expect(simulation.world !== firstWorld)
         #expect(simulation.world.positionComponents[secondEntity]?.position == SIMD3<Float>(2, 0, 0))
+        #expect(simulation.latestPresentationSnapshot.tick == .zero)
+        #expect(
+            simulation.latestPresentationSnapshot.entityPresentations.first?.position ==
+                SIMD3<Float>(2, 0, 0)
+        )
     }
 
     @Test @MainActor func startAndStopDriveExposedState() async throws {

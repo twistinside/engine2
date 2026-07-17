@@ -16,8 +16,9 @@ final class Engine {
 
     let fixedTimeStep: Duration
 
+    private(set) var completedTick: SimulationTick
     var isSimulationRunning = true
-    var world: World
+    private(set) var world: World
 
     init(
         world: World = World(),
@@ -31,6 +32,7 @@ final class Engine {
         systems: [any PSystem] = [SAccelerationIntent(), SMovement(), SRotation()]
     ) {
         self.world = world
+        self.completedTick = .zero
         self.fixedTimeStep = fixedTimeStep
         self.fixedTimeStepSeconds = fixedTimeStep.seconds
         self.alwaysSystems = alwaysSystems
@@ -56,6 +58,16 @@ final class Engine {
         if isSimulationRunning {
             run(&simulationSystems)
         }
+
+        // Publishable state is complete only after the full ordered schedule.
+        completedTick = completedTick.advanced()
+    }
+
+    /// Installs a newly constructed world and begins a new tick timeline.
+    func replaceWorld(with world: World) {
+        self.world = world
+        completedTick = .zero
+        accumulatedTime = .zero
     }
 
     /// Appends an always-running system to the execution pipeline in call order.
@@ -70,11 +82,10 @@ final class Engine {
 
     private func run(_ systems: inout [any PSystem]) {
         for index in systems.indices {
-            // Pull the existential out, mutate it, then store it back so stateful
-            // systems can preserve any internal state across steps.
-            var system = systems[index]
-            system.update(world: &world, deltaTime: fixedTimeStepSeconds)
-            systems[index] = system
+            systems[index].update(
+                world: &world,
+                deltaTime: fixedTimeStepSeconds
+            )
         }
     }
 }

@@ -12,13 +12,13 @@ import SwiftUI
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
-    var renderFrameProvider: @MainActor () -> RenderFrame
+    var presentationSource: any PSimulationPresentationSource
     var inputHandler: @MainActor (InputEvent) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             renderAssetCatalog: renderAssetCatalog,
-            renderFrameProvider: renderFrameProvider,
+            presentationSource: presentationSource,
             inputHandler: inputHandler
         )
     }
@@ -48,7 +48,7 @@ struct MetalSceneView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: InputMetalView, context: Context) {
-        context.coordinator.renderFrameProvider = renderFrameProvider
+        context.coordinator.renderer?.presentationSource = presentationSource
         context.coordinator.inputHandler = inputHandler
         nsView.inputHandler = { event in
             MainActor.assumeIsolated {
@@ -59,16 +59,14 @@ struct MetalSceneView: NSViewRepresentable {
 
     @MainActor
     final class Coordinator {
-        var renderFrameProvider: @MainActor () -> RenderFrame
         var inputHandler: @MainActor (InputEvent) -> Void
         var renderer: MetalRenderer?
 
         init(
             renderAssetCatalog: RenderAssetCatalog,
-            renderFrameProvider: @escaping @MainActor () -> RenderFrame,
+            presentationSource: any PSimulationPresentationSource,
             inputHandler: @escaping @MainActor (InputEvent) -> Void
         ) {
-            self.renderFrameProvider = renderFrameProvider
             self.inputHandler = inputHandler
             self.renderer = nil
 
@@ -84,9 +82,7 @@ struct MetalSceneView: NSViewRepresentable {
 
             renderer = try? MetalRenderer(
                 resources: resources,
-                renderFrameProvider: { [weak self] in
-                    self?.renderFrameProvider() ?? .empty
-                }
+                presentationSource: presentationSource
             )
         }
     }

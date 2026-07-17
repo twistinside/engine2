@@ -42,15 +42,16 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// render instance before encoding the draw.
     private let argumentTable: any MTL4ArgumentTable
 
-    /// Supplies the latest ECS-derived presentation snapshot for each draw.
-    private let renderFrameProvider: @MainActor () -> RenderFrame
+    /// Read-only Simulation Runtime publication selected at render cadence.
+    /// The App owns the source's lifetime; Render does not retain its peer runtime.
+    weak var presentationSource: (any PSimulationPresentationSource)?
 
     /// Index into `frames` for the next draw call.
     private var frameIndex = 0
 
     init(
         resources: MetalResourceStore,
-        renderFrameProvider: @escaping @MainActor () -> RenderFrame
+        presentationSource: any PSimulationPresentationSource
     ) throws {
         precondition(
             !resources.frames.isEmpty,
@@ -61,7 +62,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.renderPipelineState = try resources.renderPipelineState(for: .model)
         self.depthStencilState = try resources.depthStencilState(for: .disabled)
         self.argumentTable = try resources.argumentTable(for: .model)
-        self.renderFrameProvider = renderFrameProvider
+        self.presentationSource = presentationSource
 
         super.init()
     }
@@ -107,7 +108,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Attach this frame's allocator before encoding. A Metal 4 command
         // buffer does not own command storage until `beginCommandBuffer`.
         commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)
-        let renderFrame = renderFrameProvider()
+        let renderFrame: RenderFrame
+        if let presentationSource {
+            renderFrame = RenderFrame.project(
+                from: presentationSource.latestPresentationSnapshot
+            )
+        } else {
+            renderFrame = .empty
+        }
         let instanceCount = frame.write(
             renderFrame.instances,
             camera: renderFrame.camera,

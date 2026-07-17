@@ -53,14 +53,12 @@ It should own Metal-specific state and any caches or services that exist only to
 - pass configuration
 - drawable or target encoding
 This keeps backend lifetime concerns and platform-specific details isolated from simulation code.
-## Extraction Is the Translation Boundary
-The current code combines the simulation-to-render translation in ``RenderFrame.extract(from:)``. It reads abstract state from ``World`` and builds a flat immutable value that the renderer consumes.
+## Snapshot Publication Is the Translation Boundary
+The current code separates simulation publication from render projection:
 
-The proposed runtime boundary separates publication from render projection:
-
-1. the Simulation Runtime publishes a completed, backend-neutral `SimulationSnapshot`
+1. the Simulation Runtime publishes a completed, backend-neutral `SimulationPresentationSnapshot`
 2. the Render Runtime selects the latest value according to its own cadence
-3. Render projects the fields it needs into a private `RenderFrame` or future render snapshot
+3. ``RenderFrame.project(from:)`` projects the fields Render needs into a private value
 4. Render resolves abstract identities into its privately owned backend resources
 
 `World` should not directly emit Metal-facing structs as part of its core API, and the renderer should not read live gameplay state during drawing. The Render Runtime owns the destination projection while Simulation remains unaware of render-specific fields and backend choices.
@@ -73,7 +71,7 @@ Under a fixed-step engine:
 In a Metal view-driven application, the view still dictates when a drawable is available. That should control when the renderer submits work, not when gameplay state advances.
 The intended presentation model is:
 1. simulation updates `World`
-2. Simulation publishes a new immutable simulation snapshot
+2. Simulation publishes a new immutable simulation presentation snapshot
 3. Render projects the latest available value into private render state
 4. private front and back render frames swap
 5. the Render Runtime draws from the latest completed value when presentation requests a draw
@@ -89,7 +87,7 @@ That keeps architectural intent readable while still allowing typed resource acc
 This boundary preserves the current engine direction:
 - `World` remains authoritative for simulation and abstract presentation state
 - ``PSystem`` implementations continue to operate on ECS data in hot paths
-- the Simulation Runtime publishes its own observation snapshot without depending on a Render Runtime
+- the Simulation Runtime publishes its own presentation snapshot without depending on a Render Runtime
 - the Render Runtime owns a private projection of authoritative game state rather than a second gameplay model
 ## Topics
 ### Architecture

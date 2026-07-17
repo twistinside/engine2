@@ -16,6 +16,7 @@ final class SimulationLoop {
     typealias TimeSource = () -> SystemClock.Instant
     typealias Sleeper = @Sendable (SystemClock.Instant) async throws -> Void
     typealias RunningStateDidChange = @MainActor (Bool) -> Void
+    typealias FixedStepsDidComplete = @MainActor (SimulationTick) -> Void
 
     let engine: Engine
     let pollInterval: Duration
@@ -29,6 +30,7 @@ final class SimulationLoop {
     private var updateTask: Task<Void, Never>?
 
     var runningStateDidChange: RunningStateDidChange?
+    var fixedStepsDidComplete: FixedStepsDidComplete?
 
     var isRunning: Bool {
         updateTask != nil
@@ -118,8 +120,15 @@ final class SimulationLoop {
                 return
             }
 
+            let previousTick = engine.completedTick
             engine.update(deltaTime: clock.consumeDeltaTime())
             self.clock = clock
+
+            // Latest-value publication only needs the final completed state
+            // when one polling update catches up through multiple fixed steps.
+            if engine.completedTick != previousTick {
+                fixedStepsDidComplete?(engine.completedTick)
+            }
             nextWakeDeadline = advancedDeadline(after: nextWakeDeadline)
         }
     }

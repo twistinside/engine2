@@ -10,7 +10,7 @@ import Testing
 @testable import Engine2
 
 struct RenderFrameTests {
-    @Test func extractCreatesInstancesFromRenderablePositionComponents() async throws {
+    @Test func projectionCreatesInstancesFromPublishedPresentationFacts() async throws {
         let world = World()
         let first = EntityID(index: 0, generation: 0)
         let second = EntityID(index: 1, generation: 0)
@@ -20,8 +20,13 @@ struct RenderFrameTests {
         world.renderableComponents.insert(CRenderable(meshID: .ball), for: first)
         world.renderableComponents.insert(CRenderable(meshID: .ball), for: second)
 
-        let frame = RenderFrame.extract(from: world)
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: SimulationTick(rawValue: 7)
+        )
+        let frame = RenderFrame.project(from: snapshot)
 
+        #expect(frame.sourceTick == SimulationTick(rawValue: 7))
         #expect(
             frame.instances == [
                 RenderInstance(meshID: .ball, worldPosition: SIMD3<Float>(2, -4, 0)),
@@ -30,16 +35,19 @@ struct RenderFrameTests {
         )
     }
 
-    @Test func extractIgnoresPositionedEntitiesWithoutPresentationContent() async throws {
+    @Test func projectionIgnoresPositionedEntitiesWithoutPresentationContent() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
 
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: entity)
 
-        #expect(RenderFrame.extract(from: world).instances.isEmpty)
+        let snapshot = SimulationPresentationSnapshot.capture(from: world, at: .zero)
+
+        #expect(snapshot.entityPresentations.isEmpty)
+        #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
     }
 
-    @Test func extractIgnoresRenderableEntitiesWithoutPositions() {
+    @Test func projectionIgnoresRenderableEntitiesWithoutPositions() {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
         world.renderableComponents.insert(
@@ -47,10 +55,13 @@ struct RenderFrameTests {
             for: entity
         )
 
-        #expect(RenderFrame.extract(from: world).instances.isEmpty)
+        let snapshot = SimulationPresentationSnapshot.capture(from: world, at: .zero)
+
+        #expect(snapshot.entityPresentations.map(\.id) == [entity])
+        #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
     }
 
-    @Test func extractIncludesCameraRotationAndScale() async throws {
+    @Test func projectionIncludesCameraRotationAndScale() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
         let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
@@ -62,7 +73,8 @@ struct RenderFrameTests {
         world.rotationComponents.insert(CRotation(rotation: rotation), for: entity)
         world.scaleComponents.insert(CScale(scale: scale), for: entity)
 
-        let frame = RenderFrame.extract(from: world)
+        let snapshot = SimulationPresentationSnapshot.capture(from: world, at: .zero)
+        let frame = RenderFrame.project(from: snapshot)
 
         #expect(frame.camera == world.camera)
         #expect(

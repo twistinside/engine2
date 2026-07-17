@@ -95,7 +95,7 @@ struct CAudioEmitter: PComponent {
 }
 ```
 
-The Simulation Runtime owns these component rows because they are authoritative abstract game state. A publisher-owned `SimulationSnapshot` carries observable abstract state across the runtime boundary. The Render Runtime can project that source state into a private render-oriented value such as:
+The Simulation Runtime owns these component rows because they are authoritative abstract game state. A publisher-owned `SimulationPresentationSnapshot` carries completed abstract presentation state across the runtime boundary. The Render Runtime can project that source state into a private render-oriented value such as:
 
 ```swift
 struct RenderInstanceSnapshot {
@@ -114,7 +114,7 @@ Game Content asset
 Stable asset identity in ECS
         |
         v
-Publisher-owned SimulationSnapshot
+Publisher-owned SimulationPresentationSnapshot
         |
         v
 Render-owned projection
@@ -188,7 +188,7 @@ The important ownership rules are:
 - A runtime may transform content into private caches or backend resources.
 - Game Content remains reusable across runtime reconstruction and new game sessions when practical.
 
-The runtime that performs work owns the construction interfaces it consumes. Simulation therefore owns ``PWorldBuilder`` because it defines what is required to construct a valid ``World``. Runtime publications follow a complementary ownership rule: a publisher owns the snapshot and event vocabulary describing its authority, while a consumer owns the projections and private operational models it derives. Simulation owns `SimulationSnapshot`; Render owns its transformation into a private render snapshot. Game Content supplies conforming values and descriptions without owning runtime protocols, publication schemas, or invariant scheduling. See <doc:Runtime-Communication>.
+The runtime that performs work owns the construction interfaces it consumes. Simulation therefore owns ``PWorldBuilder`` because it defines what is required to construct a valid ``World``. Runtime publications follow a complementary ownership rule: a publisher owns the snapshot and event vocabulary describing its authority, while a consumer owns the projections and private operational models it derives. Simulation owns `SimulationPresentationSnapshot`; Render owns its transformation into a private render snapshot. Game Content supplies conforming values and descriptions without owning runtime protocols, publication schemas, or invariant scheduling. See <doc:Runtime-Communication>.
 
 ## Game Content Is a Natural Consumer Module
 

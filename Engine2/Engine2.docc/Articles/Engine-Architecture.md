@@ -27,7 +27,7 @@ Rendering belongs to the proposed Render Runtime and is not itself a simulation 
 The world may contain abstract presentation state such as mesh handles, material handles, camera data, visibility flags, or render style. Backend-specific render state should remain inside the render layer.
 The intended boundary is:
 1. systems update `World`
-2. the Simulation Runtime publishes a completed `SimulationSnapshot`
+2. the Simulation Runtime publishes a completed `SimulationPresentationSnapshot`
 3. the Render Runtime projects published state into private render-facing frame data
 4. the renderer consumes that private frame data
 This keeps `World` authoritative without making it the owner of Metal or other backend objects.
@@ -49,7 +49,7 @@ The current engine is still early. Several important behaviors are intentionally
 - world/entity translation at spawn time covers the current capability protocols, but lifecycle and reseeding semantics are still intentionally small
 - systems currently run in two ordered lists: always-running input/tool systems and simulation-gated systems
 - overload protection for the fixed-step loop has not been added yet
-- the current combined render extraction path exists through ``RenderFrame.extract(from:)``; simulation-snapshot publication and render-owned projection remain proposed
+- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained history, replay storage, and offscreen rendering remain future work
 ## Topics
 ### Core Symbols
 - ``Engine``

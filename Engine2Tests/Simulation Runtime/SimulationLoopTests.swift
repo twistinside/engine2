@@ -113,6 +113,10 @@ struct SimulationLoopTests {
             },
             sleeper: sleeper.sleep(until:)
         )
+        var completedTicks: [SimulationTick] = []
+        simulationLoop.fixedStepsDidComplete = { tick in
+            completedTicks.append(tick)
+        }
 
         simulationLoop.start()
 
@@ -128,6 +132,7 @@ struct SimulationLoopTests {
         #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.accumulatedTime == .zero)
+        #expect(completedTicks == [SimulationTick(rawValue: 1)])
     }
 
     @Test @MainActor func appTaskRebasesSleepAgainstAbsoluteDeadlinesAfterOversleep() async throws {

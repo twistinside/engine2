@@ -4,9 +4,9 @@ This article defines the proposed communication model between Engine2 runtimes.
 
 ## Status
 
-Proposed direction.
+Partially implemented.
 
-The ownership and value semantics described here are intended architecture. The concrete publication APIs, buffering mechanisms, subscription lifetimes, and concurrency implementation are not yet selected.
+The Simulation Runtime now publishes a latest completed ``SimulationPresentationSnapshot`` and Render projects it into a private ``RenderFrame``. Event publication, additional semantic snapshot surfaces, subscription lifetimes, retained history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
 
 ## Runtimes Publish State and Occurrences
 
@@ -27,16 +27,16 @@ For example:
 | Publisher | Snapshot state | Example events |
 | --- | --- | --- |
 | Input Runtime | held keys, pointer position, controller state | key down, key up, click, scroll |
-| Simulation Runtime | completed authoritative game state | collision occurred, weapon fired, level completed |
+| Simulation Runtime | purpose-specific completed state such as abstract presentation | collision occurred, weapon fired, level completed |
 | Achievement Runtime | current awarded and tracked achievement state | achievement awarded |
 
 Snapshots and events are publisher-owned vocabulary. A runtime defines the meaning and schema of facts within its own authority without naming the runtimes that may consume them.
 
-## Snapshots Have Maximal Observational Fidelity
+## Snapshots Publish Deliberate Semantic Surfaces
 
-A published runtime snapshot should have enough semantic fidelity for legitimate consumers to derive their own private models. That does not make it a copy of the publishing runtime's implementation.
+A runtime may publish more than one snapshot when it owns several distinct semantic surfaces. Consumer-agnostic publication means that the publisher does not name or depend on receiving runtimes, their implementations, lifecycles, or cadences. It does not require one universal value designed without a use case.
 
-For example, a future `SimulationSnapshot` may expose completed gameplay facts such as entity identity, transforms, abstract presentation identity, and other observable state while excluding:
+The current ``SimulationPresentationSnapshot`` is the first such surface. It publishes completed tick identity, camera state, and ``EntityPresentationSnapshot`` values for entities carrying explicit abstract presentation state. It excludes non-presented entities as well as:
 
 - ``World`` and mutable entity-object references
 - component-store sparse and dense representation
@@ -45,9 +45,9 @@ For example, a future `SimulationSnapshot` may expose completed gameplay facts s
 - tasks, locks, services, caches, and backend resources
 - any other machinery used to execute the Simulation Runtime rather than describe completed game state
 
-This is **maximal observational fidelity**, not maximal implementation fidelity. Publishing one canonical observation model accepts that an explicitly connected consumer can read fields it does not currently need. The boundary still prevents mutation, hidden runtime discovery, and access to implementation machinery.
+The presentation snapshot contains enough semantic fidelity for presentation consumers to derive private models without exposing simulation implementation. A future audio, networking, inspection, or other continuous-state need may justify another explicitly named Simulation Runtime snapshot. It should not automatically expand this presentation contract or create a universal bag of all simulation state.
 
-A restorable `GameCheckpoint` is a different value. Saving, rollback, or deterministic continuation may require random-generator state, private timers, behavior state, or other details that do not belong in every live `SimulationSnapshot`. The App should coordinate checkpoint creation as a deliberate request/result workflow, and a Storage Runtime may persist the simulation-owned checkpoint without interpreting it.
+A restorable `GameCheckpoint` is a different value. Saving, rollback, or deterministic continuation may require random-generator state, private timers, behavior state, or other details that do not belong in ordinary live publications. The App should coordinate checkpoint creation as a deliberate request/result workflow, and a Storage Runtime may persist the simulation-owned checkpoint without interpreting it.
 
 ## Consumers Own Their Projections
 
@@ -55,11 +55,10 @@ A receiving runtime transforms a publisher-owned snapshot into its own private o
 
 ```text
 SimulationRuntime
-    publishes SimulationSnapshot
-                |
-                +--> RenderRuntime      projects RenderSnapshot
-                +--> AudioRuntime       projects AudioSnapshot
-                +--> AchievementRuntime projects achievement state
+    publishes SimulationPresentationSnapshot
+                        |
+                        +--> RenderRuntime projects RenderFrame
+                        +--> optional capture or inspection tooling
 ```
 
 There is no jointly owned snapshot in this flow:
@@ -68,7 +67,7 @@ There is no jointly owned snapshot in this flow:
 - the consumer owns its projection and any private snapshot or cache it derives
 - the App owns the connection between the two runtime boundaries
 
-For rendering, `SimulationSnapshot` contains backend-neutral completed game state. The Render Runtime selects and transforms the fields it needs into render-oriented data such as matrices, resolved presentation keys, visibility results, sort keys, or batches. The Simulation Runtime does not define those render details.
+For rendering, `SimulationPresentationSnapshot` contains backend-neutral completed presentation state. The Render Runtime selects and transforms the fields it needs into render-oriented data such as matrices, resolved presentation keys, visibility results, sort keys, or batches. The Simulation Runtime does not define those render details.
 
 Rendering is snapshot-driven. It may ignore intermediate simulation snapshots and converge on the latest completed value. Any occurrence that must remain visible, such as a muzzle flash or explosion, therefore needs snapshot-visible identity and lifetime rather than depending on Render receiving a transient simulation event.
 
@@ -79,7 +78,7 @@ Events are not commands and are not incomplete snapshots. They are immutable fac
 A consumer may use snapshots, events, or both:
 
 - Render consumes simulation state through snapshots.
-- Audio may use snapshots for continuous listener and emitter state and events for one-shot occurrences.
+- Audio may eventually use a separately named Simulation Runtime snapshot for continuous listener and emitter state, plus events for one-shot occurrences.
 - Achievement logic may use current progress state, occurrence events, or durable counters depending on its correctness requirements.
 - Tooling may observe both without becoming required for publisher correctness.
 
@@ -95,12 +94,12 @@ InputRuntime
                  |
                  v
 SimulationRuntime
-    SimulationSnapshot + SimulationEvent
-                 |
-                 +--> RenderRuntime       snapshot
-                 +--> AudioRuntime        snapshot and selected events
-                 +--> AchievementRuntime  snapshot and selected events
+    +-- SimulationPresentationSnapshot --> RenderRuntime
+    +-- selected SimulationEvent --------> AudioRuntime
+    +-- selected SimulationEvent --------> AchievementRuntime
 ```
+
+Additional consumers of continuous simulation state should receive deliberately named publisher-owned snapshots whose schemas match those semantic surfaces. They should not be added implicitly to one exhaustive `SimulationSnapshot`.
 
 This topology should use explicit, strongly typed connections. Engine2 should not introduce a process-global event bus, a process-global snapshot database, or a service locator that allows runtimes to discover arbitrary publishers.
 
@@ -146,14 +145,14 @@ Likewise, a Storage Runtime may publish its own status snapshot and completion e
 
 The following mechanics remain intentionally unresolved:
 
-- the concrete typed publication and subscription APIs
+- typed subscription APIs beyond the implemented latest simulation presentation value
 - whether exchanges use actors, async sequences, callbacks, lock-free slots, or another mechanism
 - ownership and cancellation of subscription lifetimes
 - per-connection event buffering, backpressure, and drop policies
 - atomic correlation between a snapshot revision and its publisher's event sequence
 - whether snapshot storage uses a single latest slot, front/back values, or a short ring
-- efficient immutable storage and copy behavior for large simulation snapshots
-- how consumer-defined Game Content contributes strongly typed observable state without a closed component registry
+- efficient immutable storage and copy behavior for large runtime snapshots
+- how consumer-defined Game Content contributes strongly typed state to purpose-specific snapshots without a closed component registry
 - which histories, if any, are journaled for debugging, replay, or networking
 
 These choices should preserve the ownership model in this article rather than replacing it with hidden global coordination.

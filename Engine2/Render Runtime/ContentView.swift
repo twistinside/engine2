@@ -14,9 +14,10 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            MetalSceneView(renderAssetCatalog: renderAssetCatalog) {
-                RenderFrame.extract(from: simulation.world)
-            } inputHandler: { event in
+            MetalSceneView(
+                renderAssetCatalog: renderAssetCatalog,
+                presentationSource: simulation
+            ) { event in
                 simulation.handleInput(event)
             }
                 .ignoresSafeArea()
