@@ -90,8 +90,8 @@ Current example ownership:
   - Core system protocol used by the engine's ordered execution lists.
 - `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
   - Simulation-owned construction interface for producing fully bootstrapped worlds.
-- `Engine2/Engine2/Simulation Runtime/Engine/Infrastructure/Clock/*.swift`
-  - `PClock`, `ManualClock`, and `SystemClock` keep elapsed-time sampling in engine infrastructure and outside system logic.
+- `Engine2/Engine2/Simulation Runtime/Engine/Infrastructure/Clock/SystemClock.swift`
+  - `SystemClock` keeps elapsed-time sampling inside `SimulationLoop` and outside `Engine` and system logic.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.

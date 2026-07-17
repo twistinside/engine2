@@ -49,11 +49,6 @@ final class Engine {
         }
     }
 
-    /// Samples real time from a clock, then feeds that delta into the fixed-step loop.
-    func tick<C: PClock>(using clock: inout C) {
-        update(deltaTime: clock.consumeDeltaTime())
-    }
-
     /// Advances the world by one fixed simulation step.
     func step() {
         run(&alwaysSystems)
