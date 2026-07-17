@@ -6,7 +6,7 @@ This article defines the proposed communication model between Engine2 runtimes.
 
 Partially implemented.
 
-The Simulation Runtime now publishes a latest completed ``SimulationPresentationSnapshot`` and Render projects it into a private ``RenderFrame``. Event publication, additional semantic snapshot surfaces, subscription lifetimes, retained history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
+The Input Runtime now publishes a revisioned latest ``InputSnapshot`` through `PInputSnapshotSource`. The Simulation Runtime samples that value and imports it only at fixed-step boundaries. The Simulation Runtime also publishes a latest completed ``SimulationPresentationSnapshot``, which Render projects into a private ``RenderFrame``. Ordered event publication, additional semantic snapshot surfaces, subscription lifetimes, retained history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
 
 ## Runtimes Publish State and Occurrences
 
@@ -26,7 +26,7 @@ For example:
 
 | Publisher | Snapshot state | Example events |
 | --- | --- | --- |
-| Input Runtime | held keys, pointer position, controller state | key down, key up, click, scroll |
+| Input Runtime | held keys and pointer state, including cumulative motion and scroll totals | future ordered key, button, and pointer transitions |
 | Simulation Runtime | purpose-specific completed state such as abstract presentation | collision occurred, weapon fired, level completed |
 | Achievement Runtime | current awarded and tracked achievement state | achievement awarded |
 
@@ -90,9 +90,9 @@ The App remains the composition root. It decides which runtime outputs are conne
 
 ```text
 InputRuntime
-    InputSnapshot + InputEvent
-                 |
-                 v
+    InputSnapshot
+          |
+          v
 SimulationRuntime
     +-- SimulationPresentationSnapshot --> RenderRuntime
     +-- selected SimulationEvent --------> AudioRuntime
@@ -113,6 +113,8 @@ A shared infrastructure type resembling `RuntimeOutput<Snapshot, Event>` may eve
 
 An App-owned router or hub may be an implementation detail, but it must not erase the explicit typed topology or become globally discoverable mutable state.
 
+The implemented input connection uses two narrow capabilities. Platform adapters such as `InputMetalView` submit `InputEvent` values to ``InputRuntime`` through `PInputEventSink`. Consumers receive only the immutable latest `InputSnapshot` through `PInputSnapshotSource`. The App owns both connections. `InputEvent` is therefore host ingress, not a runtime-published event stream and not a direct call into Simulation.
+
 ## Snapshots and Events Need Different Delivery Semantics
 
 Snapshots naturally use latest-value semantics:
@@ -129,9 +131,9 @@ Events naturally use ordered-stream semantics:
 - buffering, backpressure, and drop behavior may differ by connection
 - there is no assumed universal ordering across different runtimes and cadences
 
-Input demonstrates why both lanes are useful. `InputEvent` values can report key-down and key-up transitions while `InputSnapshot` reports the currently held keys. The snapshot gives a late consumer a current baseline; subsequent events preserve transition information.
+The implemented input boundary demonstrates latest-value behavior. `InputRevision` identifies the publisher session and version represented by each `InputSnapshot`. Held keys and buttons are state in that value. Within one publisher session, pointer motion and scroll are cumulative totals, so Simulation can derive the complete change between the revisions it samples even when host events and fixed ticks do not run one-for-one. Re-reading the same revision does not replay a transient delta.
 
-A snapshot revision and publisher-local event sequence may eventually define a consistent boundary between the two lanes. For example, a snapshot could identify the latest event sequence reflected in its state. The exact atomic-publication and subscription mechanism remains future implementation work.
+Ordered discrete transitions are a separate future lane. If key-down/up ordering, text composition, replay, or other occurrence history must survive skipped snapshots, the Input Runtime will need an explicit event sequence plus buffering or journaling policy. The platform-facing `InputEvent` ingress does not provide those publication guarantees by itself. A future snapshot revision and publisher-local event sequence may define a consistent boundary between the lanes; the atomic-publication and subscription mechanism remains unresolved.
 
 ## Durable History Is Explicit
 
@@ -145,7 +147,8 @@ Likewise, a Storage Runtime may publish its own status snapshot and completion e
 
 The following mechanics remain intentionally unresolved:
 
-- typed subscription APIs beyond the implemented latest simulation presentation value
+- typed subscription APIs beyond the implemented latest input and simulation-presentation sources
+- ordered Input Runtime transition publication and its buffering or journaling policy
 - whether exchanges use actors, async sequences, callbacks, lock-free slots, or another mechanism
 - ownership and cancellation of subscription lifetimes
 - per-connection event buffering, backpressure, and drop policies

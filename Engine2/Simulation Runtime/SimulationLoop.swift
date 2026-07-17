@@ -24,6 +24,7 @@ final class SimulationLoop {
     private let clockFactory: ClockFactory
     private let scheduleTimeSource: TimeSource
     private let sleeper: Sleeper
+    private weak var inputSource: (any PInputSnapshotSource)?
 
     private var clock: SystemClock?
     private var runID: UInt64 = 0
@@ -38,6 +39,7 @@ final class SimulationLoop {
 
     init(
         engine: Engine = Engine(),
+        inputSource: (any PInputSnapshotSource)? = nil,
         pollInterval: Duration? = nil,
         clockFactory: @escaping ClockFactory = { SystemClock() },
         scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
@@ -46,6 +48,7 @@ final class SimulationLoop {
         }
     ) {
         self.engine = engine
+        self.inputSource = inputSource
         self.pollInterval = pollInterval ?? engine.fixedTimeStep
         self.clockFactory = clockFactory
         self.scheduleTimeSource = scheduleTimeSource
@@ -121,7 +124,10 @@ final class SimulationLoop {
             }
 
             let previousTick = engine.completedTick
-            engine.update(deltaTime: clock.consumeDeltaTime())
+            engine.update(
+                deltaTime: clock.consumeDeltaTime(),
+                inputSnapshot: inputSource?.latestInputSnapshot
+            )
             self.clock = clock
 
             // Latest-value publication only needs the final completed state

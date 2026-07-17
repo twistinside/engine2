@@ -31,6 +31,9 @@ final class SimulationRuntime: PSimulationPresentationSource {
     @ObservationIgnored
     private let simulationLoop: SimulationLoop
 
+    @ObservationIgnored
+    private weak var inputSource: (any PInputSnapshotSource)?
+
     /// Latest completed publisher-owned value available to peer runtimes.
     @ObservationIgnored
     private(set) var latestPresentationSnapshot: SimulationPresentationSnapshot
@@ -43,6 +46,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
     init(
         worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
+        inputSource: (any PInputSnapshotSource)? = nil,
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         pollInterval: Duration? = nil,
         clockFactory: @escaping SimulationLoop.ClockFactory = { SystemClock() },
@@ -51,8 +55,13 @@ final class SimulationRuntime: PSimulationPresentationSource {
         }
     ) {
         self.worldBuilder = worldBuilder
+        self.inputSource = inputSource
+        var world = worldBuilder.buildWorld()
+        if let inputSnapshot = inputSource?.latestInputSnapshot {
+            world.input.rebase(to: inputSnapshot)
+        }
         let engine = Engine(
-            world: worldBuilder.buildWorld(),
+            world: world,
             fixedTimeStep: fixedTimeStep
         )
         self.engine = engine
@@ -65,6 +74,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
         let simulationLoop = SimulationLoop(
             engine: engine,
+            inputSource: inputSource,
             pollInterval: pollInterval,
             clockFactory: clockFactory,
             sleeper: sleeper
@@ -80,7 +90,10 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
     /// Rebuilds the active world from the current builder and swaps it into the engine.
     func rebuildWorld() {
-        engine.replaceWorld(with: worldBuilder.buildWorld())
+        engine.replaceWorld(
+            with: worldBuilder.buildWorld(),
+            inputBaseline: inputSource?.latestInputSnapshot
+        )
         publishPresentationSnapshot(at: engine.completedTick)
     }
 
@@ -118,10 +131,6 @@ final class SimulationRuntime: PSimulationPresentationSource {
     func pauseSimulation() {
         engine.isSimulationRunning = false
         state.isRunning = false
-    }
-
-    func handleInput(_ event: InputEvent) {
-        engine.world.input.apply(event)
     }
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.

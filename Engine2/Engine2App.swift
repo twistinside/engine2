@@ -11,6 +11,7 @@ import SwiftUI
 struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var debugOptions = AppDebugOptions()
+    @State private var inputRuntime: InputRuntime
     @State private var simulation: SimulationRuntime
     private let gameContent: BasicGameContent
 
@@ -18,15 +19,21 @@ struct Engine2App: App {
 
     init() {
         let gameContent = BasicGameContent()
+        let inputRuntime = InputRuntime()
         self.gameContent = gameContent
+        _inputRuntime = State(initialValue: inputRuntime)
         _simulation = State(
-            initialValue: SimulationRuntime(worldBuilder: gameContent.worldBuilder)
+            initialValue: SimulationRuntime(
+                worldBuilder: gameContent.worldBuilder,
+                inputSource: inputRuntime
+            )
         )
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(
+                inputRuntime: inputRuntime,
                 simulation: simulation,
                 debugOptions: debugOptions,
                 renderAssetCatalog: gameContent.renderAssetCatalog
@@ -40,6 +47,7 @@ struct Engine2App: App {
         .onChange(of: scenePhase, initial: true) { _, newPhase in
             if isRunningTests {
                 simulation.stop()
+                inputRuntime.stop()
                 return
             }
 
@@ -47,11 +55,14 @@ struct Engine2App: App {
             // than any individual view's lifecycle.
             switch newPhase {
             case .active:
+                inputRuntime.start()
                 simulation.start()
             case .inactive, .background:
                 simulation.stop()
+                inputRuntime.stop()
             @unknown default:
                 simulation.stop()
+                inputRuntime.stop()
             }
         }
     }

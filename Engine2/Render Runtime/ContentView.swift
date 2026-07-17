@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    let inputRuntime: InputRuntime
     let simulation: SimulationRuntime
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
@@ -16,10 +17,9 @@ struct ContentView: View {
         ZStack {
             MetalSceneView(
                 renderAssetCatalog: renderAssetCatalog,
-                presentationSource: simulation
-            ) { event in
-                simulation.handleInput(event)
-            }
+                presentationSource: simulation,
+                inputSink: inputRuntime
+            )
                 .ignoresSafeArea()
 
             Button {

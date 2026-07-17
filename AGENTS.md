@@ -22,8 +22,10 @@ Use these terms consistently:
 - There is no universal frame cadence. Input delivery, fixed Simulation Runtime ticks, render frames, and future Audio/Network/Storage work may advance independently.
 
 Current types implement part of this direction:
+- `InputRuntime` owns platform input state and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`; platform adapters submit `InputEvent` values through `PInputEventSink`.
 - `SimulationRuntime` is the app-facing Simulation Runtime lifecycle boundary; `SimulationLoop`, `Engine`, and `World` are its internal mechanisms.
-- `InputMetalView` in UI and `InputState` in Simulation currently split input collection from simulation-facing state; a future Input Runtime boundary should publish immutable input snapshots.
+- `SimulationLoop` samples the latest input snapshot, and `Engine` imports it only at fixed-step boundaries. Simulation-owned `InputState` and input systems interpret that imported state for gameplay.
+- `InputMetalView` is a platform adapter into the Input Runtime. It does not call the Simulation Runtime or mutate `World`.
 - `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value; `RenderFrame` is the Render Runtime-owned private projection derived from it.
 - `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities and no longer read live `World` state.
 
@@ -112,8 +114,7 @@ Current example ownership:
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
-  - `InputState` is the current authoritative simulation-facing input resource stored on `World`.
-  - The proposed Input Runtime will eventually separate platform input collection from immutable input snapshots consumed by the Simulation Runtime.
+  - `InputState` is the authoritative simulation-facing input resource stored on `World`, populated from `InputSnapshot` only at fixed-step boundaries.
   - `SInputMapping` translates raw input into higher-level camera actions.
   - `SInputHistory` records compact input history rows for debug UI.
   - `SInputCleanup` clears per-tick transient input after always-running input systems have consumed it.
@@ -129,7 +130,13 @@ Current example ownership:
 - `Engine2/Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap and app-facing lifecycle policy above `Engine`.
 - `Engine2/Engine2/Simulation Runtime/SimulationLoop.swift`
-  - `SimulationLoop` owns the app-level async polling task and feeds elapsed time into `Engine`.
+  - `SimulationLoop` owns the app-level async polling task, samples the latest value from `PInputSnapshotSource`, and feeds elapsed time plus that value into `Engine`.
+- `Engine2/Engine2/Input Runtime/**/*.swift`
+  - `InputRuntime` is the App-owned lifecycle boundary for platform input collection.
+  - `PInputEventSink` is the platform-adapter ingress accepted by the runtime.
+  - `PInputSnapshotSource` exposes the latest immutable `InputSnapshot` without exposing runtime mutation.
+  - `InputRevision` identifies publication sessions and versions. Within one session, cumulative pointer-motion and scroll totals let a slower consumer derive all motion between sampled snapshots without requiring one-to-one cadence.
+  - The current `InputEvent` is host ingress, not a published ordered runtime event lane. Ordered discrete transitions and retained replay remain future work.
 - `Engine2/Engine2/Game Content/BasicWorldBuilder.swift`
   - Example Game Content builder that currently seeds the default `Ball` entities.
 - `Engine2/Engine2/Game Content/Model/MeshID.swift`
@@ -156,7 +163,7 @@ Current example ownership:
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Engine2/UI/Input/InputMetalView.swift`
-  - Platform input collection currently lives in the experimental SwiftUI-facing UI layer.
+  - Platform adapter that translates AppKit events into `InputEvent` values and submits them through `PInputEventSink`.
 - `Engine2/Engine2Tests/`
   - Swift Testing coverage exists for the engine loop, clocks, world builder, spawn seeding, movement, rotation, rotation codability/equality, and several capability protocol read paths.
   - The test tree mirrors the app/source tree where practical.

@@ -3,11 +3,13 @@ This article captures the intended scheduling direction for Engine2.
 ## Status
 Partially implemented. Parts of this model are not implemented yet.
 The current engine already runs two ordered system lists:
-- always-running systems for input and tooling
+- always-running systems for simulation-side input interpretation, history, cleanup, and tooling
 - simulation-gated systems for gameplay state advancement
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
+
+Platform collection is not a scheduled ECS system. ``InputRuntime`` publishes a latest immutable `InputSnapshot`, and ``Engine`` imports a sampled value into World-owned `InputState` only at the beginning of an actual fixed step. `SInputMapping`, `SCameraInput`, fixed-tick `InputHistory`, and cleanup remain scheduled Simulation Runtime work after that boundary import.
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
 When the clock produces new elapsed time, the engine should treat that as additional backlog, not permission to begin another overlapping world update. If the engine is already stepping systems, newly arrived time should be accumulated and drained later.

@@ -6,7 +6,8 @@ See <doc:Game-Content-Architecture> for the distinction between packaged game as
 ## Status
 Partially implemented.
 The current code already reflects the core ownership split:
-- ``World`` owns simulation-scoped state such as `camera` and `input`
+- ``InputRuntime`` owns mutable platform input collection state and publishes immutable `InputSnapshot` values
+- ``World`` owns simulation-scoped state such as `camera` and fixed-tick `input`
 - render-specific Metal objects remain owned by the `MetalResourceStore`
   retained by ``MetalRenderer``
 - ``RenderFrame`` acts as the current translation boundary into presentation data
@@ -28,6 +29,14 @@ In practice:
 This lets the engine use resource storage patterns without collapsing every runtime into a single undifferentiated resource bag.
 
 Do not connect runtimes through process-global mutable resources. Globals hide ownership, make multiple runtime instances difficult, contaminate tests, and make lifecycle and concurrency behavior implicit. The App should connect runtimes through explicit immutable boundary values.
+
+## Input Ownership Stops at a Snapshot
+
+Platform input and simulation input have different owners and cadences. ``InputRuntime`` accepts host `InputEvent` values through `PInputEventSink`, maintains its private collection state, and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`. `InputMetalView` is only a platform adapter into that sink; it does not mutate `World` or call the Simulation Runtime.
+
+``SimulationLoop`` samples the latest snapshot, and ``Engine`` imports it only when a fixed simulation step actually begins. `InputState` remains a World resource because action mapping, camera input, fixed-tick history, and transient cleanup are simulation decisions. Snapshot revisions prevent the same publication from being consumed as new input twice. Within one publisher session, cumulative pointer-motion and scroll totals let Simulation derive the complete interval between sampled revisions without requiring Input and Simulation to advance together.
+
+This latest-value boundary does not retain an ordered history of discrete transitions. The platform `InputEvent` type is ingress, not a published event journal. Replay or transition-sensitive consumption will require a separate explicit recording or ordered-event design.
 ## World Owns Abstract Presentation State
 `World` is allowed to contain presentation-relevant state as long as that state remains abstract and engine-facing.
 Examples of world-owned presentation data include:

@@ -13,13 +13,12 @@ import SwiftUI
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
     var presentationSource: any PSimulationPresentationSource
-    var inputHandler: @MainActor (InputEvent) -> Void
+    var inputSink: any PInputEventSink
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             renderAssetCatalog: renderAssetCatalog,
-            presentationSource: presentationSource,
-            inputHandler: inputHandler
+            presentationSource: presentationSource
         )
     }
 
@@ -37,11 +36,7 @@ struct MetalSceneView: NSViewRepresentable {
         view.sampleCount = 1
 
         view.delegate = context.coordinator.renderer
-        view.inputHandler = { event in
-            MainActor.assumeIsolated {
-                context.coordinator.inputHandler(event)
-            }
-        }
+        view.inputSink = inputSink
         context.coordinator.renderer?.configure(view)
 
         return view
@@ -49,25 +44,22 @@ struct MetalSceneView: NSViewRepresentable {
 
     func updateNSView(_ nsView: InputMetalView, context: Context) {
         context.coordinator.renderer?.presentationSource = presentationSource
-        context.coordinator.inputHandler = inputHandler
-        nsView.inputHandler = { event in
-            MainActor.assumeIsolated {
-                context.coordinator.inputHandler(event)
-            }
-        }
+        nsView.inputSink = inputSink
+    }
+
+    static func dismantleNSView(_ nsView: InputMetalView, coordinator: Coordinator) {
+        nsView.inputSink = nil
+        nsView.delegate = nil
     }
 
     @MainActor
     final class Coordinator {
-        var inputHandler: @MainActor (InputEvent) -> Void
         var renderer: MetalRenderer?
 
         init(
             renderAssetCatalog: RenderAssetCatalog,
-            presentationSource: any PSimulationPresentationSource,
-            inputHandler: @escaping @MainActor (InputEvent) -> Void
+            presentationSource: any PSimulationPresentationSource
         ) {
-            self.inputHandler = inputHandler
             self.renderer = nil
 
             // Construct one device-scoped store before the view begins drawing.

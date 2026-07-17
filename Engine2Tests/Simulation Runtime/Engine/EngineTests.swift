@@ -53,8 +53,6 @@ struct EngineTests {
             CMotion(velocity: SIMD3<Float>(10, 0, 0)),
             for: entity
         )
-        world.input.apply(.mouseButtonDown(.left, position: .zero))
-
         let engine = Engine(
             world: world,
             fixedTimeStep: .milliseconds(100),
@@ -63,7 +61,13 @@ struct EngineTests {
         )
         engine.isSimulationRunning = false
 
-        engine.update(deltaTime: .milliseconds(100))
+        engine.update(
+            deltaTime: .milliseconds(100),
+            inputSnapshot: inputSnapshot(
+                sequence: 1,
+                pressedMouseButtons: [.left]
+            )
+        )
 
         #expect(world.positionComponents[entity]?.position == .zero)
         #expect(world.input.history.count == 1)
@@ -87,6 +91,52 @@ struct EngineTests {
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
+    @Test func updateRetainsInputUntilAFixedStepRuns() {
+        let world = World()
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .milliseconds(100),
+            alwaysSystems: [],
+            systems: []
+        )
+
+        engine.update(
+            deltaTime: .milliseconds(40),
+            inputSnapshot: inputSnapshot(
+                sequence: 1,
+                pointerMotionTotal: SIMD2<Float>(3, -2)
+            )
+        )
+
+        #expect(world.input.mouse.delta == .zero)
+
+        engine.update(deltaTime: .milliseconds(60))
+
+        #expect(world.input.mouse.delta == SIMD2<Float>(3, -2))
+    }
+
+    @Test func catchUpUpdateConsumesTransientInputOnlyOnce() {
+        let world = World()
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .milliseconds(100),
+            alwaysSystems: [InputDeltaAccumulatorSystem(), SInputCleanup()],
+            systems: []
+        )
+
+        engine.update(
+            deltaTime: .milliseconds(250),
+            inputSnapshot: inputSnapshot(
+                sequence: 1,
+                pointerMotionTotal: SIMD2<Float>(4, 0)
+            )
+        )
+
+        #expect(world.camera.position.x == 4)
+        #expect(engine.completedTick == SimulationTick(rawValue: 2))
+        #expect(world.input.mouse.delta == .zero)
+    }
+
     @Test func appendedSystemsRunInAlwaysThenSimulationOrder() {
         let recorder = ExecutionRecorder()
         let engine = Engine(alwaysSystems: [], systems: [])
@@ -107,6 +157,28 @@ struct EngineTests {
 
         #expect(engine.completedTick == .zero)
         #expect(engine.accumulatedTime == .zero)
+    }
+}
+
+private func inputSnapshot(
+    session: UInt64 = 1,
+    sequence: UInt64,
+    pointerMotionTotal: SIMD2<Float> = .zero,
+    pressedMouseButtons: Set<MouseButton> = []
+) -> InputSnapshot {
+    InputSnapshot(
+        revision: InputRevision(session: session, sequence: sequence),
+        pointerPosition: .zero,
+        pointerMotionTotal: pointerMotionTotal,
+        scrollTotal: .zero,
+        pressedMouseButtons: pressedMouseButtons,
+        pressedKeys: []
+    )
+}
+
+private struct InputDeltaAccumulatorSystem: PSystem {
+    mutating func update(world: inout World, deltaTime: Float) {
+        world.camera.position.x += world.input.mouse.delta.x
     }
 }
 

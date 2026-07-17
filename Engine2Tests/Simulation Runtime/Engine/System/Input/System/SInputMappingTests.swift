@@ -14,8 +14,16 @@ struct SInputMappingTests {
         var world = World()
         var system = SInputMapping(pointerOrbitSensitivity: 0.5, scrollZoomSensitivity: 2)
 
-        world.input.apply(.mouseDragged(delta: SIMD2<Float>(4, -3), position: .zero))
-        world.input.apply(.scroll(delta: SIMD2<Float>(0, 5)))
+        world.input.ingest(
+            InputSnapshot(
+                revision: InputRevision(session: 1, sequence: 1),
+                pointerPosition: .zero,
+                pointerMotionTotal: SIMD2<Float>(4, -3),
+                scrollTotal: SIMD2<Float>(0, 5),
+                pressedMouseButtons: [],
+                pressedKeys: []
+            )
+        )
 
         system.update(world: &world, deltaTime: 1)
 

@@ -10,8 +10,9 @@ import MetalKit
 import simd
 
 /// MetalKit view subclass that translates AppKit events into engine input events.
+@MainActor
 final class InputMetalView: MTKView {
-    var inputHandler: ((InputEvent) -> Void)?
+    weak var inputSink: (any PInputEventSink)?
 
     override var acceptsFirstResponder: Bool {
         true
@@ -24,11 +25,11 @@ final class InputMetalView: MTKView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        inputHandler?(.mouseButtonDown(.left, position: pointerPosition(from: event)))
+        inputSink?.receive(.mouseButtonDown(.left, position: pointerPosition(from: event)))
     }
 
     override func mouseDragged(with event: NSEvent) {
-        inputHandler?(
+        inputSink?.receive(
             .mouseDragged(
                 delta: pointerDelta(from: event),
                 position: pointerPosition(from: event)
@@ -37,21 +38,21 @@ final class InputMetalView: MTKView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        inputHandler?(.mouseButtonUp(.left, position: pointerPosition(from: event)))
+        inputSink?.receive(.mouseButtonUp(.left, position: pointerPosition(from: event)))
     }
 
     override func rightMouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        inputHandler?(.mouseButtonDown(.right, position: pointerPosition(from: event)))
+        inputSink?.receive(.mouseButtonDown(.right, position: pointerPosition(from: event)))
     }
 
     override func rightMouseUp(with event: NSEvent) {
-        inputHandler?(.mouseButtonUp(.right, position: pointerPosition(from: event)))
+        inputSink?.receive(.mouseButtonUp(.right, position: pointerPosition(from: event)))
     }
 
     override func otherMouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        inputHandler?(
+        inputSink?.receive(
             .mouseButtonDown(
                 mouseButton(for: event.buttonNumber),
                 position: pointerPosition(from: event)
@@ -60,7 +61,7 @@ final class InputMetalView: MTKView {
     }
 
     override func otherMouseUp(with event: NSEvent) {
-        inputHandler?(
+        inputSink?.receive(
             .mouseButtonUp(
                 mouseButton(for: event.buttonNumber),
                 position: pointerPosition(from: event)
@@ -69,7 +70,7 @@ final class InputMetalView: MTKView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        inputHandler?(
+        inputSink?.receive(
             .scroll(
                 delta: SIMD2<Float>(
                     Float(event.scrollingDeltaX),
@@ -84,7 +85,7 @@ final class InputMetalView: MTKView {
             return
         }
 
-        inputHandler?(
+        inputSink?.receive(
             .keyDown(
                 KeyboardKey.make(
                     keyCode: event.keyCode,
@@ -95,7 +96,7 @@ final class InputMetalView: MTKView {
     }
 
     override func keyUp(with event: NSEvent) {
-        inputHandler?(
+        inputSink?.receive(
             .keyUp(
                 KeyboardKey.make(
                     keyCode: event.keyCode,
@@ -114,7 +115,7 @@ final class InputMetalView: MTKView {
         SIMD2<Float>(Float(event.deltaX), Float(event.deltaY))
     }
 
-    private func mouseButton(for buttonNumber: Int) -> InputState.MouseButton {
+    private func mouseButton(for buttonNumber: Int) -> MouseButton {
         switch buttonNumber {
         case 2: .middle
         default: .other(buttonNumber)

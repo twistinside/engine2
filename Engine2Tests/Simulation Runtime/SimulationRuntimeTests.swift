@@ -112,18 +112,48 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func handleInputAppliesEventToActiveWorld() {
-        let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: .zero)
-        )
+    @Test @MainActor func inputSourceEstablishesWorldBaselineWithoutReplayingMotion() {
         let key = KeyboardKey.make(
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )
+        let inputSource = RuntimeTestInputSnapshotSource(
+            snapshot: InputSnapshot(
+                revision: InputRevision(session: 2, sequence: 4),
+                pointerPosition: SIMD2<Float>(20, 30),
+                pointerMotionTotal: SIMD2<Float>(8, -3),
+                scrollTotal: SIMD2<Float>(0, 5),
+                pressedMouseButtons: [.left],
+                pressedKeys: [key]
+            )
+        )
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: .zero),
+            inputSource: inputSource
+        )
 
-        simulation.handleInput(.keyDown(key))
-
+        #expect(simulation.world.input.mouse.position == SIMD2<Float>(20, 30))
+        #expect(simulation.world.input.mouse.buttons == [.left])
         #expect(simulation.world.input.keyboard.keys == [key])
+        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.mouse.scrollDelta == .zero)
+
+        simulation.rebuildWorld()
+
+        #expect(simulation.world.input.mouse.position == SIMD2<Float>(20, 30))
+        #expect(simulation.world.input.mouse.buttons == [.left])
+        #expect(simulation.world.input.keyboard.keys == [key])
+        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.mouse.scrollDelta == .zero)
+    }
+}
+
+@MainActor
+private final class RuntimeTestInputSnapshotSource: PInputSnapshotSource {
+    var latestInputSnapshot: InputSnapshot
+
+    init(snapshot: InputSnapshot) {
+        latestInputSnapshot = snapshot
     }
 }
 

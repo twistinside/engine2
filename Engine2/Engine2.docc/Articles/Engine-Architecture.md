@@ -6,13 +6,14 @@ The engine, world, and ECS systems described here are the internal architecture 
 ``Engine`` owns time accumulation and simulation orchestration.
 At the moment, it:
 - accumulates incoming frame time
+- imports the latest immutable input snapshot only when a fixed step begins
 - advances simulation in fixed-size steps
 - runs always-running systems in a stable call order
 - runs simulation systems in a second stable call order only when simulation is enabled
 This keeps timing and scheduling logic out of ``World``.
 ### Simulation Runtime and World Builders
 ``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap and lifecycle policy.
-It accepts a ``PWorldBuilder`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. It also owns ``SimulationLoop``, which polls wall time and advances the engine in response to host lifecycle events.
+It accepts a ``PWorldBuilder`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. It also owns ``SimulationLoop``, which polls wall time, samples the latest `InputSnapshot` through `PInputSnapshotSource`, and advances the engine in response to host lifecycle events.
 ``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
 The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes that contract. Consumer-defined builders, entity types, components, and presentation descriptions belong to Game Content. The App supplies that content while constructing the Simulation Runtime; the runtime does not discover content through global registries. See <doc:Game-Content-Architecture>.
 ### World
@@ -39,10 +40,11 @@ They are not the simulation source of truth. Authoritative gameplay state lives 
 ## Fixed-Step Simulation
 The current simulation model is a fixed-step loop:
 1. Real frame time is added to the engine's accumulator.
-2. The engine executes as many fixed simulation ticks as fit inside that accumulated time.
-3. Each tick runs the registered systems against the current world state.
+2. When enough time exists for a fixed step, the engine imports the sampled `InputSnapshot` into World-owned `InputState`.
+3. The engine executes as many fixed simulation ticks as fit inside that accumulated time.
+4. Each tick runs the registered systems against the current world state.
 This model keeps systems working in terms of simulation time rather than render-frame timing.
-At the application boundary, host code decides when the session should run or pause. ``SimulationRuntime`` owns ``SimulationLoop``, which samples real time and feeds that delta into ``Engine.update(deltaTime:)``. That outer loop stays above `Engine` so the engine remains reusable in tests, tools, and future host applications with different lifecycle needs. Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation tick, and several simulation ticks can happen before one draw.
+At the application boundary, host code decides when the session should run or pause. ``SimulationRuntime`` owns ``SimulationLoop``, which samples real time and the read-only latest input source before feeding both to ``Engine``. If the accumulated delta produces no fixed step, the engine does not consume the input snapshot. During catch-up, transient input derived from one sampled revision is introduced once rather than replayed for every step. That outer loop stays above `Engine` so the engine remains reusable in tests, tools, and future host applications with different lifecycle needs. Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation tick, and several simulation ticks can happen before one draw.
 ## Current Limits
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
 - entity ID reservation is monotonic only; destruction, generation incrementing, and index reuse have not been added yet
