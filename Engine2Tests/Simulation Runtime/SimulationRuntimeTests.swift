@@ -1,10 +1,3 @@
-//
-//  SimulationRuntimeTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/17/26.
-//
-
 import Testing
 @testable import Engine2
 
@@ -13,11 +6,17 @@ struct SimulationRuntimeTests {
         let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
 
         let simulation = SimulationRuntime(worldBuilder: builder)
+        let presentationSource: any PSimulationPresentationSource = simulation
 
         let entity = try #require(simulation.world.positionComponents.entities.first)
         #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Float>(3, 4, 5))
         #expect(simulation.state.fixedTimeStep == .seconds(1.0 / 60.0))
         #expect(simulation.state.isRunning == false)
+        #expect(presentationSource.latestPresentationSnapshot.tick == .zero)
+        #expect(
+            presentationSource.latestPresentationSnapshot.entityPresentations.first?.position ==
+                SIMD3<Float>(3, 4, 5)
+        )
     }
 
     @Test @MainActor func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
@@ -37,6 +36,11 @@ struct SimulationRuntimeTests {
         #expect(builder.buildCount == 2)
         #expect(simulation.world !== firstWorld)
         #expect(simulation.world.positionComponents[secondEntity]?.position == SIMD3<Float>(2, 0, 0))
+        #expect(simulation.latestPresentationSnapshot.tick == .zero)
+        #expect(
+            simulation.latestPresentationSnapshot.entityPresentations.first?.position ==
+                SIMD3<Float>(2, 0, 0)
+        )
     }
 
     @Test @MainActor func startAndStopDriveExposedState() async throws {
@@ -101,18 +105,48 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func handleInputAppliesEventToActiveWorld() {
-        let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: .zero)
-        )
+    @Test @MainActor func inputSourceEstablishesWorldBaselineWithoutReplayingMotion() {
         let key = KeyboardKey.make(
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )
+        let inputSource = RuntimeTestInputSnapshotSource(
+            snapshot: InputSnapshot(
+                revision: InputRevision(session: 2, sequence: 4),
+                pointerPosition: SIMD2<Float>(20, 30),
+                pointerMotionTotal: SIMD2<Float>(8, -3),
+                scrollTotal: SIMD2<Float>(0, 5),
+                pressedMouseButtons: [.left],
+                pressedKeys: [key]
+            )
+        )
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: .zero),
+            inputSource: inputSource
+        )
 
-        simulation.handleInput(.keyDown(key))
-
+        #expect(simulation.world.input.mouse.position == SIMD2<Float>(20, 30))
+        #expect(simulation.world.input.mouse.buttons == [.left])
         #expect(simulation.world.input.keyboard.keys == [key])
+        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.mouse.scrollDelta == .zero)
+
+        simulation.rebuildWorld()
+
+        #expect(simulation.world.input.mouse.position == SIMD2<Float>(20, 30))
+        #expect(simulation.world.input.mouse.buttons == [.left])
+        #expect(simulation.world.input.keyboard.keys == [key])
+        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.mouse.scrollDelta == .zero)
+    }
+}
+
+@MainActor
+private final class RuntimeTestInputSnapshotSource: PInputSnapshotSource {
+    var latestInputSnapshot: InputSnapshot
+
+    init(snapshot: InputSnapshot) {
+        latestInputSnapshot = snapshot
     }
 }
 

@@ -1,10 +1,3 @@
-//
-//  SCameraInput.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import simd
 
 /// Applies mapped camera input to the active perspective orbit camera.

@@ -1,10 +1,8 @@
-//
-//  PRotatable.swift
-//  Engine2
-//
-//  Created by Codex on 3/15/26.
-//
-
+/// Capability for orientable entity facades backed by angular motion state.
+///
+/// The live accessors bridge to integrated angular velocity and the transient
+/// acceleration and impulse contributions consumed by `SRotation`. Systems
+/// should use the corresponding component stores for bulk mutation.
 protocol PRotatable: POrientable {
     var angularAcceleration: SIMD3<Float> { get }
     var angularImpulse: SIMD3<Float> { get }

@@ -1,10 +1,3 @@
-//
-//  POrientableTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/15/26.
-//
-
 import Testing
 import simd
 @testable import Engine2

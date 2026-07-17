@@ -1,10 +1,3 @@
-//
-//  MetalRenderer.swift
-//  Engine2
-//
-//  Created by Codex on 5/25/26.
-//
-
 import Dispatch
 import Foundation
 import Metal
@@ -12,6 +5,12 @@ import MetalKit
 import ModelIO
 import simd
 
+/// Metal 4 backend that renders the latest completed simulation presentation.
+///
+/// `MetalRenderer` samples a narrow presentation source at render cadence,
+/// projects it into private `RenderFrame` data, and encodes GPU work using one
+/// device-scoped `MetalResourceStore`. It never reads live ECS storage, and it
+/// does not own or control the Simulation Runtime lifecycle.
 @MainActor
 final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Keep a small ring of per-frame command allocators so the CPU can encode
@@ -42,15 +41,16 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// render instance before encoding the draw.
     private let argumentTable: any MTL4ArgumentTable
 
-    /// Supplies the latest ECS-derived presentation snapshot for each draw.
-    private let renderFrameProvider: @MainActor () -> RenderFrame
+    /// Read-only Simulation Runtime publication selected at render cadence.
+    /// The App owns the source's lifetime; Render does not retain its peer runtime.
+    weak var presentationSource: (any PSimulationPresentationSource)?
 
     /// Index into `frames` for the next draw call.
     private var frameIndex = 0
 
     init(
         resources: MetalResourceStore,
-        renderFrameProvider: @escaping @MainActor () -> RenderFrame
+        presentationSource: any PSimulationPresentationSource
     ) throws {
         precondition(
             !resources.frames.isEmpty,
@@ -61,7 +61,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.renderPipelineState = try resources.renderPipelineState(for: .model)
         self.depthStencilState = try resources.depthStencilState(for: .disabled)
         self.argumentTable = try resources.argumentTable(for: .model)
-        self.renderFrameProvider = renderFrameProvider
+        self.presentationSource = presentationSource
 
         super.init()
     }
@@ -107,7 +107,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Attach this frame's allocator before encoding. A Metal 4 command
         // buffer does not own command storage until `beginCommandBuffer`.
         commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)
-        let renderFrame = renderFrameProvider()
+        let renderFrame: RenderFrame
+        if let presentationSource {
+            renderFrame = RenderFrame.project(
+                from: presentationSource.latestPresentationSnapshot
+            )
+        } else {
+            renderFrame = .empty
+        }
         let instanceCount = frame.write(
             renderFrame.instances,
             camera: renderFrame.camera,
@@ -222,6 +229,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
 }
 
+/// Renderer-owned decoded mesh data for one packaged USD model.
+///
+/// The value groups MetalKit meshes and exposes the unique allocations needed
+/// for explicit Metal 4 residency. Game Content supplies only the abstract
+/// asset reference and never receives these backend objects.
 struct USDRenderModel {
     let meshes: [MTKMesh]
 
@@ -326,6 +338,10 @@ struct USDRenderModel {
     }
 }
 
+/// CPU-side layout written to the per-frame GPU instance buffer.
+///
+/// Its single matrix matches `ModelInstance` in `ModelShaders.metal` and folds
+/// the camera projection, view transform, and entity transform into one value.
 struct GPUInstance {
     var modelViewProjectionMatrix: simd_float4x4
 
@@ -390,6 +406,7 @@ final class FrameResources: @unchecked Sendable {
     }
 }
 
+/// Internal asset-resolution failures surfaced while constructing render resources.
 private enum MetalRendererError: Error {
     case missingModel(String)
 }

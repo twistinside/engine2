@@ -1,43 +1,13 @@
-//
-//  InputState.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import simd
 
-/// Raw device state, mapped actions, and compact per-step input history.
+/// Authoritative simulation-facing input imported at fixed-step boundaries.
+///
+/// `InputState` rebases or derives transients from immutable Input Runtime
+/// snapshots, then lets ordered input systems map, record, consume, and clear
+/// them inside the Simulation Runtime. It never exposes mutable platform input
+/// state across the runtime boundary.
 struct InputState {
-    enum MouseButton: Hashable, Comparable {
-        case left
-        case right
-        case middle
-        case other(Int)
-
-        var displayName: String {
-            switch self {
-            case .left: "LMB"
-            case .right: "RMB"
-            case .middle: "MMB"
-            case let .other(buttonNumber): "M\(buttonNumber)"
-            }
-        }
-
-        static func < (lhs: MouseButton, rhs: MouseButton) -> Bool {
-            lhs.sortIndex < rhs.sortIndex
-        }
-
-        private var sortIndex: Int {
-            switch self {
-            case .left: 0
-            case .right: 1
-            case .middle: 2
-            case let .other(buttonNumber): 10 + buttonNumber
-            }
-        }
-    }
-
+    /// Imported pointer state, including per-tick motion and scroll transients.
     struct Mouse {
         var position: SIMD2<Float> = .zero
         var delta: SIMD2<Float> = .zero
@@ -45,35 +15,15 @@ struct InputState {
         var buttons = Set<MouseButton>()
     }
 
+    /// Persistent keyboard state from the latest imported input publication.
     struct Keyboard {
         var keys = Set<KeyboardKey>()
     }
 
-    enum GamepadButton: Hashable {
-        case buttonA
-        case buttonB
-        case buttonX
-        case buttonY
-        case leftShoulder
-        case rightShoulder
-        case leftThumbstick
-        case rightThumbstick
-        case menu
-        case options
-        case dpadUp
-        case dpadDown
-        case dpadLeft
-        case dpadRight
-    }
-
-    struct Gamepad {
-        var leftStick: SIMD2<Float> = .zero
-        var rightStick: SIMD2<Float> = .zero
-        var leftTrigger: Float = 0
-        var rightTrigger: Float = 0
-        var buttons = Set<GamepadButton>()
-    }
-
+    /// Higher-level transient commands derived from raw device state.
+    ///
+    /// Mapping systems populate these values for gameplay systems to consume in
+    /// the same fixed step; cleanup resets them before the next step.
     struct Actions {
         var cameraOrbitDelta: SIMD2<Float> = .zero
         var cameraZoomDelta: Float = 0
@@ -81,37 +31,59 @@ struct InputState {
 
     var mouse = Mouse()
     var keyboard = Keyboard()
-    var gamepad = Gamepad()
     var actions = Actions()
     var history: [InputHistoryEntry] = []
     var historyLimit = 60
 
     private var frameIndex = 0
     private var nextHistoryID = 0
+    private var consumedRevision: InputRevision?
+    private var pointerMotionTotal = SIMD2<Float>.zero
+    private var scrollTotal = SIMD2<Float>.zero
 
-    mutating func apply(_ event: InputEvent) {
-        switch event {
-        case let .mouseButtonDown(button, position):
-            mouse.position = position
-            mouse.buttons.insert(button)
+    /// Incorporates a newer immutable publication at a fixed-step boundary.
+    mutating func ingest(_ snapshot: InputSnapshot) {
+        if let consumedRevision {
+            // Ignore repeated or stale latest-value reads.
+            guard snapshot.revision > consumedRevision else {
+                return
+            }
 
-        case let .mouseButtonUp(button, position):
-            mouse.position = position
-            mouse.buttons.remove(button)
-
-        case let .mouseDragged(delta, position):
-            mouse.position = position
-            mouse.delta += delta
-
-        case let .scroll(delta):
-            mouse.scrollDelta += delta
-
-        case let .keyDown(key):
-            keyboard.keys.insert(key)
-
-        case let .keyUp(key):
-            keyboard.keys.remove(key)
+            if snapshot.revision.session == consumedRevision.session {
+                // Derive this consumer's transient input from cumulative totals.
+                mouse.delta += snapshot.pointerMotionTotal - pointerMotionTotal
+                mouse.scrollDelta += snapshot.scrollTotal - scrollTotal
+            } else {
+                // Cumulative totals restart from zero with each source
+                // session, so only the new session's motion is imported.
+                mouse.delta += snapshot.pointerMotionTotal
+                mouse.scrollDelta += snapshot.scrollTotal
+            }
+        } else {
+            // A newly attached consumer starts at the beginning of the
+            // snapshot's session. Explicit world replacement uses `rebase`
+            // below when historical totals should instead be ignored.
+            mouse.delta += snapshot.pointerMotionTotal
+            mouse.scrollDelta += snapshot.scrollTotal
         }
+
+        importPersistentState(from: snapshot)
+    }
+
+    /// Establishes a consumer cursor without replaying historical transients.
+    mutating func rebase(to snapshot: InputSnapshot) {
+        mouse.delta = .zero
+        mouse.scrollDelta = .zero
+        importPersistentState(from: snapshot)
+    }
+
+    private mutating func importPersistentState(from snapshot: InputSnapshot) {
+        mouse.position = snapshot.pointerPosition
+        mouse.buttons = snapshot.pressedMouseButtons
+        keyboard.keys = snapshot.pressedKeys
+        pointerMotionTotal = snapshot.pointerMotionTotal
+        scrollTotal = snapshot.scrollTotal
+        consumedRevision = snapshot.revision
     }
 
     mutating func recordHistoryFrame() {

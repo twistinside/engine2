@@ -1,10 +1,3 @@
-//
-//  SimulationLoop.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/17/26.
-//
-
 /// Owns the async task that polls wall time and advances the engine.
 ///
 /// This sits above `Engine`: a higher-level owner decides when the simulation
@@ -12,10 +5,20 @@
 /// system order.
 @MainActor
 final class SimulationLoop {
+    /// Factory that creates a fresh elapsed-time sampler for each loop session.
     typealias ClockFactory = () -> SystemClock
+
+    /// Monotonic source used to schedule the next asynchronous poll.
     typealias TimeSource = () -> SystemClock.Instant
+
+    /// Injectable suspension boundary that sleeps until the requested instant.
     typealias Sleeper = @Sendable (SystemClock.Instant) async throws -> Void
+
+    /// Main-actor notification emitted when the polling task starts or stops.
     typealias RunningStateDidChange = @MainActor (Bool) -> Void
+
+    /// Main-actor notification carrying the latest completed simulation tick.
+    typealias FixedStepsDidComplete = @MainActor (SimulationTick) -> Void
 
     let engine: Engine
     let pollInterval: Duration
@@ -23,12 +26,14 @@ final class SimulationLoop {
     private let clockFactory: ClockFactory
     private let scheduleTimeSource: TimeSource
     private let sleeper: Sleeper
+    private weak var inputSource: (any PInputSnapshotSource)?
 
     private var clock: SystemClock?
     private var runID: UInt64 = 0
     private var updateTask: Task<Void, Never>?
 
     var runningStateDidChange: RunningStateDidChange?
+    var fixedStepsDidComplete: FixedStepsDidComplete?
 
     var isRunning: Bool {
         updateTask != nil
@@ -36,6 +41,7 @@ final class SimulationLoop {
 
     init(
         engine: Engine = Engine(),
+        inputSource: (any PInputSnapshotSource)? = nil,
         pollInterval: Duration? = nil,
         clockFactory: @escaping ClockFactory = { SystemClock() },
         scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
@@ -44,6 +50,7 @@ final class SimulationLoop {
         }
     ) {
         self.engine = engine
+        self.inputSource = inputSource
         self.pollInterval = pollInterval ?? engine.fixedTimeStep
         self.clockFactory = clockFactory
         self.scheduleTimeSource = scheduleTimeSource
@@ -118,8 +125,18 @@ final class SimulationLoop {
                 return
             }
 
-            engine.update(deltaTime: clock.consumeDeltaTime())
+            let previousTick = engine.completedTick
+            engine.update(
+                deltaTime: clock.consumeDeltaTime(),
+                inputSnapshot: inputSource?.latestInputSnapshot
+            )
             self.clock = clock
+
+            // Latest-value publication only needs the final completed state
+            // when one polling update catches up through multiple fixed steps.
+            if engine.completedTick != previousTick {
+                fixedStepsDidComplete?(engine.completedTick)
+            }
             nextWakeDeadline = advancedDeadline(after: nextWakeDeadline)
         }
     }

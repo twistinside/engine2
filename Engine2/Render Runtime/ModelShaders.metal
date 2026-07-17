@@ -1,22 +1,18 @@
-//
-//  ModelShaders.metal
-//  Engine2
-//
-//  Created by Codex on 5/26/26.
-//
-
 #include <metal_stdlib>
 using namespace metal;
 
+/// Interleaved vertex layout supplied by the decoded model mesh buffer.
 struct ModelVertex {
     float3 position;
     float3 color;
 };
 
+/// Per-draw transform layout mirrored by Swift's `GPUInstance`.
 struct ModelInstance {
     float4x4 modelViewProjectionMatrix;
 };
 
+/// Values interpolated from the model vertex stage into the fragment stage.
 struct VertexOut {
     float4 position [[position]];
     half4 color;

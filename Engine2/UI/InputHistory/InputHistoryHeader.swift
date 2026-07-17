@@ -1,12 +1,6 @@
-//
-//  InputHistoryHeader.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 import SwiftUI
 
+/// Header for the fixed-step input history, including its retained entry count.
 struct InputHistoryHeader: View {
     let entryCount: Int
 

@@ -1,10 +1,3 @@
-//
-//  MetalResidencyManager.swift
-//  Engine2
-//
-//  Created by Codex on 7/15/26.
-//
-
 import Metal
 import MetalKit
 import QuartzCore

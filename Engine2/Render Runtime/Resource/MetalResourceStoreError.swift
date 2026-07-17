@@ -1,10 +1,3 @@
-//
-//  MetalResourceStoreError.swift
-//  Engine2
-//
-//  Created by Codex on 7/16/26.
-//
-
 /// Failures that can prevent construction or use of a Metal resource store.
 nonisolated enum MetalResourceStoreError: Error, Equatable {
     case missingDevice

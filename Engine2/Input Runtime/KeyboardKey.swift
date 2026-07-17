@@ -1,12 +1,8 @@
-//
-//  KeyboardKey.swift
-//  Engine2
-//
-//  Created by Codex on 6/14/26.
-//
-
 /// Stable keyboard key identity for raw input state and debug display.
-struct KeyboardKey: Hashable, Comparable {
+///
+/// Keyboard layouts expose an open-ended display vocabulary, so the label is
+/// retained as a string alongside the stable platform key code.
+struct KeyboardKey: Hashable, Comparable, Sendable {
     let keyCode: UInt16
     let displayName: String
 

@@ -1,10 +1,3 @@
-//
-//  SimulationRuntime.swift
-//  Engine2
-//
-//  Created by Codex on 3/17/26.
-//
-
 import Observation
 
 /// App-facing lifecycle boundary for the simulation runtime.
@@ -14,7 +7,7 @@ import Observation
 /// the invariant system schedule.
 @MainActor
 @Observable
-final class SimulationRuntime {
+final class SimulationRuntime: PSimulationPresentationSource {
     /// Minimal session state intended for SwiftUI and other presentation code.
     struct State {
         var fixedTimeStep: Duration
@@ -31,6 +24,13 @@ final class SimulationRuntime {
     @ObservationIgnored
     private let simulationLoop: SimulationLoop
 
+    @ObservationIgnored
+    private weak var inputSource: (any PInputSnapshotSource)?
+
+    /// Latest completed publisher-owned value available to peer runtimes.
+    @ObservationIgnored
+    private(set) var latestPresentationSnapshot: SimulationPresentationSnapshot
+
     private(set) var state: State
 
     var world: World {
@@ -39,6 +39,7 @@ final class SimulationRuntime {
 
     init(
         worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
+        inputSource: (any PInputSnapshotSource)? = nil,
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         pollInterval: Duration? = nil,
         clockFactory: @escaping SimulationLoop.ClockFactory = { SystemClock() },
@@ -47,16 +48,26 @@ final class SimulationRuntime {
         }
     ) {
         self.worldBuilder = worldBuilder
+        self.inputSource = inputSource
+        var world = worldBuilder.buildWorld()
+        if let inputSnapshot = inputSource?.latestInputSnapshot {
+            world.input.rebase(to: inputSnapshot)
+        }
         let engine = Engine(
-            world: worldBuilder.buildWorld(),
+            world: world,
             fixedTimeStep: fixedTimeStep
         )
         self.engine = engine
         engine.isSimulationRunning = false
+        self.latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
+            from: engine.world,
+            at: engine.completedTick
+        )
         self.state = State(fixedTimeStep: fixedTimeStep)
 
         let simulationLoop = SimulationLoop(
             engine: engine,
+            inputSource: inputSource,
             pollInterval: pollInterval,
             clockFactory: clockFactory,
             sleeper: sleeper
@@ -65,11 +76,18 @@ final class SimulationRuntime {
         simulationLoop.runningStateDidChange = { [weak self] isRunning in
             self?.state.isLoopRunning = isRunning
         }
+        simulationLoop.fixedStepsDidComplete = { [weak self] completedTick in
+            self?.publishPresentationSnapshot(at: completedTick)
+        }
     }
 
     /// Rebuilds the active world from the current builder and swaps it into the engine.
     func rebuildWorld() {
-        engine.world = worldBuilder.buildWorld()
+        engine.replaceWorld(
+            with: worldBuilder.buildWorld(),
+            inputBaseline: inputSource?.latestInputSnapshot
+        )
+        publishPresentationSnapshot(at: engine.completedTick)
     }
 
     /// Replaces the current builder, optionally rebuilding the world immediately.
@@ -108,7 +126,11 @@ final class SimulationRuntime {
         state.isRunning = false
     }
 
-    func handleInput(_ event: InputEvent) {
-        engine.world.input.apply(event)
+    /// Replaces the latest-value slot only after the engine completes a fixed step.
+    private func publishPresentationSnapshot(at tick: SimulationTick) {
+        latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
+            from: engine.world,
+            at: tick
+        )
     }
 }

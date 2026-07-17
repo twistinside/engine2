@@ -1,10 +1,7 @@
-//
-//  PScalable.swift
-//  Engine2
-//
-//  Created by Codex on 3/15/26.
-//
-
+/// Capability for entity facades whose live scale is stored in ECS state.
+///
+/// The default accessor expects capability-driven registration to have created
+/// a `CScale` row and reports a missing row as a programming invariant failure.
 protocol PScalable: Entity {
     var scale: SIMD3<Float> { get }
 }

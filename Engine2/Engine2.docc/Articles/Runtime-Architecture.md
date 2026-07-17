@@ -6,7 +6,7 @@ This article defines the intended top-level application architecture for Engine2
 
 Partially implemented direction.
 
-The current code implements ``SimulationRuntime`` as the authoritative lifecycle boundary around ``Engine``, ``World``, and ``SimulationLoop``. `InputRuntime` and `RenderRuntime` remain proposed boundaries represented today by input/UI types, ``RenderFrame``, and `MetalRenderer`.
+The current code implements ``InputRuntime`` as the platform-input lifecycle and latest-snapshot publisher, and ``SimulationRuntime`` as the authoritative lifecycle boundary around ``Engine``, ``World``, and ``SimulationLoop``. A complete `RenderRuntime` remains proposed; ``RenderFrame`` and `MetalRenderer` implement important parts of that responsibility today.
 
 ## Runtimes Are the Top-Level Application Objects
 
@@ -88,14 +88,14 @@ Snapshots are:
 Examples include:
 
 - `InputSnapshot`
-- `SimulationSnapshot`
+- `SimulationPresentationSnapshot`
 - `AchievementSnapshot`
 
 Snapshot types should use a descriptive `Snapshot` suffix rather than an `S` prefix. The `S` prefix remains reserved for ECS systems.
 
-A receiving runtime may derive its own private snapshot or operational model from a publisher-owned snapshot. For example, the Simulation Runtime publishes `SimulationSnapshot`; the Render Runtime projects that value into its own render-oriented snapshot. Simulation owns the source vocabulary, Render owns the projection and destination model, and the App owns the connection.
+A receiving runtime may derive its own private snapshot or operational model from a publisher-owned snapshot. For example, the Simulation Runtime publishes `SimulationPresentationSnapshot`; the Render Runtime projects that value into its own render-oriented snapshot. Simulation owns the source vocabulary, Render owns the projection and destination model, and the App owns the connection.
 
-The current ``RenderFrame`` combines simulation extraction and the render-oriented destination value in one early implementation. Future work should separate that shortcut without renaming or wrapping the current type solely for architectural symmetry.
+The implemented boundary now separates those roles: ``SimulationPresentationSnapshot`` is publisher-owned abstract presentation state, while ``RenderFrame`` is the Render Runtime's private projection. The App connects the read-only latest-value source explicitly. This is one deliberate Simulation Runtime publication, not a universal or exhaustive snapshot of every simulation concern.
 
 ### Events
 
@@ -119,7 +119,9 @@ Events and snapshots complement one another:
 
 A runtime that starts late can converge from the latest snapshot. Ephemeral events that occurred while it was absent may be intentionally missed. If historical delivery becomes necessary, that requires an explicit durable record or journal rather than silently changing ordinary event semantics.
 
-Snapshots and events form independent logical publication lanes. Snapshots use replaceable latest-value semantics; events use ordered-stream semantics within one publisher's authority. Their concrete transport, buffering, subscription, and correlation mechanisms remain proposed work.
+Snapshots and events form independent logical publication lanes. Snapshots use replaceable latest-value semantics; events use ordered-stream semantics within one publisher's authority. Input and simulation presentation currently implement latest-snapshot sources. General event publication, buffering, subscription, and correlation mechanisms remain proposed work.
+
+The current `InputEvent` name denotes a value accepted from a platform adapter through `PInputEventSink`. It is ingress to ``InputRuntime``, not an Input Runtime-published ordered event lane. A future discrete-transition publication may use events, but it needs an explicit ordering, retention, and consumer-position policy rather than reusing host callbacks as if they were already a runtime event stream.
 
 ## Prefer Choreography Between Peer Runtimes
 
@@ -132,13 +134,13 @@ Peer runtimes should usually communicate through choreography:
 For example:
 
 ```text
-InputRuntime       -- InputSnapshot + InputEvent           --> SimulationRuntime
-SimulationRuntime  -- SimulationSnapshot                   --> RenderRuntime
-SimulationRuntime  -- SimulationSnapshot + SimulationEvent --> AudioRuntime
-SimulationRuntime  -- SimulationSnapshot + SimulationEvent --> AchievementRuntime
+InputRuntime       -- InputSnapshot                           --> SimulationRuntime
+SimulationRuntime  -- SimulationPresentationSnapshot          --> RenderRuntime
+SimulationRuntime  -- selected SimulationEvent                --> AudioRuntime
+SimulationRuntime  -- selected SimulationEvent                --> AchievementRuntime
 ```
 
-The arrows show App-owned, explicitly typed wiring, not direct ownership between the runtimes. Rendering consumes the simulation snapshot and derives a private render model; it does not require a simulation event lane.
+The arrows show App-owned, explicitly typed wiring, not direct ownership between the runtimes. Rendering consumes the simulation presentation snapshot and derives a private render model; it does not require a simulation event lane. Future continuous audio, networking, tooling, or other needs may justify additional purpose-specific publisher-owned snapshots rather than expanding one universal simulation snapshot.
 
 Engine2 should not connect these publications through a process-global event bus, process-global snapshot database, or runtime service locator. A reusable App-owned router or exchange may eventually implement the connections, but it must preserve the explicit typed topology and may not make arbitrary publishers globally discoverable.
 
@@ -155,9 +157,9 @@ There is no single universal application frame.
 - The Render Runtime submits work according to presentation cadence.
 - Audio, Network, and Storage runtimes may be event-driven or use their own scheduling policies.
 
-One host update may therefore collect input, execute zero or several simulation ticks, publish one new simulation snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
+One host update may therefore collect input, execute zero or several simulation ticks, publish one new simulation presentation snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
 
-The word **tick** refers specifically to one fixed Simulation Runtime simulation advancement. A render frame refers to one presentation attempt. An input snapshot describes the input interval or point in time defined by the Input Runtime.
+The word **tick** refers specifically to one fixed Simulation Runtime simulation advancement. A render frame refers to one presentation attempt. An input snapshot is a revisioned latest value defined by the Input Runtime. ``SimulationLoop`` may sample several input revisions before a tick or the same revision across several host polls; ``Engine`` imports a sampled value only when it actually begins a fixed step.
 
 ## ECS Systems Live Inside the Simulation Runtime
 
@@ -187,14 +189,18 @@ The current implementation maps onto the proposed model as follows:
 
 | Current type | Emerging responsibility |
 | --- | --- |
+| ``InputRuntime`` | Implemented App-owned Input Runtime lifecycle, platform-event ingress, and latest immutable input-snapshot publication |
+| `InputMetalView` | Platform adapter that submits `InputEvent` values through `PInputEventSink`; it does not call Simulation directly |
+| `InputSnapshot`, `InputRevision`, and `PInputSnapshotSource` | Implemented revisioned latest-value boundary containing held state plus cumulative pointer-motion and scroll totals |
+| `InputState` and Simulation input systems | Simulation-owned fixed-tick interpretation, action mapping, history, and transient cleanup after snapshot ingestion |
 | ``SimulationRuntime`` and ``SimulationLoop`` | Implemented Simulation Runtime lifecycle and host-time polling |
 | ``Engine`` | Fixed-step scheduler inside the Simulation Runtime |
 | ``World`` | Authoritative simulation state inside the Simulation Runtime |
-| `InputMetalView` and `InputState` | UI input collection and simulation-input responsibilities that are not yet separated by an Input Runtime boundary |
-| ``RenderFrame`` | Current combined extraction and render-snapshot value; a future Render Runtime projection should derive its private model from a publisher-owned simulation snapshot |
+| ``SimulationPresentationSnapshot`` | Latest completed publisher-owned Simulation Runtime presentation value |
+| ``RenderFrame`` | Render Runtime-owned private projection derived from one simulation snapshot and labeled with its source tick |
 | `MetalSceneView` and `MetalRenderer` | Early Render Runtime ownership and backend responsibilities |
 
-Future changes should introduce the remaining boundaries incrementally. Add a runtime boundary when it creates real ownership, lifecycle, cadence, or testing value.
+Future changes should introduce the remaining boundaries incrementally. Ordered discrete input-transition publication and retained input replay are not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
 
 ## Related Direction
 

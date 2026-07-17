@@ -1,39 +1,41 @@
-//
-//  RenderFrame.swift
-//  Engine2
-//
-//  Created by Codex on 5/31/26.
-//
-
 import simd
 
-/// Flat presentation data extracted from ECS state for one render pass.
+/// Render Runtime-owned projection for one simulation presentation snapshot.
 struct RenderFrame: Equatable {
-    static let empty = RenderFrame(camera: Camera(), instances: [])
+    static let empty = RenderFrame(
+        sourceTick: .zero,
+        camera: Camera(),
+        instances: []
+    )
 
-    var camera: Camera
-    var instances: [RenderInstance]
+    let sourceTick: SimulationTick
+    let camera: Camera
+    let instances: [RenderInstance]
 
-    /// Builds a renderer-facing snapshot from authoritative ECS component rows.
-    static func extract(from world: World) -> RenderFrame {
-        let instances = world.renderableComponents.entities.compactMap { entity -> RenderInstance? in
-            guard let renderable = world.renderableComponents[entity],
-                  let position = world.positionComponents[entity]?.position
-            else {
+    /// Projects publisher-owned presentation facts into private render data.
+    static func project(
+        from snapshot: SimulationPresentationSnapshot
+    ) -> RenderFrame {
+        let instances = snapshot.entityPresentations.compactMap { entity -> RenderInstance? in
+            guard let position = entity.position else {
                 return nil
             }
 
             return RenderInstance(
-                meshID: renderable.meshID,
+                meshID: entity.meshID,
                 transform: Transform(
                     position: position,
-                    rotation: world.rotationComponents[entity]?.rotation ?? Transform.identityRotation,
-                    scale: world.scaleComponents[entity]?.scale ?? RenderInstance.defaultScale
+                    rotation: entity.rotation ?? Transform.identityRotation,
+                    scale: entity.scale ?? RenderInstance.defaultScale
                 )
             )
         }
 
-        return RenderFrame(camera: world.camera, instances: instances)
+        return RenderFrame(
+            sourceTick: snapshot.tick,
+            camera: snapshot.camera,
+            instances: instances
+        )
     }
 }
 
@@ -42,8 +44,8 @@ struct RenderInstance: Equatable {
     /// Default world-space size for renderable entities that do not advertise scale yet.
     static let defaultScale = SIMD3<Float>(repeating: 0.5)
 
-    var meshID: MeshID
-    var transform: Transform
+    let meshID: MeshID
+    let transform: Transform
 
     init(meshID: MeshID, transform: Transform) {
         self.meshID = meshID

@@ -1,10 +1,3 @@
-//
-//  MeshIDTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 7/16/26.
-//
-
 import Foundation
 import Testing
 @testable import Engine2

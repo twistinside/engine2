@@ -22,9 +22,12 @@ Use these terms consistently:
 - There is no universal frame cadence. Input delivery, fixed Simulation Runtime ticks, render frames, and future Audio/Network/Storage work may advance independently.
 
 Current types implement part of this direction:
+- `InputRuntime` owns platform input state and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`; platform adapters submit `InputEvent` values through `PInputEventSink`.
 - `SimulationRuntime` is the app-facing Simulation Runtime lifecycle boundary; `SimulationLoop`, `Engine`, and `World` are its internal mechanisms.
-- `InputMetalView` in UI and `InputState` in Simulation currently split input collection from simulation-facing state; a future Input Runtime boundary should publish immutable input snapshots.
-- `RenderFrame` is the current simulation-to-render snapshot representation; `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities.
+- `SimulationLoop` samples the latest input snapshot, and `Engine` imports it only at fixed-step boundaries. Simulation-owned `InputState` and input systems interpret that imported state for gameplay.
+- `InputMetalView` is a platform adapter into the Input Runtime. It does not call the Simulation Runtime or mutate `World`.
+- `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value; `RenderFrame` is the Render Runtime-owned private projection derived from it.
+- `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities and no longer read live `World` state.
 
 Do not rename or wrap existing types solely to match the vocabulary. Introduce a runtime boundary when it creates concrete ownership, lifecycle, cadence, or testing value.
 
@@ -40,7 +43,7 @@ Use these terms and constraints consistently:
 - Continuous presentation can be described through abstract ECS state and snapshots. Ephemeral presentation should normally derive from Simulation Runtime events plus consumer-supplied presentation rules.
 - Consumer Game Content may eventually define entities, components, optional behaviors, world builders, render/audio descriptions, asset catalogs, and event-presentation mappings through deliberate public Engine2 APIs.
 - The Simulation Runtime owns invariant systems and their foundational schedule. Future Game Content behavior must enter through controlled extension points rather than replacing that foundation.
-- The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; a future Render Runtime owns its render-snapshot contract.
+- The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; Render owns `RenderFrame` and its projection from the publisher-owned `SimulationPresentationSnapshot` contract.
 - Do not make every current type public. Design the smallest coherent extension surface needed by external content while keeping engine storage and backend internals encapsulated.
 - The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
 
@@ -50,6 +53,8 @@ Current example ownership:
 - `ModelShaders.metal` is Render Runtime backend implementation unless a future explicit shader/material extension point makes part of it consumer content.
 - Debug panes and app commands are example App tooling.
 ## Code Quality
+- Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
+- Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
 - One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.
@@ -90,8 +95,8 @@ Current example ownership:
   - Core system protocol used by the engine's ordered execution lists.
 - `Engine2/Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
   - Simulation-owned construction interface for producing fully bootstrapped worlds.
-- `Engine2/Engine2/Simulation Runtime/Engine/Infrastructure/Clock/*.swift`
-  - `PClock`, `ManualClock`, and `SystemClock` keep elapsed-time sampling in engine infrastructure and outside system logic.
+- `Engine2/Engine2/Simulation Runtime/Engine/Infrastructure/Clock/SystemClock.swift`
+  - `SystemClock` keeps elapsed-time sampling inside `SimulationLoop` and outside `Engine` and system logic.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.
@@ -111,8 +116,7 @@ Current example ownership:
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
-  - `InputState` is the current authoritative simulation-facing input resource stored on `World`.
-  - The proposed Input Runtime will eventually separate platform input collection from immutable input snapshots consumed by the Simulation Runtime.
+  - `InputState` is the authoritative simulation-facing input resource stored on `World`, populated from `InputSnapshot` only at fixed-step boundaries.
   - `SInputMapping` translates raw input into higher-level camera actions.
   - `SInputHistory` records compact input history rows for debug UI.
   - `SInputCleanup` clears per-tick transient input after always-running input systems have consumed it.
@@ -128,7 +132,13 @@ Current example ownership:
 - `Engine2/Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap and app-facing lifecycle policy above `Engine`.
 - `Engine2/Engine2/Simulation Runtime/SimulationLoop.swift`
-  - `SimulationLoop` owns the app-level async polling task and feeds elapsed time into `Engine`.
+  - `SimulationLoop` owns the app-level async polling task, samples the latest value from `PInputSnapshotSource`, and feeds elapsed time plus that value into `Engine`.
+- `Engine2/Engine2/Input Runtime/**/*.swift`
+  - `InputRuntime` is the App-owned lifecycle boundary for platform input collection.
+  - `PInputEventSink` is the platform-adapter ingress accepted by the runtime.
+  - `PInputSnapshotSource` exposes the latest immutable `InputSnapshot` without exposing runtime mutation.
+  - `InputRevision` identifies publication sessions and versions. Within one session, cumulative pointer-motion and scroll totals let a slower consumer derive all motion between sampled snapshots without requiring one-to-one cadence.
+  - The current `InputEvent` is host ingress, not a published ordered runtime event lane. Ordered discrete transitions and retained replay remain future work.
 - `Engine2/Engine2/Game Content/BasicWorldBuilder.swift`
   - Example Game Content builder that currently seeds the default `Ball` entities.
 - `Engine2/Engine2/Game Content/Model/MeshID.swift`
@@ -140,8 +150,13 @@ Current example ownership:
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
   - `CRenderable` stores only an abstract `MeshID` in ECS state.
   - `PRenderable` seeds that component from Game Content entities and exposes its live value.
+- `Engine2/Engine2/Simulation Runtime/Snapshot/*.swift`
+  - `SimulationTick` identifies completed fixed steps without wall-clock or render-cadence meaning.
+  - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
+  - `PSimulationPresentationSource` exposes that latest-value publication as a read-only capability without exposing the wider Simulation Runtime API.
+  - Ordinary live publication uses latest-value semantics; retained replay history remains an explicit future recorder concern.
 - `Engine2/Engine2/Render Runtime/*.swift`
-  - `RenderFrame.extract(from:)` is the current simulation-to-render snapshot boundary and includes only entities with explicit `CRenderable` presentation state.
+  - `RenderFrame.project(from:)` converts a `SimulationPresentationSnapshot` into private render instances and preserves the source tick identity.
   - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references.
   - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
   - `MetalRenderer` consumes `RenderFrame` using backend-specific state retained by its `MetalResourceStore`.
@@ -150,7 +165,7 @@ Current example ownership:
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Engine2/UI/Input/InputMetalView.swift`
-  - Platform input collection currently lives in the experimental SwiftUI-facing UI layer.
+  - Platform adapter that translates AppKit events into `InputEvent` values and submits them through `PInputEventSink`.
 - `Engine2/Engine2Tests/`
   - Swift Testing coverage exists for the engine loop, clocks, world builder, spawn seeding, movement, rotation, rotation codability/equality, and several capability protocol read paths.
   - The test tree mirrors the app/source tree where practical.

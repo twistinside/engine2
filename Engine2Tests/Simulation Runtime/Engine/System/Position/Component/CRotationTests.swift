@@ -1,10 +1,3 @@
-//
-//  CRotationTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/15/26.
-//
-
 import Foundation
 import Testing
 import simd

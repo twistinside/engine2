@@ -1,25 +1,23 @@
-//
-//  MetalSceneView.swift
-//  Engine2
-//
-//  Created by Codex on 5/25/26.
-//
-
 import Metal
 import MetalKit
 import SwiftUI
 
+/// SwiftUI bridge that hosts the Render Runtime's MetalKit view and renderer.
+///
+/// The bridge wires a read-only simulation presentation source to a
+/// coordinator-owned `MetalRenderer` and an input sink to the platform view.
+/// Rendering therefore samples completed snapshots instead of reading live
+/// `World` state or directly calling the Simulation Runtime.
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
-    var renderFrameProvider: @MainActor () -> RenderFrame
-    var inputHandler: @MainActor (InputEvent) -> Void
+    var presentationSource: any PSimulationPresentationSource
+    var inputSink: any PInputEventSink
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             renderAssetCatalog: renderAssetCatalog,
-            renderFrameProvider: renderFrameProvider,
-            inputHandler: inputHandler
+            presentationSource: presentationSource
         )
     }
 
@@ -37,39 +35,35 @@ struct MetalSceneView: NSViewRepresentable {
         view.sampleCount = 1
 
         view.delegate = context.coordinator.renderer
-        view.inputHandler = { event in
-            MainActor.assumeIsolated {
-                context.coordinator.inputHandler(event)
-            }
-        }
+        view.inputSink = inputSink
         context.coordinator.renderer?.configure(view)
 
         return view
     }
 
     func updateNSView(_ nsView: InputMetalView, context: Context) {
-        context.coordinator.renderFrameProvider = renderFrameProvider
-        context.coordinator.inputHandler = inputHandler
-        nsView.inputHandler = { event in
-            MainActor.assumeIsolated {
-                context.coordinator.inputHandler(event)
-            }
-        }
+        context.coordinator.renderer?.presentationSource = presentationSource
+        nsView.inputSink = inputSink
     }
 
+    static func dismantleNSView(_ nsView: InputMetalView, coordinator: Coordinator) {
+        nsView.inputSink = nil
+        nsView.delegate = nil
+    }
+
+    /// Owns the renderer for the lifetime of one SwiftUI representable view.
+    ///
+    /// Initialization may leave `renderer` unavailable when the current device
+    /// cannot construct the required Metal resources; the host view remains
+    /// safe to create and simply submits no render work.
     @MainActor
     final class Coordinator {
-        var renderFrameProvider: @MainActor () -> RenderFrame
-        var inputHandler: @MainActor (InputEvent) -> Void
         var renderer: MetalRenderer?
 
         init(
             renderAssetCatalog: RenderAssetCatalog,
-            renderFrameProvider: @escaping @MainActor () -> RenderFrame,
-            inputHandler: @escaping @MainActor (InputEvent) -> Void
+            presentationSource: any PSimulationPresentationSource
         ) {
-            self.renderFrameProvider = renderFrameProvider
-            self.inputHandler = inputHandler
             self.renderer = nil
 
             // Construct one device-scoped store before the view begins drawing.
@@ -84,9 +78,7 @@ struct MetalSceneView: NSViewRepresentable {
 
             renderer = try? MetalRenderer(
                 resources: resources,
-                renderFrameProvider: { [weak self] in
-                    self?.renderFrameProvider() ?? .empty
-                }
+                presentationSource: presentationSource
             )
         }
     }

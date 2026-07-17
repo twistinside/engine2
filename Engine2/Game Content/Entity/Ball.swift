@@ -1,12 +1,11 @@
-//
-//  Ball.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 import simd
 
+/// Example Game Content entity that exposes typed capabilities over ECS state.
+///
+/// Constructing a ball registers the component rows implied by its capability
+/// conformances. Its inherited identity and capability accessors remain live
+/// facades over `World`; the object does not duplicate authoritative simulation
+/// state. The mesh identity is backend-neutral and owned by Game Content.
 class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
     let initialMeshID = MeshID.ball
 

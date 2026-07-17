@@ -1,10 +1,3 @@
-//
-//  SystemClockTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/10/26.
-//
-
 import Foundation
 import Testing
 @testable import Engine2

@@ -1,10 +1,3 @@
-//
-//  SimulationLoopTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/15/26.
-//
-
 import Foundation
 import Testing
 @testable import Engine2
@@ -105,14 +98,33 @@ struct SimulationLoopTests {
                 .failure(CancellationError())
             ]
         )
+        let key = KeyboardKey.make(
+            keyCode: 13,
+            charactersIgnoringModifiers: "w"
+        )
+        let inputSource = TestInputSnapshotSource(
+            snapshot: InputSnapshot(
+                revision: InputRevision(session: 1, sequence: 1),
+                pointerPosition: .zero,
+                pointerMotionTotal: .zero,
+                scrollTotal: .zero,
+                pressedMouseButtons: [],
+                pressedKeys: [key]
+            )
+        )
         let simulationLoop = SimulationLoop(
             engine: engine,
+            inputSource: inputSource,
             pollInterval: .milliseconds(500),
             clockFactory: {
                 SystemClock(timeSource: instantSource.next)
             },
             sleeper: sleeper.sleep(until:)
         )
+        var completedTicks: [SimulationTick] = []
+        simulationLoop.fixedStepsDidComplete = { tick in
+            completedTicks.append(tick)
+        }
 
         simulationLoop.start()
 
@@ -128,6 +140,9 @@ struct SimulationLoopTests {
         #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.accumulatedTime == .zero)
+        #expect(completedTicks == [SimulationTick(rawValue: 1)])
+        #expect(world.input.keyboard.keys == [key])
+        #expect(world.input.history.first?.tokens == ["W"])
     }
 
     @Test @MainActor func appTaskRebasesSleepAgainstAbsoluteDeadlinesAfterOversleep() async throws {
@@ -181,5 +196,14 @@ struct SimulationLoopTests {
             ]
         )
         #expect(engine.accumulatedTime == .milliseconds(10))
+    }
+}
+
+@MainActor
+private final class TestInputSnapshotSource: PInputSnapshotSource {
+    var latestInputSnapshot: InputSnapshot
+
+    init(snapshot: InputSnapshot) {
+        latestInputSnapshot = snapshot
     }
 }

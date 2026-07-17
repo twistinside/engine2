@@ -1,10 +1,3 @@
-//
-//  PWorldBuilder.swift
-//  Engine2
-//
-//  Created by Codex on 3/17/26.
-//
-
 /// Minimal concrete builder used by the app and simple tests.
 ///
 /// The default world starts with a few moving balls so the bootstrap path

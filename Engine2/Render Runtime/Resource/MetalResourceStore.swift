@@ -1,10 +1,3 @@
-//
-//  MetalResourceStore.swift
-//  Engine2
-//
-//  Created by Codex on 7/15/26.
-//
-
 import Metal
 
 /// Device-scoped owner for long-lived Metal backend objects.

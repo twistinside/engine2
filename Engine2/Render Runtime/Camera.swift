@@ -1,15 +1,13 @@
-//
-//  Camera.swift
-//  Engine2
-//
-//  Created by Codex on 6/13/26.
-//
-
 import Foundation
 import simd
 
 /// Abstract render camera state owned by the engine, not by a specific backend.
 struct Camera {
+    /// Backend-neutral projection parameters used to construct a clip-space matrix.
+    ///
+    /// Associated values are expressed in world units and radians. Camera
+    /// initialization validates the dimensions and clipping-plane ordering so
+    /// render backends can consume a well-formed projection.
     enum Projection: Equatable {
         case orthographic(height: Float, near: Float, far: Float)
         case perspective(verticalFieldOfView: Float, near: Float, far: Float)

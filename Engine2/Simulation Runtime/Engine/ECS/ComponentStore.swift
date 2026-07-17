@@ -1,10 +1,3 @@
-//
-//  ComponentStore.swift
-//  Engine2
-//
-//  Created by Karl Groff on 3/8/26.
-//
-
 /// Sparse-set style storage for a single component type.
 ///
 /// PComponent values live in `dense`, the owning `EntityID`s stay aligned in

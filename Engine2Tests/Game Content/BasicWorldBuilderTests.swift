@@ -1,10 +1,3 @@
-//
-//  BasicWorldBuilderTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 3/17/26.
-//
-
 import Testing
 import simd
 @testable import Engine2

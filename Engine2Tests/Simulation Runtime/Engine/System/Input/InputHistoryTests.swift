@@ -1,10 +1,3 @@
-//
-//  InputHistoryTests.swift
-//  Engine2Tests
-//
-//  Created by Codex on 6/14/26.
-//
-
 import simd
 import Testing
 @testable import Engine2
@@ -22,9 +15,18 @@ struct InputHistoryTests {
         var input = InputState()
         let key = KeyboardKey.make(keyCode: 13, charactersIgnoringModifiers: "w")
 
-        input.apply(.keyDown(key))
+        input.ingest(
+            snapshot(session: 1, sequence: 1, pressedKeys: [key])
+        )
         input.recordHistoryFrame()
-        input.apply(.mouseButtonDown(.left, position: .zero))
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 2,
+                pressedMouseButtons: [.left],
+                pressedKeys: [key]
+            )
+        )
         input.recordHistoryFrame()
 
         #expect(input.history.count == 2)
@@ -34,7 +36,13 @@ struct InputHistoryTests {
 
     @Test func identicalHeldInputIncrementsDuration() async throws {
         var input = InputState()
-        input.apply(.mouseButtonDown(.left, position: .zero))
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 1,
+                pressedMouseButtons: [.left]
+            )
+        )
 
         input.recordHistoryFrame()
         input.recordHistoryFrame()
@@ -47,9 +55,17 @@ struct InputHistoryTests {
     @Test func historyRespectsLimit() async throws {
         var input = InputState()
         input.historyLimit = 3
+        var pointerMotionTotal = SIMD2<Float>.zero
 
         for index in 0..<5 {
-            input.apply(.mouseDragged(delta: SIMD2<Float>(Float(index + 1), 0), position: .zero))
+            pointerMotionTotal += SIMD2<Float>(Float(index + 1), 0)
+            input.ingest(
+                snapshot(
+                    session: 1,
+                    sequence: UInt64(index + 1),
+                    pointerMotionTotal: pointerMotionTotal
+                )
+            )
             input.recordHistoryFrame()
             input.clearTransientInput()
         }
@@ -62,10 +78,33 @@ struct InputHistoryTests {
     @Test func zeroHistoryLimitRetainsNoRows() {
         var input = InputState()
         input.historyLimit = 0
-        input.apply(.mouseButtonDown(.left, position: .zero))
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 1,
+                pressedMouseButtons: [.left]
+            )
+        )
 
         input.recordHistoryFrame()
 
         #expect(input.history.isEmpty)
+    }
+
+    private func snapshot(
+        session: UInt64,
+        sequence: UInt64,
+        pointerMotionTotal: SIMD2<Float> = .zero,
+        pressedMouseButtons: Set<MouseButton> = [],
+        pressedKeys: Set<KeyboardKey> = []
+    ) -> InputSnapshot {
+        InputSnapshot(
+            revision: InputRevision(session: session, sequence: sequence),
+            pointerPosition: .zero,
+            pointerMotionTotal: pointerMotionTotal,
+            scrollTotal: .zero,
+            pressedMouseButtons: pressedMouseButtons,
+            pressedKeys: pressedKeys
+        )
     }
 }

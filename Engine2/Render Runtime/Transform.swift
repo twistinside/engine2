@@ -1,10 +1,3 @@
-//
-//  Transform.swift
-//  Engine2
-//
-//  Created by Codex on 6/13/26.
-//
-
 import simd
 
 /// Position, orientation, and scale used to place one renderable object in world space.
