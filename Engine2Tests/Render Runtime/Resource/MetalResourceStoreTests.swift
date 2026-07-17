@@ -33,40 +33,17 @@ struct MetalResourceStoreTests {
     }
 
     @MainActor
-    @Test func repeatedDefinitionReturnsTheRetainedResource() throws {
+    @Test func repeatedLookupReturnsTheRetainedResource() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
             renderAssetCatalog: RenderAssetCatalog(models: [:])
         )
 
-        let first = try store.loadShaderLibrary(.engine, from: .defaultLibrary)
-        let second = try store.loadShaderLibrary(.engine, from: .defaultLibrary)
+        let first = try store.shaderLibrary(for: .engine)
+        let second = try store.shaderLibrary(for: .engine)
 
         #expect(first as AnyObject === second as AnyObject)
-    }
-
-    @MainActor
-    @Test func reusedIdentityRejectsAConflictingDefinition() throws {
-        let device = try #require(MTLCreateSystemDefaultDevice())
-        let store = try MetalResourceStore(
-            device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:])
-        )
-
-        #expect(
-            throws: MetalResourceStoreError.conflictingDefinition(
-                MetalShaderLibraryID.engine.rawValue
-            )
-        ) {
-            try store.loadShaderLibrary(
-                .engine,
-                from: .bundled(
-                    resourceName: "AnotherLibrary",
-                    fileExtension: "metallib"
-                )
-            )
-        }
     }
 
     @MainActor

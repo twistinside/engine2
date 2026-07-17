@@ -44,7 +44,7 @@ For example:
 | Kind | Example | Owner |
 | --- | --- | --- |
 | Asset | `spaceship.usdz`, `laser.wav`, a texture, or a level file | Game Content |
-| Asset identity | `MeshID.spaceship` or `SoundID.laser` | Shared immutable boundary vocabulary |
+| Asset identity | `MeshID.spaceship` or `SoundID.laser` | Game Content |
 | ECS resource | camera state or simulation configuration | Simulation Runtime or `World` |
 | Runtime resource | `MTKMesh`, `MTLBuffer`, decoded audio, or a pipeline cache | Render or Audio Runtime |
 
@@ -54,40 +54,28 @@ An asset is input to runtime construction or loading. A runtime resource is the 
 
 Game Content should describe presentation using strongly typed, backend-neutral identities rather than Metal or audio-framework objects.
 
-A future public API may include identities such as:
+A game's content can own exhaustive identities such as:
 
 ```swift
-struct MeshID: Hashable, Sendable {
-    let rawValue: String
+enum MeshID: Hashable, Sendable {
+    case spaceship
 }
 
-struct MaterialID: Hashable, Sendable {
-    let rawValue: String
+enum MaterialID: Hashable, Sendable {
+    case playerShip
 }
 
-struct SoundID: Hashable, Sendable {
-    let rawValue: String
+enum SoundID: Hashable, Sendable {
+    case engineLoop
+    case laser
 }
 ```
 
-A game can extend that vocabulary with its own stable values:
-
-```swift
-extension MeshID {
-    static let spaceship = MeshID(rawValue: "spaceship")
-}
-
-extension MaterialID {
-    static let playerShip = MaterialID(rawValue: "player-ship")
-}
-
-extension SoundID {
-    static let engineLoop = SoundID(rawValue: "engine-loop")
-    static let laser = SoundID(rawValue: "laser")
-}
-```
-
-The exact representation does not need to be string-backed, but each asset category should use its own type. Do not pass unrelated assets around as untyped `String` or `Int` values.
+Each asset category uses its own Game Content-owned enum. The Simulation and
+presentation runtimes may carry and resolve these immutable values, but Game
+Content owns the vocabulary because it defines the entities and assets that
+exist in the game. Do not replace a closed identity set with untyped `String`
+or `Int` values.
 
 ## Entities Carry Abstract Presentation Intent
 
@@ -254,7 +242,8 @@ Current project elements map onto Game Content as follows:
 | ``BasicWorldBuilder`` | Example Game Content world construction |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
 | `BasicGameContent` | Example App-supplied composition of world construction and render asset mappings |
-| `MeshID` and `RenderAssetCatalog` | Backend-neutral asset identity and the Render-owned catalog input contract |
+| `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
+| `RenderAssetCatalog` | Render-owned catalog input contract populated by Game Content |
 | `ModelShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
 | Debug panes and app commands | Example App tooling, not reusable Game Content or runtime core |
 

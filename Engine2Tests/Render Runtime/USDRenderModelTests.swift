@@ -27,7 +27,7 @@ struct USDRenderModelTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let catalog = RenderAssetCatalog(
             models: [
-                MeshID(rawValue: "missing"): ModelAssetReference(
+                .ball: ModelAssetReference(
                     resourceName: "ModelThatDoesNotExist",
                     format: .usdz
                 )

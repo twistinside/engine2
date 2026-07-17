@@ -10,7 +10,6 @@ import Foundation
 import Metal
 import MetalKit
 import ModelIO
-import QuartzCore
 import simd
 
 @MainActor

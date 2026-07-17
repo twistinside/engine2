@@ -89,5 +89,5 @@ private final class TestSpawnEntity: Entity, PPositionable, PScalable {}
 private final class TestMovableSpawnEntity: Entity, PMovable {}
 private final class TestSelectableSpawnEntity: Entity, PSelectable {}
 private final class TestRenderableSpawnEntity: Entity, PRenderable {
-    let initialMeshID = MeshID(rawValue: "test-renderable")
+    let initialMeshID = MeshID.ball
 }

@@ -50,27 +50,6 @@ struct RenderFrameTests {
         #expect(RenderFrame.extract(from: world).instances.isEmpty)
     }
 
-    @Test func extractPreservesEachRenderableMeshIdentity() {
-        let world = World()
-        let first = EntityID(index: 0, generation: 0)
-        let second = EntityID(index: 1, generation: 0)
-        let otherMesh = MeshID(rawValue: "other")
-        world.positionComponents.insert(CPosition(position: .zero), for: first)
-        world.positionComponents.insert(CPosition(position: .zero), for: second)
-        world.renderableComponents.insert(CRenderable(meshID: .ball), for: first)
-        world.renderableComponents.insert(
-            CRenderable(meshID: otherMesh),
-            for: second
-        )
-
-        #expect(
-            RenderFrame.extract(from: world).instances.map(\.meshID) == [
-                .ball,
-                otherMesh
-            ]
-        )
-    }
-
     @Test func extractIncludesCameraRotationAndScale() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)

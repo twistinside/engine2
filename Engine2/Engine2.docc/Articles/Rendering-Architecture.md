@@ -103,17 +103,14 @@ The store eagerly creates the resources required by the current renderer:
 - decoded models resolved from backend-neutral `MeshID` values
 - the fixed frame-resource ring
 
-Each cached object is stored with the recipe or source that produced it. Loading
-the same identity and definition is idempotent; attempting to reuse an identity
-for a different definition is an error. Required resources are compiled before
-drawing begins, so ``MetalRenderer.draw(in:)`` never performs shader or pipeline
-compilation.
+Each backend identity is a closed Render Runtime enum whose case determines the
+complete resource definition. The store builds each case once and retains the
+result for lookup. Required resources are compiled before drawing begins, so
+``MetalRenderer.draw(in:)`` never performs shader or pipeline compilation.
 
-Pipeline recipes include every field that currently determines compatibility,
-including shader functions, color format, and sample count. Future vertex
-layouts, function constants, blend state, and attachment variants should extend
-the recipe or introduce a deliberate variant key instead of silently sharing a
-pipeline ID.
+Future vertex layouts, function constants, blend state, and attachment
+variants should become explicit enum cases or deliberately modeled variant
+keys instead of silently sharing a pipeline identity.
 
 ## Metal 4 Residency Sets
 

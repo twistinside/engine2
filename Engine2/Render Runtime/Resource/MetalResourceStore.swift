@@ -5,7 +5,6 @@
 //  Created by Codex on 7/15/26.
 //
 
-import Foundation
 import Metal
 
 /// Device-scoped owner for long-lived Metal backend objects.
@@ -33,30 +32,18 @@ final class MetalResourceStore {
     /// Fixed ring of allocator/buffer pairs used by the renderer.
     private(set) var frames: [FrameResources] = []
 
-    private var shaderLibrarySources: [
-        MetalShaderLibraryID: MetalShaderLibrarySource
-    ] = [:]
     private var shaderLibraries: [
         MetalShaderLibraryID: any MTLLibrary
     ] = [:]
 
-    private var renderPipelineRecipes: [
-        MetalRenderPipelineID: MetalRenderPipelineRecipe
-    ] = [:]
     private var renderPipelineStates: [
         MetalRenderPipelineID: any MTLRenderPipelineState
     ] = [:]
 
-    private var depthStencilRecipes: [
-        MetalDepthStencilStateID: MetalDepthStencilStateRecipe
-    ] = [:]
     private var depthStencilStates: [
         MetalDepthStencilStateID: any MTLDepthStencilState
     ] = [:]
 
-    private var argumentTableRecipes: [
-        MetalArgumentTableID: MetalArgumentTableRecipe
-    ] = [:]
     private var argumentTables: [
         MetalArgumentTableID: any MTL4ArgumentTable
     ] = [:]
@@ -113,32 +100,10 @@ final class MetalResourceStore {
         // Build the small required set eagerly so frame encoding performs only
         // deterministic dictionary lookup and never triggers compilation.
         try makeFrameResources(count: frameCount)
-        try loadShaderLibrary(.engine, from: .defaultLibrary)
-        try loadRenderPipeline(
-            .model,
-            recipe: MetalRenderPipelineRecipe(
-                label: "USD Model Pipeline",
-                shaderLibraryID: .engine,
-                vertexFunctionName: "modelVertex",
-                fragmentFunctionName: "modelFragment",
-                colorPixelFormat: MetalRenderer.colorPixelFormat
-            )
-        )
-        try loadDepthStencilState(
-            .disabled,
-            recipe: MetalDepthStencilStateRecipe(
-                label: "Depth Disabled",
-                depthCompareFunction: .always,
-                isDepthWriteEnabled: false
-            )
-        )
-        try loadArgumentTable(
-            .model,
-            recipe: MetalArgumentTableRecipe(
-                label: "USD Mesh Argument Table",
-                maximumBufferBindingCount: 2
-            )
-        )
+        try loadShaderLibrary(.engine)
+        try loadRenderPipeline(.model)
+        try loadDepthStencilState(.disabled)
+        try loadArgumentTable(.model)
         try loadModels(from: renderAssetCatalog)
     }
 
@@ -191,113 +156,86 @@ final class MetalResourceStore {
         models[id]
     }
 
-    /// Loads a shader library once and rejects attempts to reuse an identity
-    /// for a different source.
+    /// Loads the shader library defined by a closed Render Runtime identity.
     @discardableResult
-    func loadShaderLibrary(
-        _ id: MetalShaderLibraryID,
-        from source: MetalShaderLibrarySource
+    private func loadShaderLibrary(
+        _ id: MetalShaderLibraryID
     ) throws -> any MTLLibrary {
-        if let existingSource = shaderLibrarySources[id] {
-            guard existingSource == source,
-                  let existingLibrary = shaderLibraries[id]
-            else {
-                throw MetalResourceStoreError.conflictingDefinition(id.rawValue)
-            }
-
+        if let existingLibrary = shaderLibraries[id] {
             return existingLibrary
         }
 
         let library: any MTLLibrary
 
-        switch source {
-        case .defaultLibrary:
+        switch id {
+        case .engine:
             guard let defaultLibrary = device.makeDefaultLibrary() else {
                 throw MetalResourceStoreError.missingDefaultShaderLibrary
             }
             library = defaultLibrary
-
-        case let .bundled(resourceName, fileExtension):
-            guard let url = Bundle.main.url(
-                forResource: resourceName,
-                withExtension: fileExtension
-            ) else {
-                throw MetalResourceStoreError.missingBundledShaderLibrary(
-                    resourceName
-                )
-            }
-
-            library = try device.makeLibrary(URL: url)
         }
 
-        shaderLibrarySources[id] = source
         shaderLibraries[id] = library
         return library
     }
 
-    /// Compiles a Metal 4 render pipeline once and stores its recipe alongside
-    /// the result so a reused identity cannot hide incompatible state.
+    /// Compiles the Metal 4 render pipeline defined by a closed identity.
     @discardableResult
-    func loadRenderPipeline(
-        _ id: MetalRenderPipelineID,
-        recipe: MetalRenderPipelineRecipe
+    private func loadRenderPipeline(
+        _ id: MetalRenderPipelineID
     ) throws -> any MTLRenderPipelineState {
-        if let existingRecipe = renderPipelineRecipes[id] {
-            guard existingRecipe == recipe,
-                  let existingState = renderPipelineStates[id]
-            else {
-                throw MetalResourceStoreError.conflictingDefinition(id.rawValue)
-            }
-
+        if let existingState = renderPipelineStates[id] {
             return existingState
         }
 
-        let library = try shaderLibrary(for: recipe.shaderLibraryID)
-
-        let vertexFunction = MTL4LibraryFunctionDescriptor()
-        vertexFunction.library = library
-        vertexFunction.name = recipe.vertexFunctionName
-
-        let fragmentFunction = MTL4LibraryFunctionDescriptor()
-        fragmentFunction.library = library
-        fragmentFunction.name = recipe.fragmentFunctionName
-
         let descriptor = MTL4RenderPipelineDescriptor()
-        descriptor.label = recipe.label
-        descriptor.vertexFunctionDescriptor = vertexFunction
-        descriptor.fragmentFunctionDescriptor = fragmentFunction
-        descriptor.rasterSampleCount = recipe.rasterSampleCount
-        descriptor.colorAttachments[0].pixelFormat = recipe.colorPixelFormat
+
+        switch id {
+        case .model:
+            let library = try shaderLibrary(for: .engine)
+
+            let vertexFunction = MTL4LibraryFunctionDescriptor()
+            vertexFunction.library = library
+            // Metal identifies shader entry points by their source names, so
+            // these strings deliberately match functions in ModelShaders.metal.
+            vertexFunction.name = "modelVertex"
+
+            let fragmentFunction = MTL4LibraryFunctionDescriptor()
+            fragmentFunction.library = library
+            fragmentFunction.name = "modelFragment"
+
+            descriptor.label = "USD Model Pipeline"
+            descriptor.vertexFunctionDescriptor = vertexFunction
+            descriptor.fragmentFunctionDescriptor = fragmentFunction
+            descriptor.rasterSampleCount = 1
+            descriptor.colorAttachments[0].pixelFormat = MetalRenderer.colorPixelFormat
+        }
 
         let state = try compiler.makeRenderPipelineState(
             descriptor: descriptor
         )
 
-        renderPipelineRecipes[id] = recipe
         renderPipelineStates[id] = state
         return state
     }
 
-    /// Creates and caches an immutable depth-stencil state.
+    /// Creates the immutable depth-stencil state defined by a closed identity.
     @discardableResult
-    func loadDepthStencilState(
-        _ id: MetalDepthStencilStateID,
-        recipe: MetalDepthStencilStateRecipe
+    private func loadDepthStencilState(
+        _ id: MetalDepthStencilStateID
     ) throws -> any MTLDepthStencilState {
-        if let existingRecipe = depthStencilRecipes[id] {
-            guard existingRecipe == recipe,
-                  let existingState = depthStencilStates[id]
-            else {
-                throw MetalResourceStoreError.conflictingDefinition(id.rawValue)
-            }
-
+        if let existingState = depthStencilStates[id] {
             return existingState
         }
 
         let descriptor = MTLDepthStencilDescriptor()
-        descriptor.label = recipe.label
-        descriptor.depthCompareFunction = recipe.depthCompareFunction
-        descriptor.isDepthWriteEnabled = recipe.isDepthWriteEnabled
+
+        switch id {
+        case .disabled:
+            descriptor.label = "Depth Disabled"
+            descriptor.depthCompareFunction = .always
+            descriptor.isDepthWriteEnabled = false
+        }
 
         guard let state = device.makeDepthStencilState(
             descriptor: descriptor
@@ -305,37 +243,39 @@ final class MetalResourceStore {
             throw MetalResourceStoreError.missingDepthStencilState(id)
         }
 
-        depthStencilRecipes[id] = recipe
         depthStencilStates[id] = state
         return state
     }
 
-    /// Creates and caches a Metal 4 argument table layout.
+    /// Creates the Metal 4 argument table defined by a closed identity.
     @discardableResult
-    func loadArgumentTable(
-        _ id: MetalArgumentTableID,
-        recipe: MetalArgumentTableRecipe
+    private func loadArgumentTable(
+        _ id: MetalArgumentTableID
     ) throws -> any MTL4ArgumentTable {
-        if let existingRecipe = argumentTableRecipes[id] {
-            guard existingRecipe == recipe,
-                  let existingTable = argumentTables[id]
-            else {
-                throw MetalResourceStoreError.conflictingDefinition(id.rawValue)
-            }
-
+        if let existingTable = argumentTables[id] {
             return existingTable
         }
 
         let descriptor = MTL4ArgumentTableDescriptor()
-        descriptor.label = recipe.label
-        descriptor.maxBufferBindCount = recipe.maximumBufferBindingCount
+
+        switch id {
+        case .model:
+            descriptor.label = "USD Mesh Argument Table"
+            descriptor.maxBufferBindCount = 2
+        }
+
         let table = try device.makeArgumentTable(descriptor: descriptor)
 
-        argumentTableRecipes[id] = recipe
         argumentTables[id] = table
         return table
     }
 
+    /// Creates a fixed ring of per-frame allocators and mutable buffers.
+    ///
+    /// Separate resources let the CPU encode a later frame while the GPU still
+    /// consumes an earlier one without resetting command memory or overwriting
+    /// instance data in use. The bounded ring applies back pressure rather than
+    /// allocating an unbounded stream of transient frame resources.
     private func makeFrameResources(count: Int) throws {
         for _ in 0..<count {
             guard let commandAllocator = device.makeCommandAllocator(),
@@ -380,18 +320,4 @@ final class MetalResourceStore {
         // the same add/commit boundary without changing snapshot contracts.
         residency.commitStaticAssets()
     }
-}
-
-enum MetalResourceStoreError: Error, Equatable {
-    case missingDevice
-    case missingCommandQueue
-    case invalidFrameCount(Int)
-    case missingDefaultShaderLibrary
-    case missingBundledShaderLibrary(String)
-    case missingShaderLibrary(MetalShaderLibraryID)
-    case missingRenderPipeline(MetalRenderPipelineID)
-    case missingDepthStencilState(MetalDepthStencilStateID)
-    case missingArgumentTable(MetalArgumentTableID)
-    case missingFrameResource
-    case conflictingDefinition(String)
 }
