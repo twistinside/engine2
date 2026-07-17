@@ -13,6 +13,7 @@ class World {
     var angularVelocityComponents = ComponentStore<CAngularVelocity>()
     var motionComponents = ComponentStore<CMotion>()
     var positionComponents = ComponentStore<CPosition>()
+    var renderableComponents = ComponentStore<CRenderable>()
     var rotationComponents = ComponentStore<CRotation>()
     var scaleComponents = ComponentStore<CScale>()
     var selectableComponents = ComponentStore<CSelectable>()
@@ -99,6 +100,14 @@ class World {
         if entity is PScalable {
             scaleComponents.insert(
                 CScale(scale: state.scale ?? SIMD3<Float>(repeating: 1)),
+                for: entity.id
+            )
+        }
+
+        // PRenderable
+        if let renderable = entity as? any PRenderable {
+            renderableComponents.insert(
+                CRenderable(meshID: renderable.initialMeshID),
                 for: entity.id
             )
         }

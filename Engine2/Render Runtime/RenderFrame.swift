@@ -16,12 +16,15 @@ struct RenderFrame: Equatable {
 
     /// Builds a renderer-facing snapshot from authoritative ECS component rows.
     static func extract(from world: World) -> RenderFrame {
-        let instances = world.positionComponents.entities.compactMap { entity -> RenderInstance? in
-            guard let position = world.positionComponents[entity]?.position else {
+        let instances = world.renderableComponents.entities.compactMap { entity -> RenderInstance? in
+            guard let renderable = world.renderableComponents[entity],
+                  let position = world.positionComponents[entity]?.position
+            else {
                 return nil
             }
 
             return RenderInstance(
+                meshID: renderable.meshID,
                 transform: Transform(
                     position: position,
                     rotation: world.rotationComponents[entity]?.rotation ?? Transform.identityRotation,
@@ -39,17 +42,21 @@ struct RenderInstance: Equatable {
     /// Default world-space size for renderable entities that do not advertise scale yet.
     static let defaultScale = SIMD3<Float>(repeating: 0.5)
 
+    var meshID: MeshID
     var transform: Transform
 
-    init(transform: Transform) {
+    init(meshID: MeshID, transform: Transform) {
+        self.meshID = meshID
         self.transform = transform
     }
 
     init(
+        meshID: MeshID,
         worldPosition: SIMD3<Float>,
         rotation: simd_quatf = Transform.identityRotation,
         scale: SIMD3<Float> = defaultScale
     ) {
+        self.meshID = meshID
         self.transform = Transform(
             position: worldPosition,
             rotation: rotation,

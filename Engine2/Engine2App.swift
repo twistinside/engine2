@@ -12,18 +12,24 @@ struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var debugOptions = AppDebugOptions()
     @State private var simulation: SimulationRuntime
+    private let gameContent: BasicGameContent
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
-        _simulation = State(initialValue: SimulationRuntime())
+        let gameContent = BasicGameContent()
+        self.gameContent = gameContent
+        _simulation = State(
+            initialValue: SimulationRuntime(worldBuilder: gameContent.worldBuilder)
+        )
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(
                 simulation: simulation,
-                debugOptions: debugOptions
+                debugOptions: debugOptions,
+                renderAssetCatalog: gameContent.renderAssetCatalog
             )
         }
         .commands {

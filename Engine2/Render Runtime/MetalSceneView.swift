@@ -11,11 +11,13 @@ import SwiftUI
 
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
+    var renderAssetCatalog: RenderAssetCatalog
     var renderFrameProvider: @MainActor () -> RenderFrame
     var inputHandler: @MainActor (InputEvent) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
+            renderAssetCatalog: renderAssetCatalog,
             renderFrameProvider: renderFrameProvider,
             inputHandler: inputHandler
         )
@@ -62,6 +64,7 @@ struct MetalSceneView: NSViewRepresentable {
         var renderer: MetalRenderer?
 
         init(
+            renderAssetCatalog: RenderAssetCatalog,
             renderFrameProvider: @escaping @MainActor () -> RenderFrame,
             inputHandler: @escaping @MainActor (InputEvent) -> Void
         ) {
@@ -69,27 +72,21 @@ struct MetalSceneView: NSViewRepresentable {
             self.inputHandler = inputHandler
             self.renderer = nil
 
-            guard let device = MTLCreateSystemDefaultDevice(),
-                  let commandQueue = device.makeMTL4CommandQueue(),
-                  let renderPipelineState = try? MetalRenderer.makeRenderPipelineState(device: device),
-                  let argumentTable = try? MetalRenderer.makeArgumentTable(device: device),
-                  let triangle = try? USDRenderModel.load(named: "PrettyTriangle", device: device),
-                  let frameResources = try? MetalRenderer.makeFrameResources(device: device)
+            // Construct one device-scoped store before the view begins drawing.
+            // It eagerly compiles required pipelines, resolves Game Content
+            // assets, and commits the static/frame residency sets.
+            guard let resources = try? MetalResourceStore(
+                renderAssetCatalog: renderAssetCatalog
+            )
             else {
                 return
             }
 
-            renderer = MetalRenderer(
-                device: device,
-                renderPipelineState: renderPipelineState,
-                argumentTable: argumentTable,
-                model: triangle,
+            renderer = try? MetalRenderer(
+                resources: resources,
                 renderFrameProvider: { [weak self] in
                     self?.renderFrameProvider() ?? .empty
-                },
-                frameResidencySet: frameResources.residencySet,
-                commandQueue: commandQueue,
-                frames: frameResources.frames
+                }
             )
         }
     }

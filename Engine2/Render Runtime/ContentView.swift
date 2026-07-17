@@ -10,10 +10,11 @@ import SwiftUI
 struct ContentView: View {
     let simulation: SimulationRuntime
     let debugOptions: AppDebugOptions
+    let renderAssetCatalog: RenderAssetCatalog
 
     var body: some View {
         ZStack {
-            MetalSceneView {
+            MetalSceneView(renderAssetCatalog: renderAssetCatalog) {
                 RenderFrame.extract(from: simulation.world)
             } inputHandler: { event in
                 simulation.handleInput(event)

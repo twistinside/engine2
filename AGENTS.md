@@ -35,7 +35,7 @@ Use these terms and constraints consistently:
 - **Game Content** is consumer-defined game code, descriptions, catalogs, and assets used to construct and configure runtimes. It is not a runtime and has no independent cadence or lifecycle.
 - The App is the composition root. It constructs Game Content, then supplies the relevant portions to independently constructed runtimes.
 - Use **Asset** for packaged source content such as models, textures, sounds, animations, and levels. Do not conflate assets with ECS or runtime resources, even though SwiftPM calls bundled files resources.
-- Content refers to assets through strongly typed, backend-neutral identities such as future `MeshID`, `MaterialID`, and `SoundID` values. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
+- Game Content owns the exhaustive, strongly typed, backend-neutral identities for the entities and assets it defines, such as the current `MeshID` and future `MaterialID` and `SoundID` enums. Runtimes may carry and resolve those values, but they do not own the content vocabulary. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
 - Runtimes privately resolve content assets into backend resources. Game Content does not own runtime caches, GPU allocations, decoded audio, or runtime lifecycle.
 - Continuous presentation can be described through abstract ECS state and snapshots. Ephemeral presentation should normally derive from Simulation Runtime events plus consumer-supplied presentation rules.
 - Consumer Game Content may eventually define entities, components, optional behaviors, world builders, render/audio descriptions, asset catalogs, and event-presentation mappings through deliberate public Engine2 APIs.
@@ -45,13 +45,15 @@ Use these terms and constraints consistently:
 - The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
 
 Current example ownership:
-- `Ball` and `BasicWorldBuilder` are example Game Content.
-- `PrettyTriangle.usda` and `PrettyTriangle.usdz` are example render assets, not reusable Render Runtime implementation.
+- `Ball`, `BasicWorldBuilder`, and `BasicGameContent` are example Game Content.
+- `Ball.usda` and `Ball.usdz` are example Game Content render assets, not reusable Render Runtime implementation.
 - `ModelShaders.metal` is Render Runtime backend implementation unless a future explicit shader/material extension point makes part of it consumer content.
 - Debug panes and app commands are example App tooling.
 ## Code Quality
-Swift is a strongly typed language. In most cases, you should strongy type any piece of data being passed. if a type is being stored as an `Int` or `String` consider whether a bespoke type makes more sense. If adding or concatenating the data doesn't make sense, then we should consider that `Int` or `String` is going to allow that.
-If there is a known list of possibilities for a type, consider `enum`.
+- One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion.
+- Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
+- If a value has a known, finite list of possibilities, use an `enum`.
+- Using `String` or a string-backed wrapper in place of an enum for a closed set is heavily discouraged. Any exception must be justified with a code or documentation comment explaining why the vocabulary is genuinely open-ended or why an external API requires strings.
 ## MCP Tooling Preferences
 - Prefer the project-aware Xcode tooling available in the current session for builds, tests, file reads, and other IDE-side actions.
 - Prefer the Apple documentation tooling available in the current session for framework and API lookups before falling back to general web search.
@@ -129,13 +131,24 @@ If there is a known list of possibilities for a type, consider `enum`.
   - `SimulationLoop` owns the app-level async polling task and feeds elapsed time into `Engine`.
 - `Engine2/Engine2/Game Content/BasicWorldBuilder.swift`
   - Example Game Content builder that currently seeds the default `Ball` entities.
+- `Engine2/Engine2/Game Content/Model/MeshID.swift`
+  - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
 - `Engine2/Engine2/Game Content/Entity/Ball.swift`
   - Example entity object/facade.
+  - Advertises `MeshID.ball` through `PRenderable`; it does not know the model filename or renderer backend.
   - Represents the intended style of game object API more than a finished implementation.
+- `Engine2/Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
+  - `CRenderable` stores only an abstract `MeshID` in ECS state.
+  - `PRenderable` seeds that component from Game Content entities and exposes its live value.
 - `Engine2/Engine2/Render Runtime/*.swift`
-  - `RenderFrame.extract(from:)` is the current simulation-to-render snapshot boundary.
+  - `RenderFrame.extract(from:)` is the current simulation-to-render snapshot boundary and includes only entities with explicit `CRenderable` presentation state.
+  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references.
   - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
-  - `MetalRenderer` owns backend-specific Metal 4 state and consumes `RenderFrame`.
+  - `MetalRenderer` consumes `RenderFrame` using backend-specific state retained by its `MetalResourceStore`.
+- `Engine2/Engine2/Render Runtime/Resource/*.swift`
+  - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, typed shader/pipeline/depth/argument-table caches, decoded models, and frame resources.
+  - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
+  - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Engine2/UI/Input/InputMetalView.swift`
   - Platform input collection currently lives in the experimental SwiftUI-facing UI layer.
 - `Engine2/Engine2Tests/`
@@ -262,7 +275,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - `SMovement` and `SRotation` currently combine integration and transform advancement; the future collision/constraint pipeline may need a more explicit phase split.
 - Rendering extraction, render resources, and presentation buffers are only documented direction.
 - Capability accessors are strict live reads with `fatalError`; optional inspection/editor lookup paths do not exist yet.
-- Tests do not yet cover component removal, dense iteration with stale generations, `PPositionable`/`PMovable` protocol reads directly, spawn precondition failures, or fixed-step overload policy.
+- Tests do not yet cover component removal, dense iteration with stale generations, spawn precondition failures, or fixed-step overload policy.
 ## Working Assumption for Contributors
 When in doubt, choose the simpler design that preserves:
 - typed game objects at the API boundary
