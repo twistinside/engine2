@@ -1,0 +1,22 @@
+#ifndef PBRDirectLightingResult_metalh
+#define PBRDirectLightingResult_metalh
+
+#include <metal_stdlib>
+
+/// Intermediate and final values from one direct-light BRDF evaluation.
+///
+/// This is a shader-local value, not a CPU/GPU binding contract. Diagnostics
+/// consume the exact sanitized inputs and contributions used by the shaded
+/// result, which keeps proof outputs from reimplementing the lighting math.
+struct PBRDirectLightingResult {
+    metal::float3 shaded;
+    metal::float3 normal;
+    metal::float3 baseColor;
+    float metallic;
+    float perceptualRoughness;
+    float nDotL;
+    metal::float3 diffuseContribution;
+    metal::float3 specularContribution;
+};
+
+#endif

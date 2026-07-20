@@ -207,28 +207,26 @@ private func renderCenterPixel(
     encoder.endEncoding()
     commandBuffer.endCommandBuffer()
 
-    let completion = DispatchSemaphore(value: 0)
     let submission = MetalOffscreenTestSubmission(
-        resources: resources,
-        colorTexture: colorTexture,
-        depthTexture: depthTexture,
-        nearVertexBuffer: nearVertexBuffer,
-        farVertexBuffer: farVertexBuffer,
-        completion: completion
+        retaining: [
+            resources as AnyObject,
+            colorTexture as AnyObject,
+            depthTexture as AnyObject,
+            nearVertexBuffer as AnyObject,
+            farVertexBuffer as AnyObject
+        ]
     )
     let commitOptions = MTL4CommitOptions()
-    commitOptions.addFeedbackHandler { _ in
-        submission.complete()
+    commitOptions.addFeedbackHandler { feedback in
+        submission.complete(feedbackError: feedback.error)
     }
     resources.commandQueue.commit([commandBuffer], options: commitOptions)
 
-    // A timeout does not release `submission`: the queue's feedback handler
-    // owns it independently until the GPU actually completes the workload.
-    let waitResult = completion.wait(timeout: .now() + 5)
-    guard waitResult == .success else {
-        Issue.record("Timed out waiting for the offscreen Metal depth test.")
-        return [0, 0, 0, 0]
-    }
+    // Throwing is required here. Returning a sentinel pixel would let the
+    // caller reset this store's allocator and rewrite shared inputs even though
+    // timed-out GPU work may still reference them. The feedback closure keeps
+    // `submission` and its owners alive until Metal truly finishes.
+    try submission.waitForCompletion(timeout: .now() + 5)
 
     var pixel = [UInt8](repeating: 0, count: 4)
     colorTexture.getBytes(
