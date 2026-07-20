@@ -1,0 +1,17 @@
+#ifndef PBRProofParameters_metalh
+#define PBRProofParameters_metalh
+
+#include <metal_stdlib>
+
+/// Provisional four-lane binding used only by the isolated offscreen proof.
+///
+/// This is intentionally not the eventual material or light ABI. Milestone 4
+/// owns that decision after the equations and HDR pathway are proven.
+struct PBRProofParameters {
+    metal::float4 baseColorMetallic;
+    metal::float4 directionToLightRoughness;
+    metal::float4 lightColorIntensity;
+    metal::float4 directionToCameraPadding;
+};
+
+#endif

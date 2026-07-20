@@ -6,13 +6,15 @@ also identifies where the already-chosen Forward+ light-selection work begins.
 
 ## Status
 
-Implementation is in progress. Milestone 1 is implemented; Milestones 2–5
-remain proposed.
+Implementation is in progress. Milestones 1 and 2 are implemented; Milestones
+3–5 remain proposed.
 
-The current renderer provides positions, importer-supplied normals, display
-colors, view-space transforms, ordinary depth, and a normal diagnostic. It does
-not yet have a PBR material description, lighting input, linear HDR target, or
-tone-mapping pass.
+The visible renderer provides positions, importer-supplied normals, display
+colors, view-space transforms, ordinary depth, and a normal diagnostic. A
+Render-owned offscreen proof now evaluates the shared direct-light BRDF into a
+linear half-float target. The visible path does not yet use that BRDF and still
+has no authored PBR material description, production lighting input, HDR scene
+target, or tone-mapping pass.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -162,6 +164,38 @@ argument-table ABI before material and light data exist.
 - Increasing roughness broadens the specular response.
 - Grazing-angle inputs remain finite.
 - The offscreen target contains linear values rather than gamma-encoded color.
+
+### Implemented Conventions
+
+The proof deliberately fixes its mathematical vocabulary without treating its
+test binding as a production ABI:
+
+- `N`, `V`, and `L` are normalized view-space directions that point away from
+  the surface: `N` is the surface normal, `V` points toward the camera, and `L`
+  points toward the light source.
+- Base color is finite linear RGB in `0...1`; metallic and input perceptual
+  roughness are finite scalar factors in `0...1`; incident radiance is finite,
+  nonnegative linear RGB.
+- Evaluation floors perceptual roughness at `0.089`, then maps it to GGX
+  `alpha` by squaring it. This keeps the direct-light proof finite at the
+  zero input endpoint and makes the effective value visible through the
+  roughness diagnostic.
+- GGX normal distribution, height-correlated Smith visibility, and Schlick
+  Fresnel are evaluated once in `PBRDirectLighting.metalh`. The Smith term
+  already contains `G / (4 (N dot V) (N dot L))`; shading does not divide by a
+  second Cook-Torrance denominator.
+- Dielectric `F0` is `0.04`. Metallic blends `F0` toward base color and removes
+  diffuse color. Lambert diffuse is weighted by both `1 - metallic` and
+  `1 - Fresnel`.
+- Both diffuse and specular direct-light contributions multiply incident
+  radiance and saturated `N dot L` in the shared evaluator.
+
+The proof shader draws an analytic front hemisphere with an orthographic camera
+into a `65 x 65` `rgba16Float` target. Separate fragment entry points expose the
+shaded result and each diagnostic, but all of them call the same evaluator. A
+small four-`float4` parameter record and its argument table belong only to the
+test harness. Milestone 3 may choose its visible-path bindings independently
+while including the same BRDF implementation.
 
 ## Milestone 3: Visible HDR PBR
 
@@ -316,6 +350,7 @@ that exceed the current `Float` model.
 
 ## References
 
+- [Filament: Roughness remapping and clamping](https://google.github.io/filament/main/filament.html#materialsystem/parameterization/roughnessremappingandclamping)
 - [Understanding the Metal 4 core API](https://developer.apple.com/documentation/metal/understanding-the-metal-4-core-api)
 - [Calculating primitive visibility using depth testing](https://developer.apple.com/documentation/metal/calculating-primitive-visibility-using-depth-testing)
 - [Processing HDR images with Metal](https://developer.apple.com/documentation/metal/processing-hdr-images-with-metal)
