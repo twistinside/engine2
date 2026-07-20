@@ -83,4 +83,84 @@ struct RenderFrameTests {
             ]
         )
     }
+
+    @Test func projectionOmitsTransformsThatCannotProduceFiniteNormals() {
+        let world = World()
+        let zeroScaleEntity = EntityID(index: 0, generation: 0)
+        let nonfinitePositionEntity = EntityID(index: 1, generation: 0)
+
+        for entity in [zeroScaleEntity, nonfinitePositionEntity] {
+            world.renderableComponents.insert(
+                CRenderable(meshID: .ball),
+                for: entity
+            )
+        }
+        world.positionComponents.insert(
+            CPosition(position: .zero),
+            for: zeroScaleEntity
+        )
+        world.scaleComponents.insert(
+            CScale(scale: SIMD3<Float>(1, 0, 1)),
+            for: zeroScaleEntity
+        )
+        world.positionComponents.insert(
+            CPosition(position: SIMD3<Float>(.nan, 0, 0)),
+            for: nonfinitePositionEntity
+        )
+
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: .zero
+        )
+
+        #expect(snapshot.entityPresentations.count == 2)
+        #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
+    }
+
+    @Test func projectionProducesNoInstancesForAnInvalidCameraTransform() {
+        let world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        world.renderableComponents.insert(
+            CRenderable(meshID: .ball),
+            for: entity
+        )
+        world.camera.position = SIMD3<Float>(.infinity, 0, 8)
+
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: SimulationTick(rawValue: 3)
+        )
+        let frame = RenderFrame.project(from: snapshot)
+
+        #expect(frame.sourceTick == SimulationTick(rawValue: 3))
+        #expect(frame.camera == snapshot.camera)
+        #expect(frame.instances.isEmpty)
+    }
+
+    @Test func projectionOmitsFiniteTransformsWhoseCombinationOverflows() {
+        let world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        world.positionComponents.insert(
+            CPosition(
+                position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)
+            ),
+            for: entity
+        )
+        world.renderableComponents.insert(
+            CRenderable(meshID: .ball),
+            for: entity
+        )
+        world.camera = Camera(
+            position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0)
+        )
+
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: .zero
+        )
+
+        #expect(snapshot.camera.supportsViewTransform)
+        #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
+    }
 }

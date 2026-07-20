@@ -94,8 +94,9 @@ final class MetalResourceStore {
         // deterministic dictionary lookup and never triggers compilation.
         try makeFrameResources(count: frameCount)
         try loadShaderLibrary(.engine)
-        try loadRenderPipeline(.model)
-        try loadDepthStencilState(.disabled)
+        try loadRenderPipeline(.modelSurface)
+        try loadRenderPipeline(.modelNormalDiagnostic)
+        try loadDepthStencilState(.opaque)
         try loadArgumentTable(.model)
         try loadModels(from: renderAssetCatalog)
     }
@@ -181,28 +182,36 @@ final class MetalResourceStore {
             return existingState
         }
 
-        let descriptor = MTL4RenderPipelineDescriptor()
+        let fragmentFunctionName: String
+        let pipelineLabel: String
 
         switch id {
-        case .model:
-            let library = try shaderLibrary(for: .engine)
+        case .modelSurface:
+            fragmentFunctionName = "modelFragment"
+            pipelineLabel = "USD Model Surface Pipeline"
 
-            let vertexFunction = MTL4LibraryFunctionDescriptor()
-            vertexFunction.library = library
-            // Metal identifies shader entry points by their source names, so
-            // these strings deliberately match functions in ModelShaders.metal.
-            vertexFunction.name = "modelVertex"
-
-            let fragmentFunction = MTL4LibraryFunctionDescriptor()
-            fragmentFunction.library = library
-            fragmentFunction.name = "modelFragment"
-
-            descriptor.label = "USD Model Pipeline"
-            descriptor.vertexFunctionDescriptor = vertexFunction
-            descriptor.fragmentFunctionDescriptor = fragmentFunction
-            descriptor.rasterSampleCount = 1
-            descriptor.colorAttachments[0].pixelFormat = MetalRenderer.colorPixelFormat
+        case .modelNormalDiagnostic:
+            fragmentFunctionName = "modelNormalDiagnosticFragment"
+            pipelineLabel = "USD Model Normal Diagnostic Pipeline"
         }
+
+        let library = try shaderLibrary(for: .engine)
+        let vertexFunction = MTL4LibraryFunctionDescriptor()
+        vertexFunction.library = library
+        // Metal identifies shader entry points by their source names, so this
+        // string deliberately matches the function in ModelShaders.metal.
+        vertexFunction.name = "modelVertex"
+
+        let fragmentFunction = MTL4LibraryFunctionDescriptor()
+        fragmentFunction.library = library
+        fragmentFunction.name = fragmentFunctionName
+
+        let descriptor = MTL4RenderPipelineDescriptor()
+        descriptor.label = pipelineLabel
+        descriptor.vertexFunctionDescriptor = vertexFunction
+        descriptor.fragmentFunctionDescriptor = fragmentFunction
+        descriptor.rasterSampleCount = 1
+        descriptor.colorAttachments[0].pixelFormat = MetalRenderer.colorPixelFormat
 
         let state = try compiler.makeRenderPipelineState(
             descriptor: descriptor
@@ -221,14 +230,7 @@ final class MetalResourceStore {
             return existingState
         }
 
-        let descriptor = MTLDepthStencilDescriptor()
-
-        switch id {
-        case .disabled:
-            descriptor.label = "Depth Disabled"
-            descriptor.depthCompareFunction = .always
-            descriptor.isDepthWriteEnabled = false
-        }
+        let descriptor = Self.makeDepthStencilDescriptor(for: id)
 
         guard let state = device.makeDepthStencilState(
             descriptor: descriptor
@@ -238,6 +240,26 @@ final class MetalResourceStore {
 
         depthStencilStates[id] = state
         return state
+    }
+
+    /// Builds the inspectable descriptor behind a cached depth-stencil state.
+    ///
+    /// `MTLDepthStencilState` intentionally does not expose the descriptor used
+    /// to create it. Keeping this deterministic factory separate lets tests lock
+    /// the ordinary opaque-depth convention without duplicating that policy.
+    static func makeDepthStencilDescriptor(
+        for id: MetalDepthStencilStateID
+    ) -> MTLDepthStencilDescriptor {
+        let descriptor = MTLDepthStencilDescriptor()
+
+        switch id {
+        case .opaque:
+            descriptor.label = "Opaque Depth"
+            descriptor.depthCompareFunction = .less
+            descriptor.isDepthWriteEnabled = true
+        }
+
+        return descriptor
     }
 
     /// Creates the Metal 4 argument table defined by a closed identity.

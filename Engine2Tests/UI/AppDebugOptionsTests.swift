@@ -5,4 +5,8 @@ struct AppDebugOptionsTests {
     @Test func inputHistoryIsVisibleByDefault() {
         #expect(AppDebugOptions().showsInputHistory)
     }
+
+    @Test func surfaceRenderingIsTheDefaultOutput() {
+        #expect(AppDebugOptions().renderOutputMode == .surface)
+    }
 }
