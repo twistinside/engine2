@@ -15,6 +15,46 @@ The current codebase already has:
 The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
+See <doc:PBR-Implementation-Plan> for the proposed, staged path from the
+current vertex-color renderer to the chosen Forward+ PBR baseline.
+## Chosen Rendering Path
+Engine2's planned production renderer uses one **Forward+** path with
+**physically based rendering (PBR)**. The current vertex-color renderer is an
+earlier implementation stage; Forward+ light assignment and PBR material
+evaluation remain future work.
+
+Forward+ separates light assignment from surface shading:
+
+1. The Render Runtime determines which lights can affect each screen tile or
+   view-space cluster.
+2. A material shader evaluates only the relevant light list while drawing its
+   surface.
+3. The shader writes the final lit surface color directly to the HDR color
+   target.
+
+This remains forward rendering because material evaluation and lighting occur
+while the surface is drawn. The `+` refers to tiled or clustered light
+selection, not to a deferred lighting pass. Engine2 does not plan to maintain
+runtime-selectable forward and deferred paths, and its core path does not use a
+general-purpose G-buffer followed by a separate opaque-lighting pass.
+
+Apple GPU **tile-based deferred rendering** describes how the hardware
+schedules rasterization and retains tile data. It is distinct from the deferred
+shading technique and remains useful to Engine2's Forward+ renderer.
+
+PBR defines how materials and lights produce a surface response; Forward+
+defines how the renderer finds relevant lights and when it evaluates that
+response. The intended PBR model uses linear HDR lighting, physically meaningful
+light inputs, and energy-conserving material response. Game Content supplies
+backend-neutral material identities and assets, Simulation publishes only the
+semantic presentation facts that can change, and the Render Runtime privately
+resolves those values into Metal resources and shader inputs.
+
+Planet surfaces and other opaque geometry use the Forward+ PBR path directly.
+Clouds, atmospheres, rings, and other transparent or volumetric layers remain
+ordered forward phases that may reuse the same lighting descriptions and light
+lists. A feature may introduce a focused auxiliary target such as depth or
+normals, but that does not turn the core renderer into a deferred path.
 ## Rendering Belongs to the Render Runtime
 Rendering is owned by the proposed Render Runtime, not by an ECS gameplay system that mutates authoritative state.
 Simulation systems update `World`, the Simulation Runtime publishes an immutable `SimulationPresentationSnapshot`, and the Render Runtime projects the latest completed value into private render-oriented state according to its own cadence. The Simulation Runtime remains valid when no Render Runtime is present; its presentation snapshot simply has no consumer.
@@ -137,7 +177,10 @@ A likely long-term frame flow is:
 3. the Render Runtime projects the latest simulation state into render items
 4. render items are sorted or batched
 5. private front and back render buffers swap
-6. the renderer consumes the frozen front buffer
+6. Render constructs tiled or clustered light lists for the frozen frame
+7. opaque surfaces are shaded through the Forward+ PBR path
+8. ordered forward layers such as clouds, atmospheres, rings, and transparency are composed
+9. shared post-processing produces the presented image
 This is the intended path toward deterministic simulation, cleaner render isolation, and later optimizations such as culling and instancing.
 ## Related Direction
 This rendering approach fits the broader engine direction:
@@ -150,6 +193,7 @@ This rendering approach fits the broader engine direction:
 - <doc:Runtime-Architecture>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
+- <doc:PBR-Implementation-Plan>
 ### Related Symbols
 - ``Engine``
 - ``PResource``

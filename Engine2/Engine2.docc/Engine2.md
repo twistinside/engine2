@@ -28,5 +28,6 @@ At the moment, the codebase already includes:
 - <doc:Engine-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>
 - <doc:Rendering-Architecture>
+- <doc:PBR-Implementation-Plan>
 ### Scheduling
 - <doc:System-Scheduling>
