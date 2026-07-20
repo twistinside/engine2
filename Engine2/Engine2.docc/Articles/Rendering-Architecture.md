@@ -16,7 +16,8 @@ The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
 See <doc:PBR-Implementation-Plan> for the proposed, staged path from the
-current vertex-color renderer to the chosen Forward+ PBR baseline.
+current vertex-color renderer through a directional-light PBR baseline and into
+the later Forward+ local-light scaling work.
 ## Chosen Rendering Path
 Engine2's planned production renderer uses one **Forward+** path with
 **physically based rendering (PBR)**. The current vertex-color renderer is an
