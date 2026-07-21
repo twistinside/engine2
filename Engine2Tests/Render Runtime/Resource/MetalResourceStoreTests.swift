@@ -12,17 +12,33 @@ struct MetalResourceStoreTests {
         )
 
         let library = try store.shaderLibrary(for: .engine)
-        let pipeline = try store.renderPipelineState(for: .model)
-        let depthStencil = try store.depthStencilState(for: .disabled)
+        let surfacePipeline = try store.renderPipelineState(for: .modelSurface)
+        let normalPipeline = try store.renderPipelineState(
+            for: .modelNormalDiagnostic
+        )
+        let depthStencil = try store.depthStencilState(for: .opaque)
         let argumentTable = try store.argumentTable(for: .model)
 
         #expect(store.device.registryID == device.registryID)
         #expect(store.compiler.device.registryID == device.registryID)
         #expect(library.functionNames.contains("modelVertex"))
         #expect(library.functionNames.contains("modelFragment"))
-        #expect(pipeline.label == "USD Model Pipeline")
-        #expect(depthStencil.label == "Depth Disabled")
+        #expect(library.functionNames.contains("modelNormalDiagnosticFragment"))
+        #expect(surfacePipeline.label == "USD Model Surface Pipeline")
+        #expect(normalPipeline.label == "USD Model Normal Diagnostic Pipeline")
+        #expect(depthStencil.label == "Opaque Depth")
         #expect(argumentTable.label == "USD Mesh Argument Table")
+    }
+
+    @MainActor
+    @Test func opaqueDepthDescriptorWritesOnlyNearerFragments() {
+        let descriptor = MetalResourceStore.makeDepthStencilDescriptor(
+            for: .opaque
+        )
+
+        #expect(descriptor.label == "Opaque Depth")
+        #expect(descriptor.depthCompareFunction == .less)
+        #expect(descriptor.isDepthWriteEnabled)
     }
 
     @MainActor

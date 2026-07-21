@@ -5,9 +5,11 @@ import simd
 struct Camera {
     /// Backend-neutral projection parameters used to construct a clip-space matrix.
     ///
-    /// Associated values are expressed in world units and radians. Camera
-    /// initialization validates the dimensions and clipping-plane ordering so
-    /// render backends can consume a well-formed projection.
+    /// Associated values are expressed in world units and radians. Both
+    /// projection cases describe `near` and `far` as positive distances along
+    /// the camera's local forward axis, which points down view-space `-Z`.
+    /// Camera initialization validates the dimensions and clipping-plane
+    /// ordering so render backends can consume a well-formed projection.
     enum Projection: Equatable {
         case orthographic(height: Float, near: Float, far: Float)
         case perspective(verticalFieldOfView: Float, near: Float, far: Float)
@@ -37,7 +39,7 @@ struct Camera {
         position: SIMD3<Float>,
         rotation: simd_quatf = Transform.identityRotation,
         orthographicHeight: Float,
-        nearPlane: Float = -100,
+        nearPlane: Float = 0.1,
         farPlane: Float = 100
     ) {
         self.init(
@@ -72,6 +74,35 @@ struct Camera {
     /// Converts world-space positions into the camera's local view space.
     var viewMatrix: simd_float4x4 {
         .rotation(rotation.inverse) * .translation(-position)
+    }
+
+    /// Whether this camera can construct a finite world-to-view transform.
+    ///
+    /// Camera values are copied across the Simulation-to-Render snapshot
+    /// boundary. Render projection checks this invariant so malformed mutable
+    /// simulation state produces no draw instances instead of NaN view-space
+    /// positions and normal matrices.
+    var supportsViewTransform: Bool {
+        let positionIsFinite = position.x.isFinite
+            && position.y.isFinite
+            && position.z.isFinite
+        let rotationVector = rotation.vector
+        let rotationLengthSquared = simd_length_squared(rotationVector)
+        let rotationIsFiniteAndNonzero = rotationVector.x.isFinite
+            && rotationVector.y.isFinite
+            && rotationVector.z.isFinite
+            && rotationVector.w.isFinite
+            && rotationLengthSquared.isFinite
+            && rotationLengthSquared > 0
+
+        guard positionIsFinite && rotationIsFiniteAndNonzero else {
+            return false
+        }
+
+        // Finite inputs can still overflow when a very large translation is
+        // rotated. Validate the matrix that rendering will actually consume,
+        // not only the values used to build it.
+        return viewMatrix.hasFiniteElements
     }
 
     /// Builds a Metal clip-space projection for the current drawable shape.
@@ -128,14 +159,36 @@ struct Camera {
     private static func validate(_ projection: Projection) {
         switch projection {
         case let .orthographic(height, near, far):
-            precondition(height > 0, "Camera orthographic height must be positive.")
-            precondition(far != near, "Camera far and near planes must differ.")
+            precondition(
+                height.isFinite && height > 0,
+                "Camera orthographic height must be finite and positive."
+            )
+            precondition(
+                near.isFinite && near > 0,
+                "Camera orthographic near plane must be finite and positive."
+            )
+            precondition(
+                far.isFinite && far > near,
+                "Camera orthographic far plane must be finite and greater than the near plane."
+            )
 
         case let .perspective(verticalFieldOfView, near, far):
-            precondition(verticalFieldOfView > 0, "Camera field of view must be positive.")
-            precondition(verticalFieldOfView < .pi, "Camera field of view must be less than pi radians.")
-            precondition(near > 0, "Camera perspective near plane must be positive.")
-            precondition(far > near, "Camera perspective far plane must be greater than the near plane.")
+            precondition(
+                verticalFieldOfView.isFinite && verticalFieldOfView > 0,
+                "Camera field of view must be finite and positive."
+            )
+            precondition(
+                verticalFieldOfView < .pi,
+                "Camera field of view must be less than pi radians."
+            )
+            precondition(
+                near.isFinite && near > 0,
+                "Camera perspective near plane must be finite and positive."
+            )
+            precondition(
+                far.isFinite && far > near,
+                "Camera perspective far plane must be finite and greater than the near plane."
+            )
         }
     }
 }
@@ -165,7 +218,10 @@ private extension simd_float4x4 {
             columns: (
                 SIMD4<Float>(2 / width, 0, 0, 0),
                 SIMD4<Float>(0, 2 / height, 0, 0),
-                SIMD4<Float>(0, 0, 1 / depth, 0),
+                // Camera-forward points have negative view-space Z. Negating
+                // that coordinate makes orthographic near/far values use the
+                // same positive-distance meaning as perspective projection.
+                SIMD4<Float>(0, 0, -1 / depth, 0),
                 SIMD4<Float>(
                     -(right + left) / width,
                     -(top + bottom) / height,

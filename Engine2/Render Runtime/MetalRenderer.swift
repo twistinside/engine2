@@ -21,6 +21,13 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// the render pipeline state.
     static let colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
 
+    /// Ordinary floating-point depth used by the opaque model pass.
+    static let depthPixelFormat = MTLPixelFormat.depth32Float
+
+    /// Ordinary depth clears to the farthest representable depth so fragments
+    /// passing the `.less` comparison replace untouched pixels.
+    static let clearDepth = 1.0
+
     /// Device-scoped owner for every backend object used by this renderer.
     let resources: MetalResourceStore
 
@@ -29,11 +36,13 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         resources.device
     }
 
-    /// Fixed pipeline for this simple USD-backed renderer.
-    private let renderPipelineState: any MTLRenderPipelineState
+    /// Unlit surface pipeline used while material shading is bootstrapped.
+    private let surfacePipelineState: any MTLRenderPipelineState
 
-    /// Explicit depth behavior, even while the current view has no depth
-    /// attachment. Future pipelines can select a different cached state.
+    /// Diagnostic pipeline that maps interpolated view-space normals to color.
+    private let normalDiagnosticPipelineState: any MTLRenderPipelineState
+
+    /// Opaque depth behavior shared by the surface and normal diagnostic views.
     private let depthStencilState: any MTLDepthStencilState
 
     /// Metal 4 resource binding table. Each draw updates buffer slot 0 to point
@@ -45,12 +54,17 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// The App owns the source's lifetime; Render does not retain its peer runtime.
     weak var presentationSource: (any PSimulationPresentationSource)?
 
+    /// Selects the visible output without changing geometry, transforms, depth,
+    /// or draw submission. Debug tooling can switch this value at render cadence.
+    var outputMode: RenderOutputMode
+
     /// Index into `frames` for the next draw call.
     private var frameIndex = 0
 
     init(
         resources: MetalResourceStore,
-        presentationSource: any PSimulationPresentationSource
+        presentationSource: any PSimulationPresentationSource,
+        outputMode: RenderOutputMode = .surface
     ) throws {
         precondition(
             !resources.frames.isEmpty,
@@ -58,17 +72,32 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         )
 
         self.resources = resources
-        self.renderPipelineState = try resources.renderPipelineState(for: .model)
-        self.depthStencilState = try resources.depthStencilState(for: .disabled)
+        self.surfacePipelineState = try resources.renderPipelineState(for: .modelSurface)
+        self.normalDiagnosticPipelineState = try resources.renderPipelineState(
+            for: .modelNormalDiagnostic
+        )
+        self.depthStencilState = try resources.depthStencilState(for: .opaque)
         self.argumentTable = try resources.argumentTable(for: .model)
         self.presentationSource = presentationSource
+        self.outputMode = outputMode
 
         super.init()
     }
 
-    /// Registers the drawable resources that MetalKit owns so Metal 4 can keep
-    /// them resident for command buffers submitted through this queue.
+    /// Applies the attachment formats that must agree with the cached pipelines.
+    ///
+    /// Keeping this policy on the renderer gives the SwiftUI bridge and tests
+    /// one source of truth for the color format and ordinary-depth convention.
+    static func configureRenderTargets(on view: MTKView) {
+        view.colorPixelFormat = colorPixelFormat
+        view.depthStencilPixelFormat = depthPixelFormat
+        view.clearDepth = clearDepth
+    }
+
+    /// Configures renderer-owned attachment policy and registers MetalKit-owned
+    /// drawable resources for explicit Metal 4 queue residency.
     func configure(_ view: MTKView) {
+        Self.configureRenderTargets(on: view)
         resources.residency.registerExternalResources(for: view)
     }
 
@@ -135,7 +164,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        renderEncoder.setRenderPipelineState(renderPipelineState)
+        renderEncoder.setRenderPipelineState(renderPipelineState(for: outputMode))
         renderEncoder.setDepthStencilState(depthStencilState)
         draw(
             renderFrame.instances,
@@ -152,12 +181,23 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // `endCommandBuffer` makes the recorded work valid for queue submission.
         commandBuffer.endCommandBuffer()
 
+        // Metal 4 residency is not object ownership. Retain the complete store,
+        // the drawable, and this pass's view-owned depth texture independently
+        // of the SwiftUI coordinator until queue feedback reports completion.
+        let submission = MetalInFlightSubmission(
+            resources: resources,
+            drawable: drawable,
+            depthTexture: renderPassDescriptor.depthAttachment.texture,
+            frame: frame
+        )
+
         // Feedback is the point where this simple renderer learns the GPU is
-        // done with the frame's command allocator. A fuller renderer would also
-        // inspect `feedback.error` here and surface device failures.
+        // done with the frame's command allocator and referenced resources. A
+        // fuller renderer would also inspect `feedback.error` here and surface
+        // device failures.
         let commitOptions = MTL4CommitOptions()
         commitOptions.addFeedbackHandler { _ in
-            frame.markAvailable()
+            submission.complete()
         }
 
         // Submit the recorded work first, then tell the queue which drawable is
@@ -173,6 +213,19 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let frame = resources.frames[frameIndex]
         frameIndex = (frameIndex + 1) % resources.frames.count
         return frame
+    }
+
+    /// Resolves a closed output mode to an eagerly compiled pipeline.
+    private func renderPipelineState(
+        for outputMode: RenderOutputMode
+    ) -> any MTLRenderPipelineState {
+        switch outputMode {
+        case .surface:
+            surfacePipelineState
+
+        case .viewSpaceNormals:
+            normalDiagnosticPipelineState
+        }
     }
 
     private func draw(
@@ -304,7 +357,15 @@ struct USDRenderModel {
         return USDRenderModel(meshes: meshes)
     }
 
-    private static func makeVertexDescriptor() -> MDLVertexDescriptor {
+    /// Defines the one interleaved vertex layout shared by Model I/O and Metal.
+    ///
+    /// `SIMD3<Float>` has a 16-byte stride on both sides of this boundary, so
+    /// explicit offsets keep the Swift descriptor aligned with `ModelVertex` in
+    /// `ModelShaders.metal`. Vertex color remains only as the pre-material visual
+    /// baseline. The packaged asset is an implicit USD sphere, so requesting a
+    /// normal attribute lets Model I/O's USD importer supply its generated
+    /// sphere normals without introducing an engine-wide generation policy.
+    static func makeVertexDescriptor() -> MDLVertexDescriptor {
         let vertexDescriptor = MDLVertexDescriptor()
         vertexDescriptor.attributes[0] = MDLVertexAttribute(
             name: MDLVertexAttributePosition,
@@ -318,7 +379,15 @@ struct USDRenderModel {
             offset: MemoryLayout<SIMD3<Float>>.stride,
             bufferIndex: 0
         )
-        vertexDescriptor.layouts[0] = MDLVertexBufferLayout(stride: MemoryLayout<SIMD3<Float>>.stride * 2)
+        vertexDescriptor.attributes[2] = MDLVertexAttribute(
+            name: MDLVertexAttributeNormal,
+            format: .float3,
+            offset: MemoryLayout<SIMD3<Float>>.stride * 2,
+            bufferIndex: 0
+        )
+        vertexDescriptor.layouts[0] = MDLVertexBufferLayout(
+            stride: MemoryLayout<SIMD3<Float>>.stride * 3
+        )
 
         return vertexDescriptor
     }
@@ -340,13 +409,59 @@ struct USDRenderModel {
 
 /// CPU-side layout written to the per-frame GPU instance buffer.
 ///
-/// Its single matrix matches `ModelInstance` in `ModelShaders.metal` and folds
-/// the camera projection, view transform, and entity transform into one value.
+/// Its fields match `ModelInstance` in `ModelShaders.metal`. The shader needs a
+/// complete clip transform for rasterization, a model-view transform for future
+/// view-space lighting, and an inverse-transpose linear transform so nonuniform
+/// entity scale cannot skew surface normals.
 struct GPUInstance {
     var modelViewProjectionMatrix: simd_float4x4
+    var modelViewMatrix: simd_float4x4
+    var normalMatrix: simd_float3x3
 
-    init(_ instance: RenderInstance, viewProjectionMatrix: simd_float4x4) {
-        modelViewProjectionMatrix = viewProjectionMatrix * instance.transform.matrix
+    init(
+        _ instance: RenderInstance,
+        viewMatrix: simd_float4x4,
+        projectionMatrix: simd_float4x4
+    ) {
+        // Build model-view once so the position and normal paths use exactly the
+        // same model and camera transforms.
+        precondition(
+            instance.transform.supportsNormalTransform,
+            "GPU instances require a finite transform with invertible scale."
+        )
+        let modelViewMatrix = viewMatrix * instance.transform.matrix
+        precondition(
+            modelViewMatrix.hasFiniteElements,
+            "GPU instances require a finite model-view transform."
+        )
+        let linearModelView = simd_float3x3(
+            columns: (
+                SIMD3<Float>(
+                    modelViewMatrix.columns.0.x,
+                    modelViewMatrix.columns.0.y,
+                    modelViewMatrix.columns.0.z
+                ),
+                SIMD3<Float>(
+                    modelViewMatrix.columns.1.x,
+                    modelViewMatrix.columns.1.y,
+                    modelViewMatrix.columns.1.z
+                ),
+                SIMD3<Float>(
+                    modelViewMatrix.columns.2.x,
+                    modelViewMatrix.columns.2.y,
+                    modelViewMatrix.columns.2.z
+                )
+            )
+        )
+        let linearDeterminant = simd_determinant(linearModelView)
+        precondition(
+            linearDeterminant.isFinite && linearDeterminant != 0,
+            "GPU instances require a finite, invertible model-view transform."
+        )
+
+        self.modelViewProjectionMatrix = projectionMatrix * modelViewMatrix
+        self.modelViewMatrix = modelViewMatrix
+        self.normalMatrix = simd_transpose(simd_inverse(linearModelView))
     }
 }
 
@@ -389,7 +504,8 @@ final class FrameResources: @unchecked Sendable {
     ) -> Int {
         let instanceCount = min(instances.count, Self.maximumInstanceCount)
         let aspectRatio = Float(drawableSize.width / max(drawableSize.height, 1))
-        let viewProjectionMatrix = camera.viewProjectionMatrix(aspectRatio: aspectRatio)
+        let viewMatrix = camera.viewMatrix
+        let projectionMatrix = camera.projectionMatrix(aspectRatio: aspectRatio)
         let destination = instanceBuffer.contents().bindMemory(
             to: GPUInstance.self,
             capacity: Self.maximumInstanceCount
@@ -398,7 +514,8 @@ final class FrameResources: @unchecked Sendable {
         for index in 0..<instanceCount {
             destination[index] = GPUInstance(
                 instances[index],
-                viewProjectionMatrix: viewProjectionMatrix
+                viewMatrix: viewMatrix,
+                projectionMatrix: projectionMatrix
             )
         }
 

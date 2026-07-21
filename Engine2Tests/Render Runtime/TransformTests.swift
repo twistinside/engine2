@@ -17,6 +17,30 @@ struct TransformTests {
         #expect(transformed.z.isApproximately(4))
         #expect(transformed.w.isApproximately(1))
     }
+
+    @Test func normalTransformSupportRejectsDegenerateOrNonfiniteInputs() {
+        #expect(Transform().supportsNormalTransform)
+        #expect(
+            Transform(
+                scale: SIMD3<Float>(1, 0, 1)
+            ).supportsNormalTransform == false
+        )
+        #expect(
+            Transform(
+                scale: SIMD3<Float>(Float.leastNonzeroMagnitude, 1, 1)
+            ).supportsNormalTransform == false
+        )
+        #expect(
+            Transform(
+                position: SIMD3<Float>(.infinity, 0, 0)
+            ).supportsNormalTransform == false
+        )
+        #expect(
+            Transform(
+                rotation: simd_quatf(vector: .zero)
+            ).supportsNormalTransform == false
+        )
+    }
 }
 
 private extension Float {

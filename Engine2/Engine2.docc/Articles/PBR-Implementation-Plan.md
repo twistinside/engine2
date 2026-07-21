@@ -6,11 +6,13 @@ also identifies where the already-chosen Forward+ light-selection work begins.
 
 ## Status
 
-Proposed and not yet implemented.
+Implementation is in progress. Milestone 1 is implemented; Milestones 2–5
+remain proposed.
 
-The current renderer provides positions, display colors, and one
-model-view-projection matrix. It has no normals, depth attachment, material
-description, lighting input, linear HDR target, or tone-mapping pass.
+The current renderer provides positions, importer-supplied normals, display
+colors, view-space transforms, ordinary depth, and a normal diagnostic. It does
+not yet have a PBR material description, lighting input, linear HDR target, or
+tone-mapping pass.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -110,11 +112,10 @@ lighting equation is involved.
 
 ### Change
 
-- Extend the decoded vertex input from position and display color to position
-  and normal.
-- Preserve authored normals. If the example sphere lacks them, add the smallest
-  explicit asset-loading rule needed for that asset rather than designing a
-  general normal-generation policy.
+- Extend the decoded vertex input to position, display color, and normal.
+- Preserve decoded normals. For the packaged implicit sphere, accept the normals
+  supplied by Model I/O's USD importer without introducing a general normal-
+  generation policy.
 - Provide view-space surface position and a correct normal transform to the
   fragment stage.
 - Make perspective and orthographic projections share one ordinary depth

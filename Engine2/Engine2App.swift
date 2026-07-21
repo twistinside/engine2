@@ -41,6 +41,11 @@ struct Engine2App: App {
         .commands {
             CommandMenu("Debug") {
                 Toggle("Show Input History", isOn: $debugOptions.showsInputHistory)
+
+                Picker("Render Output", selection: $debugOptions.renderOutputMode) {
+                    Text("Surface").tag(RenderOutputMode.surface)
+                    Text("View-Space Normals").tag(RenderOutputMode.viewSpaceNormals)
+                }
             }
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in

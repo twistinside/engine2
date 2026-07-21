@@ -17,7 +17,8 @@ struct ContentView: View {
             MetalSceneView(
                 renderAssetCatalog: renderAssetCatalog,
                 presentationSource: simulation,
-                inputSink: inputRuntime
+                inputSink: inputRuntime,
+                outputMode: debugOptions.renderOutputMode
             )
                 .ignoresSafeArea()
 

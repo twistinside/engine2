@@ -22,6 +22,38 @@ struct Transform {
     var matrix: simd_float4x4 {
         .translation(position) * .rotation(rotation) * .scale(scale)
     }
+
+    /// Whether this transform can produce finite positions and a normal matrix.
+    ///
+    /// A zero scale collapses at least one surface dimension and makes the
+    /// inverse-transpose normal transform undefined. Extremely small finite
+    /// scale is also rejected when its reciprocal overflows. Snapshot
+    /// projection uses this property to omit malformed or degenerate instances
+    /// before they can introduce infinities or NaNs into a GPU frame.
+    var supportsNormalTransform: Bool {
+        let positionIsFinite = position.x.isFinite
+            && position.y.isFinite
+            && position.z.isFinite
+        let rotationVector = rotation.vector
+        let rotationLengthSquared = simd_length_squared(rotationVector)
+        let rotationIsFiniteAndNonzero = rotationVector.x.isFinite
+            && rotationVector.y.isFinite
+            && rotationVector.z.isFinite
+            && rotationVector.w.isFinite
+            && rotationLengthSquared.isFinite
+            && rotationLengthSquared > 0
+        let scaleHasFiniteReciprocal = scale.x.isFinite
+            && scale.y.isFinite
+            && scale.z.isFinite
+            && (1 / scale.x).isFinite
+            && (1 / scale.y).isFinite
+            && (1 / scale.z).isFinite
+
+        return positionIsFinite
+            && rotationIsFiniteAndNonzero
+            && scaleHasFiniteReciprocal
+            && matrix.hasFiniteElements
+    }
 }
 
 extension Transform: Equatable {
@@ -33,6 +65,19 @@ extension Transform: Equatable {
 }
 
 extension simd_float4x4 {
+    /// Whether every scalar in this matrix is finite.
+    ///
+    /// Checking the constructed matrix catches arithmetic overflow that finite
+    /// transform inputs alone cannot exclude.
+    var hasFiniteElements: Bool {
+        [columns.0, columns.1, columns.2, columns.3].allSatisfy { column in
+            column.x.isFinite
+                && column.y.isFinite
+                && column.z.isFinite
+                && column.w.isFinite
+        }
+    }
+
     static var identity: simd_float4x4 {
         matrix_identity_float4x4
     }

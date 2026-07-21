@@ -1,4 +1,5 @@
 import Metal
+import MetalKit
 import Testing
 @testable import Engine2
 
@@ -11,11 +12,27 @@ struct MetalRendererTests {
             renderAssetCatalog: RenderAssetCatalog(models: [:])
         )
 
-        let pipeline = try resources.renderPipelineState(for: .model)
+        let surfacePipeline = try resources.renderPipelineState(for: .modelSurface)
+        let normalPipeline = try resources.renderPipelineState(
+            for: .modelNormalDiagnostic
+        )
         let argumentTable = try resources.argumentTable(for: .model)
 
-        #expect(pipeline.label == "USD Model Pipeline")
+        #expect(surfacePipeline.label == "USD Model Surface Pipeline")
+        #expect(normalPipeline.label == "USD Model Normal Diagnostic Pipeline")
         #expect(argumentTable.label == "USD Mesh Argument Table")
+    }
+
+    @MainActor
+    @Test func renderTargetConfigurationUsesOrdinaryDepth() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let view = MTKView(frame: .zero, device: device)
+
+        MetalRenderer.configureRenderTargets(on: view)
+
+        #expect(view.colorPixelFormat == .bgra8Unorm_srgb)
+        #expect(view.depthStencilPixelFormat == .depth32Float)
+        #expect(view.clearDepth == 1)
     }
 
     @MainActor

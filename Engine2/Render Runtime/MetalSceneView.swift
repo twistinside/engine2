@@ -13,11 +13,13 @@ struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
     var presentationSource: any PSimulationPresentationSource
     var inputSink: any PInputEventSink
+    var outputMode: RenderOutputMode
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             renderAssetCatalog: renderAssetCatalog,
-            presentationSource: presentationSource
+            presentationSource: presentationSource,
+            outputMode: outputMode
         )
     }
 
@@ -26,8 +28,6 @@ struct MetalSceneView: NSViewRepresentable {
 
         view.autoResizeDrawable = true
         view.clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1)
-        view.colorPixelFormat = MetalRenderer.colorPixelFormat
-        view.depthStencilPixelFormat = .invalid
         view.enableSetNeedsDisplay = false
         view.framebufferOnly = true
         view.isPaused = false
@@ -43,6 +43,7 @@ struct MetalSceneView: NSViewRepresentable {
 
     func updateNSView(_ nsView: InputMetalView, context: Context) {
         context.coordinator.renderer?.presentationSource = presentationSource
+        context.coordinator.renderer?.outputMode = outputMode
         nsView.inputSink = inputSink
     }
 
@@ -62,7 +63,8 @@ struct MetalSceneView: NSViewRepresentable {
 
         init(
             renderAssetCatalog: RenderAssetCatalog,
-            presentationSource: any PSimulationPresentationSource
+            presentationSource: any PSimulationPresentationSource,
+            outputMode: RenderOutputMode
         ) {
             self.renderer = nil
 
@@ -78,7 +80,8 @@ struct MetalSceneView: NSViewRepresentable {
 
             renderer = try? MetalRenderer(
                 resources: resources,
-                presentationSource: presentationSource
+                presentationSource: presentationSource,
+                outputMode: outputMode
             )
         }
     }
