@@ -1,0 +1,144 @@
+#ifndef PBRDirectLighting_metalh
+#define PBRDirectLighting_metalh
+
+#include <metal_stdlib>
+#include "PBRDirectLightingResult.metalh"
+
+using namespace metal;
+
+/// Replaces a nonfinite scalar before applying its semantic range.
+static inline float pbrFiniteOr(float value, float fallback) {
+    return isfinite(value) ? value : fallback;
+}
+
+/// Replaces a vector as one unit so partially invalid RGB or direction data
+/// cannot leak a NaN through otherwise valid components.
+static inline float3 pbrFiniteOr(float3 value, float3 fallback) {
+    return all(isfinite(value)) ? value : fallback;
+}
+
+/// Normalizes a direction without dividing by zero or propagating overflow.
+static inline float3 pbrSafeNormalize(float3 value, float3 fallback) {
+    float lengthSquared = dot(value, value);
+
+    if (!isfinite(lengthSquared) || lengthSquared <= 1e-12f) {
+        return fallback;
+    }
+
+    return value * rsqrt(lengthSquared);
+}
+
+/// Evaluates Engine2's first direct-light metallic-roughness BRDF.
+///
+/// All directions use view space and point away from the surface: `N` is the
+/// surface normal, `V` points toward the camera, and `L` points toward the light
+/// source. `incidentRadiance` is finite, nonnegative, linear RGB. The function
+/// uses Fresnel-weighted Lambert diffuse, GGX distribution, height-correlated
+/// Smith visibility, and Schlick Fresnel in `float` precision.
+static inline PBRDirectLightingResult pbrEvaluateDirectLighting(
+    float3 baseColorInput,
+    float metallicInput,
+    float perceptualRoughnessInput,
+    float3 normalInput,
+    float3 directionToCameraInput,
+    float3 directionToLightInput,
+    float3 incidentRadianceInput
+) {
+    PBRDirectLightingResult result;
+
+    result.normal = pbrSafeNormalize(
+        pbrFiniteOr(normalInput, float3(0.0f, 0.0f, 1.0f)),
+        float3(0.0f, 0.0f, 1.0f)
+    );
+    float3 directionToCamera = pbrSafeNormalize(
+        pbrFiniteOr(directionToCameraInput, float3(0.0f, 0.0f, 1.0f)),
+        float3(0.0f, 0.0f, 1.0f)
+    );
+    float3 directionToLight = pbrSafeNormalize(
+        pbrFiniteOr(directionToLightInput, float3(0.0f, 0.0f, 1.0f)),
+        float3(0.0f, 0.0f, 1.0f)
+    );
+
+    result.baseColor = clamp(
+        pbrFiniteOr(baseColorInput, float3(0.0f)),
+        0.0f,
+        1.0f
+    );
+    result.metallic = clamp(pbrFiniteOr(metallicInput, 0.0f), 0.0f, 1.0f);
+
+    // The input factor remains legal over 0...1. Evaluation floors it at
+    // 0.089 before squaring, following the half-precision-safe GGX bound used
+    // by Filament and avoiding the zero-roughness singularity.
+    result.perceptualRoughness = clamp(
+        max(pbrFiniteOr(perceptualRoughnessInput, 1.0f), 0.089f),
+        0.089f,
+        1.0f
+    );
+    result.nDotL = saturate(dot(result.normal, directionToLight));
+    result.diffuseContribution = float3(0.0f);
+    result.specularContribution = float3(0.0f);
+    result.shaded = float3(0.0f);
+
+    float nDotV = saturate(dot(result.normal, directionToCamera));
+    if (nDotV <= 0.0f || result.nDotL <= 0.0f) {
+        return result;
+    }
+
+    float3 halfVectorSum = directionToCamera + directionToLight;
+    float halfLengthSquared = dot(halfVectorSum, halfVectorSum);
+    if (!isfinite(halfLengthSquared) || halfLengthSquared <= 1e-12f) {
+        return result;
+    }
+
+    float3 halfVector = halfVectorSum * rsqrt(halfLengthSquared);
+    float nDotH = saturate(dot(result.normal, halfVector));
+    float vDotH = saturate(dot(directionToCamera, halfVector));
+
+    // Perceptual roughness maps to the GGX alpha parameter by squaring. The
+    // distribution uses alpha squared once more, so `alphaSquared` is r^4.
+    float alpha = result.perceptualRoughness * result.perceptualRoughness;
+    float alphaSquared = alpha * alpha;
+    float distributionDenominator = nDotH * nDotH
+        * (alphaSquared - 1.0f) + 1.0f;
+    float distribution = alphaSquared / max(
+        M_PI_F * distributionDenominator * distributionDenominator,
+        1e-12f
+    );
+
+    // Height-correlated Smith visibility already represents G/(4 NoV NoL).
+    // It must not receive another Cook-Torrance denominator later.
+    float visibilityV = result.nDotL * sqrt(max(
+        nDotV * nDotV * (1.0f - alphaSquared) + alphaSquared,
+        0.0f
+    ));
+    float visibilityL = nDotV * sqrt(max(
+        result.nDotL * result.nDotL * (1.0f - alphaSquared)
+            + alphaSquared,
+        0.0f
+    ));
+    float visibility = 0.5f / max(visibilityV + visibilityL, 1e-6f);
+
+    float3 dielectricF0 = float3(0.04f);
+    float3 f0 = mix(dielectricF0, result.baseColor, result.metallic);
+    float fresnelBase = saturate(1.0f - vDotH);
+    float fresnelSquared = fresnelBase * fresnelBase;
+    float fresnelFifth = fresnelSquared * fresnelSquared * fresnelBase;
+    float3 fresnel = f0 + (1.0f - f0) * fresnelFifth;
+
+    float3 diffuseColor = result.baseColor * (1.0f - result.metallic);
+    float3 diffuseBRDF = (1.0f - fresnel) * diffuseColor * M_1_PI_F;
+    float3 specularBRDF = distribution * visibility * fresnel;
+    float3 incidentRadiance = max(
+        pbrFiniteOr(incidentRadianceInput, float3(0.0f)),
+        float3(0.0f)
+    );
+
+    result.diffuseContribution = diffuseBRDF
+        * incidentRadiance * result.nDotL;
+    result.specularContribution = specularBRDF
+        * incidentRadiance * result.nDotL;
+    result.shaded = result.diffuseContribution + result.specularContribution;
+    return result;
+}
+
+#endif

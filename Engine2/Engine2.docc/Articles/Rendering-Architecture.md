@@ -15,14 +15,18 @@ The current codebase already has:
 The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
-See <doc:PBR-Implementation-Plan> for the proposed, staged path from the
-current vertex-color renderer through a directional-light PBR baseline and into
-the later Forward+ local-light scaling work.
+See <doc:PBR-Implementation-Plan> for the staged path from the current visible
+vertex-color renderer through a directional-light PBR baseline and into the
+later Forward+ local-light scaling work. Its normals/depth foundation and
+offscreen direct-light BRDF proof are implemented; visible HDR PBR and authored
+materials remain future milestones.
 ## Chosen Rendering Path
 Engine2's planned production renderer uses one **Forward+** path with
-**physically based rendering (PBR)**. The current vertex-color renderer is an
-earlier implementation stage; Forward+ light assignment and PBR material
-evaluation remain future work.
+**physically based rendering (PBR)**. The current visible vertex-color renderer
+is an earlier implementation stage. Render now owns one shared direct-light
+BRDF implementation, proven offscreen in linear `rgba16Float`; wiring it into
+the visible HDR path, adding authored PBR materials, and Forward+ light
+assignment remain future work.
 
 Forward+ separates light assignment from surface shading:
 

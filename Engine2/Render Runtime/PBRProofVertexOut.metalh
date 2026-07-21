@@ -1,0 +1,16 @@
+#ifndef PBRProofVertexOut_metalh
+#define PBRProofVertexOut_metalh
+
+#include <metal_stdlib>
+
+/// Full-screen triangle output used to evaluate an analytic front hemisphere.
+///
+/// This stage value belongs only to the isolated proof shader. Keeping it
+/// separate preserves the project's one-type-per-file rule without turning it
+/// into a CPU/GPU binding or a production vertex contract.
+struct PBRProofVertexOut {
+    metal::float4 position [[position]];
+    metal::float2 uv;
+};
+
+#endif
