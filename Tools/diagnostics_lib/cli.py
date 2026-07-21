@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 
 from .capture import CaptureError, CaptureRequest, capture
+from .logs import LogCapturePolicy
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,6 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     capture_parser.add_argument("--warm-up-nanoseconds", default=2_000_000_000, type=_unsigned_integer)
     capture_parser.add_argument(
         "--measurement-nanoseconds", default=15_000_000_000, type=_positive_integer
+    )
+    capture_parser.add_argument(
+        "--logs",
+        choices=[policy.value for policy in LogCapturePolicy],
+        default=LogCapturePolicy.BEST_EFFORT.value,
+        help="required, best-effort, or skip unified-log archival",
     )
     return parser
 
@@ -36,6 +43,7 @@ def main(arguments: list[str] | None = None) -> int:
                     seed=args.seed,
                     warm_up_nanoseconds=args.warm_up_nanoseconds,
                     measurement_nanoseconds=args.measurement_nanoseconds,
+                    log_policy=LogCapturePolicy(args.logs),
                 )
             )
             return 0

@@ -80,7 +80,13 @@ class CaptureTests(unittest.TestCase):
             payload = stream().decode().replace("'", "'\\''")
             app = self._script(root, "success", f"#!/bin/sh\nprintf '%s' '{payload}'\n")
             output = root / "capture"
-            result = capture(CaptureRequest(app, output, "baseline-six-ball", 42, 0, 1))
+            from diagnostics_lib.logs import LogCapturePolicy
+
+            result = capture(
+                CaptureRequest(
+                    app, output, "baseline-six-ball", 42, 0, 1, LogCapturePolicy.SKIP
+                )
+            )
             self.assertEqual(result["status"], "complete")
             self.assertEqual(validate_ndjson((output / "diagnostics.ndjson").read_bytes()).manifest, MANIFEST)
 

@@ -6,9 +6,11 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import subprocess
+import time
 from typing import Any
 
 from .artifact import ArtifactValidationError, validate_ndjson
+from .logs import LogCapturePolicy, capture_logs
 
 
 class CaptureError(RuntimeError):
@@ -25,6 +27,7 @@ class CaptureRequest:
     seed: int
     warm_up_nanoseconds: int
     measurement_nanoseconds: int
+    log_policy: LogCapturePolicy = LogCapturePolicy.BEST_EFFORT
 
 
 def capture(request: CaptureRequest) -> dict[str, Any]:
@@ -48,6 +51,7 @@ def capture(request: CaptureRequest) -> dict[str, Any]:
         str(request.measurement_nanoseconds),
         "--diagnostics-ndjson-stdout",
     ]
+    start_unix_seconds = time.time()
     completed = subprocess.run(command, capture_output=True, check=False)
     if completed.returncode != 0:
         failure = _result(
@@ -74,10 +78,31 @@ def capture(request: CaptureRequest) -> dict[str, Any]:
 
     (request.output / "diagnostics.ndjson").write_bytes(completed.stdout)
     _write_json(request.output / "manifest.json", artifact.manifest)
+    log_result: dict[str, Any]
+    if request.log_policy == LogCapturePolicy.SKIP:
+        log_result = {"status": "skipped"}
+    else:
+        log_result = capture_logs(
+            output=request.output,
+            start_unix_seconds=start_unix_seconds,
+            session_id=artifact.manifest["sessionID"]["rawValue"],
+        )
+    _write_json(request.output / "logs-result.json", log_result)
+    if request.log_policy == LogCapturePolicy.REQUIRED and log_result["status"] != "complete":
+        failure = _result(
+            status="failed",
+            command=command,
+            reason="required-unified-logs-unavailable",
+            logs=log_result,
+        )
+        _write_json(result_path, failure)
+        raise CaptureError("required unified-log evidence is unavailable")
+
     success = _result(
         status="complete",
         command=command,
         sample_count=len(artifact.records) - 1,
+        logs=log_result,
     )
     _write_json(result_path, success)
     return success
