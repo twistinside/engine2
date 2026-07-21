@@ -115,6 +115,16 @@ final class Engine {
         simulationSystems.append(system)
     }
 
+    /// Reports the ordered invariant schedule and current component populations.
+    func reportRuntimeInventory(presentationEntityCount: Int) {
+        diagnostics.recordSimulationRuntimeInventory(
+            alwaysSystemIDs: alwaysSystems.compactMap(\.diagnosticsID),
+            simulationSystemIDs: simulationSystems.compactMap(\.diagnosticsID),
+            componentStores: world.diagnosticsComponentInventory,
+            presentationEntityCount: presentationEntityCount
+        )
+    }
+
     private func run(
         _ systems: inout [any PSystem],
         tick: SimulationTick,

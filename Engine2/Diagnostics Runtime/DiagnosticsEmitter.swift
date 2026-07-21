@@ -223,6 +223,26 @@ final class DiagnosticsEmitter {
         record(category: category, timestampAt: timeSource(), payload: payload)
     }
 
+    /// Records low-frequency structural complexity at world construction.
+    func recordSimulationRuntimeInventory(
+        alwaysSystemIDs: [SimulationSystemID],
+        simulationSystemIDs: [SimulationSystemID],
+        componentStores: [ComponentStoreInventory],
+        presentationEntityCount: Int
+    ) {
+        record(
+            category: .simulationLoop,
+            payload: .simulationRuntimeInventory(
+                SimulationRuntimeInventoryDiagnostics(
+                    alwaysSystemIDs: alwaysSystemIDs,
+                    simulationSystemIDs: simulationSystemIDs,
+                    componentStores: componentStores,
+                    presentationEntityCount: presentationEntityCount
+                )
+            )
+        )
+    }
+
     private func record(
         category: DiagnosticsCategory,
         timestampAt instant: SuspendingClock.Instant,

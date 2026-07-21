@@ -149,4 +149,24 @@ class World {
         nextEntityIndex += 1
         return entityID
     }
+
+    /// Returns a stable, low-frequency inventory without exposing store values.
+    var diagnosticsComponentInventory: [ComponentStoreInventory] {
+        [
+            ComponentStoreInventory(
+                storeID: .angularMotionAccumulator,
+                rowCount: angularMotionAccumulatorComponents.dense.count
+            ),
+            ComponentStoreInventory(
+                storeID: .angularVelocity,
+                rowCount: angularVelocityComponents.dense.count
+            ),
+            ComponentStoreInventory(storeID: .motion, rowCount: motionComponents.dense.count),
+            ComponentStoreInventory(storeID: .position, rowCount: positionComponents.dense.count),
+            ComponentStoreInventory(storeID: .renderable, rowCount: renderableComponents.dense.count),
+            ComponentStoreInventory(storeID: .rotation, rowCount: rotationComponents.dense.count),
+            ComponentStoreInventory(storeID: .scale, rowCount: scaleComponents.dense.count),
+            ComponentStoreInventory(storeID: .selectable, rowCount: selectableComponents.dense.count)
+        ]
+    }
 }

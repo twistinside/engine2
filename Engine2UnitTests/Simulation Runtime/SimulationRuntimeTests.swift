@@ -71,6 +71,44 @@ struct SimulationRuntimeTests {
         #expect(simulation.latestPresentationSnapshot.entityPresentations.count == 1)
     }
 
+    @Test @MainActor func constructionAndRebuildReportExactRuntimeInventory() throws {
+        let sink = RecordingDiagnosticsSink()
+        let diagnostics = DiagnosticsEmitter(sink: sink)
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: .zero),
+            diagnostics: diagnostics
+        )
+
+        simulation.rebuildWorld()
+
+        let inventories = sink.samples.compactMap { sample -> SimulationRuntimeInventoryDiagnostics? in
+            guard case let .simulationRuntimeInventory(payload) = sample.payload else {
+                return nil
+            }
+            return payload
+        }
+        #expect(inventories.count == 2)
+        let initialInventory = try #require(inventories.first)
+        let rebuiltInventory = try #require(inventories.last)
+        let expectedAlwaysSystems: [SimulationSystemID] = [
+            .inputMapping,
+            .cameraInput,
+            .inputHistory,
+            .inputCleanup
+        ]
+        let expectedSimulationSystems: [SimulationSystemID] = [
+            .accelerationIntent,
+            .movement,
+            .rotation
+        ]
+
+        #expect(initialInventory.alwaysSystemIDs == expectedAlwaysSystems)
+        #expect(initialInventory.simulationSystemIDs == expectedSimulationSystems)
+        #expect(initialInventory.presentationEntityCount == 1)
+        #expect(initialInventory.componentStores.map(\.storeID) == ComponentStoreDiagnosticsID.allCases)
+        #expect(rebuiltInventory == initialInventory)
+    }
+
     @Test @MainActor func startAndStopDriveExposedState() async throws {
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: .zero),

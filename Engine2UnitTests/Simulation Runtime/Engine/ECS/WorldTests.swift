@@ -2,6 +2,26 @@ import Testing
 @testable import Engine2
 
 struct WorldTests {
+    @Test func diagnosticsInventoryUsesStableStoreOrderAndRowCounts() {
+        let world = World()
+        _ = Ball(in: world)
+
+        #expect(
+            world.diagnosticsComponentInventory.map(\.storeID)
+                == ComponentStoreDiagnosticsID.allCases
+        )
+        #expect(
+            world.diagnosticsComponentInventory
+                .first(where: { $0.storeID == .renderable })?
+                .rowCount == 1
+        )
+        #expect(
+            world.diagnosticsComponentInventory
+                .first(where: { $0.storeID == .selectable })?
+                .rowCount == 1
+        )
+    }
+
     @Test func addSeedsOnlyAdvertisedCapabilityComponents() async throws {
         let world = World()
         let entity = TestSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)

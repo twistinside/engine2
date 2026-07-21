@@ -70,6 +70,9 @@ final class SimulationRuntime: PSimulationPresentationSource {
             at: engine.completedTick
         )
         self.state = State(fixedTimeStep: fixedTimeStep)
+        engine.reportRuntimeInventory(
+            presentationEntityCount: latestPresentationSnapshot.entityPresentations.count
+        )
 
         let simulationLoop = SimulationLoop(
             engine: engine,
@@ -95,6 +98,9 @@ final class SimulationRuntime: PSimulationPresentationSource {
             inputBaseline: inputSource?.latestInputSnapshot
         )
         publishPresentationSnapshot(at: engine.completedTick)
+        engine.reportRuntimeInventory(
+            presentationEntityCount: latestPresentationSnapshot.entityPresentations.count
+        )
     }
 
     /// Replaces the current builder, optionally rebuilding the world immediately.
