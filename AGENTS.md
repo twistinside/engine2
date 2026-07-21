@@ -140,7 +140,7 @@ Current example ownership:
   - `InputRevision` identifies publication sessions and versions. Within one session, cumulative pointer-motion and scroll totals let a slower consumer derive all motion between sampled snapshots without requiring one-to-one cadence.
   - The current `InputEvent` is host ingress, not a published ordered runtime event lane. Ordered discrete transitions and retained replay remain future work.
 - `Engine2/Engine2/Game Content/BasicWorldBuilder.swift`
-  - Example Game Content builder that currently seeds the default `Ball` entities.
+  - Example Game Content builder that seeds a deterministic six-Ball PBR material grid. Every Ball is quiescent, shares `MeshID.ball`, and selects one smooth, baseline, or rough warm-dielectric or gold-metal `MaterialID`.
 - `Engine2/Engine2/Game Content/Model/MeshID.swift`
   - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
 - `Engine2/Engine2/Game Content/Material/MaterialID.swift`

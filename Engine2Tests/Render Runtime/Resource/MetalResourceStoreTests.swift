@@ -139,7 +139,11 @@ struct MetalResourceStoreTests {
             )
             Issue.record("Expected incomplete authored material content to fail")
         } catch let error as RenderAssetCatalogError {
-            #expect(error == .missingMaterialDescriptions([.goldMetal]))
+            #expect(
+                error == .missingMaterialDescriptions(
+                    MaterialID.allCases.filter { $0 != .warmDielectric }
+                )
+            )
         } catch {
             Issue.record("Unexpected error: \(error)")
         }

@@ -7,15 +7,17 @@ work begins.
 
 ## Status
 
-Implementation is in progress. Milestones 1–4 are implemented; Milestone 5
-remains proposed.
+The PBR bootstrap is implemented. Milestones 1–5 now establish the complete
+authored-material validation path; Forward+ light assignment remains a later
+scaling project.
 
 The visible renderer now resolves authored Game Content materials, evaluates
 the same direct-light BRDF as the isolated proof, writes scene-linear radiance
 into a renderer-owned half-float target, and presents it through explicit
 exposure, Reinhard tone mapping, and one sRGB transfer. Its directional light
-remains a fixed Render-owned validation input; semantic lighting is not yet a
-Simulation or snapshot concept.
+remains a fixed Render-owned validation input. A deterministic six-sphere scene
+exercises the ordinary Game Content-to-Simulation-to-Render path; semantic
+lighting is not yet a Simulation or snapshot concept.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -385,6 +387,57 @@ responses without adding gameplay-light architecture to the PBR bootstrap.
   transforms.
 - Bright values survive the HDR target and roll off only during presentation.
 - Snapshot values remain detached from later ECS mutation.
+
+### Implemented Conventions
+
+The validation scene is a controlled `2 x 3` grid. All six ordinary ``Ball``
+entities use `MeshID.ball`, remain at world-space `z = 0`, and differ only by
+their position and `MaterialID`:
+
+| Row | x = -1.75 | x = 0 | x = 1.75 | y |
+| --- | --- | --- | --- | --- |
+| Warm dielectric | `warmDielectricSmooth` | `warmDielectric` | `warmDielectricRough` | `1.10` |
+| Gold metal | `goldMetalSmooth` | `goldMetal` | `goldMetalRough` | `-1.10` |
+
+Within each row, base color and metallic remain constant while perceptual
+roughness changes from left to right:
+
+| Material family | Linear base color | Metallic | Roughness values |
+| --- | --- | --- | --- |
+| Warm dielectric | `(0.5, 0.25, 0.125)` | `0` | `0.2`, `0.5`, `0.8` |
+| Gold metal | `(1, 0.766, 0.336)` | `1` | `0.2`, `0.35`, `0.8` |
+
+The two established Milestone 4 baselines remain unchanged. Roughness `0.2`
+avoids the evaluator's endpoint floor and an unnecessarily alias-sensitive
+peak, while `0.8` gives each family a clearly broader comparison.
+
+The entities retain their normal movement and rotation capabilities. Their
+velocity, acceleration intent, impulse, angular velocity, and angular
+accumulators all use zero/idle defaults, so the invariant Simulation schedule
+leaves the scene quiescent. They do not advertise scale; ``RenderFrame`` applies
+its existing `0.5` default. The default perspective camera remains at
+`(0, 0, 8)`, and the fixed Render-owned world-space `+Z` directional light is
+unchanged.
+
+Validation deliberately adds no app-facing render path. Surface and view-space
+normal modes remain the only `RenderOutputMode` cases. Test-addressable model
+fragment entry points expose base color, metallic, effective roughness, diffuse,
+and specular results while consuming the same `GPUInstance`, light record,
+production model evaluator, argument-table binding helper, and shared BRDF as
+the visible surface. Those functions are present in the bundled Metal library,
+but only the test harness creates pipeline states for them; production code adds
+no corresponding pipeline identity. The analytic proof measures roughness-lobe
+shape using values resolved from the authored catalog. The production HDR
+harness inspects both stored half-float radiance and final tone-mapped sRGB
+presentation.
+
+Builder tests freeze the six entities through the ordinary world, completed
+snapshot, and Render-owned projection, prove quiescence across fixed steps, and
+verify detachment from later ECS mutation. Catalog/model tests establish one
+packaged and decoded sphere mesh. A shared production iteration seam proves that
+the visible model loop visits all six projected instances in order, while the
+GPU harness exercises that loop's exact per-draw instance-binding operation and
+preserves six independent material identities.
 
 At this point, stop. Textures, Forward+, shadows, atmosphere, and large-world
 coordinates are separate changes with separate evidence and review.
