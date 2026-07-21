@@ -240,6 +240,119 @@ final class DiagnosticsEmitter {
         )
     }
 
+    /// Measures eager pipeline construction while preserving cache behavior.
+    func measurePipelineCompile<Result>(
+        pipelineID: MetalRenderPipelineID,
+        wasCacheHit: Bool,
+        operation: @escaping () throws -> Result
+    ) throws -> Result {
+        let start = timeSource()
+        var succeeded = false
+        defer {
+            let end = timeSource()
+            record(
+                category: .renderAsset,
+                timestampAt: end,
+                payload: .pipelineCompile(
+                    PipelineCompileDiagnostics(
+                        pipelineID: pipelineID,
+                        wasCacheHit: wasCacheHit,
+                        succeeded: succeeded,
+                        durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
+                    )
+                )
+            )
+        }
+
+        let operationWithSuccess = {
+            let result = try operation()
+            succeeded = true
+            return result
+        }
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderAsset)
+        guard signposter.isEnabled else {
+            return try operationWithSuccess()
+        }
+        return try signposter.withIntervalSignpost(
+            "PipelineCompile",
+            id: signposter.makeSignpostID(),
+            "session=\(self.sessionID.rawValue.uuidString, privacy: .public) pipeline=\(pipelineID.rawValue, privacy: .public) cache_hit=\(wasCacheHit, privacy: .public)",
+            around: operationWithSuccess
+        )
+    }
+
+    /// Measures model decoding and reports backend structure after success.
+    func measureAssetLoad(
+        requestedModelCount: Int,
+        operation: @escaping () throws -> RenderAssetLoadCounts
+    ) throws -> RenderAssetLoadCounts {
+        let start = timeSource()
+        var outcome = RenderAssetLoadCounts(
+            loadedModelCount: 0,
+            meshCount: 0,
+            submeshCount: 0
+        )
+        var succeeded = false
+        defer {
+            let end = timeSource()
+            record(
+                category: .renderAsset,
+                timestampAt: end,
+                payload: .assetLoad(
+                    AssetLoadDiagnostics(
+                        requestedModelCount: requestedModelCount,
+                        loadedModelCount: outcome.loadedModelCount,
+                        meshCount: outcome.meshCount,
+                        submeshCount: outcome.submeshCount,
+                        succeeded: succeeded,
+                        durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
+                    )
+                )
+            )
+        }
+
+        let operationWithSuccess = {
+            outcome = try operation()
+            succeeded = true
+            return outcome
+        }
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderAsset)
+        guard signposter.isEnabled else {
+            return try operationWithSuccess()
+        }
+        return try signposter.withIntervalSignpost(
+            "AssetLoad",
+            id: signposter.makeSignpostID(),
+            "session=\(self.sessionID.rawValue.uuidString, privacy: .public) requested_models=\(requestedModelCount, privacy: .public)",
+            around: operationWithSuccess
+        )
+    }
+
+    /// Records completed device-scoped resource structure once per store.
+    func recordRenderResourceInventory(_ inventory: RenderResourceInventoryDiagnostics) {
+        record(category: .renderAsset, payload: .renderResourceInventory(inventory))
+    }
+
+    /// Logs a preserved construction failure without changing throw behavior.
+    func logRenderPreparationFailed(
+        stage: RenderResourceConstructionStage,
+        error: any Error
+    ) {
+        let errorType = String(reflecting: type(of: error))
+        DiagnosticsOSHandles.logger(for: .renderAsset).error(
+            "event=render_preparation_failed session=\(self.sessionID.rawValue.uuidString, privacy: .public) stage=\(stage.rawValue, privacy: .public) error_type=\(errorType, privacy: .public)"
+        )
+        record(
+            category: .renderAsset,
+            payload: .renderResourceFailure(
+                RenderResourceFailureDiagnostics(
+                    stage: stage,
+                    errorType: errorType
+                )
+            )
+        )
+    }
+
     /// Measures one app-loop poll and records its fixed-step/backlog outcome.
     func measureSimulationPoll(
         sampledWallDelta: Duration,

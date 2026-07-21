@@ -1,4 +1,5 @@
 import Metal
+import MetalKit
 
 /// Device-scoped owner for long-lived Metal backend objects.
 ///
@@ -7,6 +8,9 @@ import Metal
 /// retains the corresponding device objects for exactly one `MTLDevice`.
 @MainActor
 final class MetalResourceStore {
+    /// App-owned diagnostic boundary shared with the Render Runtime.
+    private let diagnostics: DiagnosticsEmitter
+
     /// The root of every resource in this store. A different device requires a
     /// different store because Metal objects cannot move between devices.
     let device: any MTLDevice
@@ -56,7 +60,8 @@ final class MetalResourceStore {
     /// containing the renderer's required built-in resources.
     convenience init(
         renderAssetCatalog: RenderAssetCatalog,
-        frameCount: Int = MetalRenderer.maximumFramesInFlight
+        frameCount: Int = MetalRenderer.maximumFramesInFlight,
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter()
     ) throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw MetalResourceStoreError.missingDevice
@@ -65,7 +70,8 @@ final class MetalResourceStore {
         try self.init(
             device: device,
             renderAssetCatalog: renderAssetCatalog,
-            frameCount: frameCount
+            frameCount: frameCount,
+            diagnostics: diagnostics
         )
     }
 
@@ -73,7 +79,8 @@ final class MetalResourceStore {
     init(
         device: any MTLDevice,
         renderAssetCatalog: RenderAssetCatalog,
-        frameCount: Int = MetalRenderer.maximumFramesInFlight
+        frameCount: Int = MetalRenderer.maximumFramesInFlight,
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter()
     ) throws {
         guard frameCount > 0 else {
             throw MetalResourceStoreError.invalidFrameCount(frameCount)
@@ -82,23 +89,43 @@ final class MetalResourceStore {
         // Validate the closed authored-material vocabulary before allocating or
         // compiling backend state. A malformed content package therefore fails
         // during Render Runtime construction, never halfway through a frame.
-        try renderAssetCatalog.validateMaterialCoverage()
+        do {
+            try renderAssetCatalog.validateMaterialCoverage()
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .catalogValidation, error: error)
+            throw error
+        }
 
         guard let commandQueue = device.makeMTL4CommandQueue() else {
-            throw MetalResourceStoreError.missingCommandQueue
+            let error = MetalResourceStoreError.missingCommandQueue
+            diagnostics.logRenderPreparationFailed(stage: .commandQueue, error: error)
+            throw error
         }
 
         let compilerDescriptor = MTL4CompilerDescriptor()
         compilerDescriptor.label = "Engine2 Render Compiler"
-        let compiler = try device.makeCompiler(descriptor: compilerDescriptor)
+        let compiler: any MTL4Compiler
+        do {
+            compiler = try device.makeCompiler(descriptor: compilerDescriptor)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .compiler, error: error)
+            throw error
+        }
 
-        let residency = try MetalResidencyManager(
-            device: device,
-            commandQueue: commandQueue,
-            staticAssetCapacity: max(renderAssetCatalog.models.count * 4, 1),
-            frameResourceCapacity: frameCount * 3
-        )
+        let residency: MetalResidencyManager
+        do {
+            residency = try MetalResidencyManager(
+                device: device,
+                commandQueue: commandQueue,
+                staticAssetCapacity: max(renderAssetCatalog.models.count * 4, 1),
+                frameResourceCapacity: frameCount * 3
+            )
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .residency, error: error)
+            throw error
+        }
 
+        self.diagnostics = diagnostics
         self.device = device
         self.compiler = compiler
         self.commandQueue = commandQueue
@@ -107,17 +134,48 @@ final class MetalResourceStore {
 
         // Build the small required set eagerly so frame encoding performs only
         // deterministic dictionary lookup and never triggers compilation.
-        try makeFrameResources(count: frameCount)
-        try loadShaderLibrary(.engine)
-        try loadRenderPipeline(.modelPBR)
-        try loadRenderPipeline(.modelNormalDiagnostic)
-        try loadRenderPipeline(.hdrToneMappedPresentation)
-        try loadRenderPipeline(.linearPresentation)
-        try loadDepthStencilState(.opaque)
-        try loadArgumentTable(.model)
-        try loadArgumentTable(.pbrScene)
-        try loadArgumentTable(.hdrPresentation)
-        try loadModels(from: renderAssetCatalog)
+        do {
+            try makeFrameResources(count: frameCount)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .frameResources, error: error)
+            throw error
+        }
+        do {
+            try loadShaderLibrary(.engine)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .shaderLibrary, error: error)
+            throw error
+        }
+        do {
+            try loadRenderPipeline(.modelPBR)
+            try loadRenderPipeline(.modelNormalDiagnostic)
+            try loadRenderPipeline(.hdrToneMappedPresentation)
+            try loadRenderPipeline(.linearPresentation)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .pipeline, error: error)
+            throw error
+        }
+        do {
+            try loadDepthStencilState(.opaque)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .fixedFunctionState, error: error)
+            throw error
+        }
+        do {
+            try loadArgumentTable(.model)
+            try loadArgumentTable(.pbrScene)
+            try loadArgumentTable(.hdrPresentation)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .argumentTables, error: error)
+            throw error
+        }
+        do {
+            try loadModels(from: renderAssetCatalog)
+        } catch {
+            diagnostics.logRenderPreparationFailed(stage: .models, error: error)
+            throw error
+        }
+        reportResourceInventory()
     }
 
     /// Returns a previously loaded shader library.
@@ -210,12 +268,22 @@ final class MetalResourceStore {
 
     /// Compiles the Metal 4 render pipeline defined by a closed identity.
     @discardableResult
-    private func loadRenderPipeline(
+    func loadRenderPipeline(
         _ id: MetalRenderPipelineID
     ) throws -> any MTLRenderPipelineState {
         if let existingState = renderPipelineStates[id] {
-            return existingState
+            return try diagnostics.measurePipelineCompile(
+                pipelineID: id,
+                wasCacheHit: true
+            ) {
+                existingState
+            }
         }
+
+        return try diagnostics.measurePipelineCompile(
+            pipelineID: id,
+            wasCacheHit: false
+        ) {
 
         let vertexFunctionName: String
         let fragmentFunctionName: String
@@ -248,7 +316,7 @@ final class MetalResourceStore {
             colorPixelFormat = MetalRenderer.colorPixelFormat
         }
 
-        let library = try shaderLibrary(for: .engine)
+        let library = try self.shaderLibrary(for: .engine)
         let vertexFunction = MTL4LibraryFunctionDescriptor()
         vertexFunction.library = library
         // Metal identifies shader entry points by their source names. The
@@ -267,12 +335,13 @@ final class MetalResourceStore {
         descriptor.rasterSampleCount = 1
         descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
 
-        let state = try compiler.makeRenderPipelineState(
+        let state = try self.compiler.makeRenderPipelineState(
             descriptor: descriptor
         )
 
-        renderPipelineStates[id] = state
-        return state
+            self.renderPipelineStates[id] = state
+            return state
+        }
     }
 
     /// Creates the immutable depth-stencil state defined by a closed identity.
@@ -400,21 +469,51 @@ final class MetalResourceStore {
     }
 
     private func loadModels(from catalog: RenderAssetCatalog) throws {
-        let loadedModels = try USDRenderModel.load(
-            catalog: catalog,
-            device: device
-        )
+        _ = try diagnostics.measureAssetLoad(requestedModelCount: catalog.models.count) {
+            let loadedModels = try USDRenderModel.load(
+                catalog: catalog,
+                device: self.device
+            )
 
-        for (meshID, model) in loadedModels {
-            models[meshID] = model
+            for (meshID, model) in loadedModels {
+                self.models[meshID] = model
 
-            for allocation in model.allocations {
-                residency.addStaticAllocation(allocation)
+                for allocation in model.allocations {
+                    self.residency.addStaticAllocation(allocation)
+                }
             }
-        }
 
-        // Apply the full initial asset batch together. Later streaming can use
-        // the same add/commit boundary without changing snapshot contracts.
-        residency.commitStaticAssets()
+            // Apply the full initial asset batch together. Later streaming can use
+            // the same add/commit boundary without changing snapshot contracts.
+            self.residency.commitStaticAssets()
+            let meshCount = loadedModels.values.reduce(0) { $0 + $1.meshes.count }
+            let submeshCount = loadedModels.values.reduce(0) { count, model in
+                count + model.meshes.reduce(0) { $0 + $1.submeshes.count }
+            }
+            return RenderAssetLoadCounts(
+                loadedModelCount: loadedModels.count,
+                meshCount: meshCount,
+                submeshCount: submeshCount
+            )
+        }
+    }
+
+    /// Publishes one completed low-frequency inventory after construction.
+    private func reportResourceInventory() {
+        let meshCount = models.values.reduce(0) { $0 + $1.meshes.count }
+        let submeshCount = models.values.reduce(0) { count, model in
+            count + model.meshes.reduce(0) { $0 + $1.submeshes.count }
+        }
+        diagnostics.recordRenderResourceInventory(
+            RenderResourceInventoryDiagnostics(
+                modelCount: models.count,
+                meshCount: meshCount,
+                submeshCount: submeshCount,
+                pipelineCount: renderPipelineStates.count,
+                argumentTableCount: argumentTables.count,
+                materialCount: materialDescriptions.count,
+                frameResourceCount: frames.count
+            )
+        )
     }
 }

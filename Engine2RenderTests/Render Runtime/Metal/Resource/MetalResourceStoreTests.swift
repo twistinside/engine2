@@ -4,6 +4,54 @@ import Testing
 
 struct MetalResourceStoreTests {
     @MainActor
+    @Test func constructionReportsPipelineAssetAndInventoryComplexity() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let sink = RecordingDiagnosticsSink()
+        let emitter = DiagnosticsEmitter(sink: sink)
+        let store = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: BasicGameContent().renderAssetCatalog,
+            diagnostics: emitter
+        )
+
+        let initialPipelineSamples = sink.samples.compactMap { sample -> PipelineCompileDiagnostics? in
+            guard case let .pipelineCompile(payload) = sample.payload else {
+                return nil
+            }
+            return payload
+        }
+        #expect(initialPipelineSamples.count == MetalRenderPipelineID.allCases.count)
+        #expect(initialPipelineSamples.allSatisfy { !$0.wasCacheHit && $0.succeeded })
+
+        _ = try store.loadRenderPipeline(.modelPBR)
+        let lastPipelineSample = try #require(sink.samples.last)
+        guard case let .pipelineCompile(cacheHit) = lastPipelineSample.payload else {
+            Issue.record("Expected a pipeline cache-hit sample")
+            return
+        }
+        #expect(cacheHit.pipelineID == .modelPBR)
+        #expect(cacheHit.wasCacheHit)
+
+        let asset = try #require(sink.samples.compactMap { sample -> AssetLoadDiagnostics? in
+            guard case let .assetLoad(payload) = sample.payload else { return nil }
+            return payload
+        }.last)
+        #expect(asset.requestedModelCount == 1)
+        #expect(asset.loadedModelCount == 1)
+        #expect(asset.meshCount > 0)
+        #expect(asset.submeshCount > 0)
+
+        let inventory = try #require(sink.samples.compactMap { sample -> RenderResourceInventoryDiagnostics? in
+            guard case let .renderResourceInventory(payload) = sample.payload else { return nil }
+            return payload
+        }.last)
+        #expect(inventory.modelCount == 1)
+        #expect(inventory.pipelineCount == MetalRenderPipelineID.allCases.count)
+        #expect(inventory.argumentTableCount == 3)
+        #expect(inventory.materialCount == MaterialID.allCases.count)
+    }
+
+    @MainActor
     @Test func ownsMetal4CompilerQueueAndRequiredStateLibraries() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
@@ -121,6 +169,8 @@ struct MetalResourceStoreTests {
     @MainActor
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let sink = RecordingDiagnosticsSink()
+        let emitter = DiagnosticsEmitter(sink: sink)
         let incompleteCatalog = RenderAssetCatalog(
             models: [:],
             materials: [
@@ -135,7 +185,8 @@ struct MetalResourceStoreTests {
         do {
             _ = try MetalResourceStore(
                 device: device,
-                renderAssetCatalog: incompleteCatalog
+                renderAssetCatalog: incompleteCatalog,
+                diagnostics: emitter
             )
             Issue.record("Expected incomplete authored material content to fail")
         } catch let error as RenderAssetCatalogError {
@@ -147,6 +198,14 @@ struct MetalResourceStoreTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+
+        let lastFailureSample = try #require(sink.samples.last)
+        guard case let .renderResourceFailure(failure) = lastFailureSample.payload else {
+            Issue.record("Expected a preserved Render construction failure")
+            return
+        }
+        #expect(failure.stage == .catalogValidation)
+        #expect(failure.errorType.contains("RenderAssetCatalogError"))
     }
 
     @MainActor
