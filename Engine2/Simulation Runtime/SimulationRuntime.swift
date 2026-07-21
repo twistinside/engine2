@@ -139,6 +139,24 @@ final class SimulationRuntime: PSimulationPresentationSource {
         state.isRunning = false
     }
 
+    /// Advances a deterministic diagnostic workload without starting the
+    /// wall-clock polling loop. This remains an app-owned scenario boundary.
+    func runDiagnosticFixedSteps(count: Int) {
+        engine.isSimulationRunning = true
+        state.isRunning = true
+        for _ in 0..<count {
+            engine.step()
+            publishPresentationSnapshot(at: engine.completedTick)
+        }
+    }
+
+    /// Republishes low-frequency structure after a recorder reset.
+    func reportDiagnosticInventory() {
+        engine.reportRuntimeInventory(
+            presentationEntityCount: latestPresentationSnapshot.entityPresentations.count
+        )
+    }
+
     /// Replaces the latest-value slot only after the engine completes a fixed step.
     private func publishPresentationSnapshot(at tick: SimulationTick) {
         latestPresentationSnapshot = diagnostics.capturePresentationSnapshot(

@@ -35,6 +35,11 @@ struct Engine2App: App {
                 diagnostics: diagnostics
             )
         )
+        DiagnosticsScenarioProcessAdapter.runIfRequested(
+            arguments: ProcessInfo.processInfo.arguments,
+            simulation: _simulation.wrappedValue,
+            diagnosticsRuntime: diagnosticsRuntime
+        )
     }
 
     var body: some Scene {
