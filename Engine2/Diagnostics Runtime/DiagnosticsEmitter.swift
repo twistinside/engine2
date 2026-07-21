@@ -12,7 +12,7 @@ final class DiagnosticsEmitter {
     let sessionID: DiagnosticsSessionID
 
     private let sessionStart: SuspendingClock.Instant
-    private let sink: any PDiagnosticsSink
+    private weak var sink: (any PDiagnosticsSink)?
     private let timeSource: TimeSource
 
     init(
@@ -293,7 +293,7 @@ final class DiagnosticsEmitter {
         timestampAt instant: SuspendingClock.Instant,
         payload: DiagnosticsSamplePayload
     ) {
-        sink.record(
+        sink?.record(
             DiagnosticsSample(
                 sessionID: sessionID,
                 timestamp: DiagnosticsTimestamp(

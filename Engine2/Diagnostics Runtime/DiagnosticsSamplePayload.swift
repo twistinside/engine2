@@ -10,4 +10,31 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
     case simulationPoll(SimulationPollDiagnostics)
     case simulationStep(SimulationStepDiagnostics)
     case systemUpdate(SystemUpdateDiagnostics)
+
+    var kind: DiagnosticsSampleKind {
+        switch self {
+        case .inputReceive: .inputReceive
+        case .inputSnapshot: .inputSnapshot
+        case .presentationSnapshot: .presentationSnapshot
+        case .simulationRuntimeInventory: .simulationRuntimeInventory
+        case .simulationPoll: .simulationPoll
+        case .simulationStep: .simulationStep
+        case .systemUpdate: .systemUpdate
+        }
+    }
+
+    var durationNanoseconds: UInt64? {
+        switch self {
+        case .inputReceive, .inputSnapshot, .simulationRuntimeInventory:
+            nil
+        case let .presentationSnapshot(payload):
+            payload.durationNanoseconds
+        case let .simulationPoll(payload):
+            payload.durationNanoseconds
+        case let .simulationStep(payload):
+            payload.durationNanoseconds
+        case let .systemUpdate(payload):
+            payload.durationNanoseconds
+        }
+    }
 }
