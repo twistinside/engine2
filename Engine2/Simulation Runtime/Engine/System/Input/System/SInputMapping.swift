@@ -1,5 +1,7 @@
 /// Converts raw input state into engine-level action values.
 struct SInputMapping: PSystem {
+    let diagnosticsID: SimulationSystemID? = .inputMapping
+
     var pointerOrbitSensitivity: Float = 0.01
     var scrollZoomSensitivity: Float = 0.04
 

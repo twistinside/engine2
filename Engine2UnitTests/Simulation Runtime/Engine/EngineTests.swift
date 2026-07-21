@@ -151,6 +151,70 @@ struct EngineTests {
         #expect(engine.completedTick == .zero)
         #expect(engine.accumulatedTime == .zero)
     }
+
+    @MainActor
+    @Test func diagnosticsPreserveScheduleOrderTickAndWorldResults() throws {
+        let sink = RecordingDiagnosticsSink()
+        let diagnostics = DiagnosticsEmitter(sink: sink)
+        let world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        world.motionComponents.insert(
+            CMotion(velocity: SIMD3<Float>(2, 0, 0)),
+            for: entity
+        )
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .milliseconds(500),
+            diagnostics: diagnostics,
+            alwaysSystems: [SInputCleanup()],
+            systems: [SMovement()]
+        )
+
+        engine.step()
+
+        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(1, 0, 0))
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+        #expect(sink.samples.count == 3)
+        let alwaysSystem = try #require(systemIdentity(from: sink.samples[0]))
+        let simulationSystem = try #require(systemIdentity(from: sink.samples[1]))
+        let step = try #require(stepIdentity(from: sink.samples[2]))
+        #expect(
+            alwaysSystem
+                == (.inputCleanup, .always, 0, SimulationTick(rawValue: 1), nil)
+        )
+        #expect(
+            simulationSystem
+                == (.movement, .simulation, 0, SimulationTick(rawValue: 1), 1)
+        )
+        #expect(step == (SimulationTick(rawValue: 1), true))
+    }
+}
+
+private func systemIdentity(
+    from sample: DiagnosticsSample
+) -> (SimulationSystemID, SimulationScheduleLane, Int, SimulationTick, Int?)? {
+    guard case let .systemUpdate(payload) = sample.payload else {
+        return nil
+    }
+
+    return (
+        payload.systemID,
+        payload.scheduleLane,
+        payload.executionOrder,
+        payload.tick,
+        payload.workCount
+    )
+}
+
+private func stepIdentity(
+    from sample: DiagnosticsSample
+) -> (SimulationTick, Bool)? {
+    guard case let .simulationStep(payload) = sample.payload else {
+        return nil
+    }
+
+    return (payload.tick, payload.didRunSimulationSystems)
 }
 
 private func inputSnapshot(

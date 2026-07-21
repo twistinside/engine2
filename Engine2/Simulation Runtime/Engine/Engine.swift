@@ -2,6 +2,7 @@
 /// and ordered system execution against the world state.
 final class Engine {
     private let fixedTimeStepSeconds: Float
+    private let diagnostics: DiagnosticsEmitter
 
     private(set) var accumulatedTime: Duration = .zero
     private var alwaysSystems: [any PSystem]
@@ -17,6 +18,7 @@ final class Engine {
     init(
         world: World = World(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter(),
         alwaysSystems: [any PSystem] = [
             SInputMapping(),
             SCameraInput(),
@@ -29,6 +31,7 @@ final class Engine {
         self.completedTick = .zero
         self.fixedTimeStep = fixedTimeStep
         self.fixedTimeStepSeconds = fixedTimeStep.seconds
+        self.diagnostics = diagnostics
         self.alwaysSystems = alwaysSystems
         self.simulationSystems = systems
         self.pendingInputSnapshot = nil
@@ -55,6 +58,19 @@ final class Engine {
 
     /// Advances the world by one fixed simulation step.
     func step(inputSnapshot: InputSnapshot? = nil) {
+        let stepTick = completedTick.advanced()
+        diagnostics.measureSimulationStep(
+            tick: stepTick,
+            didRunSimulationSystems: isSimulationRunning
+        ) {
+            performStep(inputSnapshot: inputSnapshot, tick: stepTick)
+        }
+    }
+
+    private func performStep(
+        inputSnapshot: InputSnapshot?,
+        tick: SimulationTick
+    ) {
         retainLatestInputSnapshot(inputSnapshot)
 
         // Import raw input once, immediately before the fixed-step schedule.
@@ -65,14 +81,14 @@ final class Engine {
             self.pendingInputSnapshot = nil
         }
 
-        run(&alwaysSystems)
+        run(&alwaysSystems, tick: tick, lane: .always)
 
         if isSimulationRunning {
-            run(&simulationSystems)
+            run(&simulationSystems, tick: tick, lane: .simulation)
         }
 
         // Publishable state is complete only after the full ordered schedule.
-        completedTick = completedTick.advanced()
+        completedTick = tick
     }
 
     /// Installs a newly constructed world and begins a new tick timeline.
@@ -99,12 +115,33 @@ final class Engine {
         simulationSystems.append(system)
     }
 
-    private func run(_ systems: inout [any PSystem]) {
+    private func run(
+        _ systems: inout [any PSystem],
+        tick: SimulationTick,
+        lane: SimulationScheduleLane
+    ) {
         for index in systems.indices {
-            systems[index].update(
-                world: &world,
-                deltaTime: fixedTimeStepSeconds
-            )
+            guard let systemID = systems[index].diagnosticsID else {
+                systems[index].update(
+                    world: &world,
+                    deltaTime: fixedTimeStepSeconds
+                )
+                continue
+            }
+
+            let workCount = systems[index].diagnosticsWorkCount(in: world)
+            diagnostics.measureSystemUpdate(
+                tick: tick,
+                systemID: systemID,
+                scheduleLane: lane,
+                executionOrder: index,
+                workCount: workCount
+            ) {
+                systems[index].update(
+                    world: &world,
+                    deltaTime: fixedTimeStepSeconds
+                )
+            }
         }
     }
 

@@ -1,20 +1,15 @@
-import OSLog
 import simd
 
 /// Applies one frame of accumulated angular motion by first updating angular
 /// velocity and then advancing orientation from the new angular velocity.
 class SRotation: PSystem {
-    private static let signposter = OSSignposter(
-        subsystem: "Engine2",
-        category: "SRotation"
-    )
+    let diagnosticsID: SimulationSystemID? = .rotation
+
+    func diagnosticsWorkCount(in world: World) -> Int? {
+        world.angularVelocityComponents.dense.count
+    }
 
     func update(world: inout World, deltaTime: Float) {
-        let signpostState = Self.signposter.beginInterval("SRotation.update")
-        defer {
-            Self.signposter.endInterval("SRotation.update", signpostState)
-        }
-
         // Most entities will have no explicit angular input this frame, so reuse
         // one zero-value accumulator instead of constructing a new default each iteration.
         let zeroAccumulator = CAngularMotionAccumulator(

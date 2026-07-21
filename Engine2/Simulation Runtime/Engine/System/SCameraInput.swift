@@ -2,6 +2,8 @@ import simd
 
 /// Applies mapped camera input to the active perspective orbit camera.
 struct SCameraInput: PSystem {
+    let diagnosticsID: SimulationSystemID? = .cameraInput
+
     var target: SIMD3<Float>
     var minimumRadius: Float
     var maximumRadius: Float
