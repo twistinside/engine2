@@ -87,6 +87,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Index into `frames` for the next draw call.
     private var frameIndex = 0
 
+    /// Render cadence identity and latest sampled Simulation publication.
+    private var nextFrameSequence = RenderFrameSequence.zero
+    private var lastSourceTick: SimulationTick?
+
     init(
         resources: MetalResourceStore,
         presentationSource: any PSimulationPresentationSource,
@@ -144,25 +148,56 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     /// Draws the models selected by the latest immutable render frame.
     func draw(in view: MTKView) {
+        let frameSequence = nextFrameSequence
+        nextFrameSequence = frameSequence.advanced()
+        diagnostics.measureRenderFrameCPU(frameSequence: frameSequence) {
+            self.performDraw(in: view, frameSequence: frameSequence)
+        }
+    }
+
+    /// Performs one callback while accumulating its already-computed work facts.
+    private func performDraw(
+        in view: MTKView,
+        frameSequence: RenderFrameSequence
+    ) -> RenderFrameCPUDiagnostics {
+        var outcome = RenderFrameCPUDiagnostics(
+            frameSequence: frameSequence,
+            sourceTick: nil,
+            didSourceTickChange: false,
+            submittedInstanceCount: 0,
+            renderPassCount: 0,
+            drawCount: 0,
+            submeshCount: 0,
+            wasTruncated: false,
+            result: .terminalError,
+            durationNanoseconds: 0
+        )
+
         // A Metal 4 feedback failure is terminal for this renderer instance.
         // Continuing to submit would reuse state after an unknown GPU failure
         // and would make the original diagnostic harder to reason about.
         guard renderErrorState.latestError == nil else {
-            return
+            return outcome
         }
 
         // Pick the next frame slot before touching the drawable. If all slots
         // are still in flight, this applies back pressure here instead of
         // continuing to allocate command memory without bound.
+        let frameSlot = frameIndex
         let frame = nextFrame()
-        frame.waitUntilAvailable()
+        diagnostics.measureFrameSlotWait(
+            frameSequence: frameSequence,
+            frameSlot: frameSlot
+        ) {
+            frame.waitUntilAvailable()
+        }
 
         // While this draw waits, Metal feedback may record a failure on another
         // thread. Recheck after acquiring the slot so a failure that unblocked
         // this very wait cannot trigger one more frame.
         guard renderErrorState.latestError == nil else {
             frame.markAvailable()
-            return
+            return outcome
         }
 
         // Sample only after back pressure clears so this draw uses the newest
@@ -178,6 +213,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         } else {
             renderFrame = .empty
         }
+        outcome.sourceTick = renderFrame.sourceTick
+        outcome.didSourceTickChange = lastSourceTick != renderFrame.sourceTick
+        lastSourceTick = renderFrame.sourceTick
+        outcome.wasTruncated = renderFrame.instances.count > FrameResources.maximumInstanceCount
 
         let materialDescriptions: [PBRMaterialDescription]
         do {
@@ -187,7 +226,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         } catch {
             renderErrorState.record(error)
             frame.markAvailable()
-            return
+            outcome.result = .materialResolutionFailed
+            return outcome
         }
 
         // The commit feedback handler marks the frame available only after the
@@ -206,7 +246,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             // No GPU work was submitted for this slot, so release it back to the
             // ring immediately.
             frame.markAvailable()
-            return
+            outcome.result = .missingDrawable
+            return outcome
         }
 
         // MetalKit can temporarily vend a zero-sized drawable while a view is
@@ -216,7 +257,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let drawableHeight = drawable.texture.height
         guard drawableWidth > 0, drawableHeight > 0 else {
             frame.markAvailable()
-            return
+            outcome.result = .invalidDrawableSize
+            return outcome
         }
 
         let sceneTarget: MetalHDRSceneTarget
@@ -231,7 +273,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         } catch {
             renderErrorState.record(error)
             frame.markAvailable()
-            return
+            outcome.result = .targetPreparationFailed
+            return outcome
         }
 
         // Drawable ownership is explicit in Metal 4: wait before encoding work
@@ -256,16 +299,24 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                 height: drawableHeight
             )
         )
+        outcome.submittedInstanceCount = instanceCount
+        let destinationTexture = drawable.texture
+        let clearColor = viewRenderPassDescriptor.colorAttachments[0].clearColor
 
         // Phase one shades opaque geometry into linear half-float scene color;
         // phase two presents that stored value to the sRGB drawable. The frame
         // pass owns their barrier and ordering so every caller uses one pathway.
+        let encodeMeasurement = diagnostics.beginFrameEncode(
+            frameSequence: frameSequence,
+            sourceTick: renderFrame.sourceTick
+        )
+        var counts = RenderDrawCounts()
         do {
             try hdrFramePass.encode(
                 sceneColorTexture: sceneTarget.texture,
                 depthTexture: depthTexture,
-                destinationTexture: drawable.texture,
-                clearColor: viewRenderPassDescriptor.colorAttachments[0].clearColor,
+                destinationTexture: destinationTexture,
+                clearColor: clearColor,
                 presentationParametersBuffer: frame.hdrPresentationParametersBuffer,
                 outputMode: outputMode,
                 into: commandBuffer
@@ -282,21 +333,37 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                     frame.pbrSceneParametersBuffer.gpuAddress,
                     index: 2
                 )
-                draw(
+                counts = draw(
                     renderFrame.instances,
                     instanceCount: instanceCount,
                     frame: frame,
                     with: sceneEncoder
                 )
             }
+            diagnostics.endFrameEncode(
+                encodeMeasurement,
+                frameSequence: frameSequence,
+                sourceTick: renderFrame.sourceTick,
+                counts: counts
+            )
+            outcome.renderPassCount = 2
+            outcome.drawCount = counts.drawCount
+            outcome.submeshCount = counts.submeshCount
         } catch {
             // Encoder creation failures are terminal, unlike a temporarily
             // missing drawable. Preserve the exact error before abandoning the
             // closed command buffer and releasing its unsubmitted frame slot.
             commandBuffer.endCommandBuffer()
+            diagnostics.endFrameEncode(
+                encodeMeasurement,
+                frameSequence: frameSequence,
+                sourceTick: renderFrame.sourceTick,
+                counts: counts
+            )
             renderErrorState.record(error)
             frame.markAvailable()
-            return
+            outcome.result = .encodingFailed
+            return outcome
         }
 
         // `endCommandBuffer` makes the recorded work valid for queue submission.
@@ -307,7 +374,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // and exact resources are still CPU-owned and immediately reusable.
         guard renderErrorState.latestError == nil else {
             frame.markAvailable()
-            return
+            outcome.result = .abandonedAfterError
+            return outcome
         }
 
         // Metal 4 residency is not object ownership. Retain the complete store,
@@ -342,13 +410,16 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
         guard submitted else {
             frame.markAvailable()
-            return
+            outcome.result = .abandonedAfterError
+            return outcome
         }
 
         // Tell the queue which drawable belongs to the committed work, then
         // request presentation once rendering to it has completed.
         resources.commandQueue.signalDrawable(drawable)
         drawable.present()
+        outcome.result = .submitted
+        return outcome
     }
 
     /// Advances through the fixed-size frame resource ring.
@@ -376,10 +447,12 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         instanceCount: Int,
         frame: FrameResources,
         with renderEncoder: any MTL4RenderCommandEncoder
-    ) {
+    ) -> RenderDrawCounts {
         guard instanceCount > 0 else {
-            return
+            return RenderDrawCounts()
         }
+
+        var counts = RenderDrawCounts()
 
         Self.forEachRenderableModel(
             in: instances,
@@ -420,9 +493,12 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                         indexBuffer: indexBuffer.buffer.gpuAddress + UInt64(indexBuffer.offset),
                         indexBufferLength: indexBuffer.length
                     )
+                    counts.drawCount += 1
+                    counts.submeshCount += 1
                 }
             }
         }
+        return counts
     }
 
     /// Visits the exact bounded, model-resolved prefix used by visible draws.

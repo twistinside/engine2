@@ -138,6 +138,108 @@ final class DiagnosticsEmitter {
         return frame
     }
 
+    /// Measures main-actor back pressure at the bounded frame ring.
+    func measureFrameSlotWait(
+        frameSequence: RenderFrameSequence,
+        frameSlot: Int,
+        operation: () -> Void
+    ) {
+        let start = timeSource()
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderFrame)
+        if signposter.isEnabled {
+            signposter.withIntervalSignpost(
+                "FrameSlotWait",
+                id: signposter.makeSignpostID(),
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) frame=\(frameSequence.rawValue, privacy: .public) slot=\(frameSlot, privacy: .public)",
+                around: operation
+            )
+        } else {
+            operation()
+        }
+        let end = timeSource()
+        record(
+            category: .renderFrame,
+            timestampAt: end,
+            payload: .frameSlotWait(
+                FrameSlotWaitDiagnostics(
+                    frameSequence: frameSequence,
+                    frameSlot: frameSlot,
+                    durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
+                )
+            )
+        )
+    }
+
+    /// Begins Render encoding without moving Metal objects across a closure boundary.
+    func beginFrameEncode(
+        frameSequence: RenderFrameSequence,
+        sourceTick: SimulationTick
+    ) -> FrameEncodeMeasurement {
+        let start = timeSource()
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderFrame)
+        let state = signposter.beginInterval(
+            "FrameEncode",
+            id: signposter.makeSignpostID(),
+            "session=\(self.sessionID.rawValue.uuidString, privacy: .public) frame=\(frameSequence.rawValue, privacy: .public) tick=\(sourceTick.rawValue, privacy: .public)"
+        )
+        return FrameEncodeMeasurement(start: start, signpostState: state)
+    }
+
+    /// Ends Render encoding and reports counts from its real traversal.
+    func endFrameEncode(
+        _ measurement: FrameEncodeMeasurement,
+        frameSequence: RenderFrameSequence,
+        sourceTick: SimulationTick,
+        counts: RenderDrawCounts
+    ) {
+        let end = timeSource()
+        DiagnosticsOSHandles.signposter(for: .renderFrame).endInterval(
+            "FrameEncode",
+            measurement.signpostState
+        )
+        record(
+            category: .renderFrame,
+            timestampAt: end,
+            payload: .frameEncode(
+                FrameEncodeDiagnostics(
+                    frameSequence: frameSequence,
+                    sourceTick: sourceTick,
+                    renderPassCount: 2,
+                    drawCount: counts.drawCount,
+                    submeshCount: counts.submeshCount,
+                    durationNanoseconds: measurement.start.duration(to: end).diagnosticsNanoseconds
+                )
+            )
+        )
+    }
+
+    /// Measures the complete CPU callback and records its explicit outcome.
+    func measureRenderFrameCPU(
+        frameSequence: RenderFrameSequence,
+        operation: () -> RenderFrameCPUDiagnostics
+    ) {
+        let start = timeSource()
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderFrame)
+        var outcome: RenderFrameCPUDiagnostics
+        if signposter.isEnabled {
+            outcome = signposter.withIntervalSignpost(
+                "RenderFrameCPU",
+                id: signposter.makeSignpostID(),
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) frame=\(frameSequence.rawValue, privacy: .public)",
+                around: operation
+            )
+        } else {
+            outcome = operation()
+        }
+        let end = timeSource()
+        outcome.durationNanoseconds = start.duration(to: end).diagnosticsNanoseconds
+        record(
+            category: .renderFrame,
+            timestampAt: end,
+            payload: .renderFrameCPU(outcome)
+        )
+    }
+
     /// Measures one app-loop poll and records its fixed-step/backlog outcome.
     func measureSimulationPoll(
         sampledWallDelta: Duration,
