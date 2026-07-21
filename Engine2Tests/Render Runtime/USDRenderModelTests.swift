@@ -115,8 +115,8 @@ struct USDRenderModelTests {
                 #expect(decodedNormal.z.isFinite)
                 #expect(abs(normalLength - 1) < 0.0001)
 
-                // Ball.usdz contains an implicit sphere. Model I/O-generated
-                // normals must point outward, not merely have unit length.
+                // The explicit sphere authors smooth normals that must remain
+                // outward-facing through import, not merely unit length.
                 if simd_length(decodedPosition) > 0 {
                     #expect(
                         simd_dot(
@@ -127,5 +127,35 @@ struct USDRenderModelTests {
                 }
             }
         }
+    }
+
+    @MainActor
+    @Test func packagedSphereMaintainsAuthoredGeometryDensity() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let models = try USDRenderModel.load(
+            catalog: BasicGameContent().renderAssetCatalog,
+            device: device
+        )
+        let model = try #require(models[.ball])
+
+        // Validate the renderer's decoded result rather than the source file.
+        // Model I/O may weld seam vertices or split a USD mesh while importing,
+        // but neither behavior should erase the asset's intended density.
+        let decodedVertexCount = model.meshes.reduce(0) {
+            $0 + $1.vertexCount
+        }
+        let submeshes = model.meshes.flatMap(\.submeshes)
+        try #require(!submeshes.isEmpty)
+        #expect(submeshes.allSatisfy { $0.primitiveType == .triangle })
+
+        let decodedTriangleCount = submeshes.reduce(0) {
+            $0 + $1.indexCount / 3
+        }
+
+        // Ball is authored as a 64 x 32 UV sphere. These floors tolerate
+        // importer-specific vertex welding while preventing a regression to
+        // the old low-density implicit sphere (92 vertices, 180 triangles).
+        #expect(decodedVertexCount >= 1_900)
+        #expect(decodedTriangleCount >= 3_800)
     }
 }
