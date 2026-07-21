@@ -4,7 +4,9 @@ This article proposes an observability architecture for understanding Engine2 pe
 
 ## Status
 
-Proposed future work.
+Proposed architecture with implementation planned on the long-lived `instrumentation-diagnostics` branch.
+
+That branch is the working integration line for the numbered changes in this article. It is expected to be rebased onto `main` regularly while the design is exercised, measured, and revised. A committed experiment may be replaced when evidence shows a better boundary, but every retained commit should remain buildable and reviewable.
 
 The current app has useful debug surfaces, including input history, render output modes, and a retained terminal render error. It does not yet have a shared telemetry vocabulary, signposts, structured runtime logs, repeatable performance scenarios, or machine-readable diagnostic bundles.
 
@@ -385,9 +387,23 @@ When Engine2 is ready to collect field evidence:
 
 The first likely field intervals are extended app readiness, active simulation, and visible frame presentation. Per-system MetricKit signposts would be too implementation-specific and numerous; local diagnostics remain the better surface for that detail.
 
+## Integration Branch Strategy
+
+Implement this proposal on the repository branch named `instrumentation-diagnostics`.
+
+- Start the branch from the accepted documentation proposal and land the numbered commits below on that one integration line.
+- Rebase onto `main` after relevant upstream architecture changes and before beginning a new major block of dependent work. Do not merge `main` into the branch merely to avoid resolving a rebase.
+- After rebasing a published branch, update its remote with force-with-lease semantics so concurrent work is not overwritten silently.
+- Keep each commit independently buildable with its relevant tests, fixtures, and documentation. A later commit must not be required to repair an earlier one.
+- Treat the branch as an evidence-gathering workspace. If an API, signpost boundary, sample model, or visualization proves unhelpful, revise or remove it before building additional dependencies on top of it.
+- Update this article in the same branch when implementation findings change the proposed ownership, schema, capture workflow, or rollout order.
+- Keep generated captures outside Git even while experimenting. Check in only source, small fixtures, schemas, reviewed summaries, and configuration.
+
+`main` remains the authoritative integration base. The working branch may evolve through rebases and focused revisions; that flexibility does not relax runtime ownership, privacy, typing, or validation requirements.
+
 ## Rollout as Committable Changes
 
-The rollout should be an ordered series of small commits, not four feature branches that land all at once. Every commit below has one primary concern, includes its own tests or fixture validation, and leaves the app buildable. Land the numbered commits in dependency order; a later slice must not be needed to make an earlier slice complete. Later commits may refine an earlier diagnostic schema, but must version that change in the same commit.
+The rollout on `instrumentation-diagnostics` should be an ordered series of small commits, not a few broad phase commits that land all at once. Every commit below has one primary concern, includes its own tests or fixture validation, and leaves the app buildable. Land the numbered commits in dependency order; a later slice must not be needed to make an earlier slice complete. Later commits may refine an earlier diagnostic schema, but must version that change in the same commit.
 
 The first implementation track prioritizes Simulation because fixed-step overload policy is a known gap and system-count growth is the clearest near-term complexity risk. Render instrumentation follows only after capture and comparison are useful enough to consume it.
 
@@ -399,7 +415,7 @@ The first implementation track prioritizes Simulation because fixed-step overloa
 - Make no production-code or build-setting changes.
 - Verify with a DocC build and record any pre-existing documentation warnings separately.
 
-This documentation change is the reviewable contract for the implementation commits below.
+This documentation change is the reviewable contract and branch point for the implementation commits below.
 
 ### Commit 1: Add the Typed Diagnostics Boundary
 
