@@ -3,13 +3,12 @@
 
 #include <metal_stdlib>
 
-/// Temporary visible-path binding for one validation material and light.
+/// Frame-constant directional light shared by authored-material draws.
 ///
-/// This mirrors Swift's `PBRSceneParameters` and is intentionally not the
-/// authored material ABI that Milestone 4 will design.
+/// This mirrors Swift's `PBRSceneParameters`. Per-draw material factors live in
+/// `ModelInstance`, keeping this scene record independent of draw appearance.
 struct PBRSceneParameters {
-    metal::float4 baseColorMetallic;
-    metal::float4 directionToLightRoughness;
+    metal::float4 directionToLightPadding;
     metal::float4 lightColorIntensity;
 };
 

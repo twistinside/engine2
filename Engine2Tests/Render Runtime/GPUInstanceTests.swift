@@ -3,17 +3,50 @@ import Testing
 @testable import Engine2
 
 struct GPUInstanceTests {
-    @Test func layoutMatchesThreeAlignedMetalMatrices() {
-        // MSL float4x4 is 64 bytes and float3x3 is three 16-byte columns.
-        // Locking the aggregate stride protects address arithmetic in the
-        // argument table when Swift or shader fields change independently.
+    @Test func layoutMatchesMetalTransformsAndTwoMaterialLanes() {
+        // MSL float4x4 is 64 bytes, float3x3 is three 16-byte columns, and the
+        // material uses two explicit float4 lanes. Locking every offset protects
+        // per-draw address arithmetic and the independent Swift/Metal layouts.
         #expect(MemoryLayout<GPUInstance>.alignment == 16)
-        #expect(MemoryLayout<GPUInstance>.stride == 176)
+        #expect(MemoryLayout<GPUInstance>.stride == 208)
         #expect(
             MemoryLayout<GPUInstance>.offset(of: \.modelViewProjectionMatrix) == 0
         )
         #expect(MemoryLayout<GPUInstance>.offset(of: \.modelViewMatrix) == 64)
         #expect(MemoryLayout<GPUInstance>.offset(of: \.normalMatrix) == 128)
+        #expect(MemoryLayout<GPUInstance>.offset(of: \.baseColorMetallic) == 176)
+        #expect(
+            MemoryLayout<GPUInstance>.offset(
+                of: \.perceptualRoughnessPadding
+            ) == 192
+        )
+    }
+
+    @Test func packsAuthoredFactorsIntoAlignedPerDrawLanes() {
+        let material = PBRMaterialDescription(
+            baseColor: SIMD3<Float>(0.2, 0.4, 0.8),
+            metallic: 0.75,
+            perceptualRoughness: 0.3
+        )
+        let gpuInstance = GPUInstance(
+            RenderInstance(
+                meshID: .ball,
+                materialID: .warmDielectric,
+                transform: Transform()
+            ),
+            material: material,
+            viewMatrix: matrix_identity_float4x4,
+            projectionMatrix: matrix_identity_float4x4
+        )
+
+        #expect(
+            gpuInstance.baseColorMetallic
+                == SIMD4<Float>(0.2, 0.4, 0.8, 0.75)
+        )
+        #expect(
+            gpuInstance.perceptualRoughnessPadding
+                == SIMD4<Float>(0.3, 0, 0, 0)
+        )
     }
 
     @Test func inverseTransposeKeepsNormalPerpendicularAfterNonuniformScale() {
@@ -32,10 +65,15 @@ struct GPUInstanceTests {
             ),
             scale: SIMD3<Float>(2, 0.5, 3)
         )
-        let renderInstance = RenderInstance(meshID: .ball, transform: transform)
+        let renderInstance = RenderInstance(
+            meshID: .ball,
+            materialID: .warmDielectric,
+            transform: transform
+        )
         let camera = Camera.lookingAt(.zero, from: SIMD3<Float>(0, 1, 8))
         let gpuInstance = GPUInstance(
             renderInstance,
+            material: Self.warmDielectric,
             viewMatrix: camera.viewMatrix,
             projectionMatrix: camera.projectionMatrix(aspectRatio: 1)
         )
@@ -56,6 +94,7 @@ struct GPUInstanceTests {
     @Test func cameraTranslationDoesNotChangeNormalTransform() {
         let renderInstance = RenderInstance(
             meshID: .ball,
+            materialID: .warmDielectric,
             transform: Transform(
                 rotation: simd_quatf(
                     angle: .pi / 4,
@@ -69,11 +108,13 @@ struct GPUInstanceTests {
         let projection = firstCamera.projectionMatrix(aspectRatio: 1)
         let first = GPUInstance(
             renderInstance,
+            material: Self.warmDielectric,
             viewMatrix: firstCamera.viewMatrix,
             projectionMatrix: projection
         )
         let translated = GPUInstance(
             renderInstance,
+            material: Self.warmDielectric,
             viewMatrix: translatedCamera.viewMatrix,
             projectionMatrix: projection
         )
@@ -85,6 +126,12 @@ struct GPUInstanceTests {
             )
         )
     }
+
+    private static let warmDielectric = PBRMaterialDescription(
+        baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+        metallic: 0,
+        perceptualRoughness: 0.5
+    )
 }
 
 private func upperLeft3x3(of matrix: simd_float4x4) -> simd_float3x3 {

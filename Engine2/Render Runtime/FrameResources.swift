@@ -10,10 +10,10 @@ final class FrameResources: @unchecked Sendable {
     /// The allocator that backs command encoding for one frame slot.
     let commandAllocator: any MTL4CommandAllocator
 
-    /// CPU-written, GPU-read transform data for entities in the current frame.
+    /// CPU-written, GPU-read transform and material data for current draws.
     let instanceBuffer: any MTLBuffer
 
-    /// Renderer-owned validation material and directional-light parameters.
+    /// Renderer-owned validation directional-light parameters.
     let pbrSceneParametersBuffer: any MTLBuffer
 
     /// Manual exposure consumed by the surface presentation pipeline.
@@ -51,13 +51,24 @@ final class FrameResources: @unchecked Sendable {
         availability.signal()
     }
 
+    /// Writes the bounded instance prefix and its already-resolved materials.
+    ///
+    /// `materialDescriptions` must preserve the order of `instances` and cover
+    /// every element that fits in this slot. Keeping resolution outside this
+    /// method lets missing authored content fail before mutable GPU state is
+    /// touched, while this method remains responsible only for stable packing.
     func write(
         _ instances: [RenderInstance],
+        materialDescriptions: [PBRMaterialDescription],
         camera: Camera,
         drawableSize: CGSize,
         exposure: ManualExposure = .validation
     ) -> Int {
         let instanceCount = min(instances.count, Self.maximumInstanceCount)
+        precondition(
+            materialDescriptions.count == instanceCount,
+            "Frame resources require exactly one resolved material description for every written instance."
+        )
         let aspectRatio = Float(
             drawableSize.width / max(drawableSize.height, 1)
         )
@@ -71,8 +82,12 @@ final class FrameResources: @unchecked Sendable {
         )
 
         for index in 0..<instanceCount {
+            // Material resolution preserves the submitted instance prefix and
+            // happens before this write. Keep those parallel values aligned so
+            // each stable GPU record contains the factors for its exact draw.
             destination[index] = GPUInstance(
                 instances[index],
+                material: materialDescriptions[index],
                 viewMatrix: viewMatrix,
                 projectionMatrix: projectionMatrix
             )

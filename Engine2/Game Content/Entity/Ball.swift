@@ -5,12 +5,12 @@ import simd
 /// Constructing a ball registers the component rows implied by its capability
 /// conformances. Its inherited identity and capability accessors remain live
 /// facades over `World`; the object does not duplicate authoritative simulation
-/// state. The mesh identity is backend-neutral and owned by Game Content.
+/// state. Its mesh and material identities are backend-neutral and owned by
+/// Game Content.
 class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
-    let initialMeshID = MeshID.ball
-
     convenience init(
         in world: World,
+        materialID: MaterialID = .warmDielectric,
         position: SIMD3<Float> = .zero,
         velocity: SIMD3<Float> = .zero,
         accelerationIntent: CMotion.AccelerationIntent = .idle,
@@ -21,8 +21,9 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
         angularImpulse: SIMD3<Float> = .zero,
         selectionState: CSelectable.SelectionState = .unselected
     ) {
-        self.init(
-            in: world,
+        self.init(unregisteredID: world.reserveEntityID(), in: world)
+        world.add(
+            self,
             from: Entity.InitialState(
                 position: position,
                 velocity: velocity,
@@ -33,6 +34,10 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
                 angularAcceleration: angularAcceleration,
                 angularImpulse: angularImpulse,
                 selectionState: selectionState
+            ),
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
             )
         )
     }

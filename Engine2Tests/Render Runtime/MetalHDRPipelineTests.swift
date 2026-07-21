@@ -9,9 +9,10 @@ struct MetalHDRPipelineTests {
         let renderer = try MetalHDRPipelineTestRenderer()
         let result = try renderer.render(outputMode: .surface)
 
-        // Independent normal-incidence reference for the fixed M3 validation
-        // material and incident radiance (8, 4, 2). The red component must stay
-        // above display white in the half-float scene phase.
+        // Independent normal-incidence reference for Game Content's authored
+        // warm dielectric and incident radiance (8, 4, 2). Reproducing M3's
+        // exact output proves the transitional renderer material was removed
+        // without changing the established HDR pathway.
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
             approximately: SIMD4<Float>(
@@ -44,6 +45,52 @@ struct MetalHDRPipelineTests {
         )
         #expect(byteDistance(result.presentedBGRA8, notEncoded) > 40)
         #expect(byteDistance(result.presentedBGRA8, twiceEncoded) > 40)
+    }
+
+    @Test func authoredGoldFactorsReachTheVisiblePBRPath() throws {
+        let renderer = try MetalHDRPipelineTestRenderer()
+        let result = try renderer.render(
+            outputMode: .surface,
+            materialID: .goldMetal
+        )
+
+        // Independent normal-incidence metallic-GGX reference for Game
+        // Content's base color (1, 0.766, 0.336), roughness 0.35, and the fixed
+        // incident radiance (8, 4, 2). This differs strongly from the warm
+        // dielectric and proves the authored factors reach the production
+        // surface fragment rather than a retained renderer fallback.
+        expectStoredHalfRGBA(
+            result.sceneLinearRGBA,
+            approximately: SIMD4<Float>(
+                42.42364164,
+                16.24825475,
+                3.5635859,
+                1
+            )
+        )
+    }
+
+    @Test func oneGeometryBufferKeepsDistinctPerDrawAuthoredMaterials() throws {
+        let renderer = try MetalHDRPipelineTestRenderer()
+        let forward = try renderer.renderAuthoredMaterialPair([
+            .warmDielectric,
+            .goldMetal
+        ])
+        let reversed = try renderer.renderAuthoredMaterialPair([
+            .goldMetal,
+            .warmDielectric
+        ])
+
+        // Both draws use the same triangle address, pipeline, scene light, and
+        // command buffer. Their samples are symmetric around the view center,
+        // so reversing only the identities must reverse the exact stored
+        // results. This proves both draws retained the correct material order,
+        // rather than merely producing two arbitrary distinct records.
+        #expect(forward.left == reversed.right)
+        #expect(forward.right == reversed.left)
+        #expect(forward.left != forward.right)
+        #expect(forward.left.w == 1)
+        #expect(forward.right.w == 1)
     }
 
     @Test func normalDiagnosticBypassesExposureAndReinhard() throws {

@@ -5,8 +5,8 @@
 
 /// Provisional four-lane binding used only by the isolated offscreen proof.
 ///
-/// This is intentionally not the eventual material or light ABI. Milestone 4
-/// owns that decision after the equations and HDR pathway are proven.
+/// This remains isolated from the production ABI: authored materials now live
+/// in `ModelInstance`, while production scene parameters contain only light.
 struct PBRProofParameters {
     metal::float4 baseColorMetallic;
     metal::float4 directionToLightRoughness;

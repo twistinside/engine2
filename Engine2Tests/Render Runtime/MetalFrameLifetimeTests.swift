@@ -10,7 +10,7 @@ struct MetalFrameLifetimeTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         let frame = try #require(resources.frames.first)

@@ -3,8 +3,9 @@ import simd
 /// Test-only mirror of the isolated proof shader's provisional 64-byte input.
 ///
 /// The four explicit SIMD lanes make Swift/Metal alignment inspectable without
-/// implying the material or light binding that Milestone 4 will eventually
-/// design. Values are validated in their semantic domain before being packed.
+/// implying the implemented production binding, where authored material data
+/// lives in `GPUInstance` and scene parameters contain only light. Values are
+/// validated in their semantic domain before being packed.
 struct PBRProofParameters {
     var baseColorMetallic: SIMD4<Float>
     var directionToLightRoughness: SIMD4<Float>

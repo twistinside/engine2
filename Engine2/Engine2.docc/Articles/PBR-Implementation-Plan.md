@@ -7,15 +7,15 @@ work begins.
 
 ## Status
 
-Implementation is in progress. Milestones 1–3 are implemented; Milestones 4
-and 5 remain proposed.
+Implementation is in progress. Milestones 1–4 are implemented; Milestone 5
+remains proposed.
 
-The visible renderer now evaluates the same direct-light BRDF as the isolated
-proof, writes scene-linear radiance into a renderer-owned half-float target,
-and presents it through explicit exposure, Reinhard tone mapping, and one sRGB
-transfer. Its material and directional light remain fixed Render-owned
-validation inputs. It has no authored PBR material description or semantic
-lighting input yet.
+The visible renderer now resolves authored Game Content materials, evaluates
+the same direct-light BRDF as the isolated proof, writes scene-linear radiance
+into a renderer-owned half-float target, and presents it through explicit
+exposure, Reinhard tone mapping, and one sRGB transfer. Its directional light
+remains a fixed Render-owned validation input; semantic lighting is not yet a
+Simulation or snapshot concept.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -81,9 +81,8 @@ multiple times to distinguish materials.
 
 Simulation remains authoritative for semantic world state:
 
-- `CRenderable` currently stores `MeshID`; the authored-material milestone adds
-  `MaterialID`. Snapshot capture iterates that store and joins position,
-  rotation, and scale from their separate components.
+- `CRenderable` stores `MeshID` and `MaterialID`. Snapshot capture iterates that
+  store and joins position, rotation, and scale from their separate components.
 - The validation spheres are ordinary renderable entities. This plan adds no
   light component, light capability, or light array to the presentation
   snapshot.
@@ -308,6 +307,50 @@ material count or draw organization requires them.
 - Several entities share one decoded sphere mesh when their appearances differ.
 - Material factors and Metal resources never enter ECS or a Simulation
   snapshot. Only `MaterialID` crosses that boundary.
+
+### Implemented Conventions
+
+The authored boundary remains deliberately smaller than a general material
+system:
+
+- Game Content owns the exhaustive `MaterialID` vocabulary. Its first two cases
+  are `warmDielectric` and `goldMetal`; both reuse `MeshID.ball` and differ only
+  by authored material intent.
+- Render owns `PBRMaterialDescription`. It accepts finite scene-linear base
+  color channels, metallic, and perceptual roughness in `0...1`, rejecting
+  invalid authored content instead of clamping it. The shader still owns the
+  documented roughness evaluation floor.
+- `RenderAssetCatalog` maps every `MaterialID` to one description. Store
+  construction validates exhaustive coverage in stable `MaterialID.allCases`
+  order before allocating or compiling backend resources. There is no default
+  material and therefore no partially drawn frame with a substituted surface.
+  `MetalSceneView.Coordinator` retains a construction failure for App
+  diagnostics instead of silently erasing it when no renderer is created.
+- `CRenderable`, `EntityPresentationSnapshot`, and `RenderInstance` carry only
+  `MaterialID`. They contain no factors, compact GPU indices, buffers, or Metal
+  objects. Snapshot capture copies the identity by value, so a later ECS change
+  cannot alter an already published presentation.
+- `MetalResourceStore` retains the validated CPU descriptions. `MetalRenderer`
+  waits for a frame slot, samples the newest completed presentation, and
+  resolves the bounded submitted prefix before resetting, writing, or encoding
+  mutable GPU state. The slot then packs base color plus metallic and roughness
+  into each draw's existing `GPUInstance`. The 208-byte record remains stable
+  through the frame-ring completion rule; no separate material allocation or
+  residency set exists.
+- `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
+  directional light is transformed into view space once per frame, while the
+  fragment stage reads the current draw's material from its instance record.
+- The model shader does not consume the decoded vertex display color or any
+  embedded USD material. The explicit authored description is the sole surface
+  authority even though the transitional vertex lane remains in the decoded
+  mesh layout.
+
+`warmDielectric` preserves the Milestone 3 factors exactly: base color
+`(0.5, 0.25, 0.125)`, metallic `0`, and perceptual roughness `0.5`. It therefore
+reproduces the existing HDR reference. `goldMetal` uses scene-linear base color
+`(1, 0.766, 0.336)`, metallic `1`, and perceptual roughness `0.35`, providing a
+second independently bound response without prematurely defining the complete
+Milestone 5 sphere scene.
 
 ## Milestone 5: Validate the Material Sphere Scene
 

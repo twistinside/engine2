@@ -38,7 +38,7 @@ Use these terms and constraints consistently:
 - **Game Content** is consumer-defined game code, descriptions, catalogs, and assets used to construct and configure runtimes. It is not a runtime and has no independent cadence or lifecycle.
 - The App is the composition root. It constructs Game Content, then supplies the relevant portions to independently constructed runtimes.
 - Use **Asset** for packaged source content such as models, textures, sounds, animations, and levels. Do not conflate assets with ECS or runtime resources, even though SwiftPM calls bundled files resources.
-- Game Content owns the exhaustive, strongly typed, backend-neutral identities for the entities and assets it defines, such as the current `MeshID` and future `MaterialID` and `SoundID` enums. Runtimes may carry and resolve those values, but they do not own the content vocabulary. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
+- Game Content owns the exhaustive, strongly typed, backend-neutral identities for the entities and assets it defines, such as the current `MeshID` and `MaterialID` and a future `SoundID` enum. Runtimes may carry and resolve those values, but they do not own the content vocabulary. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
 - Runtimes privately resolve content assets into backend resources. Game Content does not own runtime caches, GPU allocations, decoded audio, or runtime lifecycle.
 - Continuous presentation can be described through abstract ECS state and snapshots. Ephemeral presentation should normally derive from Simulation Runtime events plus consumer-supplied presentation rules.
 - Consumer Game Content may eventually define entities, components, optional behaviors, world builders, render/audio descriptions, asset catalogs, and event-presentation mappings through deliberate public Engine2 APIs.
@@ -143,13 +143,15 @@ Current example ownership:
   - Example Game Content builder that currently seeds the default `Ball` entities.
 - `Engine2/Engine2/Game Content/Model/MeshID.swift`
   - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
+- `Engine2/Engine2/Game Content/Material/MaterialID.swift`
+  - Game Content-owned enum defining the complete authored material identity vocabulary carried by simulation and resolved privately by Render.
 - `Engine2/Engine2/Game Content/Entity/Ball.swift`
   - Example entity object/facade.
-  - Advertises `MeshID.ball` through `PRenderable`; it does not know the model filename or renderer backend.
+  - Advertises `MeshID.ball` and its per-instance `MaterialID` through `PRenderable`; it does not know the model filename, material factors, or renderer backend.
   - Represents the intended style of game object API more than a finished implementation.
 - `Engine2/Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
-  - `CRenderable` stores only an abstract `MeshID` in ECS state.
-  - `PRenderable` seeds that component from Game Content entities and exposes its live value.
+  - `CRenderable` stores only abstract `MeshID` and `MaterialID` values in ECS state.
+  - `PRenderable` seeds those identities from Game Content entities and exposes their live values.
 - `Engine2/Engine2/Simulation Runtime/Snapshot/*.swift`
   - `SimulationTick` identifies completed fixed steps without wall-clock or render-cadence meaning.
   - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
@@ -157,11 +159,11 @@ Current example ownership:
   - Ordinary live publication uses latest-value semantics; retained replay history remains an explicit future recorder concern.
 - `Engine2/Engine2/Render Runtime/*.swift`
   - `RenderFrame.project(from:)` converts a `SimulationPresentationSnapshot` into private render instances and preserves the source tick identity.
-  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references.
+  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values.
   - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
   - `MetalRenderer` consumes `RenderFrame` using backend-specific state retained by its `MetalResourceStore`.
 - `Engine2/Engine2/Render Runtime/Resource/*.swift`
-  - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, typed shader/pipeline/depth/argument-table caches, decoded models, and frame resources.
+  - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, typed shader/pipeline/depth/argument-table caches, validated authored material descriptions, decoded models, and frame resources.
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Engine2/UI/Input/InputMetalView.swift`

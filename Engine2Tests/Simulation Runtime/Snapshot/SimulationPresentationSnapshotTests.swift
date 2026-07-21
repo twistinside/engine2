@@ -16,7 +16,10 @@ struct SimulationPresentationSnapshotTests {
             orthographicHeight: 10
         )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball),
+            CRenderable(
+                meshID: .ball,
+                materialID: .warmDielectric
+            ),
             for: renderableEntity
         )
         world.positionComponents.insert(
@@ -47,7 +50,17 @@ struct SimulationPresentationSnapshotTests {
         world.positionComponents.update(for: renderableEntity) { position in
             position.position = .zero
         }
+        let didUpdateMaterial = world.renderableComponents.update(
+            for: renderableEntity
+        ) { renderable in
+            renderable.materialID = .goldMetal
+        }
+        let laterSnapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: SimulationTick(rawValue: 13)
+        )
 
+        #expect(didUpdateMaterial)
         #expect(snapshot.tick == SimulationTick(rawValue: 12))
         #expect(snapshot.camera.position == SIMD3<Float>(1, 2, 8))
         #expect(snapshot.entityPresentations.map(\.id) == [renderableEntity])
@@ -57,5 +70,11 @@ struct SimulationPresentationSnapshotTests {
         #expect(entity.rotation?.vector == expectedRotation.vector)
         #expect(entity.scale == SIMD3<Float>(repeating: 2))
         #expect(entity.meshID == .ball)
+        #expect(entity.materialID == .warmDielectric)
+
+        // A later capture observes authoritative mutation, while the completed
+        // snapshot above remains a detached point-in-time value.
+        let laterEntity = try #require(laterSnapshot.entityPresentations.first)
+        #expect(laterEntity.materialID == .goldMetal)
     }
 }
