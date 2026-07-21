@@ -1,0 +1,1 @@
+{"kind":"manifest","manifest":{"buildConfiguration":"release","fixedStepNanoseconds":16666667,"measurementNanoseconds":15000000000,"randomSeed":42,"scenarioID":"baseline-six-ball","scenarioSchemaVersion":1,"schemaVersion":1,"sessionID":{"rawValue":"2F605D0B-B7C2-44A7-8D4F-8E73AB23ACCB"},"warmUpNanoseconds":2000000000},"schemaVersion":1}
