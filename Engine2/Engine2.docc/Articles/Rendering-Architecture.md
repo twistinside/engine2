@@ -134,6 +134,51 @@ For example, gameplay code can refer to a mesh ID, material ID, visibility flag,
 This keeps Metal-specific ownership and lifetime concerns inside the render layer.
 The identities, presentation descriptions, and source assets that differentiate a particular game belong to Game Content. The Render Runtime receives the relevant catalogs during App construction and privately resolves them into backend resources. See <doc:Game-Content-Architecture>.
 
+## Shared CPU/GPU Layout Headers
+
+> Directional: the current renderer still declares its Swift and Metal buffer
+> layouts separately and locks the Swift side with focused memory-layout and
+> offscreen rendering tests.
+
+As the renderer adds material textures, emission, local-light arrays, and other
+GPU inputs, prefer a shared C-compatible header for each raw layout that crosses
+the Swift/Metal ABI. Both Swift, through the target's C interoperability
+boundary, and Metal Shading Language, through `#include`, should compile the
+same field declarations. This removes a hand-maintained duplicate declaration
+without making the shared record a gameplay or authored-content type.
+
+Shared headers are appropriate for transport details such as:
+
+- per-instance GPU records
+- frame, scene, material, and light parameter records
+- buffer, texture, sampler, and attribute indices consumed on both sides
+
+Keep these headers limited to the C and SIMD vocabulary accepted by both
+compilers. Use explicitly aligned vector or matrix fields and explicit padding
+where the binding contract requires it. Avoid language-specific fields such as
+Swift `Bool`, references, optionals, collections, or renderer-owned objects.
+Following the project's one-type-per-file rule, prefer a focused header for one
+shared record rather than an accumulating catch-all shader-types header.
+
+The shared declaration is the raw wire representation, not the semantic API.
+Swift types such as `PBRMaterialDescription`, Game Content identities such as
+`MaterialID`, validation policy, and ergonomic construction should remain in
+Swift. A Swift extension or conversion step may populate the imported GPU
+record after validating and deriving its values.
+
+Shader-only implementation remains in `.metalh` files. BRDF helpers, stage
+outputs, and intermediate calculation types that Swift never reads do not gain
+anything from a C interoperability boundary. For example,
+`PBRDirectLighting.metalh` should remain Metal-only, while the currently mirrored
+`GPUInstance`/`ModelInstance`, `PBRSceneParameters`, and
+`HDRPresentationParameters` layouts are candidates for shared C headers.
+
+Continue testing alignment, size, stride, field offsets, and representative
+offscreen consumption even after declarations become shared. A common header
+prevents declaration drift, but tests still protect buffer allocation,
+addressing, binding indices, and the assumptions made by Swift initialization
+code.
+
 ## Device-Scoped Metal Resources
 
 `MetalResourceStore` is the current device-scoped root for backend resources.
