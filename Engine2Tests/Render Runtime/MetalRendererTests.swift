@@ -79,8 +79,46 @@ struct MetalRendererTests {
         // pipelines, models, or a renderer are created. The bridge retains the
         // exact error so App diagnostics do not see only an unexplained black
         // view, and no fallback material can enter a draw.
-        #expect(error == .missingMaterialDescriptions([.goldMetal]))
+        #expect(
+            error == .missingMaterialDescriptions(
+                MaterialID.allCases.filter { $0 != .warmDielectric }
+            )
+        )
         #expect(coordinator.renderer == nil)
+    }
+
+    @MainActor
+    @Test func publishedMaterialSceneReachesEveryProductionModelDraw() throws {
+        let scene = PublishedMaterialValidationScene()
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let resources = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: scene.catalog,
+            frameCount: 1
+        )
+        let instances = scene.renderFrame.instances
+        var visitedIndices: [Int] = []
+        var visitedMaterialIDs: [MaterialID] = []
+        var decodedMeshCounts: [Int] = []
+
+        // Call the same ordered lookup seam as `MetalRenderer.draw(in:)`.
+        // Together with the GPU binding proof, this closes the join between the
+        // real projected frame, its shared MeshID, and all six visible draws.
+        MetalRenderer.forEachRenderableModel(
+            in: instances,
+            instanceCount: instances.count,
+            resources: resources
+        ) { instanceIndex, model in
+            visitedIndices.append(instanceIndex)
+            visitedMaterialIDs.append(instances[instanceIndex].materialID)
+            decodedMeshCounts.append(model.meshes.count)
+        }
+
+        #expect(instances.count == 6)
+        #expect(instances.allSatisfy { $0.meshID == .ball })
+        #expect(visitedIndices == Array(instances.indices))
+        #expect(visitedMaterialIDs == scene.materialIDs)
+        #expect(decodedMeshCounts.allSatisfy { $0 > 0 })
     }
 
     @MainActor

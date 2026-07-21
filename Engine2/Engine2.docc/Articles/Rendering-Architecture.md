@@ -20,8 +20,8 @@ See <doc:PBR-Implementation-Plan> for the staged path from the current visible
 renderer through a directional-light PBR baseline and into the later Forward+
 local-light scaling work. Its normals/depth foundation, shared direct-light
 BRDF, visible HDR presentation chain, and authored material boundary are
-implemented; the controlled material-sphere scene remains the final bootstrap
-milestone.
+implemented, and a controlled six-sphere material scene now validates the
+complete bootstrap pathway.
 ## Chosen Rendering Path
 Engine2's planned production renderer uses one **Forward+** path with
 **physically based rendering (PBR)**. Render owns one shared direct-light BRDF

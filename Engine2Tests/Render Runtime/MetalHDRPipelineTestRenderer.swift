@@ -27,6 +27,9 @@ final class MetalHDRPipelineTestRenderer {
     private let frame: FrameResources
     private let pbrPipeline: any MTLRenderPipelineState
     private let normalPipeline: any MTLRenderPipelineState
+    private let diagnosticPipelines: [
+        ModelPBRDiagnosticOutput: any MTLRenderPipelineState
+    ]
     private let depthStencilState: any MTLDepthStencilState
     private let modelArgumentTable: any MTL4ArgumentTable
     private let pbrSceneArgumentTable: any MTL4ArgumentTable
@@ -55,6 +58,9 @@ final class MetalHDRPipelineTestRenderer {
         self.normalPipeline = try resources.renderPipelineState(
             for: .modelNormalDiagnostic
         )
+        self.diagnosticPipelines = try Self.makeDiagnosticPipelines(
+            resources: resources
+        )
         self.depthStencilState = try resources.depthStencilState(for: .opaque)
         self.modelArgumentTable = try resources.argumentTable(for: .model)
         self.pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
@@ -75,7 +81,8 @@ final class MetalHDRPipelineTestRenderer {
         materialID: MaterialID = .warmDielectric
     ) throws -> MetalHDRPipelineTestResult {
         let results = try render(
-            outputMode: outputMode,
+            scenePipeline: scenePipeline(for: outputMode),
+            presentationOutputMode: outputMode,
             normal: normal,
             exposure: exposure,
             materialIDs: [materialID],
@@ -104,7 +111,8 @@ final class MetalHDRPipelineTestRenderer {
             "The paired material proof requires exactly two identities."
         )
         let results = try render(
-            outputMode: .surface,
+            scenePipeline: pbrPipeline,
+            presentationOutputMode: .surface,
             normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
             materialIDs: materialIDs,
@@ -117,10 +125,61 @@ final class MetalHDRPipelineTestRenderer {
         )
     }
 
+    /// Draws every published validation-scene material in one production-model
+    /// scene pass and retains samples from both sides of the HDR boundary.
+    ///
+    /// The narrow centered strips all intersect the shared analytic triangle.
+    /// Their distinct regions let one submission validate every per-draw record
+    /// while continuing to use production frame packing and argument binding.
+    func renderAuthoredMaterialScene(
+        _ materialIDs: [MaterialID]
+    ) throws -> [MetalHDRPipelineTestResult] {
+        let layout = Self.centeredStripLayout(drawCount: materialIDs.count)
+        return try render(
+            scenePipeline: pbrPipeline,
+            presentationOutputMode: .surface,
+            normal: SIMD3<Float>(0, 0, 1),
+            exposure: .validation,
+            materialIDs: materialIDs,
+            scissorRects: layout.scissorRects,
+            sampleRegions: layout.sampleRegions
+        )
+    }
+
+    /// Exposes one production-model evaluator field for every authored draw.
+    ///
+    /// Diagnostic pipelines are compiled only by this test harness. They still
+    /// consume the ordinary model vertex output, `GPUInstance`, frame light,
+    /// production binding helper, and shared BRDF used by the visible surface.
+    func renderDiagnostic(
+        _ output: ModelPBRDiagnosticOutput,
+        materialIDs: [MaterialID]
+    ) throws -> [SIMD4<Float>] {
+        guard let pipeline = diagnosticPipelines[output] else {
+            preconditionFailure("Missing exhaustive model PBR diagnostic pipeline: \(output)")
+        }
+
+        let layout = Self.centeredStripLayout(drawCount: materialIDs.count)
+        let results = try render(
+            scenePipeline: pipeline,
+            // Factor and contribution assertions inspect the raw HDR scene
+            // samples. Linear presentation keeps the unused presented result
+            // from applying the surface exposure/tone-map policy.
+            presentationOutputMode: .viewSpaceNormals,
+            normal: SIMD3<Float>(0, 0, 1),
+            exposure: .validation,
+            materialIDs: materialIDs,
+            scissorRects: layout.scissorRects,
+            sampleRegions: layout.sampleRegions
+        )
+        return results.map(\.sceneLinearRGBA)
+    }
+
     /// Executes one complete production scene/presentation submission and
     /// samples caller-selected pixels after asynchronous Metal completion.
     private func render(
-        outputMode: RenderOutputMode,
+        scenePipeline: any MTLRenderPipelineState,
+        presentationOutputMode: RenderOutputMode,
         normal: SIMD3<Float>,
         exposure: ManualExposure,
         materialIDs: [MaterialID],
@@ -202,19 +261,13 @@ final class MetalHDRPipelineTestRenderer {
             destinationTexture: presentedTexture,
             clearColor: MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1),
             presentationParametersBuffer: frame.hdrPresentationParametersBuffer,
-            outputMode: outputMode,
+            outputMode: presentationOutputMode,
             into: commandBuffer
         ) { sceneEncoder in
-            switch outputMode {
-            case .surface:
-                sceneEncoder.setRenderPipelineState(pbrPipeline)
-
-            case .viewSpaceNormals:
-                sceneEncoder.setRenderPipelineState(normalPipeline)
-            }
+            sceneEncoder.setRenderPipelineState(scenePipeline)
             sceneEncoder.setDepthStencilState(depthStencilState)
 
-            // Both authored appearances deliberately share this exact geometry
+            // All authored appearances deliberately share this exact geometry
             // address. Only each per-draw instance record and scissor changes.
             modelArgumentTable.setAddress(vertexBuffer.gpuAddress, index: 0)
             pbrSceneArgumentTable.setAddress(
@@ -290,6 +343,110 @@ final class MetalHDRPipelineTestRenderer {
                 )
             )
         }
+    }
+
+    /// Compiles test-only views of fields returned by the production evaluator.
+    private static func makeDiagnosticPipelines(
+        resources: MetalResourceStore
+    ) throws -> [ModelPBRDiagnosticOutput: any MTLRenderPipelineState] {
+        let library = try resources.shaderLibrary(for: .engine)
+        var pipelines: [
+            ModelPBRDiagnosticOutput: any MTLRenderPipelineState
+        ] = [:]
+
+        for output in ModelPBRDiagnosticOutput.allCases {
+            let vertexFunction = MTL4LibraryFunctionDescriptor()
+            vertexFunction.library = library
+            vertexFunction.name = "modelVertex"
+
+            let fragmentFunction = MTL4LibraryFunctionDescriptor()
+            fragmentFunction.library = library
+            fragmentFunction.name = output.fragmentFunctionName
+
+            let descriptor = MTL4RenderPipelineDescriptor()
+            descriptor.label = "Model PBR M5 Diagnostic \(output)"
+            descriptor.vertexFunctionDescriptor = vertexFunction
+            descriptor.fragmentFunctionDescriptor = fragmentFunction
+            descriptor.rasterSampleCount = 1
+            descriptor.colorAttachments[0].pixelFormat = MetalRenderer.sceneColorPixelFormat
+
+            pipelines[output] = try resources.compiler.makeRenderPipelineState(
+                descriptor: descriptor
+            )
+        }
+
+        return pipelines
+    }
+
+    /// Resolves the two app-facing modes without extending their closed enum for
+    /// test-only M5 diagnostics.
+    private func scenePipeline(
+        for outputMode: RenderOutputMode
+    ) -> any MTLRenderPipelineState {
+        switch outputMode {
+        case .surface:
+            pbrPipeline
+
+        case .viewSpaceNormals:
+            normalPipeline
+        }
+    }
+
+    /// Partitions the triangle's center span into nonoverlapping draw regions.
+    ///
+    /// Every sample remains inside the shared triangle. Because all draws keep
+    /// the same geometry and only the instance address changes, this layout
+    /// makes a six-material submission inspectable without introducing a second
+    /// mesh, transform convention, or render target.
+    private static func centeredStripLayout(
+        drawCount: Int
+    ) -> (
+        scissorRects: [MTLScissorRect],
+        sampleRegions: [MTLRegion]
+    ) {
+        precondition(
+            drawCount > 0 && drawCount <= FrameResources.maximumInstanceCount,
+            "The centered material strip requires a bounded nonempty draw list."
+        )
+
+        let leftEdge = width / 4 + 1
+        let rightEdge = width - leftEdge
+        let availableWidth = rightEdge - leftEdge
+        precondition(
+            drawCount <= availableWidth,
+            "Each material draw requires at least one inspectable pixel."
+        )
+
+        var scissorRects: [MTLScissorRect] = []
+        var sampleRegions: [MTLRegion] = []
+        scissorRects.reserveCapacity(drawCount)
+        sampleRegions.reserveCapacity(drawCount)
+
+        for drawIndex in 0..<drawCount {
+            let startX = leftEdge + availableWidth * drawIndex / drawCount
+            let endX = leftEdge
+                + availableWidth * (drawIndex + 1) / drawCount
+            let regionWidth = endX - startX
+
+            scissorRects.append(
+                MTLScissorRect(
+                    x: startX,
+                    y: 0,
+                    width: regionWidth,
+                    height: height
+                )
+            )
+            sampleRegions.append(
+                MTLRegionMake2D(
+                    startX + regionWidth / 2,
+                    height / 2,
+                    1,
+                    1
+                )
+            )
+        }
+
+        return (scissorRects, sampleRegions)
     }
 
     private func makeTriangleBuffer(

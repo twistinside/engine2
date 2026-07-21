@@ -376,16 +376,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        for instanceIndex in 0..<instanceCount {
-            // A missing model catalog entry makes only this instance
-            // unrenderable. Material coverage has already passed the frame's
-            // terminal preflight and never falls back here.
-            guard let model = resources.model(
-                for: instances[instanceIndex].meshID
-            ) else {
-                continue
-            }
-
+        Self.forEachRenderableModel(
+            in: instances,
+            instanceCount: instanceCount,
+            resources: resources
+        ) { instanceIndex, model in
             Self.selectModelInstance(
                 at: instanceIndex,
                 in: frame,
@@ -422,6 +417,39 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                     )
                 }
             }
+        }
+    }
+
+    /// Visits the exact bounded, model-resolved prefix used by visible draws.
+    ///
+    /// This small CPU-side seam owns draw order and missing-model filtering.
+    /// Production encoding supplies the body that emits Metal commands, while
+    /// integration tests can prove that a projected scene reaches every decoded
+    /// model without replacing this loop with a test-only imitation.
+    static func forEachRenderableModel(
+        in instances: [RenderInstance],
+        instanceCount: Int,
+        resources: MetalResourceStore,
+        _ visit: (_ instanceIndex: Int, _ model: USDRenderModel) -> Void
+    ) {
+        precondition(
+            instanceCount >= 0
+                && instanceCount <= instances.count
+                && instanceCount <= FrameResources.maximumInstanceCount,
+            "Visible model iteration must stay inside the written instance prefix."
+        )
+
+        for instanceIndex in 0..<instanceCount {
+            // Missing model content makes only this instance unrenderable.
+            // Material coverage has already passed the frame's terminal
+            // preflight and never falls back here.
+            guard let model = resources.model(
+                for: instances[instanceIndex].meshID
+            ) else {
+                continue
+            }
+
+            visit(instanceIndex, model)
         }
     }
 

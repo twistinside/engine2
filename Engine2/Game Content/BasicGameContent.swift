@@ -17,23 +17,40 @@ struct BasicGameContent {
                 )
             ],
             materials: [
-                // This preserves the exact renderer-owned M3 proof appearance
-                // while moving authority for the authored factors into Game
-                // Content.
+                // The dielectric row holds one scene-linear base color and
+                // metallic factor constant so roughness is the only variable.
+                .warmDielectricSmooth: PBRMaterialDescription(
+                    baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+                    metallic: 0,
+                    perceptualRoughness: 0.2
+                ),
                 .warmDielectric: PBRMaterialDescription(
                     baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
                     metallic: 0,
                     perceptualRoughness: 0.5
                 ),
+                .warmDielectricRough: PBRMaterialDescription(
+                    baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+                    metallic: 0,
+                    perceptualRoughness: 0.8
+                ),
 
-                // A second authored appearance proves that one sphere mesh can
-                // resolve distinct material content without constructing M5's
-                // validation scene yet. These are scene-linear validation
-                // values, not a claim of physical calibration.
+                // The metal row follows the same controlled progression while
+                // preserving the established M4 gold baseline at roughness 0.35.
+                .goldMetalSmooth: PBRMaterialDescription(
+                    baseColor: SIMD3<Float>(1, 0.766, 0.336),
+                    metallic: 1,
+                    perceptualRoughness: 0.2
+                ),
                 .goldMetal: PBRMaterialDescription(
                     baseColor: SIMD3<Float>(1, 0.766, 0.336),
                     metallic: 1,
                     perceptualRoughness: 0.35
+                ),
+                .goldMetalRough: PBRMaterialDescription(
+                    baseColor: SIMD3<Float>(1, 0.766, 0.336),
+                    metallic: 1,
+                    perceptualRoughness: 0.8
                 )
             ]
         )
