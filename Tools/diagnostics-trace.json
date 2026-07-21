@@ -1,0 +1,23 @@
+{
+  "recordingOptions": {
+    "Hangs": {
+      "detectPriorityInversions": false,
+      "hangsThreshold": 250
+    },
+    "Points of Interest": {
+      "excludeOSLogs": false
+    },
+    "Time Profiler": {
+      "contextSwitchSampling": false,
+      "highFrequencySampling": false,
+      "recordKernelStacks": false,
+      "recordWaitingThreads": false
+    }
+  },
+  "knownSignpostSchemas": [
+    "OSSignpostIntervals",
+    "PointsOfInterestEvents",
+    "os-signpost",
+    "os-signpost-arg"
+  ]
+}

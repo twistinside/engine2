@@ -81,10 +81,18 @@ class CaptureTests(unittest.TestCase):
             app = self._script(root, "success", f"#!/bin/sh\nprintf '%s' '{payload}'\n")
             output = root / "capture"
             from diagnostics_lib.logs import LogCapturePolicy
+            from diagnostics_lib.traces import TraceCapturePolicy
 
             result = capture(
                 CaptureRequest(
-                    app, output, "baseline-six-ball", 42, 0, 1, LogCapturePolicy.SKIP
+                    app,
+                    output,
+                    "baseline-six-ball",
+                    42,
+                    0,
+                    1,
+                    LogCapturePolicy.SKIP,
+                    TraceCapturePolicy.SKIP,
                 )
             )
             self.assertEqual(result["status"], "complete")

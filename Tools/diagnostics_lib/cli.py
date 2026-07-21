@@ -8,6 +8,7 @@ import sys
 
 from .capture import CaptureError, CaptureRequest, capture
 from .logs import LogCapturePolicy
+from .traces import TraceCapturePolicy
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=LogCapturePolicy.BEST_EFFORT.value,
         help="required, best-effort, or skip unified-log archival",
     )
+    capture_parser.add_argument(
+        "--trace",
+        choices=[policy.value for policy in TraceCapturePolicy],
+        default=TraceCapturePolicy.BEST_EFFORT.value,
+        help="required, best-effort, or skip Instruments recording",
+    )
     return parser
 
 
@@ -44,6 +51,7 @@ def main(arguments: list[str] | None = None) -> int:
                     warm_up_nanoseconds=args.warm_up_nanoseconds,
                     measurement_nanoseconds=args.measurement_nanoseconds,
                     log_policy=LogCapturePolicy(args.logs),
+                    trace_policy=TraceCapturePolicy(args.trace),
                 )
             )
             return 0

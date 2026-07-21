@@ -11,6 +11,7 @@ from typing import Any
 
 from .artifact import ArtifactValidationError, validate_ndjson
 from .logs import LogCapturePolicy, capture_logs
+from .traces import TraceCapturePolicy, capture_trace
 
 
 class CaptureError(RuntimeError):
@@ -28,6 +29,7 @@ class CaptureRequest:
     warm_up_nanoseconds: int
     measurement_nanoseconds: int
     log_policy: LogCapturePolicy = LogCapturePolicy.BEST_EFFORT
+    trace_policy: TraceCapturePolicy = TraceCapturePolicy.BEST_EFFORT
 
 
 def capture(request: CaptureRequest) -> dict[str, Any]:
@@ -98,11 +100,32 @@ def capture(request: CaptureRequest) -> dict[str, Any]:
         _write_json(result_path, failure)
         raise CaptureError("required unified-log evidence is unavailable")
 
+    trace_result: dict[str, Any]
+    if request.trace_policy == TraceCapturePolicy.SKIP:
+        trace_result = {"status": "skipped"}
+    else:
+        trace_result = capture_trace(
+            output=request.output,
+            app_executable=executable,
+            scenario_arguments=command[1:],
+        )
+    _write_json(request.output / "trace-result.json", trace_result)
+    if request.trace_policy == TraceCapturePolicy.REQUIRED and trace_result["status"] != "complete":
+        failure = _result(
+            status="failed",
+            command=command,
+            reason="required-instruments-trace-unavailable",
+            trace=trace_result,
+        )
+        _write_json(result_path, failure)
+        raise CaptureError("required Instruments trace evidence is unavailable")
+
     success = _result(
         status="complete",
         command=command,
         sample_count=len(artifact.records) - 1,
         logs=log_result,
+        trace=trace_result,
     )
     _write_json(result_path, success)
     return success
