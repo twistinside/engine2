@@ -168,9 +168,12 @@ Current example ownership:
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Engine2/UI/Input/InputMetalView.swift`
   - Platform adapter that translates AppKit events into `InputEvent` values and submits them through `PInputEventSink`.
-- `Engine2/Engine2Tests/`
-  - Swift Testing coverage exists for the engine loop, clocks, world builder, spawn seeding, movement, rotation, rotation codability/equality, and several capability protocol read paths.
-  - The test tree mirrors the app/source tree where practical.
+- `Engine2UnitTests/`
+  - Fast, deterministic Swift Testing coverage directly exercises individual production types and methods.
+  - The unit-test tree mirrors the app/source tree where practical.
+- `Engine2RenderTests/`
+  - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
+  - Test-only Metal renderers and GPU submission helpers remain private to this target instead of compiling into the unit-test bundle.
 ### Folder Organization
 New simulation systems are added to `Engine2/Engine2/Simulation Runtime/Engine/System/<system name>.`
 When a new system is created, the requisite components, resources, and protocols will be added in their own subfolders. The `System` folders are organized in funcitonal blocks to ensure proximity of files used in that `System`.
@@ -284,7 +287,8 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - Prefer adding capability protocols over deepening inheritance.
 - Keep the game-object layer ergonomic, but keep the ECS layer authoritative.
 - If adding selection/UI inspection, typed lookup by `EntityID` is a valid direction.
-- Mirror the app/source tree under `Engine2/Engine2Tests/`. For example, tests for `Engine2/Engine2/Simulation Runtime/Engine/System/Position/System/SMovement.swift` should live in `Engine2/Engine2Tests/Simulation Runtime/Engine/System/Position/System/SMovementTests.swift`.
+- Mirror direct type and method tests under `Engine2UnitTests/`. For example, tests for `Engine2/Simulation Runtime/Engine/System/Position/System/SMovement.swift` should live in `Engine2UnitTests/Simulation Runtime/Engine/System/Position/System/SMovementTests.swift`.
+- Place tests that validate Render across multiple production boundaries under `Engine2RenderTests/`. This includes real shader execution, command submission, GPU lifetime, renderer assembly, and packaged-model decoding.
 ## Current Gaps / Known TODOs
 - Entity destruction, index reuse, and generation incrementing are not implemented.
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.

@@ -36,8 +36,19 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CB1B38412F5E1E1000A375C6"
-               BuildableName = "Engine2Tests.xctest"
-               BlueprintName = "Engine2Tests"
+               BuildableName = "Engine2UnitTests.xctest"
+               BlueprintName = "Engine2UnitTests"
+               ReferencedContainer = "container:Engine2.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "E20000000000000000000005"
+               BuildableName = "Engine2RenderTests.xctest"
+               BlueprintName = "Engine2RenderTests"
                ReferencedContainer = "container:Engine2.xcodeproj">
             </BuildableReference>
          </TestableReference>

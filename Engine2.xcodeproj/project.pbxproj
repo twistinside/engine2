@@ -14,12 +14,20 @@
 			remoteGlobalIDString = CB1B38342F5E1E1000A375C6;
 			remoteInfo = Engine2;
 		};
+		E20000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CB1B382D2F5E1E1000A375C6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CB1B38342F5E1E1000A375C6;
+			remoteInfo = Engine2;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A61E75D13C8B4C5EA4F10201 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		CB1B38352F5E1E1000A375C6 /* Engine2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Engine2.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		CB1B38422F5E1E1000A375C6 /* Engine2Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		CB1B38422F5E1E1000A375C6 /* Engine2UnitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2UnitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E20000000000000000000002 /* Engine2RenderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2RenderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -28,9 +36,14 @@
 			path = Engine2;
 			sourceTree = "<group>";
 		};
-		CB1B38452F5E1E1000A375C6 /* Engine2Tests */ = {
+		CB1B38452F5E1E1000A375C6 /* Engine2UnitTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Engine2Tests;
+			path = Engine2UnitTests;
+			sourceTree = "<group>";
+		};
+		E20000000000000000000003 /* Engine2RenderTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Engine2RenderTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -50,6 +63,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E20000000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -58,7 +78,8 @@
 			children = (
 				A61E75D13C8B4C5EA4F10201 /* AGENTS.md */,
 				CB1B38372F5E1E1000A375C6 /* Engine2 */,
-				CB1B38452F5E1E1000A375C6 /* Engine2Tests */,
+				CB1B38452F5E1E1000A375C6 /* Engine2UnitTests */,
+				E20000000000000000000003 /* Engine2RenderTests */,
 				CB1B38362F5E1E1000A375C6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -67,7 +88,8 @@
 			isa = PBXGroup;
 			children = (
 				CB1B38352F5E1E1000A375C6 /* Engine2.app */,
-				CB1B38422F5E1E1000A375C6 /* Engine2Tests.xctest */,
+				CB1B38422F5E1E1000A375C6 /* Engine2UnitTests.xctest */,
+				E20000000000000000000002 /* Engine2RenderTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -97,9 +119,9 @@
 			productReference = CB1B38352F5E1E1000A375C6 /* Engine2.app */;
 			productType = "com.apple.product-type.application";
 		};
-		CB1B38412F5E1E1000A375C6 /* Engine2Tests */ = {
+		CB1B38412F5E1E1000A375C6 /* Engine2UnitTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CB1B38592F5E1E1000A375C6 /* Build configuration list for PBXNativeTarget "Engine2Tests" */;
+			buildConfigurationList = CB1B38592F5E1E1000A375C6 /* Build configuration list for PBXNativeTarget "Engine2UnitTests" */;
 			buildPhases = (
 				CB1B383E2F5E1E1000A375C6 /* Sources */,
 				CB1B383F2F5E1E1000A375C6 /* Frameworks */,
@@ -111,13 +133,36 @@
 				CB1B38442F5E1E1000A375C6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				CB1B38452F5E1E1000A375C6 /* Engine2Tests */,
+				CB1B38452F5E1E1000A375C6 /* Engine2UnitTests */,
 			);
-			name = Engine2Tests;
+			name = Engine2UnitTests;
 			packageProductDependencies = (
 			);
-			productName = Engine2Tests;
-			productReference = CB1B38422F5E1E1000A375C6 /* Engine2Tests.xctest */;
+			productName = Engine2UnitTests;
+			productReference = CB1B38422F5E1E1000A375C6 /* Engine2UnitTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E20000000000000000000005 /* Engine2RenderTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E20000000000000000000011 /* Build configuration list for PBXNativeTarget "Engine2RenderTests" */;
+			buildPhases = (
+				E20000000000000000000007 /* Sources */,
+				E20000000000000000000004 /* Frameworks */,
+				E20000000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E20000000000000000000008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E20000000000000000000003 /* Engine2RenderTests */,
+			);
+			name = Engine2RenderTests;
+			packageProductDependencies = (
+			);
+			productName = Engine2RenderTests;
+			productReference = E20000000000000000000002 /* Engine2RenderTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -134,6 +179,10 @@
 						CreatedOnToolsVersion = 26.4;
 					};
 					CB1B38412F5E1E1000A375C6 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = CB1B38342F5E1E1000A375C6;
+					};
+					E20000000000000000000005 = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = CB1B38342F5E1E1000A375C6;
 					};
@@ -156,7 +205,8 @@
 			projectRoot = "";
 			targets = (
 				CB1B38342F5E1E1000A375C6 /* Engine2 */,
-				CB1B38412F5E1E1000A375C6 /* Engine2Tests */,
+				CB1B38412F5E1E1000A375C6 /* Engine2UnitTests */,
+				E20000000000000000000005 /* Engine2RenderTests */,
 			);
 		};
 /* End PBXProject section */
@@ -170,6 +220,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		CB1B38402F5E1E1000A375C6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E20000000000000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -193,6 +250,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E20000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -200,6 +264,11 @@
 			isa = PBXTargetDependency;
 			target = CB1B38342F5E1E1000A375C6 /* Engine2 */;
 			targetProxy = CB1B38432F5E1E1000A375C6 /* PBXContainerItemProxy */;
+		};
+		E20000000000000000000008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CB1B38342F5E1E1000A375C6 /* Engine2 */;
+			targetProxy = E20000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -397,7 +466,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Engine2Tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Engine2UnitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -417,7 +486,47 @@
 				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.Engine2Tests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Engine2UnitTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Engine2.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Engine2";
+			};
+			name = Release;
+		};
+		E20000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Engine2RenderTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Engine2.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Engine2";
+			};
+			name = Debug;
+		};
+		E20000000000000000000010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Engine2RenderTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -449,11 +558,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		CB1B38592F5E1E1000A375C6 /* Build configuration list for PBXNativeTarget "Engine2Tests" */ = {
+		CB1B38592F5E1E1000A375C6 /* Build configuration list for PBXNativeTarget "Engine2UnitTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				CB1B385A2F5E1E1000A375C6 /* Debug */,
 				CB1B385B2F5E1E1000A375C6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E20000000000000000000011 /* Build configuration list for PBXNativeTarget "Engine2RenderTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E20000000000000000000009 /* Debug */,
+				E20000000000000000000010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

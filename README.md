@@ -28,7 +28,7 @@ The DocC pages distinguish between behavior that exists today and architecture p
 
 ## Open the project
 
-Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. The app source is under [`Engine2/Engine2`](Engine2/Engine2), with mirrored Swift Testing coverage under [`Engine2/Engine2Tests`](Engine2/Engine2Tests).
+Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`Engine2/`](Engine2), direct unit coverage is under [`Engine2UnitTests/`](Engine2UnitTests), and renderer integration coverage is under [`Engine2RenderTests/`](Engine2RenderTests).
 
 ## Status
 
