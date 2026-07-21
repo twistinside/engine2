@@ -117,9 +117,9 @@ lighting equation is involved.
 ### Change
 
 - Extend the decoded vertex input to position, display color, and normal.
-- Preserve decoded normals. For the packaged implicit sphere, accept the normals
-  supplied by Model I/O's USD importer without introducing a general normal-
-  generation policy.
+- Preserve decoded normals. The packaged polygonal sphere authors smooth outward
+  normals with its explicit geometry; Model I/O carries them into the renderer's
+  vertex layout without introducing a general runtime normal-generation policy.
 - Provide view-space surface position and a correct normal transform to the
   fragment stage.
 - Make perspective and orthographic projections share one ordinary depth
