@@ -43,6 +43,34 @@ struct SimulationRuntimeTests {
         )
     }
 
+    @Test @MainActor func publicationReportsRenderableAndPublishedCounts() throws {
+        let sink = RecordingDiagnosticsSink()
+        let diagnostics = DiagnosticsEmitter(sink: sink)
+        let simulation = SimulationRuntime(
+            worldBuilder: TestWorldBuilder(position: .zero),
+            diagnostics: diagnostics
+        )
+
+        simulation.rebuildWorld()
+
+        let captures = sink.samples.compactMap { sample -> PresentationSnapshotDiagnostics? in
+            guard case let .presentationSnapshot(payload) = sample.payload else {
+                return nil
+            }
+            return payload
+        }
+        #expect(captures.count == 2)
+        let initialCapture = try #require(captures.first)
+        let rebuiltCapture = try #require(captures.last)
+        #expect(initialCapture.tick == .zero)
+        #expect(initialCapture.renderableRowCount == 1)
+        #expect(initialCapture.publishedPresentationCount == 1)
+        #expect(rebuiltCapture.tick == .zero)
+        #expect(rebuiltCapture.renderableRowCount == 1)
+        #expect(rebuiltCapture.publishedPresentationCount == 1)
+        #expect(simulation.latestPresentationSnapshot.entityPresentations.count == 1)
+    }
+
     @Test @MainActor func startAndStopDriveExposedState() async throws {
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: .zero),

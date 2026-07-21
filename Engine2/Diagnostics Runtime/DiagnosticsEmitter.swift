@@ -62,6 +62,45 @@ final class DiagnosticsEmitter {
         )
     }
 
+    /// Captures and reports the Simulation-owned presentation boundary once.
+    func capturePresentationSnapshot(
+        from world: World,
+        at tick: SimulationTick
+    ) -> SimulationPresentationSnapshot {
+        let start = timeSource()
+        let renderableRowCount = world.renderableComponents.dense.count
+        let signposter = DiagnosticsOSHandles.signposter(for: .simulationSnapshot)
+        let snapshot: SimulationPresentationSnapshot
+
+        if signposter.isEnabled {
+            let signpostID = signposter.makeSignpostID()
+            snapshot = signposter.withIntervalSignpost(
+                "PresentationSnapshotCapture",
+                id: signpostID,
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) tick=\(tick.rawValue, privacy: .public) renderable_rows=\(renderableRowCount, privacy: .public)"
+            ) {
+                SimulationPresentationSnapshot.capture(from: world, at: tick)
+            }
+        } else {
+            snapshot = SimulationPresentationSnapshot.capture(from: world, at: tick)
+        }
+
+        let end = timeSource()
+        record(
+            category: .simulationSnapshot,
+            timestampAt: end,
+            payload: .presentationSnapshot(
+                PresentationSnapshotDiagnostics(
+                    tick: tick,
+                    renderableRowCount: renderableRowCount,
+                    publishedPresentationCount: snapshot.entityPresentations.count,
+                    durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
+                )
+            )
+        )
+        return snapshot
+    }
+
     /// Measures one app-loop poll and records its fixed-step/backlog outcome.
     func measureSimulationPoll(
         sampledWallDelta: Duration,

@@ -25,6 +25,9 @@ final class SimulationRuntime: PSimulationPresentationSource {
     private let simulationLoop: SimulationLoop
 
     @ObservationIgnored
+    private let diagnostics: DiagnosticsEmitter
+
+    @ObservationIgnored
     private weak var inputSource: (any PInputSnapshotSource)?
 
     /// Latest completed publisher-owned value available to peer runtimes.
@@ -50,6 +53,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
     ) {
         self.worldBuilder = worldBuilder
         self.inputSource = inputSource
+        self.diagnostics = diagnostics
         let world = worldBuilder.buildWorld()
         if let inputSnapshot = inputSource?.latestInputSnapshot {
             world.input.rebase(to: inputSnapshot)
@@ -61,7 +65,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
         )
         self.engine = engine
         engine.isSimulationRunning = false
-        self.latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
+        self.latestPresentationSnapshot = diagnostics.capturePresentationSnapshot(
             from: engine.world,
             at: engine.completedTick
         )
@@ -131,7 +135,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.
     private func publishPresentationSnapshot(at tick: SimulationTick) {
-        latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
+        latestPresentationSnapshot = diagnostics.capturePresentationSnapshot(
             from: engine.world,
             at: tick
         )
