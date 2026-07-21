@@ -8,7 +8,7 @@ struct MetalResourceStoreTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:])
+            renderAssetCatalog: .materialOnlyTestCatalog
         )
 
         let library = try store.shaderLibrary(for: .engine)
@@ -88,13 +88,61 @@ struct MetalResourceStoreTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:])
+            renderAssetCatalog: .materialOnlyTestCatalog
         )
 
         let first = try store.shaderLibrary(for: .engine)
         let second = try store.shaderLibrary(for: .engine)
 
         #expect(first as AnyObject === second as AnyObject)
+    }
+
+    @MainActor
+    @Test func retainsExactAuthoredMaterialDescriptions() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let catalog = BasicGameContent().renderAssetCatalog
+        let store = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: catalog
+        )
+
+        // Material identities cross the runtime boundary, while the retained
+        // factor descriptions remain a CPU-side Render resource until a frame
+        // packs them into its private instance buffer.
+        for materialID in MaterialID.allCases {
+            let expected = try #require(catalog.materials[materialID])
+            #expect(
+                try store.materialDescription(for: materialID)
+                    == expected
+            )
+        }
+    }
+
+    @MainActor
+    @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let incompleteCatalog = RenderAssetCatalog(
+            models: [:],
+            materials: [
+                .warmDielectric: try #require(
+                    BasicGameContent().renderAssetCatalog.materials[
+                        .warmDielectric
+                    ]
+                )
+            ]
+        )
+
+        do {
+            _ = try MetalResourceStore(
+                device: device,
+                renderAssetCatalog: incompleteCatalog
+            )
+            Issue.record("Expected incomplete authored material content to fail")
+        } catch let error as RenderAssetCatalogError {
+            #expect(error == .missingMaterialDescriptions([.goldMetal]))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @MainActor

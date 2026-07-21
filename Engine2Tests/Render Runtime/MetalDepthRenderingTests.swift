@@ -11,7 +11,7 @@ struct MetalDepthRenderingTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
 
@@ -53,7 +53,7 @@ struct MetalDepthRenderingTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         let pixel = try renderCenterPixel(
@@ -136,6 +136,7 @@ private func renderCenterPixel(
     let instances = [
         RenderInstance(
             meshID: .ball,
+            materialID: .warmDielectric,
             transform: Transform(
                 position: SIMD3<Float>(0, 0, 0),
                 scale: SIMD3<Float>(4, 4, 1)
@@ -143,6 +144,7 @@ private func renderCenterPixel(
         ),
         RenderInstance(
             meshID: .ball,
+            materialID: .warmDielectric,
             transform: Transform(
                 position: SIMD3<Float>(0, 0, -2),
                 scale: SIMD3<Float>(4, 4, 1)
@@ -153,6 +155,9 @@ private func renderCenterPixel(
     frame.commandAllocator.reset()
     let instanceCount = frame.write(
         instances,
+        materialDescriptions: try instances.map {
+            try resources.materialDescription(for: $0.materialID)
+        },
         camera: camera,
         drawableSize: CGSize(width: textureSize, height: textureSize)
     )

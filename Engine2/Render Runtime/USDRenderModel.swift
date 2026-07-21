@@ -83,10 +83,10 @@ struct USDRenderModel {
     /// `SIMD3<Float>` has a 16-byte stride on both sides of this boundary, so
     /// explicit offsets keep the Swift descriptor aligned with `ModelVertex` in
     /// `ModelShaders.metal`. Vertex color remains in the existing decoded layout,
-    /// but the fixed PBR validation material does not consume it. The packaged
-    /// asset is an implicit USD sphere, so requesting a normal attribute lets
-    /// Model I/O's USD importer supply its generated sphere normals without
-    /// introducing an engine-wide generation policy.
+    /// but the explicit authored-material path does not consume it. The
+    /// packaged asset is an implicit USD sphere, so requesting a normal
+    /// attribute lets Model I/O's USD importer supply its generated sphere
+    /// normals without introducing an engine-wide generation policy.
     static func makeVertexDescriptor() -> MDLVertexDescriptor {
         let vertexDescriptor = MDLVertexDescriptor()
         vertexDescriptor.attributes[0] = MDLVertexAttribute(

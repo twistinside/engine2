@@ -52,7 +52,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// render instance before encoding the draw.
     private let modelArgumentTable: any MTL4ArgumentTable
 
-    /// Frame-constant PBR material and directional-light resource binding.
+    /// Fragment-stage binding for the current instance and frame-constant light.
     private let pbrSceneArgumentTable: any MTL4ArgumentTable
 
     /// Ordered scene and presentation phases, including their explicit Metal 4
@@ -160,6 +160,31 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
+        // Sample only after back pressure clears so this draw uses the newest
+        // completed Simulation value available when encoding can actually
+        // begin. Resolve its exact submitted prefix before resetting mutable
+        // GPU state or acquiring a drawable; missing authored content therefore
+        // cannot produce a partial frame.
+        let renderFrame: RenderFrame
+        if let presentationSource {
+            renderFrame = RenderFrame.project(
+                from: presentationSource.latestPresentationSnapshot
+            )
+        } else {
+            renderFrame = .empty
+        }
+
+        let materialDescriptions: [PBRMaterialDescription]
+        do {
+            materialDescriptions = try resolveMaterialDescriptions(
+                for: renderFrame.instances
+            )
+        } catch {
+            renderErrorState.record(error)
+            frame.markAvailable()
+            return
+        }
+
         // The commit feedback handler marks the frame available only after the
         // GPU finishes the previous workload that used this allocator, so it is
         // safe to recycle the allocator's internal command memory now.
@@ -217,16 +242,9 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // to the exact command buffer that references it.
         commandBuffer.useResidencySet(sceneTarget.residencySet)
 
-        let renderFrame: RenderFrame
-        if let presentationSource {
-            renderFrame = RenderFrame.project(
-                from: presentationSource.latestPresentationSnapshot
-            )
-        } else {
-            renderFrame = .empty
-        }
         let instanceCount = frame.write(
             renderFrame.instances,
+            materialDescriptions: materialDescriptions,
             camera: renderFrame.camera,
             drawableSize: CGSize(
                 width: drawableWidth,
@@ -252,15 +270,12 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                 )
                 sceneEncoder.setDepthStencilState(depthStencilState)
 
-                // Material and light values are constant for every draw in
-                // this transitional milestone, so bind them once per scene.
+                // The directional light is constant for the frame. Each draw
+                // adds its own instance address to this fragment-stage table,
+                // where the shader also reads its packed authored material.
                 pbrSceneArgumentTable.setAddress(
                     frame.pbrSceneParametersBuffer.gpuAddress,
                     index: 2
-                )
-                sceneEncoder.setArgumentTable(
-                    pbrSceneArgumentTable,
-                    stages: .fragment
                 )
                 draw(
                     renderFrame.instances,
@@ -362,17 +377,21 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
 
         for instanceIndex in 0..<instanceCount {
-            // Missing catalog entries make only the affected instance
-            // unrenderable; they do not invalidate the rest of the frame.
+            // A missing model catalog entry makes only this instance
+            // unrenderable. Material coverage has already passed the frame's
+            // terminal preflight and never falls back here.
             guard let model = resources.model(
                 for: instances[instanceIndex].meshID
             ) else {
                 continue
             }
 
-            modelArgumentTable.setAddress(
-                frame.instanceBuffer.gpuAddress + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride),
-                index: 1
+            Self.selectModelInstance(
+                at: instanceIndex,
+                in: frame,
+                modelArgumentTable: modelArgumentTable,
+                pbrSceneArgumentTable: pbrSceneArgumentTable,
+                with: renderEncoder
             )
 
             for mesh in model.meshes {
@@ -404,6 +423,53 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                 }
             }
         }
+    }
+
+    /// Selects one stable per-frame instance for both model shader stages.
+    ///
+    /// The vertex table is rebound after its mesh address is selected. The PBR
+    /// fragment table is complete now—its frame light was installed before the
+    /// draw loop—so bind it immediately. Keeping address arithmetic and the new
+    /// per-draw fragment binding in this production helper lets the offscreen
+    /// GPU harness exercise the exact operation used by visible rendering.
+    static func selectModelInstance(
+        at instanceIndex: Int,
+        in frame: FrameResources,
+        modelArgumentTable: any MTL4ArgumentTable,
+        pbrSceneArgumentTable: any MTL4ArgumentTable,
+        with renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        precondition(
+            instanceIndex >= 0
+                && instanceIndex < FrameResources.maximumInstanceCount,
+            "Model instance selection must remain inside the frame buffer."
+        )
+
+        let instanceAddress = frame.instanceBuffer.gpuAddress
+            + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride)
+        modelArgumentTable.setAddress(instanceAddress, index: 1)
+        pbrSceneArgumentTable.setAddress(instanceAddress, index: 1)
+        renderEncoder.setArgumentTable(
+            pbrSceneArgumentTable,
+            stages: .fragment
+        )
+    }
+
+    /// Resolves the same bounded instance prefix that `FrameResources` writes.
+    ///
+    /// Keeping truncation and resolution together prevents an off-by-one split
+    /// where one material array describes a different draw than the parallel
+    /// transform array. Resolution remains CPU-side and backend-private; the
+    /// resulting factors are packed only after every referenced identity has
+    /// succeeded.
+    private func resolveMaterialDescriptions(
+        for instances: [RenderInstance]
+    ) throws -> [PBRMaterialDescription] {
+        try instances
+            .prefix(FrameResources.maximumInstanceCount)
+            .map { instance in
+                try resources.materialDescription(for: instance.materialID)
+            }
     }
 
 }

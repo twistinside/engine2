@@ -10,17 +10,18 @@ struct ModelVertex {
     float3 normal;
 };
 
-/// Per-draw transform layout mirrored by Swift's `GPUInstance`.
+/// Per-draw transform and authored-material layout mirrored by `GPUInstance`.
 struct ModelInstance {
     float4x4 modelViewProjectionMatrix;
     float4x4 modelViewMatrix;
     float3x3 normalMatrix;
+    float4 baseColorMetallic;
+    float4 perceptualRoughnessPadding;
 };
 
 /// Values interpolated from the model vertex stage into the fragment stage.
 struct VertexOut {
     float4 position [[position]];
-    half4 color;
     float3 viewPosition;
     float3 viewNormal;
 };
@@ -32,7 +33,6 @@ vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
 
     float4 localPosition = float4(vertices[vertexID].position, 1.0);
     out.position = instance->modelViewProjectionMatrix * localPosition;
-    out.color = half4(half3(vertices[vertexID].color), 1.0h);
     out.viewPosition = (instance->modelViewMatrix * localPosition).xyz;
     out.viewNormal = instance->normalMatrix * vertices[vertexID].normal;
 
@@ -41,17 +41,18 @@ vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
 
 fragment float4 modelPBRFragment(
     VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     float3 incidentRadiance = parameters.lightColorIntensity.rgb
         * parameters.lightColorIntensity.a;
     PBRDirectLightingResult result = pbrEvaluateDirectLighting(
-        parameters.baseColorMetallic.rgb,
-        parameters.baseColorMetallic.a,
-        parameters.directionToLightRoughness.a,
+        instance->baseColorMetallic.rgb,
+        instance->baseColorMetallic.a,
+        instance->perceptualRoughnessPadding.x,
         in.viewNormal,
         -in.viewPosition,
-        parameters.directionToLightRoughness.xyz,
+        parameters.directionToLightPadding.xyz,
         incidentRadiance
     );
 

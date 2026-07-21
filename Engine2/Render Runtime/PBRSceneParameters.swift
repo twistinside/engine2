@@ -1,21 +1,17 @@
 import simd
 
-/// Temporary renderer-owned material and directional-light input for M3.
+/// Renderer-owned directional-light input for the authored-material baseline.
 ///
-/// This 48-byte layout mirrors `PBRSceneParameters.metalh`. It exists only to
-/// prove the visible HDR pathway with one stable material and light; Milestone
-/// 4 replaces the material lanes with authored Game Content resolution. The
-/// direction uses the shared BRDF convention: surface-to-light in view space.
+/// This 32-byte layout mirrors `PBRSceneParameters.metalh`. Material factors
+/// vary per draw in `GPUInstance`; this record contains only the fixed scene
+/// light that is shared by those draws. Its direction uses the shared BRDF
+/// convention: surface-to-light in view space.
 struct PBRSceneParameters {
-    static let validationBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
-    static let validationMetallic: Float = 0
-    static let validationPerceptualRoughness: Float = 0.5
     static let validationDirectionToLightWorld = SIMD3<Float>(0, 0, 1)
     static let validationLightColor = SIMD3<Float>(1, 0.5, 0.25)
     static let validationLightIntensity: Float = 8
 
-    var baseColorMetallic: SIMD4<Float>
-    var directionToLightRoughness: SIMD4<Float>
+    var directionToLightPadding: SIMD4<Float>
     var lightColorIntensity: SIMD4<Float>
 
     /// Resolves the fixed validation input for one completed camera value.
@@ -52,17 +48,11 @@ struct PBRSceneParameters {
             worldToViewRotation * Self.validationDirectionToLightWorld
         )
 
-        self.baseColorMetallic = SIMD4<Float>(
-            Self.validationBaseColor.x,
-            Self.validationBaseColor.y,
-            Self.validationBaseColor.z,
-            Self.validationMetallic
-        )
-        self.directionToLightRoughness = SIMD4<Float>(
+        self.directionToLightPadding = SIMD4<Float>(
             directionToLightView.x,
             directionToLightView.y,
             directionToLightView.z,
-            Self.validationPerceptualRoughness
+            0
         )
         self.lightColorIntensity = SIMD4<Float>(
             Self.validationLightColor.x,

@@ -26,7 +26,7 @@ final class MetalPBRProofRenderer {
 
     init() throws {
         let resources = try MetalResourceStore(
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         guard let commandAllocator = resources.device.makeCommandAllocator() else {

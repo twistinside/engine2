@@ -43,6 +43,15 @@ final class MetalResourceStore {
 
     private var models: [MeshID: USDRenderModel] = [:]
 
+    /// Validated authored descriptions retained as CPU-side Render resources.
+    ///
+    /// The current material count does not justify a separate GPU table. Each
+    /// frame resolves these values into its existing per-draw instance records,
+    /// while this dictionary preserves the Game Content identity boundary.
+    private let materialDescriptions: [
+        MaterialID: PBRMaterialDescription
+    ]
+
     /// Selects the system's default Metal device and creates a complete store
     /// containing the renderer's required built-in resources.
     convenience init(
@@ -70,6 +79,11 @@ final class MetalResourceStore {
             throw MetalResourceStoreError.invalidFrameCount(frameCount)
         }
 
+        // Validate the closed authored-material vocabulary before allocating or
+        // compiling backend state. A malformed content package therefore fails
+        // during Render Runtime construction, never halfway through a frame.
+        try renderAssetCatalog.validateMaterialCoverage()
+
         guard let commandQueue = device.makeMTL4CommandQueue() else {
             throw MetalResourceStoreError.missingCommandQueue
         }
@@ -89,6 +103,7 @@ final class MetalResourceStore {
         self.compiler = compiler
         self.commandQueue = commandQueue
         self.residency = residency
+        self.materialDescriptions = renderAssetCatalog.materials
 
         // Build the small required set eagerly so frame encoding performs only
         // deterministic dictionary lookup and never triggers compilation.
@@ -152,6 +167,22 @@ final class MetalResourceStore {
     /// Resolves an abstract snapshot mesh identity to a retained backend model.
     func model(for id: MeshID) -> USDRenderModel? {
         models[id]
+    }
+
+    /// Resolves one Game Content identity to its retained authored factors.
+    ///
+    /// Store construction validates exhaustive coverage, so a missing value
+    /// here would indicate that a future mutation or catalog-loading path
+    /// violated that invariant. Keep the lookup throwing rather than inventing
+    /// a fallback appearance or crashing inside frame encoding.
+    func materialDescription(
+        for id: MaterialID
+    ) throws -> PBRMaterialDescription {
+        guard let description = materialDescriptions[id] else {
+            throw RenderAssetCatalogError.missingMaterialDescriptions([id])
+        }
+
+        return description
     }
 
     /// Loads the shader library defined by a closed Render Runtime identity.
@@ -302,9 +333,9 @@ final class MetalResourceStore {
             descriptor.maxBufferBindCount = 2
 
         case .pbrScene:
-            // The fragment function consumes buffer index 2. Metal argument
-            // table capacities include every lower index even when this table
-            // deliberately leaves model-only indices 0 and 1 unset.
+            // The fragment function consumes the current per-draw instance at
+            // buffer index 1 and the frame's light-only scene record at index
+            // 2. Capacity includes the unused vertex-only index 0 as well.
             descriptor.label = "PBR Scene Argument Table"
             descriptor.maxBufferBindCount = 3
 

@@ -81,12 +81,13 @@ or `Int` values.
 
 Consumer-defined entities should remain ergonomic typed facades over authoritative ECS state. Their presentation components contain stable asset identities and abstract presentation state, not loaded backend objects.
 
-Proposed render and continuous-audio component shapes might resemble:
+The current render component and a possible continuous-audio component
+illustrate that split:
 
 ```swift
 struct CRenderable: PComponent {
-    var mesh: MeshID
-    var material: MaterialID
+    var meshID: MeshID
+    var materialID: MaterialID
 }
 
 struct CAudioEmitter: PComponent {
@@ -98,10 +99,10 @@ struct CAudioEmitter: PComponent {
 The Simulation Runtime owns these component rows because they are authoritative abstract game state. A publisher-owned `SimulationPresentationSnapshot` carries completed abstract presentation state across the runtime boundary. The Render Runtime can project that source state into a private render-oriented value such as:
 
 ```swift
-struct RenderInstanceSnapshot {
+struct RenderInstance {
     let transform: Transform
-    let mesh: MeshID
-    let material: MaterialID
+    let meshID: MeshID
+    let materialID: MaterialID
 }
 ```
 
@@ -153,9 +154,11 @@ The App is the composition root. It creates one game-content value, then supplie
 The example app now implements the first version of this boundary with
 `BasicGameContent`. It supplies `BasicWorldBuilder` to ``SimulationRuntime``
 and a `RenderAssetCatalog` to the current render path. ``Ball`` advertises only
-the backend-neutral `MeshID.ball`; Game Content maps that ID to `Ball.usdz`, and
-the renderer privately turns the packaged asset into Model I/O and Metal
-resources. Neither ``World`` nor ``Ball`` contains a filename or backend object.
+the backend-neutral `MeshID.ball` plus a `MaterialID`; Game Content maps the mesh
+to `Ball.usdz` and maps each material identity to a `PBRMaterialDescription`.
+The renderer privately turns those descriptions and packaged source assets into
+per-draw data, Model I/O values, and Metal resources. Neither ``World`` nor
+``Ball`` contains a filename, material factor, or backend object.
 
 A future construction shape may resemble:
 
@@ -243,6 +246,8 @@ Current project elements map onto Game Content as follows:
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
 | `BasicGameContent` | Example App-supplied composition of world construction and render asset mappings |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
+| `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
+| `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |
 | `RenderAssetCatalog` | Render-owned catalog input contract populated by Game Content |
 | `ModelShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
 | Debug panes and app commands | Example App tooling, not reusable Game Content or runtime core |
