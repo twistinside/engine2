@@ -58,16 +58,24 @@ struct WorldTests {
             unregisteredID: world.reserveEntityID(),
             in: world
         )
+        let expectedMeshID = MeshID.ball
+        let expectedMaterialID = MaterialID.goldMetal
 
-        world.add(entity)
+        world.add(
+            entity,
+            renderable: RenderableInitialState(
+                meshID: expectedMeshID,
+                materialID: expectedMaterialID
+            )
+        )
 
-        #expect(world.renderableComponents[entity.id]?.meshID == entity.initialMeshID)
+        #expect(world.renderableComponents[entity.id]?.meshID == expectedMeshID)
         #expect(
             world.renderableComponents[entity.id]?.materialID ==
-                entity.initialMaterialID
+                expectedMaterialID
         )
-        #expect(entity.meshID == entity.initialMeshID)
-        #expect(entity.materialID == entity.initialMaterialID)
+        #expect(entity.meshID == expectedMeshID)
+        #expect(entity.materialID == expectedMaterialID)
     }
 
     @Test func reserveEntityIDReturnsUniqueHandles() async throws {
@@ -86,7 +94,4 @@ struct WorldTests {
 private final class TestSpawnEntity: Entity, PPositionable, PScalable {}
 private final class TestMovableSpawnEntity: Entity, PMovable {}
 private final class TestSelectableSpawnEntity: Entity, PSelectable {}
-private final class TestRenderableSpawnEntity: Entity, PRenderable {
-    let initialMeshID = MeshID.ball
-    let initialMaterialID = MaterialID.goldMetal
-}
+private final class TestRenderableSpawnEntity: Entity, PRenderable {}

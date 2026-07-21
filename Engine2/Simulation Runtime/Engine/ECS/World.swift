@@ -28,7 +28,10 @@ class World {
     /// Creates the component rows implied by the entity's advertised capabilities.
     ///
     /// Capability protocols decide which component stores receive rows; the
-    /// optional initial state only supplies the seed values for those rows.
+    /// optional initial values only supply the seeds for those rows.
+    /// `renderableState` is required exactly when the entity advertises
+    /// `PRenderable`, keeping Game Content's mesh/material choice out of the
+    /// live capability protocol.
     ///
     /// Seed the baseline transform rows first so higher-level capabilities
     /// such as motion and rotation always have their backing state.
@@ -37,7 +40,11 @@ class World {
     /// keeps object APIs and ECS rows aligned instead of silently discarding
     /// caller intent.
     @discardableResult
-    func add(_ entity: Entity, from state: Entity.InitialState = .empty) -> EntityID {
+    func add(
+        _ entity: Entity,
+        from state: Entity.InitialState = .empty,
+        renderable renderableState: RenderableInitialState? = nil
+    ) -> EntityID {
         // PPositionable
         precondition(state.position == nil || entity is PPositionable, "Initial state.position requires PPositionable conformance")
         if entity is PPositionable {
@@ -105,11 +112,19 @@ class World {
         }
 
         // PRenderable
-        if let renderable = entity as? any PRenderable {
+        precondition(
+            renderableState == nil || entity is PRenderable,
+            "Renderable initial state requires PRenderable conformance"
+        )
+        precondition(
+            !(entity is PRenderable) || renderableState != nil,
+            "PRenderable conformance requires renderable initial state"
+        )
+        if let renderableState {
             renderableComponents.insert(
                 CRenderable(
-                    meshID: renderable.initialMeshID,
-                    materialID: renderable.initialMaterialID
+                    meshID: renderableState.meshID,
+                    materialID: renderableState.materialID
                 ),
                 for: entity.id
             )

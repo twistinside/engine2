@@ -8,27 +8,6 @@ import simd
 /// state. Its mesh and material identities are backend-neutral and owned by
 /// Game Content.
 class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
-    let initialMeshID = MeshID.ball
-
-    /// Material copied into authoritative ECS state when this ball registers.
-    ///
-    /// This remains only the spawn seed. The `materialID` capability accessor
-    /// reads the current value from `World.renderableComponents` after spawn.
-    let initialMaterialID: MaterialID
-
-    /// Creates an unregistered ball with every capability seed initialized.
-    ///
-    /// A ball needs its material before registration because `World.add(_:from:)`
-    /// reads the `PRenderable` capability while constructing `CRenderable`.
-    init(
-        unregisteredID id: EntityID,
-        in world: World,
-        materialID: MaterialID
-    ) {
-        self.initialMaterialID = materialID
-        super.init(unregisteredID: id, in: world)
-    }
-
     convenience init(
         in world: World,
         materialID: MaterialID = .warmDielectric,
@@ -42,13 +21,7 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
         angularImpulse: SIMD3<Float> = .zero,
         selectionState: CSelectable.SelectionState = .unselected
     ) {
-        // Initialize the Ball-specific material seed before registration makes
-        // the entity observable at the ECS boundary.
-        self.init(
-            unregisteredID: world.reserveEntityID(),
-            in: world,
-            materialID: materialID
-        )
+        self.init(unregisteredID: world.reserveEntityID(), in: world)
         world.add(
             self,
             from: Entity.InitialState(
@@ -61,6 +34,10 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
                 angularAcceleration: angularAcceleration,
                 angularImpulse: angularImpulse,
                 selectionState: selectionState
+            ),
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
             )
         )
     }

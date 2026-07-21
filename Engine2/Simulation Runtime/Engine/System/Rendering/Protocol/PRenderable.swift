@@ -1,11 +1,5 @@
 /// Capability for entities that advertise continuous mesh/material presentation.
 protocol PRenderable: Entity {
-    /// Mesh used when the entity is first registered with its world.
-    var initialMeshID: MeshID { get }
-
-    /// Material used when the entity is first registered with its world.
-    var initialMaterialID: MaterialID { get }
-
     /// Current backend-neutral mesh identity stored in ECS state.
     var meshID: MeshID { get }
 

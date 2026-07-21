@@ -40,7 +40,6 @@ struct BallTests {
         #expect(ball.angularAcceleration == expectedAngularAcceleration)
         #expect(ball.angularImpulse == expectedAngularImpulse)
         #expect(ball.meshID == .ball)
-        #expect(ball.initialMaterialID == expectedMaterialID)
         #expect(ball.materialID == expectedMaterialID)
         #expect(
             world.renderableComponents[ball.id]?.materialID == expectedMaterialID
@@ -64,7 +63,6 @@ struct BallTests {
         #expect(ball.angularAcceleration == .zero)
         #expect(ball.angularImpulse == .zero)
         #expect(ball.meshID == .ball)
-        #expect(ball.initialMaterialID == .warmDielectric)
         #expect(ball.materialID == .warmDielectric)
         #expect(ball.selectionState == .unselected)
     }
