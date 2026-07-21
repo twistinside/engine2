@@ -1,0 +1,11 @@
+#ifndef HDRPresentationParameters_metalh
+#define HDRPresentationParameters_metalh
+
+#include <metal_stdlib>
+
+/// Manual-exposure input mirrored by Swift's `HDRPresentationParameters`.
+struct HDRPresentationParameters {
+    metal::float4 exposurePadding;
+};
+
+#endif

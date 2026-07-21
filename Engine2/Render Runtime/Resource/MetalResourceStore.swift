@@ -43,6 +43,15 @@ final class MetalResourceStore {
 
     private var models: [MeshID: USDRenderModel] = [:]
 
+    /// Validated authored descriptions retained as CPU-side Render resources.
+    ///
+    /// The current material count does not justify a separate GPU table. Each
+    /// frame resolves these values into its existing per-draw instance records,
+    /// while this dictionary preserves the Game Content identity boundary.
+    private let materialDescriptions: [
+        MaterialID: PBRMaterialDescription
+    ]
+
     /// Selects the system's default Metal device and creates a complete store
     /// containing the renderer's required built-in resources.
     convenience init(
@@ -70,6 +79,11 @@ final class MetalResourceStore {
             throw MetalResourceStoreError.invalidFrameCount(frameCount)
         }
 
+        // Validate the closed authored-material vocabulary before allocating or
+        // compiling backend state. A malformed content package therefore fails
+        // during Render Runtime construction, never halfway through a frame.
+        try renderAssetCatalog.validateMaterialCoverage()
+
         guard let commandQueue = device.makeMTL4CommandQueue() else {
             throw MetalResourceStoreError.missingCommandQueue
         }
@@ -82,22 +96,27 @@ final class MetalResourceStore {
             device: device,
             commandQueue: commandQueue,
             staticAssetCapacity: max(renderAssetCatalog.models.count * 4, 1),
-            frameResourceCapacity: frameCount
+            frameResourceCapacity: frameCount * 3
         )
 
         self.device = device
         self.compiler = compiler
         self.commandQueue = commandQueue
         self.residency = residency
+        self.materialDescriptions = renderAssetCatalog.materials
 
         // Build the small required set eagerly so frame encoding performs only
         // deterministic dictionary lookup and never triggers compilation.
         try makeFrameResources(count: frameCount)
         try loadShaderLibrary(.engine)
-        try loadRenderPipeline(.modelSurface)
+        try loadRenderPipeline(.modelPBR)
         try loadRenderPipeline(.modelNormalDiagnostic)
+        try loadRenderPipeline(.hdrToneMappedPresentation)
+        try loadRenderPipeline(.linearPresentation)
         try loadDepthStencilState(.opaque)
         try loadArgumentTable(.model)
+        try loadArgumentTable(.pbrScene)
+        try loadArgumentTable(.hdrPresentation)
         try loadModels(from: renderAssetCatalog)
     }
 
@@ -150,6 +169,22 @@ final class MetalResourceStore {
         models[id]
     }
 
+    /// Resolves one Game Content identity to its retained authored factors.
+    ///
+    /// Store construction validates exhaustive coverage, so a missing value
+    /// here would indicate that a future mutation or catalog-loading path
+    /// violated that invariant. Keep the lookup throwing rather than inventing
+    /// a fallback appearance or crashing inside frame encoding.
+    func materialDescription(
+        for id: MaterialID
+    ) throws -> PBRMaterialDescription {
+        guard let description = materialDescriptions[id] else {
+            throw RenderAssetCatalogError.missingMaterialDescriptions([id])
+        }
+
+        return description
+    }
+
     /// Loads the shader library defined by a closed Render Runtime identity.
     @discardableResult
     private func loadShaderLibrary(
@@ -182,25 +217,44 @@ final class MetalResourceStore {
             return existingState
         }
 
+        let vertexFunctionName: String
         let fragmentFunctionName: String
         let pipelineLabel: String
+        let colorPixelFormat: MTLPixelFormat
 
         switch id {
-        case .modelSurface:
-            fragmentFunctionName = "modelFragment"
-            pipelineLabel = "USD Model Surface Pipeline"
+        case .modelPBR:
+            vertexFunctionName = "modelVertex"
+            fragmentFunctionName = "modelPBRFragment"
+            pipelineLabel = "USD Model PBR Pipeline"
+            colorPixelFormat = MetalRenderer.sceneColorPixelFormat
 
         case .modelNormalDiagnostic:
+            vertexFunctionName = "modelVertex"
             fragmentFunctionName = "modelNormalDiagnosticFragment"
             pipelineLabel = "USD Model Normal Diagnostic Pipeline"
+            colorPixelFormat = MetalRenderer.sceneColorPixelFormat
+
+        case .hdrToneMappedPresentation:
+            vertexFunctionName = "hdrPresentationVertex"
+            fragmentFunctionName = "hdrToneMappedPresentationFragment"
+            pipelineLabel = "HDR Tone-Mapped Presentation Pipeline"
+            colorPixelFormat = MetalRenderer.colorPixelFormat
+
+        case .linearPresentation:
+            vertexFunctionName = "hdrPresentationVertex"
+            fragmentFunctionName = "linearPresentationFragment"
+            pipelineLabel = "Linear Diagnostic Presentation Pipeline"
+            colorPixelFormat = MetalRenderer.colorPixelFormat
         }
 
         let library = try shaderLibrary(for: .engine)
         let vertexFunction = MTL4LibraryFunctionDescriptor()
         vertexFunction.library = library
-        // Metal identifies shader entry points by their source names, so this
-        // string deliberately matches the function in ModelShaders.metal.
-        vertexFunction.name = "modelVertex"
+        // Metal identifies shader entry points by their source names. The
+        // closed pipeline identity above owns every externally required string
+        // so arbitrary names cannot enter the draw path.
+        vertexFunction.name = vertexFunctionName
 
         let fragmentFunction = MTL4LibraryFunctionDescriptor()
         fragmentFunction.library = library
@@ -211,7 +265,7 @@ final class MetalResourceStore {
         descriptor.vertexFunctionDescriptor = vertexFunction
         descriptor.fragmentFunctionDescriptor = fragmentFunction
         descriptor.rasterSampleCount = 1
-        descriptor.colorAttachments[0].pixelFormat = MetalRenderer.colorPixelFormat
+        descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
 
         let state = try compiler.makeRenderPipelineState(
             descriptor: descriptor
@@ -277,6 +331,18 @@ final class MetalResourceStore {
         case .model:
             descriptor.label = "USD Mesh Argument Table"
             descriptor.maxBufferBindCount = 2
+
+        case .pbrScene:
+            // The fragment function consumes the current per-draw instance at
+            // buffer index 1 and the frame's light-only scene record at index
+            // 2. Capacity includes the unused vertex-only index 0 as well.
+            descriptor.label = "PBR Scene Argument Table"
+            descriptor.maxBufferBindCount = 3
+
+        case .hdrPresentation:
+            descriptor.label = "HDR Presentation Argument Table"
+            descriptor.maxBufferBindCount = 1
+            descriptor.maxTextureBindCount = 1
         }
 
         let table = try device.makeArgumentTable(descriptor: descriptor)
@@ -298,16 +364,32 @@ final class MetalResourceStore {
                     length: MemoryLayout<GPUInstance>.stride
                         * FrameResources.maximumInstanceCount,
                     options: [.storageModeShared]
+                  ),
+                  let pbrSceneParametersBuffer = device.makeBuffer(
+                    length: MemoryLayout<PBRSceneParameters>.stride,
+                    options: [.storageModeShared]
+                  ),
+                  let hdrPresentationParametersBuffer = device.makeBuffer(
+                    length: MemoryLayout<HDRPresentationParameters>.stride,
+                    options: [.storageModeShared]
                   )
             else {
                 throw MetalResourceStoreError.missingFrameResource
             }
 
-            residency.addFrameAllocation(instanceBuffer)
+            for allocation in [
+                instanceBuffer as any MTLAllocation,
+                pbrSceneParametersBuffer as any MTLAllocation,
+                hdrPresentationParametersBuffer as any MTLAllocation
+            ] {
+                residency.addFrameAllocation(allocation)
+            }
             frames.append(
                 FrameResources(
                     commandAllocator: commandAllocator,
-                    instanceBuffer: instanceBuffer
+                    instanceBuffer: instanceBuffer,
+                    pbrSceneParametersBuffer: pbrSceneParametersBuffer,
+                    hdrPresentationParametersBuffer: hdrPresentationParametersBuffer
                 )
             )
         }

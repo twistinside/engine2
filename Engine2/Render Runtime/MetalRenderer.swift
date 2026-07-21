@@ -1,9 +1,7 @@
-import Dispatch
+import CoreGraphics
 import Foundation
 import Metal
 import MetalKit
-import ModelIO
-import simd
 
 /// Metal 4 backend that renders the latest completed simulation presentation.
 ///
@@ -21,6 +19,10 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// the render pipeline state.
     static let colorPixelFormat = MTLPixelFormat.bgra8Unorm_srgb
 
+    /// Linear half-float scene color preserves values above display white until
+    /// the explicit presentation phase applies exposure and tone mapping.
+    static let sceneColorPixelFormat = MTLPixelFormat.rgba16Float
+
     /// Ordinary floating-point depth used by the opaque model pass.
     static let depthPixelFormat = MTLPixelFormat.depth32Float
 
@@ -36,8 +38,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         resources.device
     }
 
-    /// Unlit surface pipeline used while material shading is bootstrapped.
-    private let surfacePipelineState: any MTLRenderPipelineState
+    /// Direct-light PBR pipeline that writes linear radiance to the HDR target.
+    private let pbrPipelineState: any MTLRenderPipelineState
 
     /// Diagnostic pipeline that maps interpolated view-space normals to color.
     private let normalDiagnosticPipelineState: any MTLRenderPipelineState
@@ -45,10 +47,23 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Opaque depth behavior shared by the surface and normal diagnostic views.
     private let depthStencilState: any MTLDepthStencilState
 
-    /// Metal 4 resource binding table. Each draw updates buffer slot 0 to point
+    /// Geometry resource binding table. Each draw updates buffer slot 0 to point
     /// at the current mesh's vertex buffer and slot 1 to point at the current
     /// render instance before encoding the draw.
-    private let argumentTable: any MTL4ArgumentTable
+    private let modelArgumentTable: any MTL4ArgumentTable
+
+    /// Fragment-stage binding for the current instance and frame-constant light.
+    private let pbrSceneArgumentTable: any MTL4ArgumentTable
+
+    /// Ordered scene and presentation phases, including their explicit Metal 4
+    /// producer dependency.
+    private let hdrFramePass: MetalHDRFramePass
+
+    /// Terminal preparation and asynchronous queue failures are preserved
+    /// across frame callbacks. Once one is observed, this renderer stops
+    /// submitting additional GPU work; diagnostics can still inspect the
+    /// latest failure from work already live.
+    private let renderErrorState = MetalRenderErrorState()
 
     /// Read-only Simulation Runtime publication selected at render cadence.
     /// The App owns the source's lifetime; Render does not retain its peer runtime.
@@ -57,6 +72,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Selects the visible output without changing geometry, transforms, depth,
     /// or draw submission. Debug tooling can switch this value at render cadence.
     var outputMode: RenderOutputMode
+
+    /// Latest terminal frame-preparation or asynchronous queue error.
+    ///
+    /// Exposing the underlying error read-only keeps diagnostics available to
+    /// App tooling without making the Render Runtime depend on a UI policy.
+    var latestRenderError: (any Error)? {
+        renderErrorState.latestError
+    }
 
     /// Index into `frames` for the next draw call.
     private var frameIndex = 0
@@ -72,12 +95,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         )
 
         self.resources = resources
-        self.surfacePipelineState = try resources.renderPipelineState(for: .modelSurface)
+        self.pbrPipelineState = try resources.renderPipelineState(for: .modelPBR)
         self.normalDiagnosticPipelineState = try resources.renderPipelineState(
             for: .modelNormalDiagnostic
         )
         self.depthStencilState = try resources.depthStencilState(for: .opaque)
-        self.argumentTable = try resources.argumentTable(for: .model)
+        self.modelArgumentTable = try resources.argumentTable(for: .model)
+        self.pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
+        self.hdrFramePass = try MetalHDRFramePass(resources: resources)
         self.presentationSource = presentationSource
         self.outputMode = outputMode
 
@@ -92,6 +117,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         view.colorPixelFormat = colorPixelFormat
         view.depthStencilPixelFormat = depthPixelFormat
         view.clearDepth = clearDepth
+
+        // Fragment shaders return display-linear values. Declaring the view's
+        // presentation color space and using an `_srgb` drawable makes the
+        // drawable perform the one and only linear-to-sRGB transfer.
+        view.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
     }
 
     /// Configures renderer-owned attachment policy and registers MetalKit-owned
@@ -101,15 +131,59 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         resources.residency.registerExternalResources(for: view)
     }
 
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+    func mtkView(_ view: MTKView, drawableSizeWillChange _: CGSize) {
+        // Targets are allocated from the acquired drawable's integer pixel
+        // dimensions in `draw(in:)`. Deferring allocation avoids racing a size
+        // notification against the actual drawable supplied by MetalKit.
+    }
 
     /// Draws the models selected by the latest immutable render frame.
     func draw(in view: MTKView) {
+        // A Metal 4 feedback failure is terminal for this renderer instance.
+        // Continuing to submit would reuse state after an unknown GPU failure
+        // and would make the original diagnostic harder to reason about.
+        guard renderErrorState.latestError == nil else {
+            return
+        }
+
         // Pick the next frame slot before touching the drawable. If all slots
         // are still in flight, this applies back pressure here instead of
         // continuing to allocate command memory without bound.
         let frame = nextFrame()
         frame.waitUntilAvailable()
+
+        // While this draw waits, Metal feedback may record a failure on another
+        // thread. Recheck after acquiring the slot so a failure that unblocked
+        // this very wait cannot trigger one more frame.
+        guard renderErrorState.latestError == nil else {
+            frame.markAvailable()
+            return
+        }
+
+        // Sample only after back pressure clears so this draw uses the newest
+        // completed Simulation value available when encoding can actually
+        // begin. Resolve its exact submitted prefix before resetting mutable
+        // GPU state or acquiring a drawable; missing authored content therefore
+        // cannot produce a partial frame.
+        let renderFrame: RenderFrame
+        if let presentationSource {
+            renderFrame = RenderFrame.project(
+                from: presentationSource.latestPresentationSnapshot
+            )
+        } else {
+            renderFrame = .empty
+        }
+
+        let materialDescriptions: [PBRMaterialDescription]
+        do {
+            materialDescriptions = try resolveMaterialDescriptions(
+                for: renderFrame.instances
+            )
+        } catch {
+            renderErrorState.record(error)
+            frame.markAvailable()
+            return
+        }
 
         // The commit feedback handler marks the frame available only after the
         // GPU finishes the previous workload that used this allocator, so it is
@@ -120,11 +194,37 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // as late as possible. Holding drawable references longer than needed
         // can reduce how much buffering Core Animation has available.
         guard let drawable = view.currentDrawable,
-              let renderPassDescriptor = view.currentMTL4RenderPassDescriptor,
+              let viewRenderPassDescriptor = view.currentMTL4RenderPassDescriptor,
+              let depthTexture = viewRenderPassDescriptor.depthAttachment.texture,
               let commandBuffer = device.makeCommandBuffer()
         else {
             // No GPU work was submitted for this slot, so release it back to the
             // ring immediately.
+            frame.markAvailable()
+            return
+        }
+
+        // MetalKit can temporarily vend a zero-sized drawable while a view is
+        // being resized or removed. Do not feed invalid dimensions into target
+        // construction; simply make this frame slot available again.
+        let drawableWidth = drawable.texture.width
+        let drawableHeight = drawable.texture.height
+        guard drawableWidth > 0, drawableHeight > 0 else {
+            frame.markAvailable()
+            return
+        }
+
+        let sceneTarget: MetalHDRSceneTarget
+        do {
+            // The slot is known to be available, so replacing its old target
+            // cannot invalidate a texture referenced by earlier GPU work.
+            sceneTarget = try frame.prepareHDRSceneTarget(
+                device: device,
+                width: drawableWidth,
+                height: drawableHeight
+            )
+        } catch {
+            renderErrorState.record(error)
             frame.markAvailable()
             return
         }
@@ -136,50 +236,74 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Attach this frame's allocator before encoding. A Metal 4 command
         // buffer does not own command storage until `beginCommandBuffer`.
         commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)
-        let renderFrame: RenderFrame
-        if let presentationSource {
-            renderFrame = RenderFrame.project(
-                from: presentationSource.latestPresentationSnapshot
-            )
-        } else {
-            renderFrame = .empty
-        }
+
+        // The static and frame-buffer residency sets are registered queue-wide.
+        // This drawable-sized target is slot-local, so attach its committed set
+        // to the exact command buffer that references it.
+        commandBuffer.useResidencySet(sceneTarget.residencySet)
+
         let instanceCount = frame.write(
             renderFrame.instances,
+            materialDescriptions: materialDescriptions,
             camera: renderFrame.camera,
-            drawableSize: view.drawableSize
+            drawableSize: CGSize(
+                width: drawableWidth,
+                height: drawableHeight
+            )
         )
 
-        // The descriptor already contains the current drawable texture and the
-        // clear color configured on `MTKView`. The pipeline state tells Metal
-        // which compiled shader functions and color format this pass uses.
-        guard let renderEncoder = commandBuffer.makeRenderCommandEncoder(
-            descriptor: renderPassDescriptor,
-            options: []
-        ) else {
-            // Close the command buffer cleanly even though no work will be
-            // submitted, then release the frame slot for the next draw.
+        // Phase one shades opaque geometry into linear half-float scene color;
+        // phase two presents that stored value to the sRGB drawable. The frame
+        // pass owns their barrier and ordering so every caller uses one pathway.
+        do {
+            try hdrFramePass.encode(
+                sceneColorTexture: sceneTarget.texture,
+                depthTexture: depthTexture,
+                destinationTexture: drawable.texture,
+                clearColor: viewRenderPassDescriptor.colorAttachments[0].clearColor,
+                presentationParametersBuffer: frame.hdrPresentationParametersBuffer,
+                outputMode: outputMode,
+                into: commandBuffer
+            ) { sceneEncoder in
+                sceneEncoder.setRenderPipelineState(
+                    renderPipelineState(for: outputMode)
+                )
+                sceneEncoder.setDepthStencilState(depthStencilState)
+
+                // The directional light is constant for the frame. Each draw
+                // adds its own instance address to this fragment-stage table,
+                // where the shader also reads its packed authored material.
+                pbrSceneArgumentTable.setAddress(
+                    frame.pbrSceneParametersBuffer.gpuAddress,
+                    index: 2
+                )
+                draw(
+                    renderFrame.instances,
+                    instanceCount: instanceCount,
+                    frame: frame,
+                    with: sceneEncoder
+                )
+            }
+        } catch {
+            // Encoder creation failures are terminal, unlike a temporarily
+            // missing drawable. Preserve the exact error before abandoning the
+            // closed command buffer and releasing its unsubmitted frame slot.
             commandBuffer.endCommandBuffer()
+            renderErrorState.record(error)
             frame.markAvailable()
             return
         }
 
-        renderEncoder.setRenderPipelineState(renderPipelineState(for: outputMode))
-        renderEncoder.setDepthStencilState(depthStencilState)
-        draw(
-            renderFrame.instances,
-            instanceCount: instanceCount,
-            frame: frame,
-            with: renderEncoder
-        )
-
-        // Ending the encoder finalizes the render pass. The pass first clears
-        // the drawable using the view's clear color, then stores the model
-        // color output into the drawable texture.
-        renderEncoder.endEncoding()
-
         // `endCommandBuffer` makes the recorded work valid for queue submission.
         commandBuffer.endCommandBuffer()
+
+        // An older in-flight frame can fail while this frame is being encoded.
+        // Abandon this closed but unsubmitted buffer if that happened; its slot
+        // and exact resources are still CPU-owned and immediately reusable.
+        guard renderErrorState.latestError == nil else {
+            frame.markAvailable()
+            return
+        }
 
         // Metal 4 residency is not object ownership. Retain the complete store,
         // the drawable, and this pass's view-owned depth texture independently
@@ -187,23 +311,37 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let submission = MetalInFlightSubmission(
             resources: resources,
             drawable: drawable,
-            depthTexture: renderPassDescriptor.depthAttachment.texture,
-            frame: frame
+            depthTexture: depthTexture,
+            sceneTarget: sceneTarget,
+            frame: frame,
+            errorState: renderErrorState
         )
 
-        // Feedback is the point where this simple renderer learns the GPU is
-        // done with the frame's command allocator and referenced resources. A
-        // fuller renderer would also inspect `feedback.error` here and surface
-        // device failures.
+        // Feedback is the point where this renderer learns the GPU is done with
+        // the frame's command allocator and referenced resources. Errors are
+        // recorded before the frame slot is released for reuse.
         let commitOptions = MTL4CommitOptions()
-        commitOptions.addFeedbackHandler { _ in
-            submission.complete()
+        commitOptions.addFeedbackHandler { feedback in
+            submission.complete(feedbackError: feedback.error)
         }
 
-        // Submit the recorded work first, then tell the queue which drawable is
-        // associated with that work. `present()` requests display once the queue
-        // has completed rendering to the drawable.
-        resources.commandQueue.commit([commandBuffer], options: commitOptions)
+        // Linearize the actual queue commit against feedback recording. This
+        // closes the otherwise narrow race between the last health check and
+        // submission: whichever acquires the error-state lock first defines the
+        // observable order.
+        let submitted = renderErrorState.performIfHealthy {
+            resources.commandQueue.commit(
+                [commandBuffer],
+                options: commitOptions
+            )
+        }
+        guard submitted else {
+            frame.markAvailable()
+            return
+        }
+
+        // Tell the queue which drawable belongs to the committed work, then
+        // request presentation once rendering to it has completed.
         resources.commandQueue.signalDrawable(drawable)
         drawable.present()
     }
@@ -221,7 +359,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     ) -> any MTLRenderPipelineState {
         switch outputMode {
         case .surface:
-            surfacePipelineState
+            pbrPipelineState
 
         case .viewSpaceNormals:
             normalDiagnosticPipelineState
@@ -238,18 +376,17 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        for instanceIndex in 0..<instanceCount {
-            // Missing catalog entries make only the affected instance
-            // unrenderable; they do not invalidate the rest of the frame.
-            guard let model = resources.model(
-                for: instances[instanceIndex].meshID
-            ) else {
-                continue
-            }
-
-            argumentTable.setAddress(
-                frame.instanceBuffer.gpuAddress + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride),
-                index: 1
+        Self.forEachRenderableModel(
+            in: instances,
+            instanceCount: instanceCount,
+            resources: resources
+        ) { instanceIndex, model in
+            Self.selectModelInstance(
+                at: instanceIndex,
+                in: frame,
+                modelArgumentTable: modelArgumentTable,
+                pbrSceneArgumentTable: pbrSceneArgumentTable,
+                with: renderEncoder
             )
 
             for mesh in model.meshes {
@@ -259,11 +396,14 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
                 // MetalKit may suballocate mesh buffers from a larger MTLBuffer, so
                 // the GPU address passed to Metal 4 needs the mesh buffer's offset.
-                argumentTable.setAddress(
+                modelArgumentTable.setAddress(
                     vertexBuffer.buffer.gpuAddress + UInt64(vertexBuffer.offset),
                     index: 0
                 )
-                renderEncoder.setArgumentTable(argumentTable, stages: .vertex)
+                renderEncoder.setArgumentTable(
+                    modelArgumentTable,
+                    stages: .vertex
+                )
 
                 for submesh in mesh.submeshes {
                     let indexBuffer = submesh.indexBuffer
@@ -280,250 +420,84 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         }
     }
 
-}
-
-/// Renderer-owned decoded mesh data for one packaged USD model.
-///
-/// The value groups MetalKit meshes and exposes the unique allocations needed
-/// for explicit Metal 4 residency. Game Content supplies only the abstract
-/// asset reference and never receives these backend objects.
-struct USDRenderModel {
-    let meshes: [MTKMesh]
-
-    /// Unique Metal allocations retained by this decoded model. The resource
-    /// store decides which residency set owns their residency lifetime.
-    var allocations: [any MTLAllocation] {
-        var allocations: [any MTLAllocation] = []
-        var addedAllocations = Set<ObjectIdentifier>()
-
-        for mesh in meshes {
-            for vertexBuffer in mesh.vertexBuffers {
-                append(
-                    vertexBuffer.buffer,
-                    to: &allocations,
-                    tracking: &addedAllocations
-                )
-            }
-
-            for submesh in mesh.submeshes {
-                append(
-                    submesh.indexBuffer.buffer,
-                    to: &allocations,
-                    tracking: &addedAllocations
-                )
-            }
-        }
-
-        return allocations
-    }
-
-    /// Resolves every Game Content model reference into renderer-owned Metal
-    /// resources. The catalog itself never receives those backend objects.
-    static func load(
-        catalog: RenderAssetCatalog,
-        device: any MTLDevice
-    ) throws -> [MeshID: USDRenderModel] {
-        var models: [MeshID: USDRenderModel] = [:]
-
-        for (meshID, asset) in catalog.models {
-            models[meshID] = try load(asset, device: device)
-        }
-
-        return models
-    }
-
-    private static func load(
-        _ modelAsset: ModelAssetReference,
-        device: any MTLDevice
-    ) throws -> USDRenderModel {
-        guard let url = Bundle.main.url(
-            forResource: modelAsset.resourceName,
-            withExtension: modelAsset.format.rawValue
-        ) else {
-            throw MetalRendererError.missingModel(modelAsset.resourceName)
-        }
-
-        let allocator = MTKMeshBufferAllocator(device: device)
-        let vertexDescriptor = makeVertexDescriptor()
-        let modelIOAsset = MDLAsset(
-            url: url,
-            vertexDescriptor: vertexDescriptor,
-            bufferAllocator: allocator
-        )
-        let meshes = try MTKMesh.newMeshes(
-            asset: modelIOAsset,
-            device: device
-        ).metalKitMeshes
-        return USDRenderModel(meshes: meshes)
-    }
-
-    /// Defines the one interleaved vertex layout shared by Model I/O and Metal.
+    /// Visits the exact bounded, model-resolved prefix used by visible draws.
     ///
-    /// `SIMD3<Float>` has a 16-byte stride on both sides of this boundary, so
-    /// explicit offsets keep the Swift descriptor aligned with `ModelVertex` in
-    /// `ModelShaders.metal`. Vertex color remains only as the pre-material visual
-    /// baseline. The packaged asset is an implicit USD sphere, so requesting a
-    /// normal attribute lets Model I/O's USD importer supply its generated
-    /// sphere normals without introducing an engine-wide generation policy.
-    static func makeVertexDescriptor() -> MDLVertexDescriptor {
-        let vertexDescriptor = MDLVertexDescriptor()
-        vertexDescriptor.attributes[0] = MDLVertexAttribute(
-            name: MDLVertexAttributePosition,
-            format: .float3,
-            offset: 0,
-            bufferIndex: 0
-        )
-        vertexDescriptor.attributes[1] = MDLVertexAttribute(
-            name: MDLVertexAttributeColor,
-            format: .float3,
-            offset: MemoryLayout<SIMD3<Float>>.stride,
-            bufferIndex: 0
-        )
-        vertexDescriptor.attributes[2] = MDLVertexAttribute(
-            name: MDLVertexAttributeNormal,
-            format: .float3,
-            offset: MemoryLayout<SIMD3<Float>>.stride * 2,
-            bufferIndex: 0
-        )
-        vertexDescriptor.layouts[0] = MDLVertexBufferLayout(
-            stride: MemoryLayout<SIMD3<Float>>.stride * 3
-        )
-
-        return vertexDescriptor
-    }
-
-    private func append(
-        _ allocation: any MTLAllocation,
-        to allocations: inout [any MTLAllocation],
-        tracking addedAllocations: inout Set<ObjectIdentifier>
+    /// This small CPU-side seam owns draw order and missing-model filtering.
+    /// Production encoding supplies the body that emits Metal commands, while
+    /// integration tests can prove that a projected scene reaches every decoded
+    /// model without replacing this loop with a test-only imitation.
+    static func forEachRenderableModel(
+        in instances: [RenderInstance],
+        instanceCount: Int,
+        resources: MetalResourceStore,
+        _ visit: (_ instanceIndex: Int, _ model: USDRenderModel) -> Void
     ) {
-        let identifier = ObjectIdentifier(allocation as AnyObject)
+        precondition(
+            instanceCount >= 0
+                && instanceCount <= instances.count
+                && instanceCount <= FrameResources.maximumInstanceCount,
+            "Visible model iteration must stay inside the written instance prefix."
+        )
 
-        guard addedAllocations.insert(identifier).inserted else {
-            return
+        for instanceIndex in 0..<instanceCount {
+            // Missing model content makes only this instance unrenderable.
+            // Material coverage has already passed the frame's terminal
+            // preflight and never falls back here.
+            guard let model = resources.model(
+                for: instances[instanceIndex].meshID
+            ) else {
+                continue
+            }
+
+            visit(instanceIndex, model)
         }
-
-        allocations.append(allocation)
     }
-}
 
-/// CPU-side layout written to the per-frame GPU instance buffer.
-///
-/// Its fields match `ModelInstance` in `ModelShaders.metal`. The shader needs a
-/// complete clip transform for rasterization, a model-view transform for future
-/// view-space lighting, and an inverse-transpose linear transform so nonuniform
-/// entity scale cannot skew surface normals.
-struct GPUInstance {
-    var modelViewProjectionMatrix: simd_float4x4
-    var modelViewMatrix: simd_float4x4
-    var normalMatrix: simd_float3x3
-
-    init(
-        _ instance: RenderInstance,
-        viewMatrix: simd_float4x4,
-        projectionMatrix: simd_float4x4
+    /// Selects one stable per-frame instance for both model shader stages.
+    ///
+    /// The vertex table is rebound after its mesh address is selected. The PBR
+    /// fragment table is complete now—its frame light was installed before the
+    /// draw loop—so bind it immediately. Keeping address arithmetic and the new
+    /// per-draw fragment binding in this production helper lets the offscreen
+    /// GPU harness exercise the exact operation used by visible rendering.
+    static func selectModelInstance(
+        at instanceIndex: Int,
+        in frame: FrameResources,
+        modelArgumentTable: any MTL4ArgumentTable,
+        pbrSceneArgumentTable: any MTL4ArgumentTable,
+        with renderEncoder: any MTL4RenderCommandEncoder
     ) {
-        // Build model-view once so the position and normal paths use exactly the
-        // same model and camera transforms.
         precondition(
-            instance.transform.supportsNormalTransform,
-            "GPU instances require a finite transform with invertible scale."
-        )
-        let modelViewMatrix = viewMatrix * instance.transform.matrix
-        precondition(
-            modelViewMatrix.hasFiniteElements,
-            "GPU instances require a finite model-view transform."
-        )
-        let linearModelView = simd_float3x3(
-            columns: (
-                SIMD3<Float>(
-                    modelViewMatrix.columns.0.x,
-                    modelViewMatrix.columns.0.y,
-                    modelViewMatrix.columns.0.z
-                ),
-                SIMD3<Float>(
-                    modelViewMatrix.columns.1.x,
-                    modelViewMatrix.columns.1.y,
-                    modelViewMatrix.columns.1.z
-                ),
-                SIMD3<Float>(
-                    modelViewMatrix.columns.2.x,
-                    modelViewMatrix.columns.2.y,
-                    modelViewMatrix.columns.2.z
-                )
-            )
-        )
-        let linearDeterminant = simd_determinant(linearModelView)
-        precondition(
-            linearDeterminant.isFinite && linearDeterminant != 0,
-            "GPU instances require a finite, invertible model-view transform."
+            instanceIndex >= 0
+                && instanceIndex < FrameResources.maximumInstanceCount,
+            "Model instance selection must remain inside the frame buffer."
         )
 
-        self.modelViewProjectionMatrix = projectionMatrix * modelViewMatrix
-        self.modelViewMatrix = modelViewMatrix
-        self.normalMatrix = simd_transpose(simd_inverse(linearModelView))
-    }
-}
-
-/// Resources encoded on the main actor and released by Metal completion
-/// callbacks. The semaphore protects slot availability across those contexts.
-final class FrameResources: @unchecked Sendable {
-    static let maximumInstanceCount = 256
-
-    /// The allocator that backs command encoding for one frame slot.
-    let commandAllocator: any MTL4CommandAllocator
-
-    /// CPU-written, GPU-read transform data for entities in the current frame.
-    let instanceBuffer: any MTLBuffer
-
-    /// Starts available. A draw call waits on it before reusing the allocator,
-    /// and the queue feedback handler signals it after GPU completion.
-    private let availability = DispatchSemaphore(value: 1)
-
-    init(commandAllocator: any MTL4CommandAllocator, instanceBuffer: any MTLBuffer) {
-        self.commandAllocator = commandAllocator
-        self.instanceBuffer = instanceBuffer
-    }
-
-    /// Blocks the main actor only when the CPU outruns all in-flight frame
-    /// slots. With three slots, this should happen only under sustained GPU
-    /// pressure.
-    func waitUntilAvailable() {
-        availability.wait()
-    }
-
-    /// Releases this frame slot for reuse by a later draw call.
-    nonisolated func markAvailable() {
-        availability.signal()
-    }
-
-    func write(
-        _ instances: [RenderInstance],
-        camera: Camera,
-        drawableSize: CGSize
-    ) -> Int {
-        let instanceCount = min(instances.count, Self.maximumInstanceCount)
-        let aspectRatio = Float(drawableSize.width / max(drawableSize.height, 1))
-        let viewMatrix = camera.viewMatrix
-        let projectionMatrix = camera.projectionMatrix(aspectRatio: aspectRatio)
-        let destination = instanceBuffer.contents().bindMemory(
-            to: GPUInstance.self,
-            capacity: Self.maximumInstanceCount
+        let instanceAddress = frame.instanceBuffer.gpuAddress
+            + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride)
+        modelArgumentTable.setAddress(instanceAddress, index: 1)
+        pbrSceneArgumentTable.setAddress(instanceAddress, index: 1)
+        renderEncoder.setArgumentTable(
+            pbrSceneArgumentTable,
+            stages: .fragment
         )
-
-        for index in 0..<instanceCount {
-            destination[index] = GPUInstance(
-                instances[index],
-                viewMatrix: viewMatrix,
-                projectionMatrix: projectionMatrix
-            )
-        }
-
-        return instanceCount
     }
-}
 
-/// Internal asset-resolution failures surfaced while constructing render resources.
-private enum MetalRendererError: Error {
-    case missingModel(String)
+    /// Resolves the same bounded instance prefix that `FrameResources` writes.
+    ///
+    /// Keeping truncation and resolution together prevents an off-by-one split
+    /// where one material array describes a different draw than the parallel
+    /// transform array. Resolution remains CPU-side and backend-private; the
+    /// resulting factors are packed only after every referenced identity has
+    /// succeeded.
+    private func resolveMaterialDescriptions(
+        for instances: [RenderInstance]
+    ) throws -> [PBRMaterialDescription] {
+        try instances
+            .prefix(FrameResources.maximumInstanceCount)
+            .map { instance in
+                try resources.materialDescription(for: instance.materialID)
+            }
+    }
+
 }

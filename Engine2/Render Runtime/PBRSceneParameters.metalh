@@ -1,0 +1,15 @@
+#ifndef PBRSceneParameters_metalh
+#define PBRSceneParameters_metalh
+
+#include <metal_stdlib>
+
+/// Frame-constant directional light shared by authored-material draws.
+///
+/// This mirrors Swift's `PBRSceneParameters`. Per-draw material factors live in
+/// `ModelInstance`, keeping this scene record independent of draw appearance.
+struct PBRSceneParameters {
+    metal::float4 directionToLightPadding;
+    metal::float4 lightColorIntensity;
+};
+
+#endif

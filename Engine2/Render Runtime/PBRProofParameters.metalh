@@ -1,0 +1,17 @@
+#ifndef PBRProofParameters_metalh
+#define PBRProofParameters_metalh
+
+#include <metal_stdlib>
+
+/// Provisional four-lane binding used only by the isolated offscreen proof.
+///
+/// This remains isolated from the production ABI: authored materials now live
+/// in `ModelInstance`, while production scene parameters contain only light.
+struct PBRProofParameters {
+    metal::float4 baseColorMetallic;
+    metal::float4 directionToLightRoughness;
+    metal::float4 lightColorIntensity;
+    metal::float4 directionToCameraPadding;
+};
+
+#endif

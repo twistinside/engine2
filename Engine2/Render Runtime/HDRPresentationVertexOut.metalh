@@ -1,0 +1,11 @@
+#ifndef HDRPresentationVertexOut_metalh
+#define HDRPresentationVertexOut_metalh
+
+#include <metal_stdlib>
+
+/// Clip-space output for the HDR presentation pass's full-screen triangle.
+struct HDRPresentationVertexOut {
+    metal::float4 position [[position]];
+};
+
+#endif

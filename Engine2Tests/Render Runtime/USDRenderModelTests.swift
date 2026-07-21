@@ -11,7 +11,7 @@ struct USDRenderModelTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
 
         let models = try USDRenderModel.load(
-            catalog: RenderAssetCatalog(models: [:]),
+            catalog: RenderAssetCatalog(models: [:], materials: [:]),
             device: device
         )
 
@@ -27,7 +27,8 @@ struct USDRenderModelTests {
                     resourceName: "ModelThatDoesNotExist",
                     format: .usdz
                 )
-            ]
+            ],
+            materials: [:]
         )
 
         do {

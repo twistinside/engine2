@@ -10,6 +10,7 @@ struct EntityPresentationSnapshot {
     let rotation: simd_quatf?
     let scale: SIMD3<Float>?
     let meshID: MeshID
+    let materialID: MaterialID
 }
 
 extension EntityPresentationSnapshot: Equatable {
@@ -21,6 +22,7 @@ extension EntityPresentationSnapshot: Equatable {
         lhs.position == rhs.position &&
         lhs.rotation?.vector == rhs.rotation?.vector &&
         lhs.scale == rhs.scale &&
-        lhs.meshID == rhs.meshID
+        lhs.meshID == rhs.meshID &&
+        lhs.materialID == rhs.materialID
     }
 }

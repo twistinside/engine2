@@ -10,8 +10,14 @@ struct RenderFrameTests {
 
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: first)
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(-1, 3, 0)), for: second)
-        world.renderableComponents.insert(CRenderable(meshID: .ball), for: first)
-        world.renderableComponents.insert(CRenderable(meshID: .ball), for: second)
+        world.renderableComponents.insert(
+            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            for: first
+        )
+        world.renderableComponents.insert(
+            CRenderable(meshID: .ball, materialID: .goldMetal),
+            for: second
+        )
 
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
@@ -22,10 +28,52 @@ struct RenderFrameTests {
         #expect(frame.sourceTick == SimulationTick(rawValue: 7))
         #expect(
             frame.instances == [
-                RenderInstance(meshID: .ball, worldPosition: SIMD3<Float>(2, -4, 0)),
-                RenderInstance(meshID: .ball, worldPosition: SIMD3<Float>(-1, 3, 0))
+                RenderInstance(
+                    meshID: .ball,
+                    materialID: .warmDielectric,
+                    worldPosition: SIMD3<Float>(2, -4, 0)
+                ),
+                RenderInstance(
+                    meshID: .ball,
+                    materialID: .goldMetal,
+                    worldPosition: SIMD3<Float>(-1, 3, 0)
+                )
             ]
         )
+    }
+
+    @Test func projectionDetachesMaterialIdentityFromLaterECSMutation() throws {
+        let world = World()
+        let entity = EntityID(index: 0, generation: 0)
+        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        world.renderableComponents.insert(
+            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            for: entity
+        )
+
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: .zero
+        )
+        let frame = RenderFrame.project(from: snapshot)
+        let didUpdateMaterial = world.renderableComponents.update(for: entity) {
+            $0.materialID = .goldMetal
+        }
+        let snapshotEntity = try #require(
+            snapshot.entityPresentations.first
+        )
+        let frameInstance = try #require(frame.instances.first)
+        let laterEntity = try #require(
+            SimulationPresentationSnapshot.capture(
+                from: world,
+                at: SimulationTick(rawValue: 1)
+            ).entityPresentations.first
+        )
+
+        #expect(didUpdateMaterial)
+        #expect(snapshotEntity.materialID == .warmDielectric)
+        #expect(frameInstance.materialID == .warmDielectric)
+        #expect(laterEntity.materialID == .goldMetal)
     }
 
     @Test func projectionIgnoresPositionedEntitiesWithoutPresentationContent() async throws {
@@ -44,7 +92,7 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball),
+            CRenderable(meshID: .ball, materialID: .warmDielectric),
             for: entity
         )
 
@@ -62,7 +110,10 @@ struct RenderFrameTests {
 
         world.camera = Camera(position: SIMD3<Float>(1, 2, 3), orthographicHeight: 12)
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(3, 4, 5)), for: entity)
-        world.renderableComponents.insert(CRenderable(meshID: .ball), for: entity)
+        world.renderableComponents.insert(
+            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            for: entity
+        )
         world.rotationComponents.insert(CRotation(rotation: rotation), for: entity)
         world.scaleComponents.insert(CScale(scale: scale), for: entity)
 
@@ -74,6 +125,7 @@ struct RenderFrameTests {
             frame.instances == [
                 RenderInstance(
                     meshID: .ball,
+                    materialID: .warmDielectric,
                     transform: Transform(
                         position: SIMD3<Float>(3, 4, 5),
                         rotation: rotation,
@@ -91,7 +143,7 @@ struct RenderFrameTests {
 
         for entity in [zeroScaleEntity, nonfinitePositionEntity] {
             world.renderableComponents.insert(
-                CRenderable(meshID: .ball),
+                CRenderable(meshID: .ball, materialID: .warmDielectric),
                 for: entity
             )
         }
@@ -122,7 +174,7 @@ struct RenderFrameTests {
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(CPosition(position: .zero), for: entity)
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball),
+            CRenderable(meshID: .ball, materialID: .warmDielectric),
             for: entity
         )
         world.camera.position = SIMD3<Float>(.infinity, 0, 8)
@@ -148,7 +200,7 @@ struct RenderFrameTests {
             for: entity
         )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball),
+            CRenderable(meshID: .ball, materialID: .warmDielectric),
             for: entity
         )
         world.camera = Camera(

@@ -1,18 +1,23 @@
 # PBR Implementation Plan
 
-This article defines the smallest explainable path from Engine2's current
-vertex-color renderer to a direct-light physically based material renderer. It
-also identifies where the already-chosen Forward+ light-selection work begins.
+This article defines the smallest explainable path from Engine2's former
+vertex-color bootstrap renderer to a direct-light physically based material
+renderer. It also identifies where the already-chosen Forward+ light-selection
+work begins.
 
 ## Status
 
-Implementation is in progress. Milestone 1 is implemented; Milestones 2–5
-remain proposed.
+The PBR bootstrap is implemented. Milestones 1–5 now establish the complete
+authored-material validation path; Forward+ light assignment remains a later
+scaling project.
 
-The current renderer provides positions, importer-supplied normals, display
-colors, view-space transforms, ordinary depth, and a normal diagnostic. It does
-not yet have a PBR material description, lighting input, linear HDR target, or
-tone-mapping pass.
+The visible renderer now resolves authored Game Content materials, evaluates
+the same direct-light BRDF as the isolated proof, writes scene-linear radiance
+into a renderer-owned half-float target, and presents it through explicit
+exposure, Reinhard tone mapping, and one sRGB transfer. Its directional light
+remains a fixed Render-owned validation input. A deterministic six-sphere scene
+exercises the ordinary Game Content-to-Simulation-to-Render path; semantic
+lighting is not yet a Simulation or snapshot concept.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -78,9 +83,8 @@ multiple times to distinguish materials.
 
 Simulation remains authoritative for semantic world state:
 
-- `CRenderable` currently stores `MeshID`; the authored-material milestone adds
-  `MaterialID`. Snapshot capture iterates that store and joins position,
-  rotation, and scale from their separate components.
+- `CRenderable` stores `MeshID` and `MaterialID`. Snapshot capture iterates that
+  store and joins position, rotation, and scale from their separate components.
 - The validation spheres are ordinary renderable entities. This plan adds no
   light component, light capability, or light array to the presentation
   snapshot.
@@ -163,6 +167,38 @@ argument-table ABI before material and light data exist.
 - Grazing-angle inputs remain finite.
 - The offscreen target contains linear values rather than gamma-encoded color.
 
+### Implemented Conventions
+
+The proof deliberately fixes its mathematical vocabulary without treating its
+test binding as a production ABI:
+
+- `N`, `V`, and `L` are normalized view-space directions that point away from
+  the surface: `N` is the surface normal, `V` points toward the camera, and `L`
+  points toward the light source.
+- Base color is finite linear RGB in `0...1`; metallic and input perceptual
+  roughness are finite scalar factors in `0...1`; incident radiance is finite,
+  nonnegative linear RGB.
+- Evaluation floors perceptual roughness at `0.089`, then maps it to GGX
+  `alpha` by squaring it. This keeps the direct-light proof finite at the
+  zero input endpoint and makes the effective value visible through the
+  roughness diagnostic.
+- GGX normal distribution, height-correlated Smith visibility, and Schlick
+  Fresnel are evaluated once in `PBRDirectLighting.metalh`. The Smith term
+  already contains `G / (4 (N dot V) (N dot L))`; shading does not divide by a
+  second Cook-Torrance denominator.
+- Dielectric `F0` is `0.04`. Metallic blends `F0` toward base color and removes
+  diffuse color. Lambert diffuse is weighted by both `1 - metallic` and
+  `1 - Fresnel`.
+- Both diffuse and specular direct-light contributions multiply incident
+  radiance and saturated `N dot L` in the shared evaluator.
+
+The proof shader draws an analytic front hemisphere with an orthographic camera
+into a `65 x 65` `rgba16Float` target. Separate fragment entry points expose the
+shaded result and each diagnostic, but all of them call the same evaluator. A
+small four-`float4` parameter record and its argument table belong only to the
+test harness. Milestone 3 chose its visible-path bindings independently while
+including the same BRDF implementation.
+
 ## Milestone 3: Visible HDR PBR
 
 ### Outcome
@@ -196,6 +232,48 @@ implementation details.
 - Resizing replaces targets without releasing resources still used by an
   in-flight command buffer.
 - Metal completion feedback surfaces command errors.
+
+### Implemented Conventions
+
+The visible pathway deliberately fixes its presentation and lifetime behavior
+before authored material identity is introduced:
+
+- `PBRSceneParameters` carries a fixed base color of `(0.5, 0.25, 0.125)`,
+  metallic `0`, and perceptual roughness `0.5`. Its directional light points
+  from the surface toward world-space `+Z`, has linear color `(1, 0.5, 0.25)`,
+  and uses validation intensity `8`. Render transforms the direction into view
+  space once per frame; camera translation never enters that transformation.
+- Each reusable `FrameResources` slot owns its parameter buffers and lazily
+  owns one private, drawable-sized `rgba16Float` texture with
+  `renderTarget` and `shaderRead` usage. A size change replaces that texture
+  only after the slot's availability semaphore proves its preceding submission
+  is complete.
+- The HDR texture owns a committed residency set attached to the exact Metal 4
+  command buffer that references it. `MetalInFlightSubmission` retains the
+  exact target, drawable, depth texture, store, and frame slot through queue
+  feedback; residency and Swift object lifetime remain separate concerns.
+- The first encoder shades geometry and stores linear HDR scene color. A single
+  fragment-to-fragment device barrier follows the scene draws and precedes the
+  second encoder, which samples that texture for presentation.
+- `ManualExposure.validation` is an explicit scene-linear multiplier of `1`.
+  Surface presentation clamps invalid or negative input to black, applies
+  `x / (1 + x)`, and returns display-linear RGB. It contains no `pow` or manual
+  gamma operation.
+- The drawable remains `bgra8Unorm_srgb`, and the Metal view declares the sRGB
+  color space. The drawable store therefore performs the pathway's only sRGB
+  transfer encoding. The normal diagnostic uses a separate linear presentation
+  fragment so exposure and tone mapping do not alter its `0...1` meaning.
+- Queue feedback records the underlying Metal error before making the frame
+  slot reusable. A renderer with a recorded asynchronous error stops submitting
+  additional work and exposes that error for App diagnostics.
+
+For the front-facing validation case where `N`, `V`, and `L` are all `+Z`, the
+shared BRDF produces scene-linear RGB approximately
+`(1.62975, 0.509296, 0.178254)`. Storage in `rgba16Float` quantizes this to
+`(1.62988, 0.509277, 0.178223)`, proving that a value above display white
+survives the material phase. Exposure `1` and Reinhard map the stored value to
+approximately `(0.619755, 0.337431, 0.151264)` before the drawable performs its
+single transfer encoding.
 
 ## Milestone 4: Authored Material Boundary
 
@@ -232,6 +310,50 @@ material count or draw organization requires them.
 - Material factors and Metal resources never enter ECS or a Simulation
   snapshot. Only `MaterialID` crosses that boundary.
 
+### Implemented Conventions
+
+The authored boundary remains deliberately smaller than a general material
+system:
+
+- Game Content owns the exhaustive `MaterialID` vocabulary. Its first two cases
+  are `warmDielectric` and `goldMetal`; both reuse `MeshID.ball` and differ only
+  by authored material intent.
+- Render owns `PBRMaterialDescription`. It accepts finite scene-linear base
+  color channels, metallic, and perceptual roughness in `0...1`, rejecting
+  invalid authored content instead of clamping it. The shader still owns the
+  documented roughness evaluation floor.
+- `RenderAssetCatalog` maps every `MaterialID` to one description. Store
+  construction validates exhaustive coverage in stable `MaterialID.allCases`
+  order before allocating or compiling backend resources. There is no default
+  material and therefore no partially drawn frame with a substituted surface.
+  `MetalSceneView.Coordinator` retains a construction failure for App
+  diagnostics instead of silently erasing it when no renderer is created.
+- `CRenderable`, `EntityPresentationSnapshot`, and `RenderInstance` carry only
+  `MaterialID`. They contain no factors, compact GPU indices, buffers, or Metal
+  objects. Snapshot capture copies the identity by value, so a later ECS change
+  cannot alter an already published presentation.
+- `MetalResourceStore` retains the validated CPU descriptions. `MetalRenderer`
+  waits for a frame slot, samples the newest completed presentation, and
+  resolves the bounded submitted prefix before resetting, writing, or encoding
+  mutable GPU state. The slot then packs base color plus metallic and roughness
+  into each draw's existing `GPUInstance`. The 208-byte record remains stable
+  through the frame-ring completion rule; no separate material allocation or
+  residency set exists.
+- `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
+  directional light is transformed into view space once per frame, while the
+  fragment stage reads the current draw's material from its instance record.
+- The model shader does not consume the decoded vertex display color or any
+  embedded USD material. The explicit authored description is the sole surface
+  authority even though the transitional vertex lane remains in the decoded
+  mesh layout.
+
+`warmDielectric` preserves the Milestone 3 factors exactly: base color
+`(0.5, 0.25, 0.125)`, metallic `0`, and perceptual roughness `0.5`. It therefore
+reproduces the existing HDR reference. `goldMetal` uses scene-linear base color
+`(1, 0.766, 0.336)`, metallic `1`, and perceptual roughness `0.35`, providing a
+second independently bound response without prematurely defining the complete
+Milestone 5 sphere scene.
+
 ## Milestone 5: Validate the Material Sphere Scene
 
 ### Outcome
@@ -265,6 +387,57 @@ responses without adding gameplay-light architecture to the PBR bootstrap.
   transforms.
 - Bright values survive the HDR target and roll off only during presentation.
 - Snapshot values remain detached from later ECS mutation.
+
+### Implemented Conventions
+
+The validation scene is a controlled `2 x 3` grid. All six ordinary ``Ball``
+entities use `MeshID.ball`, remain at world-space `z = 0`, and differ only by
+their position and `MaterialID`:
+
+| Row | x = -1.75 | x = 0 | x = 1.75 | y |
+| --- | --- | --- | --- | --- |
+| Warm dielectric | `warmDielectricSmooth` | `warmDielectric` | `warmDielectricRough` | `1.10` |
+| Gold metal | `goldMetalSmooth` | `goldMetal` | `goldMetalRough` | `-1.10` |
+
+Within each row, base color and metallic remain constant while perceptual
+roughness changes from left to right:
+
+| Material family | Linear base color | Metallic | Roughness values |
+| --- | --- | --- | --- |
+| Warm dielectric | `(0.5, 0.25, 0.125)` | `0` | `0.2`, `0.5`, `0.8` |
+| Gold metal | `(1, 0.766, 0.336)` | `1` | `0.2`, `0.35`, `0.8` |
+
+The two established Milestone 4 baselines remain unchanged. Roughness `0.2`
+avoids the evaluator's endpoint floor and an unnecessarily alias-sensitive
+peak, while `0.8` gives each family a clearly broader comparison.
+
+The entities retain their normal movement and rotation capabilities. Their
+velocity, acceleration intent, impulse, angular velocity, and angular
+accumulators all use zero/idle defaults, so the invariant Simulation schedule
+leaves the scene quiescent. They do not advertise scale; ``RenderFrame`` applies
+its existing `0.5` default. The default perspective camera remains at
+`(0, 0, 8)`, and the fixed Render-owned world-space `+Z` directional light is
+unchanged.
+
+Validation deliberately adds no app-facing render path. Surface and view-space
+normal modes remain the only `RenderOutputMode` cases. Test-addressable model
+fragment entry points expose base color, metallic, effective roughness, diffuse,
+and specular results while consuming the same `GPUInstance`, light record,
+production model evaluator, argument-table binding helper, and shared BRDF as
+the visible surface. Those functions are present in the bundled Metal library,
+but only the test harness creates pipeline states for them; production code adds
+no corresponding pipeline identity. The analytic proof measures roughness-lobe
+shape using values resolved from the authored catalog. The production HDR
+harness inspects both stored half-float radiance and final tone-mapped sRGB
+presentation.
+
+Builder tests freeze the six entities through the ordinary world, completed
+snapshot, and Render-owned projection, prove quiescence across fixed steps, and
+verify detachment from later ECS mutation. Catalog/model tests establish one
+packaged and decoded sphere mesh. A shared production iteration seam proves that
+the visible model loop visits all six projected instances in order, while the
+GPU harness exercises that loop's exact per-draw instance-binding operation and
+preserves six independent material identities.
 
 At this point, stop. Textures, Forward+, shadows, atmosphere, and large-world
 coordinates are separate changes with separate evidence and review.
@@ -316,6 +489,7 @@ that exceed the current `Float` model.
 
 ## References
 
+- [Filament: Roughness remapping and clamping](https://google.github.io/filament/main/filament.html#materialsystem/parameterization/roughnessremappingandclamping)
 - [Understanding the Metal 4 core API](https://developer.apple.com/documentation/metal/understanding-the-metal-4-core-api)
 - [Calculating primitive visibility using depth testing](https://developer.apple.com/documentation/metal/calculating-primitive-visibility-using-depth-testing)
 - [Processing HDR images with Metal](https://developer.apple.com/documentation/metal/processing-hdr-images-with-metal)

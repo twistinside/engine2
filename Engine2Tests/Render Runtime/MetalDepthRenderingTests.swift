@@ -11,7 +11,7 @@ struct MetalDepthRenderingTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
 
@@ -41,10 +41,10 @@ struct MetalDepthRenderingTests {
             )
 
             #expect(nearThenFar == farThenNear)
-            #expect(nearThenFar[0] < 8)   // blue byte in BGRA storage
-            #expect(nearThenFar[1] < 8)   // green byte
-            #expect(nearThenFar[2] > 247) // red byte from nearer triangle
-            #expect(nearThenFar[3] > 247) // opaque alpha
+            expectLinearRGBA(
+                nearThenFar,
+                approximately: SIMD4<Float>(1, 0.5, 0.5, 1)
+            )
         }
     }
 
@@ -53,42 +53,41 @@ struct MetalDepthRenderingTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         let pixel = try renderCenterPixel(
             drawOrder: [0],
-            pipelineID: .modelNormalDiagnostic,
             nearNormal: SIMD3<Float>(1, 0, 0),
             resources: resources
         )
 
-        // View-space +X maps to linear RGB (1, 0.5, 0.5). The sRGB target
-        // transfer-encodes the two 0.5 channels to approximately 188.
-        #expect((180...195).contains(Int(pixel[0])))
-        #expect((180...195).contains(Int(pixel[1])))
-        #expect(pixel[2] > 247)
-        #expect(pixel[3] > 247)
+        // View-space +X maps directly to linear RGBA (1, 0.5, 0.5, 1) in the
+        // scene target. Presentation transfer is tested separately so this
+        // diagnostic remains focused on the model fragment's normalization.
+        expectLinearRGBA(
+            pixel,
+            approximately: SIMD4<Float>(1, 0.5, 0.5, 1)
+        )
     }
 }
 
 @MainActor
 private func renderCenterPixel(
     drawOrder: [Int],
-    pipelineID: MetalRenderPipelineID = .modelSurface,
-    nearNormal: SIMD3<Float> = SIMD3<Float>(0, 0, 1),
+    nearNormal: SIMD3<Float> = SIMD3<Float>(1, 0, 0),
     camera: Camera = Camera(),
     resources: MetalResourceStore
-) throws -> [UInt8] {
+) throws -> SIMD4<Float> {
     let textureSize = 8
     let colorTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-        pixelFormat: MetalRenderer.colorPixelFormat,
+        pixelFormat: MetalRenderer.sceneColorPixelFormat,
         width: textureSize,
         height: textureSize,
         mipmapped: false
     )
     colorTextureDescriptor.storageMode = .shared
-    colorTextureDescriptor.usage = [.renderTarget]
+    colorTextureDescriptor.usage = [.renderTarget, .shaderRead]
 
     let depthTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
         pixelFormat: MetalRenderer.depthPixelFormat,
@@ -106,33 +105,38 @@ private func renderCenterPixel(
         resources.device.makeTexture(descriptor: depthTextureDescriptor)
     )
     let nearVertexBuffer = try makeTriangleBuffer(
-        color: SIMD3<Float>(1, 0, 0),
         normal: nearNormal,
         device: resources.device
     )
     let farVertexBuffer = try makeTriangleBuffer(
-        color: SIMD3<Float>(0, 1, 0),
-        normal: SIMD3<Float>(0, 0, 1),
+        normal: SIMD3<Float>(0, 1, 0),
         device: resources.device
     )
     let vertexBuffers = [nearVertexBuffer, farVertexBuffer]
 
-    // Metal 4 does not make resources resident implicitly. Add every transient
-    // allocation to a set registered with this test queue before encoding it;
-    // explicit object lifetime is handled separately across the wait below.
+    // Metal 4 does not make resources resident implicitly. Keep these
+    // test-local allocations in a dedicated set attached only to this command
+    // buffer instead of mutating the store's long-lived asset residency set.
+    let residencyDescriptor = MTLResidencySetDescriptor()
+    residencyDescriptor.label = "Depth Proof Resources"
+    residencyDescriptor.initialCapacity = 4
+    let residencySet = try resources.device.makeResidencySet(
+        descriptor: residencyDescriptor
+    )
     for allocation in [
         colorTexture as any MTLAllocation,
         depthTexture as any MTLAllocation,
         nearVertexBuffer as any MTLAllocation,
         farVertexBuffer as any MTLAllocation
     ] {
-        resources.residency.addStaticAllocation(allocation)
+        residencySet.addAllocation(allocation)
     }
-    resources.residency.commitStaticAssets()
+    residencySet.commit()
 
     let instances = [
         RenderInstance(
             meshID: .ball,
+            materialID: .warmDielectric,
             transform: Transform(
                 position: SIMD3<Float>(0, 0, 0),
                 scale: SIMD3<Float>(4, 4, 1)
@@ -140,6 +144,7 @@ private func renderCenterPixel(
         ),
         RenderInstance(
             meshID: .ball,
+            materialID: .warmDielectric,
             transform: Transform(
                 position: SIMD3<Float>(0, 0, -2),
                 scale: SIMD3<Float>(4, 4, 1)
@@ -150,6 +155,9 @@ private func renderCenterPixel(
     frame.commandAllocator.reset()
     let instanceCount = frame.write(
         instances,
+        materialDescriptions: try instances.map {
+            try resources.materialDescription(for: $0.materialID)
+        },
         camera: camera,
         drawableSize: CGSize(width: textureSize, height: textureSize)
     )
@@ -172,6 +180,7 @@ private func renderCenterPixel(
 
     let commandBuffer = try #require(resources.device.makeCommandBuffer())
     commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)
+    commandBuffer.useResidencySet(residencySet)
     let encoder = try #require(
         commandBuffer.makeRenderCommandEncoder(
             descriptor: renderPass,
@@ -179,7 +188,7 @@ private func renderCenterPixel(
         )
     )
     encoder.setRenderPipelineState(
-        try resources.renderPipelineState(for: pipelineID)
+        try resources.renderPipelineState(for: .modelNormalDiagnostic)
     )
     encoder.setDepthStencilState(
         try resources.depthStencilState(for: .opaque)
@@ -207,41 +216,46 @@ private func renderCenterPixel(
     encoder.endEncoding()
     commandBuffer.endCommandBuffer()
 
-    let completion = DispatchSemaphore(value: 0)
     let submission = MetalOffscreenTestSubmission(
-        resources: resources,
-        colorTexture: colorTexture,
-        depthTexture: depthTexture,
-        nearVertexBuffer: nearVertexBuffer,
-        farVertexBuffer: farVertexBuffer,
-        completion: completion
+        retaining: [
+            resources as AnyObject,
+            colorTexture as AnyObject,
+            depthTexture as AnyObject,
+            nearVertexBuffer as AnyObject,
+            farVertexBuffer as AnyObject,
+            residencySet as AnyObject
+        ]
     )
     let commitOptions = MTL4CommitOptions()
-    commitOptions.addFeedbackHandler { _ in
-        submission.complete()
+    commitOptions.addFeedbackHandler { feedback in
+        submission.complete(feedbackError: feedback.error)
     }
     resources.commandQueue.commit([commandBuffer], options: commitOptions)
 
-    // A timeout does not release `submission`: the queue's feedback handler
-    // owns it independently until the GPU actually completes the workload.
-    let waitResult = completion.wait(timeout: .now() + 5)
-    guard waitResult == .success else {
-        Issue.record("Timed out waiting for the offscreen Metal depth test.")
-        return [0, 0, 0, 0]
-    }
+    // Throwing is required here. Returning a sentinel pixel would let the
+    // caller reset this store's allocator and rewrite shared inputs even though
+    // timed-out GPU work may still reference them. The feedback closure keeps
+    // `submission` and its owners alive until Metal truly finishes.
+    try submission.waitForCompletion(timeout: .now() + 5)
 
-    var pixel = [UInt8](repeating: 0, count: 4)
-    colorTexture.getBytes(
-        &pixel,
-        bytesPerRow: 4,
-        from: MTLRegionMake2D(textureSize / 2, textureSize / 2, 1, 1),
-        mipmapLevel: 0
+    var pixel = [Float16](repeating: 0, count: 4)
+    pixel.withUnsafeMutableBytes { bytes in
+        colorTexture.getBytes(
+            bytes.baseAddress!,
+            bytesPerRow: 4 * MemoryLayout<Float16>.stride,
+            from: MTLRegionMake2D(textureSize / 2, textureSize / 2, 1, 1),
+            mipmapLevel: 0
+        )
+    }
+    return SIMD4<Float>(
+        Float(pixel[0]),
+        Float(pixel[1]),
+        Float(pixel[2]),
+        Float(pixel[3])
     )
-    return pixel
 }
 
 private func makeTriangleBuffer(
-    color: SIMD3<Float>,
     normal: SIMD3<Float>,
     device: any MTLDevice
 ) throws -> any MTLBuffer {
@@ -255,7 +269,10 @@ private func makeTriangleBuffer(
 
     for position in positions {
         interleaved.append(position)
-        interleaved.append(color)
+        // Vertex display color is intentionally irrelevant to this proof. The
+        // normal diagnostic gives near and far geometry distinct linear values
+        // without retaining the removed unlit surface pathway for a test.
+        interleaved.append(.zero)
         interleaved.append(normal)
     }
 
@@ -271,4 +288,19 @@ private func makeTriangleBuffer(
         )
     }
     return try #require(buffer)
+}
+
+private func expectLinearRGBA(
+    _ actual: SIMD4<Float>,
+    approximately expected: SIMD4<Float>,
+    maximumHalfULPDistance: Int = 1
+) {
+    for componentIndex in 0..<4 {
+        let actualHalf = Float16(actual[componentIndex])
+        let expectedHalf = Float16(expected[componentIndex])
+        let ulpDistance = abs(
+            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
+        )
+        #expect(ulpDistance <= maximumHalfULPDistance)
+    }
 }

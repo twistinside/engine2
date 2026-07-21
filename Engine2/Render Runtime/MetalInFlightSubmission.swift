@@ -8,24 +8,31 @@ import QuartzCore
 /// its coordinator during SwiftUI teardown, so the completion callback keeps
 /// this token alive until the GPU has finished. The token, in turn, retains the
 /// renderer's resource store, the exact drawable, the exact depth attachment,
-/// and the frame slot whose command storage and instance buffer were encoded.
+/// the exact HDR scene target, and the frame slot whose command storage and
+/// mutable buffers were encoded.
 final class MetalInFlightSubmission: @unchecked Sendable {
     private let resources: MetalResourceStore
     private let drawable: any CAMetalDrawable
     private let depthTexture: (any MTLTexture)?
+    private let sceneTarget: MetalHDRSceneTarget
     private let frame: FrameResources
+    private let errorState: MetalRenderErrorState
 
     @MainActor
     init(
         resources: MetalResourceStore,
         drawable: any CAMetalDrawable,
         depthTexture: (any MTLTexture)?,
-        frame: FrameResources
+        sceneTarget: MetalHDRSceneTarget,
+        frame: FrameResources,
+        errorState: MetalRenderErrorState
     ) {
         self.resources = resources
         self.drawable = drawable
         self.depthTexture = depthTexture
+        self.sceneTarget = sceneTarget
         self.frame = frame
+        self.errorState = errorState
     }
 
     /// Releases the frame slot after the queue reports GPU completion.
@@ -33,7 +40,8 @@ final class MetalInFlightSubmission: @unchecked Sendable {
     /// The callback may arrive away from the main actor. `FrameResources` owns
     /// the thread-safe semaphore operation; releasing this token after the call
     /// also releases the retained Metal object graph.
-    nonisolated func complete() {
+    nonisolated func complete(feedbackError: (any Error)?) {
+        errorState.record(feedbackError)
         frame.markAvailable()
     }
 }
