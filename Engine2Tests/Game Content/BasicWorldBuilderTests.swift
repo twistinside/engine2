@@ -2,54 +2,171 @@ import Testing
 import simd
 @testable import Engine2
 
+@MainActor
 struct BasicWorldBuilderTests {
-    @Test func basicWorldBuilderSeedsEveryDefaultBall() async throws {
+    @Test func seedsDeterministicMaterialSphereScene() {
         let world = BasicWorldBuilder().buildWorld()
 
-        #expect(world.positionComponents.entities.count == 4)
-        #expect(world.motionComponents.entities.count == 4)
-        #expect(world.rotationComponents.entities.count == 4)
-        #expect(world.angularVelocityComponents.entities.count == 4)
-        #expect(world.angularMotionAccumulatorComponents.entities.count == 4)
-        #expect(world.renderableComponents.entities.count == 4)
-        #expect(world.selectableComponents.entities.count == 4)
-
-        let entities = world.positionComponents.entities
-        let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
-
+        expectExactStoreMembership(in: world)
         #expect(
-            entities.compactMap { world.positionComponents[$0]?.position } == [
-                SIMD3<Float>(-2, -1, 0),
-                SIMD3<Float>(2, -1, 0),
-                SIMD3<Float>(-1.5, 1.2, 0),
-                SIMD3<Float>(1.7, 1.1, 0)
-            ]
+            world.positionComponents.dense.map(\.position) ==
+                Self.expectedPositions
         )
         #expect(
-            entities.compactMap { world.motionComponents[$0]?.velocity } == [
-                SIMD3<Float>(0.65, 0.45, 0),
-                SIMD3<Float>(-0.25, 0.35, 0),
-                .zero,
-                SIMD3<Float>(-0.45, -0.45, 0)
-            ]
+            world.renderableComponents.dense.map(\.materialID) ==
+                Self.expectedMaterialIDs
         )
         #expect(
-            entities.compactMap {
-                world.motionComponents[$0]?.accelerationIntent
-            } == [
-                .accelerating(SIMD3<Float>(0.02, 0.01, 0)),
-                .idle,
-                .accelerating(SIMD3<Float>(0.02, -0.02, 0)),
-                .accelerating(SIMD3<Float>(-0.02, -0.01, 0))
-            ]
+            world.renderableComponents.dense.map(\.meshID) ==
+                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+        )
+        #expect(world.scaleComponents.entities.isEmpty)
+        #expect(world.scaleComponents.dense.isEmpty)
+        expectReferenceCamera(world.camera)
+
+        expectQuiescentState(in: world)
+    }
+
+    @Test func materialSphereSceneRemainsQuiescentAcrossFixedSteps() {
+        let initialWorld = BasicWorldBuilder().buildWorld()
+        let initialSnapshot = SimulationPresentationSnapshot.capture(
+            from: initialWorld,
+            at: .zero
+        )
+        let engine = Engine(world: initialWorld)
+
+        // Exercise the actual invariant schedule long enough for any unintended
+        // velocity, persistent acceleration, impulse, or angular drift to show.
+        for _ in 0..<120 {
+            engine.step()
+        }
+
+        let laterSnapshot = SimulationPresentationSnapshot.capture(
+            from: engine.world,
+            at: engine.completedTick
         )
 
-        for entity in entities {
+        #expect(engine.completedTick == SimulationTick(rawValue: 120))
+        #expect(
+            laterSnapshot.entityPresentations ==
+                initialSnapshot.entityPresentations
+        )
+        expectReferenceCamera(engine.world.camera)
+        expectExactStoreMembership(in: engine.world)
+        expectQuiescentState(in: engine.world)
+    }
+
+    @Test func materialSphereSceneUsesOrdinarySnapshotAndRenderFramePath() {
+        let world = BasicWorldBuilder().buildWorld()
+        let tick = SimulationTick(rawValue: 41)
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: tick
+        )
+        let frame = RenderFrame.project(from: snapshot)
+
+        #expect(snapshot.tick == tick)
+        expectReferenceCamera(snapshot.camera)
+        #expect(snapshot.entityPresentations.map(\.id) == Self.expectedEntityIDs)
+        #expect(
+            snapshot.entityPresentations.compactMap(\.position) ==
+                Self.expectedPositions
+        )
+        #expect(
+            snapshot.entityPresentations.map(\.materialID) ==
+                Self.expectedMaterialIDs
+        )
+        #expect(
+            snapshot.entityPresentations.map(\.meshID) ==
+                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+        )
+        #expect(snapshot.entityPresentations.allSatisfy { $0.scale == nil })
+
+        #expect(frame.sourceTick == tick)
+        expectReferenceCamera(frame.camera)
+        #expect(frame.instances.map(\.transform.position) == Self.expectedPositions)
+        #expect(frame.instances.map(\.materialID) == Self.expectedMaterialIDs)
+        #expect(
+            frame.instances.map(\.meshID) ==
+                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+        )
+        #expect(
+            frame.instances.map(\.transform.scale) ==
+                Array(
+                    repeating: Self.expectedProjectedScale,
+                    count: Self.expectedEntityIDs.count
+                )
+        )
+        for instance in frame.instances {
+            #expect(
+                instance.transform.rotation.vector ==
+                    Self.identityRotation.vector
+            )
+        }
+
+        // ECS remains authoritative and mutable, while both completed boundary
+        // values above stay detached from later world changes.
+        let firstEntity = Self.expectedEntityIDs[0]
+        let didMove = world.positionComponents.update(for: firstEntity) {
+            $0.position = SIMD3<Float>(99, 99, 99)
+        }
+        let didChangeMaterial = world.renderableComponents.update(
+            for: firstEntity
+        ) {
+            $0.materialID = .goldMetalRough
+        }
+
+        #expect(didMove)
+        #expect(didChangeMaterial)
+        #expect(snapshot.entityPresentations[0].position == Self.expectedPositions[0])
+        #expect(
+            snapshot.entityPresentations[0].materialID ==
+                Self.expectedMaterialIDs[0]
+        )
+        #expect(frame.instances[0].transform.position == Self.expectedPositions[0])
+        #expect(frame.instances[0].materialID == Self.expectedMaterialIDs[0])
+    }
+
+    /// Locks dense-store order to ordinary Ball registration order.
+    private func expectExactStoreMembership(in world: World) {
+        #expect(world.positionComponents.entities == Self.expectedEntityIDs)
+        #expect(world.motionComponents.entities == Self.expectedEntityIDs)
+        #expect(world.rotationComponents.entities == Self.expectedEntityIDs)
+        #expect(world.angularVelocityComponents.entities == Self.expectedEntityIDs)
+        #expect(
+            world.angularMotionAccumulatorComponents.entities ==
+                Self.expectedEntityIDs
+        )
+        #expect(world.renderableComponents.entities == Self.expectedEntityIDs)
+        #expect(world.selectableComponents.entities == Self.expectedEntityIDs)
+        #expect(world.scaleComponents.entities.isEmpty)
+
+        #expect(world.positionComponents.dense.count == Self.expectedEntityIDs.count)
+        #expect(world.motionComponents.dense.count == Self.expectedEntityIDs.count)
+        #expect(world.rotationComponents.dense.count == Self.expectedEntityIDs.count)
+        #expect(
+            world.angularVelocityComponents.dense.count ==
+                Self.expectedEntityIDs.count
+        )
+        #expect(
+            world.angularMotionAccumulatorComponents.dense.count ==
+                Self.expectedEntityIDs.count
+        )
+        #expect(world.renderableComponents.dense.count == Self.expectedEntityIDs.count)
+        #expect(world.selectableComponents.dense.count == Self.expectedEntityIDs.count)
+        #expect(world.scaleComponents.dense.isEmpty)
+    }
+
+    /// Verifies that ordinary movement-capable Balls are quiescent by state.
+    private func expectQuiescentState(in world: World) {
+        for entity in Self.expectedEntityIDs {
+            #expect(world.motionComponents[entity]?.velocity == .zero)
+            #expect(world.motionComponents[entity]?.accelerationIntent == .idle)
             #expect(world.motionComponents[entity]?.acceleration == .zero)
             #expect(world.motionComponents[entity]?.impulse == .zero)
             #expect(
                 world.rotationComponents[entity]?.rotation.vector ==
-                expectedRotation.vector
+                    Self.identityRotation.vector
             )
             #expect(world.angularVelocityComponents[entity]?.angularVelocity == .zero)
             #expect(
@@ -60,10 +177,55 @@ struct BasicWorldBuilderTests {
                 world.angularMotionAccumulatorComponents[entity]?
                     .angularImpulse == .zero
             )
-            #expect(world.renderableComponents[entity]?.meshID == .ball)
             #expect(
                 world.selectableComponents[entity]?.selectionState == .unselected
             )
         }
     }
+
+    /// Freezes the independently documented M5 camera instead of asking the
+    /// mutable production defaults to serve as their own test expectation.
+    private func expectReferenceCamera(_ camera: Camera) {
+        #expect(camera.position == SIMD3<Float>(0, 0, 8))
+        #expect(camera.rotation.vector == Self.identityRotation.vector)
+
+        switch camera.projection {
+        case let .perspective(verticalFieldOfView, near, far):
+            #expect(verticalFieldOfView == Float.pi / 3)
+            #expect(near == 0.1)
+            #expect(far == 100)
+
+        case .orthographic:
+            Issue.record("The M5 reference camera must remain perspective.")
+        }
+    }
+
+    private static let expectedEntityIDs = (0..<6).map {
+        EntityID(index: $0, generation: 0)
+    }
+
+    private static let expectedPositions = [
+        SIMD3<Float>(-1.75, 1.10, 0),
+        SIMD3<Float>(0, 1.10, 0),
+        SIMD3<Float>(1.75, 1.10, 0),
+        SIMD3<Float>(-1.75, -1.10, 0),
+        SIMD3<Float>(0, -1.10, 0),
+        SIMD3<Float>(1.75, -1.10, 0)
+    ]
+
+    private static let expectedMaterialIDs: [MaterialID] = [
+        .warmDielectricSmooth,
+        .warmDielectric,
+        .warmDielectricRough,
+        .goldMetalSmooth,
+        .goldMetal,
+        .goldMetalRough
+    ]
+
+    private static let expectedProjectedScale = SIMD3<Float>(repeating: 0.5)
+
+    private static let identityRotation = simd_quatf(
+        angle: 0,
+        axis: SIMD3<Float>(0, 0, 1)
+    )
 }

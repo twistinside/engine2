@@ -6,6 +6,10 @@
 /// `CaseIterable` lets Render validate that its catalog covers the complete
 /// Game Content vocabulary before drawing begins.
 nonisolated enum MaterialID: CaseIterable, Codable, Hashable, Sendable {
+    case warmDielectricSmooth
     case warmDielectric
+    case warmDielectricRough
+    case goldMetalSmooth
     case goldMetal
+    case goldMetalRough
 }

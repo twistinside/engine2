@@ -5,10 +5,7 @@ struct RenderAssetCatalogTests {
     @Test func completeMaterialVocabularyPassesCoverageValidation() throws {
         let catalog = RenderAssetCatalog(
             models: [:],
-            materials: [
-                .warmDielectric: Self.warmDielectric,
-                .goldMetal: Self.goldMetal
-            ]
+            materials: BasicGameContent().renderAssetCatalog.materials
         )
 
         try catalog.validateMaterialCoverage()
@@ -24,10 +21,7 @@ struct RenderAssetCatalogTests {
             // The error must follow the enum declaration rather than unstable
             // dictionary ordering so diagnostics remain reproducible.
             #expect(
-                error == .missingMaterialDescriptions([
-                    .warmDielectric,
-                    .goldMetal
-                ])
+                error == .missingMaterialDescriptions(MaterialID.allCases)
             )
         } catch {
             Issue.record("Unexpected material coverage error: \(error)")
@@ -55,12 +49,6 @@ struct RenderAssetCatalogTests {
             Issue.record("Unexpected material lookup error: \(error)")
         }
     }
-
-    private static let warmDielectric = PBRMaterialDescription(
-        baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-        metallic: 0,
-        perceptualRoughness: 0.5
-    )
 
     private static let goldMetal = PBRMaterialDescription(
         baseColor: SIMD3<Float>(1, 0.766, 0.336),

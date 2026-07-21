@@ -39,14 +39,21 @@ vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
     return out;
 }
 
-fragment float4 modelPBRFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
-    constant PBRSceneParameters &parameters [[buffer(2)]]
+/// Evaluates the production model inputs once for both visible shading and the
+/// test-addressable M5 diagnostics below.
+///
+/// Keeping this helper in the ordinary model shader ensures diagnostic entry
+/// points consume the same interpolated geometry, per-draw material record,
+/// frame light, and shared BRDF as `modelPBRFragment`. Only the returned field
+/// changes, so the validation harness does not create a parallel render path.
+static inline PBRDirectLightingResult modelEvaluateDirectLighting(
+    VertexOut in,
+    constant ModelInstance *instance,
+    constant PBRSceneParameters &parameters
 ) {
     float3 incidentRadiance = parameters.lightColorIntensity.rgb
         * parameters.lightColorIntensity.a;
-    PBRDirectLightingResult result = pbrEvaluateDirectLighting(
+    return pbrEvaluateDirectLighting(
         instance->baseColorMetallic.rgb,
         instance->baseColorMetallic.a,
         instance->perceptualRoughnessPadding.x,
@@ -55,8 +62,90 @@ fragment float4 modelPBRFragment(
         parameters.directionToLightPadding.xyz,
         incidentRadiance
     );
+}
+
+fragment float4 modelPBRFragment(
+    VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    PBRDirectLightingResult result = modelEvaluateDirectLighting(
+        in,
+        instance,
+        parameters
+    );
 
     return float4(result.shaded, 1.0f);
+}
+
+/// Test-addressable production-model diagnostic entry points for M5.
+///
+/// The app does not compile selectable pipelines for these functions. Focused
+/// offscreen tests use them to inspect the exact authored inputs and BRDF
+/// contributions flowing through the production model binding.
+fragment float4 modelPBRBaseColorDiagnosticFragment(
+    VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    PBRDirectLightingResult result = modelEvaluateDirectLighting(
+        in,
+        instance,
+        parameters
+    );
+    return float4(result.baseColor, 1.0f);
+}
+
+fragment float4 modelPBRMetallicDiagnosticFragment(
+    VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    PBRDirectLightingResult result = modelEvaluateDirectLighting(
+        in,
+        instance,
+        parameters
+    );
+    return float4(float3(result.metallic), 1.0f);
+}
+
+fragment float4 modelPBRRoughnessDiagnosticFragment(
+    VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    PBRDirectLightingResult result = modelEvaluateDirectLighting(
+        in,
+        instance,
+        parameters
+    );
+    return float4(float3(result.perceptualRoughness), 1.0f);
+}
+
+fragment float4 modelPBRDiffuseDiagnosticFragment(
+    VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    PBRDirectLightingResult result = modelEvaluateDirectLighting(
+        in,
+        instance,
+        parameters
+    );
+    return float4(result.diffuseContribution, 1.0f);
+}
+
+fragment float4 modelPBRSpecularDiagnosticFragment(
+    VertexOut in [[stage_in]],
+    constant ModelInstance *instance [[buffer(1)]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    PBRDirectLightingResult result = modelEvaluateDirectLighting(
+        in,
+        instance,
+        parameters
+    );
+    return float4(result.specularContribution, 1.0f);
 }
 
 fragment half4 modelNormalDiagnosticFragment(VertexOut in [[stage_in]]) {

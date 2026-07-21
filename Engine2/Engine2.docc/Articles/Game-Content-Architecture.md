@@ -160,6 +160,12 @@ The renderer privately turns those descriptions and packaged source assets into
 per-draw data, Model I/O values, and Metal resources. Neither ``World`` nor
 ``Ball`` contains a filename, material factor, or backend object.
 
+`BasicWorldBuilder` currently uses that boundary to construct a deterministic
+six-sphere material grid. Every entity shares `MeshID.ball`, while its
+`MaterialID` selects one smooth, baseline, or rough warm dielectric or gold
+metal description. The scene adds no renderer object or light state to Game
+Content or Simulation.
+
 A future construction shape may resemble:
 
 ```swift

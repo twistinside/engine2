@@ -1,6 +1,7 @@
 import Metal
 import simd
 import Testing
+@testable import Engine2
 
 @MainActor
 struct PBRDirectLightingTests {
@@ -264,6 +265,56 @@ struct PBRDirectLightingTests {
         #expect(radialMoment(of: rough) > radialMoment(of: smooth))
     }
 
+    @Test func publishedSceneRoughnessProgressionsDimAndBroadenSpecularLobes() throws {
+        let scene = PublishedMaterialValidationScene()
+        let descriptions = try scene.materialDescriptions()
+        let publishedMaterials = zip(scene.materialIDs, descriptions).map {
+            (id: $0.0, description: $0.1)
+        }
+        let renderer = try MetalPBRProofRenderer()
+
+        #expect(publishedMaterials.count == 6)
+
+        // The builder publishes three dielectric and three metallic spheres.
+        // Within each row, base color and metallic stay fixed while authored
+        // roughness increases. Deriving the proof inputs from the catalog keeps
+        // this lobe check attached to the actual M5 content rather than literals.
+        for metallic in [Float(0), Float(1)] {
+            let progression = publishedMaterials
+                .filter { $0.description.metallic == metallic }
+                .sorted {
+                    $0.description.perceptualRoughness
+                        < $1.description.perceptualRoughness
+                }
+
+            #expect(progression.count == 3)
+            guard let first = progression.first else {
+                continue
+            }
+            #expect(
+                progression.allSatisfy {
+                    $0.description.baseColor == first.description.baseColor
+                }
+            )
+
+            let specularImages = try progression.map { material in
+                try renderer.render(
+                    .specular,
+                    parameters: proofParameters(
+                        material: material.description
+                    )
+                )
+            }
+
+            for roughnessIndex in 1..<specularImages.count {
+                let smoother = specularImages[roughnessIndex - 1]
+                let rougher = specularImages[roughnessIndex]
+                #expect(luminance(center(smoother)) > luminance(center(rougher)))
+                #expect(radialMoment(of: smoother) < radialMoment(of: rougher))
+            }
+        }
+    }
+
     @Test func shadedOutputIsTheStoredSumOfDiffuseAndSpecularContributions() throws {
         let renderer = try MetalPBRProofRenderer()
         let parameters = proofParameters(metallic: 0.35, roughness: 0.6)
@@ -370,6 +421,22 @@ struct PBRDirectLightingTests {
             baseColor: baseColor,
             metallic: metallic,
             perceptualRoughness: roughness,
+            directionToLightWorld: SIMD3<Float>(0, 0, 1),
+            lightColor: SIMD3<Float>(repeating: 1),
+            lightIntensity: 1,
+            directionToCameraView: SIMD3<Float>(0, 0, 1)
+        )
+    }
+
+    /// Converts one Render-owned catalog description into the isolated proof's
+    /// provisional binding while preserving its authored factors exactly.
+    private func proofParameters(
+        material: PBRMaterialDescription
+    ) -> PBRProofParameters {
+        PBRProofParameters(
+            baseColor: material.baseColor,
+            metallic: material.metallic,
+            perceptualRoughness: material.perceptualRoughness,
             directionToLightWorld: SIMD3<Float>(0, 0, 1),
             lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
