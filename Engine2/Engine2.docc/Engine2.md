@@ -29,5 +29,6 @@ At the moment, the codebase already includes:
 - <doc:Resource-Ownership-and-Presentation-Boundaries>
 - <doc:Rendering-Architecture>
 - <doc:PBR-Implementation-Plan>
+- <doc:Instrumentation-and-Diagnostics>
 ### Scheduling
 - <doc:System-Scheduling>
