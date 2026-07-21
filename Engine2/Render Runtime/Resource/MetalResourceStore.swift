@@ -82,7 +82,7 @@ final class MetalResourceStore {
             device: device,
             commandQueue: commandQueue,
             staticAssetCapacity: max(renderAssetCatalog.models.count * 4, 1),
-            frameResourceCapacity: frameCount
+            frameResourceCapacity: frameCount * 3
         )
 
         self.device = device
@@ -94,10 +94,14 @@ final class MetalResourceStore {
         // deterministic dictionary lookup and never triggers compilation.
         try makeFrameResources(count: frameCount)
         try loadShaderLibrary(.engine)
-        try loadRenderPipeline(.modelSurface)
+        try loadRenderPipeline(.modelPBR)
         try loadRenderPipeline(.modelNormalDiagnostic)
+        try loadRenderPipeline(.hdrToneMappedPresentation)
+        try loadRenderPipeline(.linearPresentation)
         try loadDepthStencilState(.opaque)
         try loadArgumentTable(.model)
+        try loadArgumentTable(.pbrScene)
+        try loadArgumentTable(.hdrPresentation)
         try loadModels(from: renderAssetCatalog)
     }
 
@@ -182,25 +186,44 @@ final class MetalResourceStore {
             return existingState
         }
 
+        let vertexFunctionName: String
         let fragmentFunctionName: String
         let pipelineLabel: String
+        let colorPixelFormat: MTLPixelFormat
 
         switch id {
-        case .modelSurface:
-            fragmentFunctionName = "modelFragment"
-            pipelineLabel = "USD Model Surface Pipeline"
+        case .modelPBR:
+            vertexFunctionName = "modelVertex"
+            fragmentFunctionName = "modelPBRFragment"
+            pipelineLabel = "USD Model PBR Pipeline"
+            colorPixelFormat = MetalRenderer.sceneColorPixelFormat
 
         case .modelNormalDiagnostic:
+            vertexFunctionName = "modelVertex"
             fragmentFunctionName = "modelNormalDiagnosticFragment"
             pipelineLabel = "USD Model Normal Diagnostic Pipeline"
+            colorPixelFormat = MetalRenderer.sceneColorPixelFormat
+
+        case .hdrToneMappedPresentation:
+            vertexFunctionName = "hdrPresentationVertex"
+            fragmentFunctionName = "hdrToneMappedPresentationFragment"
+            pipelineLabel = "HDR Tone-Mapped Presentation Pipeline"
+            colorPixelFormat = MetalRenderer.colorPixelFormat
+
+        case .linearPresentation:
+            vertexFunctionName = "hdrPresentationVertex"
+            fragmentFunctionName = "linearPresentationFragment"
+            pipelineLabel = "Linear Diagnostic Presentation Pipeline"
+            colorPixelFormat = MetalRenderer.colorPixelFormat
         }
 
         let library = try shaderLibrary(for: .engine)
         let vertexFunction = MTL4LibraryFunctionDescriptor()
         vertexFunction.library = library
-        // Metal identifies shader entry points by their source names, so this
-        // string deliberately matches the function in ModelShaders.metal.
-        vertexFunction.name = "modelVertex"
+        // Metal identifies shader entry points by their source names. The
+        // closed pipeline identity above owns every externally required string
+        // so arbitrary names cannot enter the draw path.
+        vertexFunction.name = vertexFunctionName
 
         let fragmentFunction = MTL4LibraryFunctionDescriptor()
         fragmentFunction.library = library
@@ -211,7 +234,7 @@ final class MetalResourceStore {
         descriptor.vertexFunctionDescriptor = vertexFunction
         descriptor.fragmentFunctionDescriptor = fragmentFunction
         descriptor.rasterSampleCount = 1
-        descriptor.colorAttachments[0].pixelFormat = MetalRenderer.colorPixelFormat
+        descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
 
         let state = try compiler.makeRenderPipelineState(
             descriptor: descriptor
@@ -277,6 +300,18 @@ final class MetalResourceStore {
         case .model:
             descriptor.label = "USD Mesh Argument Table"
             descriptor.maxBufferBindCount = 2
+
+        case .pbrScene:
+            // The fragment function consumes buffer index 2. Metal argument
+            // table capacities include every lower index even when this table
+            // deliberately leaves model-only indices 0 and 1 unset.
+            descriptor.label = "PBR Scene Argument Table"
+            descriptor.maxBufferBindCount = 3
+
+        case .hdrPresentation:
+            descriptor.label = "HDR Presentation Argument Table"
+            descriptor.maxBufferBindCount = 1
+            descriptor.maxTextureBindCount = 1
         }
 
         let table = try device.makeArgumentTable(descriptor: descriptor)
@@ -298,16 +333,32 @@ final class MetalResourceStore {
                     length: MemoryLayout<GPUInstance>.stride
                         * FrameResources.maximumInstanceCount,
                     options: [.storageModeShared]
+                  ),
+                  let pbrSceneParametersBuffer = device.makeBuffer(
+                    length: MemoryLayout<PBRSceneParameters>.stride,
+                    options: [.storageModeShared]
+                  ),
+                  let hdrPresentationParametersBuffer = device.makeBuffer(
+                    length: MemoryLayout<HDRPresentationParameters>.stride,
+                    options: [.storageModeShared]
                   )
             else {
                 throw MetalResourceStoreError.missingFrameResource
             }
 
-            residency.addFrameAllocation(instanceBuffer)
+            for allocation in [
+                instanceBuffer as any MTLAllocation,
+                pbrSceneParametersBuffer as any MTLAllocation,
+                hdrPresentationParametersBuffer as any MTLAllocation
+            ] {
+                residency.addFrameAllocation(allocation)
+            }
             frames.append(
                 FrameResources(
                     commandAllocator: commandAllocator,
-                    instanceBuffer: instanceBuffer
+                    instanceBuffer: instanceBuffer,
+                    pbrSceneParametersBuffer: pbrSceneParametersBuffer,
+                    hdrPresentationParametersBuffer: hdrPresentationParametersBuffer
                 )
             )
         }

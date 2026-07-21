@@ -1,0 +1,16 @@
+#ifndef PBRSceneParameters_metalh
+#define PBRSceneParameters_metalh
+
+#include <metal_stdlib>
+
+/// Temporary visible-path binding for one validation material and light.
+///
+/// This mirrors Swift's `PBRSceneParameters` and is intentionally not the
+/// authored material ABI that Milestone 4 will design.
+struct PBRSceneParameters {
+    metal::float4 baseColorMetallic;
+    metal::float4 directionToLightRoughness;
+    metal::float4 lightColorIntensity;
+};
+
+#endif

@@ -1,20 +1,21 @@
 # PBR Implementation Plan
 
-This article defines the smallest explainable path from Engine2's current
-vertex-color renderer to a direct-light physically based material renderer. It
-also identifies where the already-chosen Forward+ light-selection work begins.
+This article defines the smallest explainable path from Engine2's former
+vertex-color bootstrap renderer to a direct-light physically based material
+renderer. It also identifies where the already-chosen Forward+ light-selection
+work begins.
 
 ## Status
 
-Implementation is in progress. Milestones 1 and 2 are implemented; Milestones
-3–5 remain proposed.
+Implementation is in progress. Milestones 1–3 are implemented; Milestones 4
+and 5 remain proposed.
 
-The visible renderer provides positions, importer-supplied normals, display
-colors, view-space transforms, ordinary depth, and a normal diagnostic. A
-Render-owned offscreen proof now evaluates the shared direct-light BRDF into a
-linear half-float target. The visible path does not yet use that BRDF and still
-has no authored PBR material description, production lighting input, HDR scene
-target, or tone-mapping pass.
+The visible renderer now evaluates the same direct-light BRDF as the isolated
+proof, writes scene-linear radiance into a renderer-owned half-float target,
+and presents it through explicit exposure, Reinhard tone mapping, and one sRGB
+transfer. Its material and directional light remain fixed Render-owned
+validation inputs. It has no authored PBR material description or semantic
+lighting input yet.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -194,8 +195,8 @@ The proof shader draws an analytic front hemisphere with an orthographic camera
 into a `65 x 65` `rgba16Float` target. Separate fragment entry points expose the
 shaded result and each diagnostic, but all of them call the same evaluator. A
 small four-`float4` parameter record and its argument table belong only to the
-test harness. Milestone 3 may choose its visible-path bindings independently
-while including the same BRDF implementation.
+test harness. Milestone 3 chose its visible-path bindings independently while
+including the same BRDF implementation.
 
 ## Milestone 3: Visible HDR PBR
 
@@ -230,6 +231,48 @@ implementation details.
 - Resizing replaces targets without releasing resources still used by an
   in-flight command buffer.
 - Metal completion feedback surfaces command errors.
+
+### Implemented Conventions
+
+The visible pathway deliberately fixes its presentation and lifetime behavior
+before authored material identity is introduced:
+
+- `PBRSceneParameters` carries a fixed base color of `(0.5, 0.25, 0.125)`,
+  metallic `0`, and perceptual roughness `0.5`. Its directional light points
+  from the surface toward world-space `+Z`, has linear color `(1, 0.5, 0.25)`,
+  and uses validation intensity `8`. Render transforms the direction into view
+  space once per frame; camera translation never enters that transformation.
+- Each reusable `FrameResources` slot owns its parameter buffers and lazily
+  owns one private, drawable-sized `rgba16Float` texture with
+  `renderTarget` and `shaderRead` usage. A size change replaces that texture
+  only after the slot's availability semaphore proves its preceding submission
+  is complete.
+- The HDR texture owns a committed residency set attached to the exact Metal 4
+  command buffer that references it. `MetalInFlightSubmission` retains the
+  exact target, drawable, depth texture, store, and frame slot through queue
+  feedback; residency and Swift object lifetime remain separate concerns.
+- The first encoder shades geometry and stores linear HDR scene color. A single
+  fragment-to-fragment device barrier follows the scene draws and precedes the
+  second encoder, which samples that texture for presentation.
+- `ManualExposure.validation` is an explicit scene-linear multiplier of `1`.
+  Surface presentation clamps invalid or negative input to black, applies
+  `x / (1 + x)`, and returns display-linear RGB. It contains no `pow` or manual
+  gamma operation.
+- The drawable remains `bgra8Unorm_srgb`, and the Metal view declares the sRGB
+  color space. The drawable store therefore performs the pathway's only sRGB
+  transfer encoding. The normal diagnostic uses a separate linear presentation
+  fragment so exposure and tone mapping do not alter its `0...1` meaning.
+- Queue feedback records the underlying Metal error before making the frame
+  slot reusable. A renderer with a recorded asynchronous error stops submitting
+  additional work and exposes that error for App diagnostics.
+
+For the front-facing validation case where `N`, `V`, and `L` are all `+Z`, the
+shared BRDF produces scene-linear RGB approximately
+`(1.62975, 0.509296, 0.178254)`. Storage in `rgba16Float` quantizes this to
+`(1.62988, 0.509277, 0.178223)`, proving that a value above display white
+survives the material phase. Exposure `1` and Reinhard map the stored value to
+approximately `(0.619755, 0.337431, 0.151264)` before the drawable performs its
+single transfer encoding.
 
 ## Milestone 4: Authored Material Boundary
 
