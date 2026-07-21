@@ -8,7 +8,20 @@ Proposed architecture with implementation planned on the long-lived `instrumenta
 
 That branch is the working integration line for the numbered changes in this article. It is expected to be rebased onto `main` regularly while the design is exercised, measured, and revised. A committed experiment may be replaced when evidence shows a better boundary, but every retained commit should remain buildable and reviewable.
 
-The current app has useful debug surfaces, including input history, render output modes, and a retained terminal render error. It does not yet have a shared telemetry vocabulary, signposts, structured runtime logs, repeatable performance scenarios, or machine-readable diagnostic bundles.
+### Implementation Checkpoint
+
+Rollout commits 1 through 9 are implemented on `instrumentation-diagnostics` as of July 21, 2026. The current branch provides the typed boundary, centralized Apple-system emission, Input and Simulation instrumentation, structural inventory, a bounded App-owned `DiagnosticsRuntime`, and a versioned NDJSON schema with golden validation.
+
+Early implementation choices that should be evaluated with real captures are:
+
+- `DiagnosticsRuntime` currently retains the latest 4,096 samples and constant-space lifetime aggregates. A sample capacity is explicit and testable; replace it with or augment it by a 15–30 second policy only after measured sample rates show the required safe bound.
+- Continuous pointer-drag and scroll ingress reports the first event and then every eighth event by default. Immutable input snapshot publication is not sampled.
+- System work counts are reported only when an existing store count supplies the value in constant time. No diagnostic-only component scan has been added.
+- One App-constructed emitter correlates Input and Simulation through a shared session. Emitters retain their optional sink weakly, so peer runtimes do not extend the Diagnostics Runtime lifecycle.
+
+The baseline scenario and outer capture tooling remain the next implementation block. Render and debug-visualization work remains proposed until that repeatable consumption path is available.
+
+The current app also has useful pre-existing debug surfaces, including input history, render output modes, and a retained terminal render error. The implemented foundation now supplies shared telemetry vocabulary, Input and Simulation signposts, structured loop logs, bounded typed samples, and a machine-readable stream schema. Repeatable app scenarios, outer capture bundles, Render instrumentation, and diagnostics visualizations remain to be implemented.
 
 ## Goals
 
