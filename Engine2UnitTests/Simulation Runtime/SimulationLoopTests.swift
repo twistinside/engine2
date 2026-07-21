@@ -39,6 +39,54 @@ private actor TestSleeper {
 }
 
 struct SimulationLoopTests {
+    @Test @MainActor func deterministicPollsReportZeroOneAndCatchUpSteps() throws {
+        let fixedTimeStep = Duration.milliseconds(100)
+        let wallDeltas = [
+            Duration.milliseconds(50),
+            Duration.milliseconds(100),
+            Duration.milliseconds(250)
+        ]
+        let expectedSteps = [0, 1, 2]
+        let expectedBacklogs = [50_000_000, 0, 50_000_000]
+
+        for index in wallDeltas.indices {
+            let sink = RecordingDiagnosticsSink()
+            let diagnostics = DiagnosticsEmitter(sink: sink)
+            let engine = Engine(
+                world: World(),
+                fixedTimeStep: fixedTimeStep,
+                diagnostics: diagnostics,
+                alwaysSystems: [],
+                systems: []
+            )
+            let loop = SimulationLoop(
+                engine: engine,
+                diagnostics: diagnostics,
+                pollInterval: fixedTimeStep
+            )
+            let baseInstant = SuspendingClock().now
+            let source = SampledInstantSource(
+                samples: [baseInstant, baseInstant.advanced(by: wallDeltas[index])]
+            )
+            var clock = SystemClock(timeSource: source.next)
+
+            loop.pollOnce(using: &clock)
+
+            let pollSamples = sink.samples.compactMap { sample -> SimulationPollDiagnostics? in
+                guard case let .simulationPoll(payload) = sample.payload else {
+                    return nil
+                }
+                return payload
+            }
+            #expect(pollSamples.count == 1)
+            let poll = try #require(pollSamples.first)
+            #expect(poll.sampledWallDeltaNanoseconds == wallDeltas[index].diagnosticsNanoseconds)
+            #expect(poll.stepsCompleted == expectedSteps[index])
+            #expect(poll.backlogBeforeNanoseconds == 0)
+            #expect(poll.backlogAfterNanoseconds == expectedBacklogs[index])
+        }
+    }
+
     @Test @MainActor func startAndStopAreIdempotentAndReportLifecycleOnce() {
         let engine = Engine(world: World(), systems: [])
         var clockCreationCount = 0

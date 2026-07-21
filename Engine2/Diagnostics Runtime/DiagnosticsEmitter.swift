@@ -62,6 +62,78 @@ final class DiagnosticsEmitter {
         )
     }
 
+    /// Measures one app-loop poll and records its fixed-step/backlog outcome.
+    func measureSimulationPoll(
+        sampledWallDelta: Duration,
+        backlogBefore: Duration,
+        operation: () -> Void,
+        outcome: () -> (completedTick: SimulationTick, stepsCompleted: Int, backlogAfter: Duration)
+    ) {
+        let start = timeSource()
+        let signposter = DiagnosticsOSHandles.signposter(for: .simulationLoop)
+
+        if signposter.isEnabled {
+            let signpostID = signposter.makeSignpostID()
+            signposter.withIntervalSignpost(
+                "SimulationPoll",
+                id: signpostID,
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) wall_delta_ns=\(sampledWallDelta.diagnosticsNanoseconds, privacy: .public) backlog_before_ns=\(backlogBefore.diagnosticsNanoseconds, privacy: .public)",
+                around: operation
+            )
+        } else {
+            operation()
+        }
+
+        let result = outcome()
+        let end = timeSource()
+        record(
+            category: .simulationLoop,
+            timestampAt: end,
+            payload: .simulationPoll(
+                SimulationPollDiagnostics(
+                    completedTick: result.completedTick,
+                    sampledWallDeltaNanoseconds: sampledWallDelta.diagnosticsNanoseconds,
+                    stepsCompleted: result.stepsCompleted,
+                    backlogBeforeNanoseconds: backlogBefore.diagnosticsNanoseconds,
+                    backlogAfterNanoseconds: result.backlogAfter.diagnosticsNanoseconds,
+                    durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
+                )
+            )
+        )
+    }
+
+    /// Records the start of an app-owned Simulation Runtime polling session.
+    func logSimulationLoopStarted(pollInterval: Duration) {
+        DiagnosticsOSHandles.logger(for: .simulationLoop).info(
+            "event=simulation_loop_started session=\(self.sessionID.rawValue.uuidString, privacy: .public) poll_interval_ns=\(pollInterval.diagnosticsNanoseconds, privacy: .public)"
+        )
+    }
+
+    /// Records an explicit owner-requested stop of the polling session.
+    func logSimulationLoopStopped(completedTick: SimulationTick) {
+        DiagnosticsOSHandles.logger(for: .simulationLoop).info(
+            "event=simulation_loop_stopped session=\(self.sessionID.rawValue.uuidString, privacy: .public) tick=\(completedTick.rawValue, privacy: .public)"
+        )
+    }
+
+    /// Records cancellation separately from the owner's stop request.
+    func logSimulationLoopCancelled(completedTick: SimulationTick) {
+        DiagnosticsOSHandles.logger(for: .simulationLoop).debug(
+            "event=simulation_loop_cancelled session=\(self.sessionID.rawValue.uuidString, privacy: .public) tick=\(completedTick.rawValue, privacy: .public)"
+        )
+    }
+
+    /// Records a handled catch-up threshold crossing without changing policy.
+    func logSimulationBacklogHigh(
+        completedTick: SimulationTick,
+        stepsCompleted: Int,
+        availableBacklog: Duration
+    ) {
+        DiagnosticsOSHandles.logger(for: .simulationLoop).notice(
+            "event=simulation_backlog_high session=\(self.sessionID.rawValue.uuidString, privacy: .public) tick=\(completedTick.rawValue, privacy: .public) steps=\(stepsCompleted, privacy: .public) backlog_ns=\(availableBacklog.diagnosticsNanoseconds, privacy: .public)"
+        )
+    }
+
     /// Measures and reports one invariant system update in schedule order.
     func measureSystemUpdate<Result>(
         tick: SimulationTick,

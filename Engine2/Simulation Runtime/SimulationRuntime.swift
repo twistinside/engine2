@@ -40,6 +40,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
     init(
         worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
         inputSource: (any PInputSnapshotSource)? = nil,
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         pollInterval: Duration? = nil,
         clockFactory: @escaping SimulationLoop.ClockFactory = { SystemClock() },
@@ -55,7 +56,8 @@ final class SimulationRuntime: PSimulationPresentationSource {
         }
         let engine = Engine(
             world: world,
-            fixedTimeStep: fixedTimeStep
+            fixedTimeStep: fixedTimeStep,
+            diagnostics: diagnostics
         )
         self.engine = engine
         engine.isSimulationRunning = false
@@ -67,6 +69,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
         let simulationLoop = SimulationLoop(
             engine: engine,
+            diagnostics: diagnostics,
             inputSource: inputSource,
             pollInterval: pollInterval,
             clockFactory: clockFactory,

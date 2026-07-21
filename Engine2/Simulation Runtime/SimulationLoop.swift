@@ -24,12 +24,15 @@ final class SimulationLoop {
     let pollInterval: Duration
 
     private let clockFactory: ClockFactory
+    private let diagnostics: DiagnosticsEmitter
+    private let backlogNoticeThreshold: Duration
     private let scheduleTimeSource: TimeSource
     private let sleeper: Sleeper
     private weak var inputSource: (any PInputSnapshotSource)?
 
     private var clock: SystemClock?
     private var runID: UInt64 = 0
+    private var isBacklogAboveNoticeThreshold = false
     private var updateTask: Task<Void, Never>?
 
     var runningStateDidChange: RunningStateDidChange?
@@ -41,8 +44,10 @@ final class SimulationLoop {
 
     init(
         engine: Engine = Engine(),
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter(),
         inputSource: (any PInputSnapshotSource)? = nil,
         pollInterval: Duration? = nil,
+        backlogNoticeThreshold: Duration? = nil,
         clockFactory: @escaping ClockFactory = { SystemClock() },
         scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
         sleeper: @escaping Sleeper = { deadline in
@@ -50,14 +55,20 @@ final class SimulationLoop {
         }
     ) {
         self.engine = engine
+        self.diagnostics = diagnostics
         self.inputSource = inputSource
         self.pollInterval = pollInterval ?? engine.fixedTimeStep
+        self.backlogNoticeThreshold = backlogNoticeThreshold ?? engine.fixedTimeStep * 4
         self.clockFactory = clockFactory
         self.scheduleTimeSource = scheduleTimeSource
         self.sleeper = sleeper
         self.clock = nil
 
         precondition(self.pollInterval > .zero, "SimulationLoop requires a positive poll interval")
+        precondition(
+            self.backlogNoticeThreshold > .zero,
+            "SimulationLoop requires a positive backlog notice threshold"
+        )
     }
 
     /// Starts the app-owned update task if it is not already running.
@@ -70,6 +81,7 @@ final class SimulationLoop {
         // time does not get replayed into the simulation on resume.
         clock = clockFactory()
         runID += 1
+        isBacklogAboveNoticeThreshold = false
 
         let currentRunID = runID
         let firstWakeDeadline = scheduleTimeSource().advanced(by: pollInterval)
@@ -79,6 +91,7 @@ final class SimulationLoop {
                 nextWakeDeadline: firstWakeDeadline
             )
         }
+        diagnostics.logSimulationLoopStarted(pollInterval: pollInterval)
         runningStateDidChange?(true)
     }
 
@@ -93,6 +106,8 @@ final class SimulationLoop {
         updateTask?.cancel()
         updateTask = nil
         clock = nil
+        isBacklogAboveNoticeThreshold = false
+        diagnostics.logSimulationLoopStopped(completedTick: engine.completedTick)
         runningStateDidChange?(false)
     }
 
@@ -118,6 +133,11 @@ final class SimulationLoop {
                 // catch-up steps.
                 try await sleeper(nextWakeDeadline)
             } catch {
+                if error is CancellationError {
+                    diagnostics.logSimulationLoopCancelled(
+                        completedTick: engine.completedTick
+                    )
+                }
                 return
             }
 
@@ -125,20 +145,58 @@ final class SimulationLoop {
                 return
             }
 
-            let previousTick = engine.completedTick
-            engine.update(
-                deltaTime: clock.consumeDeltaTime(),
-                inputSnapshot: inputSource?.latestInputSnapshot
-            )
+            let completedTick = pollOnce(using: &clock)
             self.clock = clock
 
             // Latest-value publication only needs the final completed state
             // when one polling update catches up through multiple fixed steps.
-            if engine.completedTick != previousTick {
-                fixedStepsDidComplete?(engine.completedTick)
+            if let completedTick {
+                fixedStepsDidComplete?(completedTick)
             }
             nextWakeDeadline = advancedDeadline(after: nextWakeDeadline)
         }
+    }
+
+    /// Performs one deterministic polling update using the supplied clock.
+    ///
+    /// Exposing this narrow operation lets tests exercise zero-step, one-step,
+    /// and catch-up cadence without depending on task scheduling.
+    @discardableResult
+    func pollOnce(using clock: inout SystemClock) -> SimulationTick? {
+        let sampledWallDelta = clock.consumeDeltaTime()
+        let backlogBefore = engine.accumulatedTime
+        let previousTick = engine.completedTick
+
+        diagnostics.measureSimulationPoll(
+            sampledWallDelta: sampledWallDelta,
+            backlogBefore: backlogBefore,
+            operation: {
+                engine.update(
+                    deltaTime: sampledWallDelta,
+                    inputSnapshot: inputSource?.latestInputSnapshot
+                )
+            },
+            outcome: {
+                (
+                    completedTick: engine.completedTick,
+                    stepsCompleted: Int(engine.completedTick.rawValue - previousTick.rawValue),
+                    backlogAfter: engine.accumulatedTime
+                )
+            }
+        )
+
+        let availableBacklog = backlogBefore + sampledWallDelta
+        let isBacklogHigh = availableBacklog >= backlogNoticeThreshold
+        if isBacklogHigh && !isBacklogAboveNoticeThreshold {
+            diagnostics.logSimulationBacklogHigh(
+                completedTick: engine.completedTick,
+                stepsCompleted: Int(engine.completedTick.rawValue - previousTick.rawValue),
+                availableBacklog: availableBacklog
+            )
+        }
+        isBacklogAboveNoticeThreshold = isBacklogHigh
+
+        return engine.completedTick == previousTick ? nil : engine.completedTick
     }
 
     /// Advances to the first future deadline after the current wall-clock time.
