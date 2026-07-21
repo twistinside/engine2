@@ -9,6 +9,7 @@ import sys
 from .capture import CaptureError, CaptureRequest, capture
 from .logs import LogCapturePolicy
 from .traces import TraceCapturePolicy
+from .summary import summarize_capture
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -35,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=TraceCapturePolicy.BEST_EFFORT.value,
         help="required, best-effort, or skip Instruments recording",
     )
+    summarize_parser = subparsers.add_parser("summarize", help="generate JSON and Markdown summaries")
+    summarize_parser.add_argument("--capture", required=True, type=Path)
     return parser
 
 
@@ -54,6 +57,9 @@ def main(arguments: list[str] | None = None) -> int:
                     trace_policy=TraceCapturePolicy(args.trace),
                 )
             )
+            return 0
+        if args.command == "summarize":
+            summarize_capture(args.capture.expanduser().resolve())
             return 0
     except CaptureError as error:
         print(f"diagnostics: {error}", file=sys.stderr)

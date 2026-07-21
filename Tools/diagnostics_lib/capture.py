@@ -12,6 +12,7 @@ from typing import Any
 from .artifact import ArtifactValidationError, validate_ndjson
 from .logs import LogCapturePolicy, capture_logs
 from .traces import TraceCapturePolicy, capture_trace
+from .summary import summarize_capture
 
 
 class CaptureError(RuntimeError):
@@ -128,6 +129,7 @@ def capture(request: CaptureRequest) -> dict[str, Any]:
         trace=trace_result,
     )
     _write_json(result_path, success)
+    summarize_capture(request.output)
     return success
 
 

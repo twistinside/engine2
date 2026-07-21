@@ -29,7 +29,11 @@ SAMPLE = {
         "sessionID": MANIFEST["sessionID"],
         "timestamp": {"nanosecondsSinceSessionStart": 1},
         "category": "simulation.loop",
-        "payload": {"simulationStep": {"_0": {"durationNanoseconds": 1}}},
+        "payload": {
+            "simulationStep": {
+                "_0": {"durationNanoseconds": 1, "tick": {"rawValue": 1}}
+            }
+        },
     },
 }
 
@@ -97,6 +101,8 @@ class CaptureTests(unittest.TestCase):
             )
             self.assertEqual(result["status"], "complete")
             self.assertEqual(validate_ndjson((output / "diagnostics.ndjson").read_bytes()).manifest, MANIFEST)
+            self.assertTrue((output / "summary.json").is_file())
+            self.assertTrue((output / "summary.md").is_file())
 
     def _script(self, root: Path, name: str, body: str) -> Path:
         path = root / name
