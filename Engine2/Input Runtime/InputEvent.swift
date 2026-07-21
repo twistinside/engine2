@@ -12,3 +12,25 @@ enum InputEvent: Sendable {
     case keyDown(KeyboardKey)
     case keyUp(KeyboardKey)
 }
+
+extension InputEvent {
+    /// Closed event identity that intentionally excludes event payload content.
+    var diagnosticsID: InputEventDiagnosticsID {
+        switch self {
+        case .mouseButtonDown: .mouseButtonDown
+        case .mouseButtonUp: .mouseButtonUp
+        case .mouseDragged: .mouseDragged
+        case .scroll: .scroll
+        case .keyDown: .keyDown
+        case .keyUp: .keyUp
+        }
+    }
+
+    /// Continuous events are sampled to prevent pointer cadence from dominating traces.
+    var usesContinuousDiagnosticsSampling: Bool {
+        switch self {
+        case .mouseDragged, .scroll: true
+        case .mouseButtonDown, .mouseButtonUp, .keyDown, .keyUp: false
+        }
+    }
+}

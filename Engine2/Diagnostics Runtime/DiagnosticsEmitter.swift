@@ -243,6 +243,51 @@ final class DiagnosticsEmitter {
         )
     }
 
+    /// Emits one sampled host-event ingress point with no input content.
+    func emitInputReceive(
+        eventID: InputEventDiagnosticsID,
+        revision: InputRevision
+    ) {
+        let signposter = DiagnosticsOSHandles.signposter(for: .inputRuntime)
+        if signposter.isEnabled {
+            signposter.emitEvent(
+                "InputReceive",
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) input_session=\(revision.session, privacy: .public) revision=\(revision.sequence, privacy: .public) kind=\(eventID.rawValue, privacy: .public)"
+            )
+        }
+        record(
+            category: .inputRuntime,
+            payload: .inputReceive(
+                InputReceiveDiagnostics(eventID: eventID, revision: revision)
+            )
+        )
+    }
+
+    /// Emits one immutable input-publication point using held-state counts only.
+    func emitInputSnapshot(
+        revision: InputRevision,
+        heldKeyCount: Int,
+        heldMouseButtonCount: Int
+    ) {
+        let signposter = DiagnosticsOSHandles.signposter(for: .inputRuntime)
+        if signposter.isEnabled {
+            signposter.emitEvent(
+                "InputSnapshotPublish",
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) input_session=\(revision.session, privacy: .public) revision=\(revision.sequence, privacy: .public) held_keys=\(heldKeyCount, privacy: .public) held_buttons=\(heldMouseButtonCount, privacy: .public)"
+            )
+        }
+        record(
+            category: .inputRuntime,
+            payload: .inputSnapshot(
+                InputSnapshotDiagnostics(
+                    revision: revision,
+                    heldKeyCount: heldKeyCount,
+                    heldMouseButtonCount: heldMouseButtonCount
+                )
+            )
+        )
+    }
+
     private func record(
         category: DiagnosticsCategory,
         timestampAt instant: SuspendingClock.Instant,

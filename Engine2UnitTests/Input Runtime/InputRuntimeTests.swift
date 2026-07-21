@@ -3,6 +3,44 @@ import Testing
 
 struct InputRuntimeTests {
     @MainActor
+    @Test func diagnosticsSampleContinuousIngressButPublishEverySnapshot() throws {
+        let sink = RecordingDiagnosticsSink()
+        let diagnostics = DiagnosticsEmitter(sink: sink)
+        let runtime = InputRuntime(
+            diagnostics: diagnostics,
+            continuousEventDiagnosticsStride: 2
+        )
+        let key = KeyboardKey(keyCode: 13, displayName: "W")
+        runtime.start()
+        runtime.receive(.mouseDragged(delta: SIMD2<Float>(1, 0), position: .zero))
+        runtime.receive(.mouseDragged(delta: SIMD2<Float>(1, 0), position: .zero))
+        runtime.receive(.mouseDragged(delta: SIMD2<Float>(1, 0), position: .zero))
+        runtime.receive(.keyDown(key))
+
+        let receiveFacts = sink.samples.compactMap { sample -> InputReceiveDiagnostics? in
+            guard case let .inputReceive(payload) = sample.payload else {
+                return nil
+            }
+            return payload
+        }
+        let snapshotFacts = sink.samples.compactMap { sample -> InputSnapshotDiagnostics? in
+            guard case let .inputSnapshot(payload) = sample.payload else {
+                return nil
+            }
+            return payload
+        }
+
+        #expect(receiveFacts.map(\.eventID) == [.mouseDragged, .mouseDragged, .keyDown])
+        #expect(receiveFacts.map(\.revision.sequence) == [1, 3, 4])
+        #expect(snapshotFacts.map(\.revision.sequence) == [0, 1, 2, 3, 4])
+        let latestFact = try #require(snapshotFacts.last)
+        #expect(latestFact.heldKeyCount == 1)
+        #expect(latestFact.heldMouseButtonCount == 0)
+        #expect(runtime.latestInputSnapshot.pointerMotionTotal == SIMD2<Float>(3, 0))
+        #expect(runtime.latestInputSnapshot.pressedKeys == [key])
+    }
+
+    @MainActor
     @Test func lifecyclePublishesFreshIdempotentSessions() {
         let runtime = InputRuntime()
 

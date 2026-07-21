@@ -3,6 +3,9 @@ import simd
 /// Owns platform-neutral device state and publishes immutable input snapshots.
 @MainActor
 final class InputRuntime: PInputEventSink, PInputSnapshotSource {
+    private let continuousEventDiagnosticsStride: UInt64
+    private let diagnostics: DiagnosticsEmitter
+
     private var revision = InputRevision.initial
     private var pointerPosition = SIMD2<Float>.zero
     private var pointerMotionTotal = SIMD2<Float>.zero
@@ -12,6 +15,18 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
     private(set) var isRunning = false
     private(set) var latestInputSnapshot = InputSnapshot.empty
+
+    init(
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter(),
+        continuousEventDiagnosticsStride: UInt64 = 8
+    ) {
+        precondition(
+            continuousEventDiagnosticsStride > 0,
+            "Input diagnostics sampling stride must be positive"
+        )
+        self.diagnostics = diagnostics
+        self.continuousEventDiagnosticsStride = continuousEventDiagnosticsStride
+    }
 
     /// Begins a fresh publication session with neutral device state.
     func start() {
@@ -72,6 +87,12 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
         }
 
         revision = revision.advanced()
+        if shouldReportReceive(event) {
+            diagnostics.emitInputReceive(
+                eventID: event.diagnosticsID,
+                revision: revision
+            )
+        }
         publishSnapshot()
     }
 
@@ -84,5 +105,21 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
             pressedMouseButtons: pressedMouseButtons,
             pressedKeys: pressedKeys
         )
+        diagnostics.emitInputSnapshot(
+            revision: revision,
+            heldKeyCount: pressedKeys.count,
+            heldMouseButtonCount: pressedMouseButtons.count
+        )
+    }
+
+    private func shouldReportReceive(_ event: InputEvent) -> Bool {
+        guard event.usesContinuousDiagnosticsSampling else {
+            return true
+        }
+
+        // Report the first continuous event, then one event per fixed stride.
+        // Revision is session-local and deterministic, so identical event
+        // schedules produce identical sampling decisions.
+        return (revision.sequence - 1) % continuousEventDiagnosticsStride == 0
     }
 }
