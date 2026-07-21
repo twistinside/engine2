@@ -10,6 +10,7 @@ from .capture import CaptureError, CaptureRequest, capture
 from .logs import LogCapturePolicy
 from .traces import TraceCapturePolicy
 from .summary import summarize_capture
+from .comparison import compare_captures
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,6 +39,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     summarize_parser = subparsers.add_parser("summarize", help="generate JSON and Markdown summaries")
     summarize_parser.add_argument("--capture", required=True, type=Path)
+    compare_parser = subparsers.add_parser("compare", help="compare compatible capture summaries")
+    compare_parser.add_argument("--baseline", required=True, type=Path)
+    compare_parser.add_argument("--candidate", required=True, type=Path)
     return parser
 
 
@@ -61,6 +65,12 @@ def main(arguments: list[str] | None = None) -> int:
         if args.command == "summarize":
             summarize_capture(args.capture.expanduser().resolve())
             return 0
+        if args.command == "compare":
+            result = compare_captures(
+                args.baseline.expanduser().resolve(),
+                args.candidate.expanduser().resolve(),
+            )
+            return int(result["exitCode"])
     except CaptureError as error:
         print(f"diagnostics: {error}", file=sys.stderr)
         return 1

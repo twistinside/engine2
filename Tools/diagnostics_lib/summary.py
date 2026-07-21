@@ -25,6 +25,12 @@ def summarize_capture(capture_path: Path) -> dict[str, Any]:
 
     artifact = validate_file(capture_path / "diagnostics.ndjson")
     summary = calculate_summary(artifact)
+    environment_path = capture_path / "environment.json"
+    summary["environment"] = (
+        json.loads(environment_path.read_text(encoding="utf-8"))
+        if environment_path.is_file()
+        else None
+    )
     summary_path = capture_path / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (capture_path / "summary.md").write_text(render_markdown(summary), encoding="utf-8")
