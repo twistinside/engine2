@@ -9,4 +9,5 @@ nonisolated enum MetalResourceStoreError: Error, Equatable {
     case missingDepthStencilState(MetalDepthStencilStateID)
     case missingArgumentTable(MetalArgumentTableID)
     case missingFrameResource
+    case missingHDRSceneTarget
 }

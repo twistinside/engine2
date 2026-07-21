@@ -1,4 +1,6 @@
 #include <metal_stdlib>
+#include "PBRDirectLighting.metalh"
+#include "PBRSceneParameters.metalh"
 using namespace metal;
 
 /// Interleaved vertex layout supplied by the decoded model mesh buffer.
@@ -37,10 +39,23 @@ vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
     return out;
 }
 
-fragment half4 modelFragment(VertexOut in [[stage_in]]) {
-    // Preserve the existing unlit display-color path until authored materials
-    // replace it in the material-boundary milestone.
-    return in.color;
+fragment float4 modelPBRFragment(
+    VertexOut in [[stage_in]],
+    constant PBRSceneParameters &parameters [[buffer(2)]]
+) {
+    float3 incidentRadiance = parameters.lightColorIntensity.rgb
+        * parameters.lightColorIntensity.a;
+    PBRDirectLightingResult result = pbrEvaluateDirectLighting(
+        parameters.baseColorMetallic.rgb,
+        parameters.baseColorMetallic.a,
+        parameters.directionToLightRoughness.a,
+        in.viewNormal,
+        -in.viewPosition,
+        parameters.directionToLightRoughness.xyz,
+        incidentRadiance
+    );
+
+    return float4(result.shaded, 1.0f);
 }
 
 fragment half4 modelNormalDiagnosticFragment(VertexOut in [[stage_in]]) {

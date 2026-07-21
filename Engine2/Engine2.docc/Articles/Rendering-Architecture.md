@@ -16,17 +16,18 @@ The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
 See <doc:PBR-Implementation-Plan> for the staged path from the current visible
-vertex-color renderer through a directional-light PBR baseline and into the
-later Forward+ local-light scaling work. Its normals/depth foundation and
-offscreen direct-light BRDF proof are implemented; visible HDR PBR and authored
-materials remain future milestones.
+renderer through a directional-light PBR baseline and into the later Forward+
+local-light scaling work. Its normals/depth foundation, shared direct-light
+BRDF, and visible HDR presentation chain are implemented; authored materials
+remain the next milestone.
 ## Chosen Rendering Path
 Engine2's planned production renderer uses one **Forward+** path with
-**physically based rendering (PBR)**. The current visible vertex-color renderer
-is an earlier implementation stage. Render now owns one shared direct-light
-BRDF implementation, proven offscreen in linear `rgba16Float`; wiring it into
-the visible HDR path, adding authored PBR materials, and Forward+ light
-assignment remain future work.
+**physically based rendering (PBR)**. Render owns one shared direct-light BRDF
+implementation used by both its isolated proof and its visible path. The
+visible renderer shades into linear `rgba16Float`, then applies explicit manual
+exposure and Reinhard tone mapping before writing display-linear values to an
+sRGB drawable. Authored PBR materials and Forward+ light assignment remain
+future work.
 
 Forward+ separates light assignment from surface shading:
 
@@ -143,7 +144,9 @@ The store eagerly creates the resources required by the current renderer:
 - depth-stencil states keyed by `MetalDepthStencilStateID`
 - argument tables keyed by `MetalArgumentTableID`
 - decoded models resolved from backend-neutral `MeshID` values
-- the fixed frame-resource ring
+- the fixed frame-resource ring and its PBR/presentation parameter buffers
+- the PBR scene, normal diagnostic, tone-mapped presentation, and linear
+  diagnostic pipelines
 
 Each backend identity is a closed Render Runtime enum whose case determines the
 complete resource definition. The store builds each case once and retains the
@@ -162,11 +165,17 @@ objects. `MetalResidencyManager` groups only objects conforming to
 `MTLAllocation` so the Metal 4 command queue can ensure those allocations are
 resident when submitted work uses them.
 
-The current implementation uses two Render Runtime-owned sets:
+The current implementation uses two queue-wide Render Runtime-owned sets:
 
 - **Static Render Assets** contains immutable model vertex and index buffers.
-- **Render Frame Buffers** contains the CPU-written instance buffers in the
-  frame ring.
+- **Render Frame Buffers** contains the CPU-written instance, PBR-scene, and
+  presentation-parameter buffers in the frame ring.
+
+In addition, each reusable frame slot lazily owns one drawable-sized HDR scene
+target and one committed residency set containing that target. The set is
+attached to the exact command buffer that uses it, and the in-flight submission
+token retains the target and set until queue feedback completes. Resize replaces
+a slot's target only after that slot is no longer in flight.
 
 MetalKit and Core Animation continue to own their drawable-related allocations.
 Their view and layer residency sets are registered with the command queue when
