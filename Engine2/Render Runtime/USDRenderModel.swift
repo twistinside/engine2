@@ -84,9 +84,9 @@ struct USDRenderModel {
     /// explicit offsets keep the Swift descriptor aligned with `ModelVertex` in
     /// `ModelShaders.metal`. Vertex color remains in the existing decoded layout,
     /// but the explicit authored-material path does not consume it. The
-    /// packaged asset is an implicit USD sphere, so requesting a normal
-    /// attribute lets Model I/O's USD importer supply its generated sphere
-    /// normals without introducing an engine-wide generation policy.
+    /// packaged sphere authors smooth outward normals alongside its explicit
+    /// polygonal geometry. This descriptor preserves those normals without
+    /// introducing an engine-wide runtime generation policy.
     static func makeVertexDescriptor() -> MDLVertexDescriptor {
         let vertexDescriptor = MDLVertexDescriptor()
         vertexDescriptor.attributes[0] = MDLVertexAttribute(
