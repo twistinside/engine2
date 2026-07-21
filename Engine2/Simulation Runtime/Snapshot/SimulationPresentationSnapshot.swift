@@ -26,7 +26,8 @@ struct SimulationPresentationSnapshot: Equatable {
                 position: world.positionComponents[entity]?.position,
                 rotation: world.rotationComponents[entity]?.rotation,
                 scale: world.scaleComponents[entity]?.scale,
-                meshID: renderable.meshID
+                meshID: renderable.meshID,
+                materialID: renderable.materialID
             )
         }
 

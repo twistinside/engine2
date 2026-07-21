@@ -10,7 +10,7 @@ struct MetalRendererTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:])
+            renderAssetCatalog: .materialOnlyTestCatalog
         )
 
         let pbrPipeline = try resources.renderPipelineState(for: .modelPBR)
@@ -54,6 +54,36 @@ struct MetalRendererTests {
     }
 
     @MainActor
+    @Test func sceneCoordinatorRetainsAuthoredContentPreflightFailure() throws {
+        let completeCatalog = BasicGameContent().renderAssetCatalog
+        let incompleteCatalog = RenderAssetCatalog(
+            models: completeCatalog.models,
+            materials: [
+                .warmDielectric: try #require(
+                    completeCatalog.materials[.warmDielectric]
+                )
+            ]
+        )
+        let simulation = SimulationRuntime()
+
+        let coordinator = MetalSceneView.Coordinator(
+            renderAssetCatalog: incompleteCatalog,
+            presentationSource: simulation,
+            outputMode: .surface
+        )
+        let error = try #require(
+            coordinator.latestRenderError as? RenderAssetCatalogError
+        )
+
+        // Store construction rejects the complete missing vocabulary before
+        // pipelines, models, or a renderer are created. The bridge retains the
+        // exact error so App diagnostics do not see only an unexplained black
+        // view, and no fallback material can enter a draw.
+        #expect(error == .missingMaterialDescriptions([.goldMetal]))
+        #expect(coordinator.renderer == nil)
+    }
+
+    @MainActor
     @Test func renderTargetConfigurationSeparatesHDRSceneFromSRGBPresentation() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let view = MTKView(frame: .zero, device: device)
@@ -81,7 +111,7 @@ struct MetalRendererTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 2
         )
 
@@ -114,7 +144,7 @@ struct MetalRendererTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         let frame = try #require(resources.frames.first)
@@ -249,19 +279,26 @@ struct MetalRendererTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         let frame = try #require(resources.frames.first)
         let instances = (0..<(FrameResources.maximumInstanceCount + 10)).map {
             RenderInstance(
                 meshID: .ball,
+                materialID: .warmDielectric,
                 worldPosition: SIMD3<Float>(Float($0), 0, 0)
             )
         }
 
         let writtenCount = frame.write(
             instances,
+            materialDescriptions: Array(
+                repeating: try resources.materialDescription(
+                    for: .warmDielectric
+                ),
+                count: FrameResources.maximumInstanceCount
+            ),
             camera: Camera(),
             drawableSize: CGSize(width: 1_920, height: 1_080)
         )

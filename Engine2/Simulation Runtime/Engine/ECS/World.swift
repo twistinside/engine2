@@ -107,7 +107,10 @@ class World {
         // PRenderable
         if let renderable = entity as? any PRenderable {
             renderableComponents.insert(
-                CRenderable(meshID: renderable.initialMeshID),
+                CRenderable(
+                    meshID: renderable.initialMeshID,
+                    materialID: renderable.initialMaterialID
+                ),
                 for: entity.id
             )
         }

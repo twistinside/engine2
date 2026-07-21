@@ -49,7 +49,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
     ) {
         self.worldBuilder = worldBuilder
         self.inputSource = inputSource
-        var world = worldBuilder.buildWorld()
+        let world = worldBuilder.buildWorld()
         if let inputSnapshot = inputSource?.latestInputSnapshot {
             world.input.rebase(to: inputSnapshot)
         }

@@ -11,23 +11,25 @@ The current codebase already has:
   command queue, typed state caches, decoded models, and frame-resource ring
 - `MetalResidencyManager` as the owner of committed static-asset and
   frame-allocation residency sets
-- a typed `MeshID` and `RenderAssetCatalog` boundary between Game Content and renderer-owned resources
+- typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
+  between Game Content descriptions and renderer-owned resources
 The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
 See <doc:PBR-Implementation-Plan> for the staged path from the current visible
 renderer through a directional-light PBR baseline and into the later Forward+
 local-light scaling work. Its normals/depth foundation, shared direct-light
-BRDF, and visible HDR presentation chain are implemented; authored materials
-remain the next milestone.
+BRDF, visible HDR presentation chain, and authored material boundary are
+implemented; the controlled material-sphere scene remains the final bootstrap
+milestone.
 ## Chosen Rendering Path
 Engine2's planned production renderer uses one **Forward+** path with
 **physically based rendering (PBR)**. Render owns one shared direct-light BRDF
 implementation used by both its isolated proof and its visible path. The
-visible renderer shades into linear `rgba16Float`, then applies explicit manual
-exposure and Reinhard tone mapping before writing display-linear values to an
-sRGB drawable. Authored PBR materials and Forward+ light assignment remain
-future work.
+visible renderer resolves authored material identities into per-draw factors,
+shades into linear `rgba16Float`, then applies explicit manual exposure and
+Reinhard tone mapping before writing display-linear values to an sRGB drawable.
+Forward+ light assignment remains future work.
 
 Forward+ separates light assignment from surface shading:
 
@@ -70,10 +72,12 @@ The authoritative simulation state should remain in ECS component stores. Render
 `World` may still contain abstract presentation state such as mesh handles, material handles, visibility, camera settings, and render style. What it should not contain are backend-specific Metal objects.
 
 The current `CRenderable` component demonstrates that distinction. It stores a
-`MeshID`, while `BasicGameContent` maps `MeshID.ball` to the packaged
-`Ball.usdz` asset. The Render Runtime's `MetalResourceStore` receives that
-catalog and privately owns the decoded meshes, buffers, compiled state, and
-residency organization consumed by ``MetalRenderer``.
+`MeshID` and `MaterialID`, while `BasicGameContent` maps `MeshID.ball` to the
+packaged `Ball.usdz` asset and maps its closed material identities to
+`PBRMaterialDescription` values. The Render Runtime's `MetalResourceStore`
+receives that catalog and privately owns the validated descriptions, decoded
+meshes, buffers, compiled state, and residency organization consumed by
+``MetalRenderer``.
 ## Rendering Projects Published Simulation State
 The implemented runtime boundary separates publication and projection:
 
@@ -144,6 +148,8 @@ The store eagerly creates the resources required by the current renderer:
 - depth-stencil states keyed by `MetalDepthStencilStateID`
 - argument tables keyed by `MetalArgumentTableID`
 - decoded models resolved from backend-neutral `MeshID` values
+- validated authored descriptions resolved from backend-neutral `MaterialID`
+  values
 - the fixed frame-resource ring and its PBR/presentation parameter buffers
 - the PBR scene, normal diagnostic, tone-mapped presentation, and linear
   diagnostic pipelines
@@ -152,6 +158,9 @@ Each backend identity is a closed Render Runtime enum whose case determines the
 complete resource definition. The store builds each case once and retains the
 result for lookup. Required resources are compiled before drawing begins, so
 ``MetalRenderer.draw(in:)`` never performs shader or pipeline compilation.
+Catalog or renderer construction failures remain observable through the
+`MetalSceneView` coordinator's latest render error rather than being discarded
+when the bridge cannot create a renderer.
 
 Future vertex layouts, function constants, blend state, and attachment
 variants should become explicit enum cases or deliberately modeled variant
@@ -168,8 +177,8 @@ resident when submitted work uses them.
 The current implementation uses two queue-wide Render Runtime-owned sets:
 
 - **Static Render Assets** contains immutable model vertex and index buffers.
-- **Render Frame Buffers** contains the CPU-written instance, PBR-scene, and
-  presentation-parameter buffers in the frame ring.
+- **Render Frame Buffers** contains the CPU-written transform/material instance,
+  light-only PBR-scene, and presentation-parameter buffers in the frame ring.
 
 In addition, each reusable frame slot lazily owns one drawable-sized HDR scene
 target and one committed residency set containing that target. The set is

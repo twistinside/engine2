@@ -34,8 +34,15 @@ final class MetalHDRPipelineTestRenderer {
     private var canSubmit = true
 
     init() throws {
+        // Reuse the actual Game Content-authored material descriptions while
+        // leaving model resolution empty: this harness supplies one analytic
+        // triangle buffer and exercises only the production material pathway.
+        let authoredMaterials = BasicGameContent().renderAssetCatalog.materials
         let resources = try MetalResourceStore(
-            renderAssetCatalog: RenderAssetCatalog(models: [:]),
+            renderAssetCatalog: RenderAssetCatalog(
+                models: [:],
+                materials: authoredMaterials
+            ),
             frameCount: 1
         )
         guard let frame = resources.frames.first else {
@@ -64,11 +71,71 @@ final class MetalHDRPipelineTestRenderer {
     func render(
         outputMode: RenderOutputMode,
         normal: SIMD3<Float> = SIMD3<Float>(0, 0, 1),
-        exposure: ManualExposure = .validation
+        exposure: ManualExposure = .validation,
+        materialID: MaterialID = .warmDielectric
     ) throws -> MetalHDRPipelineTestResult {
+        let results = try render(
+            outputMode: outputMode,
+            normal: normal,
+            exposure: exposure,
+            materialIDs: [materialID],
+            scissorRects: [Self.fullScissorRect],
+            sampleRegions: [Self.centerRegion]
+        )
+        return results[0]
+    }
+
+    /// Draws two authored materials from separate instance records while
+    /// reusing one geometry buffer in one scene pass.
+    ///
+    /// Scissoring the otherwise identical draws into separate halves produces
+    /// two inspectable pixels without introducing a second mesh or pipeline.
+    /// The result therefore catches a fragment table that is not rebound per
+    /// draw, an incorrect instance stride, or material data overwritten by the
+    /// later draw before Metal consumes its snapshot.
+    func renderAuthoredMaterialPair(
+        _ materialIDs: [MaterialID] = [.warmDielectric, .goldMetal]
+    ) throws -> (
+        left: SIMD4<Float>,
+        right: SIMD4<Float>
+    ) {
+        precondition(
+            materialIDs.count == 2,
+            "The paired material proof requires exactly two identities."
+        )
+        let results = try render(
+            outputMode: .surface,
+            normal: SIMD3<Float>(0, 0, 1),
+            exposure: .validation,
+            materialIDs: materialIDs,
+            scissorRects: [Self.leftScissorRect, Self.rightScissorRect],
+            sampleRegions: [Self.leftSampleRegion, Self.rightSampleRegion]
+        )
+        return (
+            left: results[0].sceneLinearRGBA,
+            right: results[1].sceneLinearRGBA
+        )
+    }
+
+    /// Executes one complete production scene/presentation submission and
+    /// samples caller-selected pixels after asynchronous Metal completion.
+    private func render(
+        outputMode: RenderOutputMode,
+        normal: SIMD3<Float>,
+        exposure: ManualExposure,
+        materialIDs: [MaterialID],
+        scissorRects: [MTLScissorRect],
+        sampleRegions: [MTLRegion]
+    ) throws -> [MetalHDRPipelineTestResult] {
         guard canSubmit else {
             throw MetalHDRPipelineTestRendererError.unusableAfterTimeout
         }
+        precondition(
+            !materialIDs.isEmpty
+                && materialIDs.count == scissorRects.count
+                && materialIDs.count == sampleRegions.count,
+            "HDR material samples require one scissor and sample region per draw."
+        )
 
         // One frame slot deliberately mirrors the production back-pressure
         // rule. Queue feedback, not the CPU readback, releases this ownership.
@@ -94,19 +161,26 @@ final class MetalHDRPipelineTestRenderer {
         )
 
         frame.commandAllocator.reset()
-        let instance = RenderInstance(
-            meshID: .ball,
-            transform: Transform()
-        )
+        let instances = materialIDs.map { materialID in
+            RenderInstance(
+                meshID: .ball,
+                materialID: materialID,
+                transform: Transform()
+            )
+        }
+        let materialDescriptions = try materialIDs.map {
+            try resources.materialDescription(for: $0)
+        }
         let instanceCount = frame.write(
-            [instance],
+            instances,
+            materialDescriptions: materialDescriptions,
             camera: Self.camera,
             drawableSize: CGSize(width: Self.width, height: Self.height),
             exposure: exposure
         )
         precondition(
-            instanceCount == 1,
-            "The HDR pipeline proof requires exactly one test triangle."
+            instanceCount == materialIDs.count,
+            "The HDR pipeline proof must write every requested material draw."
         )
 
         guard let commandBuffer = resources.device.makeCommandBuffer() else {
@@ -140,26 +214,36 @@ final class MetalHDRPipelineTestRenderer {
             }
             sceneEncoder.setDepthStencilState(depthStencilState)
 
+            // Both authored appearances deliberately share this exact geometry
+            // address. Only each per-draw instance record and scissor changes.
             modelArgumentTable.setAddress(vertexBuffer.gpuAddress, index: 0)
-            modelArgumentTable.setAddress(
-                frame.instanceBuffer.gpuAddress,
-                index: 1
-            )
-            sceneEncoder.setArgumentTable(modelArgumentTable, stages: .vertex)
-
             pbrSceneArgumentTable.setAddress(
                 frame.pbrSceneParametersBuffer.gpuAddress,
                 index: 2
             )
-            sceneEncoder.setArgumentTable(
-                pbrSceneArgumentTable,
-                stages: .fragment
-            )
-            sceneEncoder.drawPrimitives(
-                primitiveType: .triangle,
-                vertexStart: 0,
-                vertexCount: 3
-            )
+
+            for instanceIndex in 0..<instanceCount {
+                // Exercise the production binding primitive so the GPU proof
+                // fails if visible rendering regresses its instance stride,
+                // fragment buffer index, or per-draw fragment-table bind.
+                MetalRenderer.selectModelInstance(
+                    at: instanceIndex,
+                    in: frame,
+                    modelArgumentTable: modelArgumentTable,
+                    pbrSceneArgumentTable: pbrSceneArgumentTable,
+                    with: sceneEncoder
+                )
+                sceneEncoder.setArgumentTable(
+                    modelArgumentTable,
+                    stages: .vertex
+                )
+                sceneEncoder.setScissorRect(scissorRects[instanceIndex])
+                sceneEncoder.drawPrimitives(
+                    primitiveType: .triangle,
+                    vertexStart: 0,
+                    vertexCount: 3
+                )
+            }
         }
         commandBuffer.endCommandBuffer()
 
@@ -194,10 +278,18 @@ final class MetalHDRPipelineTestRenderer {
             throw MetalHDRPipelineTestRendererError.timedOut
         }
 
-        return MetalHDRPipelineTestResult(
-            sceneLinearRGBA: readSceneCenterPixel(from: sceneTexture),
-            presentedBGRA8: readPresentedCenterPixel(from: presentedTexture)
-        )
+        return sampleRegions.map { region in
+            MetalHDRPipelineTestResult(
+                sceneLinearRGBA: readScenePixel(
+                    from: sceneTexture,
+                    region: region
+                ),
+                presentedBGRA8: readPresentedPixel(
+                    from: presentedTexture,
+                    region: region
+                )
+            )
+        }
     }
 
     private func makeTriangleBuffer(
@@ -296,15 +388,16 @@ final class MetalHDRPipelineTestRenderer {
         return residencySet
     }
 
-    private func readSceneCenterPixel(
-        from texture: any MTLTexture
+    private func readScenePixel(
+        from texture: any MTLTexture,
+        region: MTLRegion
     ) -> SIMD4<Float> {
         var components = [Float16](repeating: 0, count: 4)
         components.withUnsafeMutableBytes { bytes in
             texture.getBytes(
                 bytes.baseAddress!,
                 bytesPerRow: 4 * MemoryLayout<Float16>.stride,
-                from: Self.centerRegion,
+                from: region,
                 mipmapLevel: 0
             )
         }
@@ -316,15 +409,16 @@ final class MetalHDRPipelineTestRenderer {
         )
     }
 
-    private func readPresentedCenterPixel(
-        from texture: any MTLTexture
+    private func readPresentedPixel(
+        from texture: any MTLTexture,
+        region: MTLRegion
     ) -> SIMD4<UInt8> {
         var components = [UInt8](repeating: 0, count: 4)
         components.withUnsafeMutableBytes { bytes in
             texture.getBytes(
                 bytes.baseAddress!,
                 bytesPerRow: 4,
-                from: Self.centerRegion,
+                from: region,
                 mipmapLevel: 0
             )
         }
@@ -338,5 +432,31 @@ final class MetalHDRPipelineTestRenderer {
 
     private static var centerRegion: MTLRegion {
         MTLRegionMake2D(width / 2, height / 2, 1, 1)
+    }
+
+    private static var leftSampleRegion: MTLRegion {
+        MTLRegionMake2D(width * 3 / 8, height / 2, 1, 1)
+    }
+
+    private static var rightSampleRegion: MTLRegion {
+        MTLRegionMake2D(width * 5 / 8, height / 2, 1, 1)
+    }
+
+    private static var fullScissorRect: MTLScissorRect {
+        MTLScissorRect(x: 0, y: 0, width: width, height: height)
+    }
+
+    private static var leftScissorRect: MTLScissorRect {
+        MTLScissorRect(x: 0, y: 0, width: width / 2, height: height)
+    }
+
+    private static var rightScissorRect: MTLScissorRect {
+        let origin = width / 2
+        return MTLScissorRect(
+            x: origin,
+            y: 0,
+            width: width - origin,
+            height: height
+        )
     }
 }
