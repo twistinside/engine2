@@ -7,7 +7,8 @@ enum DiagnosticsScenarioProcessAdapter {
     static func runIfRequested(
         arguments: [String],
         simulation: SimulationRuntime,
-        diagnosticsRuntime: DiagnosticsRuntime
+        diagnosticsRuntime: DiagnosticsRuntime,
+        diagnostics: DiagnosticsEmitter
     ) {
         do {
             guard let configuration = try DiagnosticsScenarioConfiguration.parse(arguments: arguments) else {
@@ -19,7 +20,8 @@ enum DiagnosticsScenarioProcessAdapter {
 
             let result = try DiagnosticsScenarioRunner(configuration: configuration).run(
                 simulation: simulation,
-                diagnosticsRuntime: diagnosticsRuntime
+                diagnosticsRuntime: diagnosticsRuntime,
+                diagnostics: diagnostics
             )
             let encoder = DiagnosticsNDJSONEncoder()
             try encoder.write(.manifest(result.manifest), to: FileHandle.standardOutput.write)

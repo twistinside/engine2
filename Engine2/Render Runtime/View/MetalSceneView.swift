@@ -14,12 +14,14 @@ struct MetalSceneView: NSViewRepresentable {
     var presentationSource: any PSimulationPresentationSource
     var inputSink: any PInputEventSink
     var outputMode: RenderOutputMode
+    var diagnostics: DiagnosticsEmitter
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             renderAssetCatalog: renderAssetCatalog,
             presentationSource: presentationSource,
-            outputMode: outputMode
+            outputMode: outputMode,
+            diagnostics: diagnostics
         )
     }
 
@@ -77,7 +79,8 @@ struct MetalSceneView: NSViewRepresentable {
         init(
             renderAssetCatalog: RenderAssetCatalog,
             presentationSource: any PSimulationPresentationSource,
-            outputMode: RenderOutputMode
+            outputMode: RenderOutputMode,
+            diagnostics: DiagnosticsEmitter = DiagnosticsEmitter()
         ) {
             self.renderer = nil
             self.initializationError = nil
@@ -92,7 +95,8 @@ struct MetalSceneView: NSViewRepresentable {
                 renderer = try MetalRenderer(
                     resources: resources,
                     presentationSource: presentationSource,
-                    outputMode: outputMode
+                    outputMode: outputMode,
+                    diagnostics: diagnostics
                 )
             } catch {
                 initializationError = error

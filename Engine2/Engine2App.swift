@@ -13,13 +13,19 @@ struct Engine2App: App {
     @State private var inputRuntime: InputRuntime
     @State private var simulation: SimulationRuntime
     private let diagnosticsRuntime: DiagnosticsRuntime
+    private let diagnostics: DiagnosticsEmitter
     private let gameContent: BasicGameContent
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
         let gameContent = BasicGameContent()
-        let diagnosticsRuntime = DiagnosticsRuntime()
+        let isScenarioLaunch = ProcessInfo.processInfo.arguments.contains(
+            DiagnosticsScenarioConfiguration.scenarioArgument
+        )
+        let diagnosticsRuntime = DiagnosticsRuntime(
+            recentSampleCapacity: isScenarioLaunch ? 65_536 : 4_096
+        )
         let diagnostics = DiagnosticsEmitter(
             sessionID: diagnosticsRuntime.sessionID,
             sink: diagnosticsRuntime
@@ -27,6 +33,7 @@ struct Engine2App: App {
         let inputRuntime = InputRuntime(diagnostics: diagnostics)
         self.gameContent = gameContent
         self.diagnosticsRuntime = diagnosticsRuntime
+        self.diagnostics = diagnostics
         _inputRuntime = State(initialValue: inputRuntime)
         _simulation = State(
             initialValue: SimulationRuntime(
@@ -38,7 +45,8 @@ struct Engine2App: App {
         DiagnosticsScenarioProcessAdapter.runIfRequested(
             arguments: ProcessInfo.processInfo.arguments,
             simulation: _simulation.wrappedValue,
-            diagnosticsRuntime: diagnosticsRuntime
+            diagnosticsRuntime: diagnosticsRuntime,
+            diagnostics: diagnostics
         )
     }
 
@@ -48,7 +56,8 @@ struct Engine2App: App {
                 inputRuntime: inputRuntime,
                 simulation: simulation,
                 debugOptions: debugOptions,
-                renderAssetCatalog: gameContent.renderAssetCatalog
+                renderAssetCatalog: gameContent.renderAssetCatalog,
+                diagnostics: diagnostics
             )
         }
         .commands {

@@ -65,6 +65,9 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// latest failure from work already live.
     private let renderErrorState = MetalRenderErrorState()
 
+    /// Shared App-owned diagnostics boundary; Render emits only typed facts.
+    private let diagnostics: DiagnosticsEmitter
+
     /// Read-only Simulation Runtime publication selected at render cadence.
     /// The App owns the source's lifetime; Render does not retain its peer runtime.
     weak var presentationSource: (any PSimulationPresentationSource)?
@@ -87,7 +90,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     init(
         resources: MetalResourceStore,
         presentationSource: any PSimulationPresentationSource,
-        outputMode: RenderOutputMode = .surface
+        outputMode: RenderOutputMode = .surface,
+        diagnostics: DiagnosticsEmitter = DiagnosticsEmitter()
     ) throws {
         precondition(
             !resources.frames.isEmpty,
@@ -105,6 +109,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.hdrFramePass = try MetalHDRFramePass(resources: resources)
         self.presentationSource = presentationSource
         self.outputMode = outputMode
+        self.diagnostics = diagnostics
 
         super.init()
     }
@@ -167,7 +172,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // cannot produce a partial frame.
         let renderFrame: RenderFrame
         if let presentationSource {
-            renderFrame = RenderFrame.project(
+            renderFrame = diagnostics.measureRenderProjection(
                 from: presentationSource.latestPresentationSnapshot
             )
         } else {

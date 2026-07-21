@@ -141,12 +141,16 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
     /// Advances a deterministic diagnostic workload without starting the
     /// wall-clock polling loop. This remains an app-owned scenario boundary.
-    func runDiagnosticFixedSteps(count: Int) {
+    func runDiagnosticFixedSteps(
+        count: Int,
+        stepDidComplete: ((SimulationPresentationSnapshot) -> Void)? = nil
+    ) {
         engine.isSimulationRunning = true
         state.isRunning = true
         for _ in 0..<count {
             engine.step()
             publishPresentationSnapshot(at: engine.completedTick)
+            stepDidComplete?(latestPresentationSnapshot)
         }
     }
 

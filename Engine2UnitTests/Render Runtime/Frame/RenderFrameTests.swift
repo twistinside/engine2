@@ -3,6 +3,40 @@ import Testing
 @testable import Engine2
 
 struct RenderFrameTests {
+    @MainActor
+    @Test func diagnosticProjectionReportsAcceptedAndRejectedPresentations() throws {
+        let world = World()
+        let accepted = EntityID(index: 0, generation: 0)
+        let rejected = EntityID(index: 1, generation: 0)
+        for entity in [accepted, rejected] {
+            world.renderableComponents.insert(
+                CRenderable(meshID: .ball, materialID: .warmDielectric),
+                for: entity
+            )
+            world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        }
+        world.scaleComponents.insert(CScale(scale: .zero), for: rejected)
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: SimulationTick(rawValue: 9)
+        )
+        let sink = RecordingDiagnosticsSink()
+        let emitter = DiagnosticsEmitter(sink: sink)
+
+        let frame = emitter.measureRenderProjection(from: snapshot)
+        let sample = try #require(sink.samples.last)
+        guard case let .renderProjection(projection) = sample.payload else {
+            Issue.record("Expected a Render projection diagnostic")
+            return
+        }
+
+        #expect(frame.instances.count == 1)
+        #expect(projection.sourceTick == SimulationTick(rawValue: 9))
+        #expect(projection.publishedPresentationCount == 2)
+        #expect(projection.acceptedInstanceCount == 1)
+        #expect(projection.rejectedPresentationCount == 1)
+    }
+
     @Test func projectionCreatesInstancesFromPublishedPresentationFacts() async throws {
         let world = World()
         let first = EntityID(index: 0, generation: 0)

@@ -42,7 +42,11 @@ struct DiagnosticsScenarioTests {
                 warmUpNanoseconds: 32_000_000,
                 measurementNanoseconds: 64_000_000
             )
-        ).run(simulation: simulation, diagnosticsRuntime: runtime)
+        ).run(
+            simulation: simulation,
+            diagnosticsRuntime: runtime,
+            diagnostics: emitter
+        )
     }
 
     private func kindCounts(_ samples: [DiagnosticsSample]) -> [DiagnosticsSampleKind: Int] {

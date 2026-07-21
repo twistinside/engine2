@@ -101,6 +101,43 @@ final class DiagnosticsEmitter {
         return snapshot
     }
 
+    /// Measures the Render-owned projection without reading Simulation internals.
+    func measureRenderProjection(
+        from snapshot: SimulationPresentationSnapshot
+    ) -> RenderFrame {
+        let start = timeSource()
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderFrame)
+        let frame: RenderFrame
+        if signposter.isEnabled {
+            let signpostID = signposter.makeSignpostID()
+            frame = signposter.withIntervalSignpost(
+                "RenderProjection",
+                id: signpostID,
+                "session=\(self.sessionID.rawValue.uuidString, privacy: .public) tick=\(snapshot.tick.rawValue, privacy: .public) published=\(snapshot.entityPresentations.count, privacy: .public)"
+            ) {
+                RenderFrame.project(from: snapshot)
+            }
+        } else {
+            frame = RenderFrame.project(from: snapshot)
+        }
+
+        let end = timeSource()
+        record(
+            category: .renderFrame,
+            timestampAt: end,
+            payload: .renderProjection(
+                RenderProjectionDiagnostics(
+                    sourceTick: snapshot.tick,
+                    publishedPresentationCount: snapshot.entityPresentations.count,
+                    acceptedInstanceCount: frame.instances.count,
+                    rejectedPresentationCount: snapshot.entityPresentations.count - frame.instances.count,
+                    durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
+                )
+            )
+        )
+        return frame
+    }
+
     /// Measures one app-loop poll and records its fixed-step/backlog outcome.
     func measureSimulationPoll(
         sampledWallDelta: Duration,

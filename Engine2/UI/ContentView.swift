@@ -11,6 +11,7 @@ struct ContentView: View {
     let simulation: SimulationRuntime
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
+    let diagnostics: DiagnosticsEmitter
 
     var body: some View {
         ZStack {
@@ -18,7 +19,8 @@ struct ContentView: View {
                 renderAssetCatalog: renderAssetCatalog,
                 presentationSource: simulation,
                 inputSink: inputRuntime,
-                outputMode: debugOptions.renderOutputMode
+                outputMode: debugOptions.renderOutputMode,
+                diagnostics: diagnostics
             )
                 .ignoresSafeArea()
 

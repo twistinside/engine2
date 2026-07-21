@@ -7,7 +7,8 @@ struct DiagnosticsScenarioRunner {
     /// window through the same Simulation Runtime boundary used by the app.
     func run(
         simulation: SimulationRuntime,
-        diagnosticsRuntime: DiagnosticsRuntime
+        diagnosticsRuntime: DiagnosticsRuntime,
+        diagnostics: DiagnosticsEmitter
     ) throws -> DiagnosticsScenarioRunResult {
         let fixedStepNanoseconds = simulation.state.fixedTimeStep.diagnosticsNanoseconds
         let warmUpTicks = try tickCount(
@@ -19,10 +20,14 @@ struct DiagnosticsScenarioRunner {
             fixedStepNanoseconds: fixedStepNanoseconds
         )
 
-        simulation.runDiagnosticFixedSteps(count: warmUpTicks)
+        simulation.runDiagnosticFixedSteps(count: warmUpTicks) { snapshot in
+            _ = diagnostics.measureRenderProjection(from: snapshot)
+        }
         diagnosticsRuntime.reset()
         simulation.reportDiagnosticInventory()
-        simulation.runDiagnosticFixedSteps(count: measurementTicks)
+        simulation.runDiagnosticFixedSteps(count: measurementTicks) { snapshot in
+            _ = diagnostics.measureRenderProjection(from: snapshot)
+        }
 
         let manifest = DiagnosticsManifest(
             sessionID: diagnosticsRuntime.sessionID,

@@ -3,6 +3,7 @@ enum DiagnosticsSampleKind: String, Codable, CaseIterable, Hashable, Sendable {
     case inputReceive
     case inputSnapshot
     case presentationSnapshot
+    case renderProjection
     case simulationRuntimeInventory
     case simulationPoll
     case simulationStep

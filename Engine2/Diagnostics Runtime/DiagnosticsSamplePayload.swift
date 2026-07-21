@@ -6,6 +6,7 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
     case inputReceive(InputReceiveDiagnostics)
     case inputSnapshot(InputSnapshotDiagnostics)
     case presentationSnapshot(PresentationSnapshotDiagnostics)
+    case renderProjection(RenderProjectionDiagnostics)
     case simulationRuntimeInventory(SimulationRuntimeInventoryDiagnostics)
     case simulationPoll(SimulationPollDiagnostics)
     case simulationStep(SimulationStepDiagnostics)
@@ -16,6 +17,7 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
         case .inputReceive: .inputReceive
         case .inputSnapshot: .inputSnapshot
         case .presentationSnapshot: .presentationSnapshot
+        case .renderProjection: .renderProjection
         case .simulationRuntimeInventory: .simulationRuntimeInventory
         case .simulationPoll: .simulationPoll
         case .simulationStep: .simulationStep
@@ -28,6 +30,8 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
         case .inputReceive, .inputSnapshot, .simulationRuntimeInventory:
             nil
         case let .presentationSnapshot(payload):
+            payload.durationNanoseconds
+        case let .renderProjection(payload):
             payload.durationNanoseconds
         case let .simulationPoll(payload):
             payload.durationNanoseconds
