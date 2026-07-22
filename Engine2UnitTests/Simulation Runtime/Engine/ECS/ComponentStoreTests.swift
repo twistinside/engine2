@@ -70,4 +70,45 @@ struct ComponentStoreTests {
         #expect(didUpdate == false)
         #expect(store.dense.isEmpty)
     }
+
+    @Test func largeSparseIndexDoesNotAllocateDensePadding() {
+        var store = ComponentStore<CPosition>()
+        let entity = EntityID(index: Int.max, generation: 0)
+
+        store.insert(CPosition(position: SIMD3<Float>(1, 2, 3)), for: entity)
+
+        #expect(store.dense.count == 1)
+        #expect(store.entities == [entity])
+        #expect(store.sparse == [Int.max: 0])
+        #expect(store[entity]?.position == SIMD3<Float>(1, 2, 3))
+    }
+
+    @Test func failedUpdateNeverExecutesMutationBody() {
+        var store = ComponentStore<CPosition>()
+        let live = EntityID(index: 3, generation: 2)
+        let stale = EntityID(index: 3, generation: 1)
+        store.insert(CPosition(position: .zero), for: live)
+        var invocationCount = 0
+
+        let didUpdate = store.update(for: stale) { _ in
+            invocationCount += 1
+        }
+
+        #expect(didUpdate == false)
+        #expect(invocationCount == 0)
+    }
+
+    @Test func copiedStoreHasIndependentValueSemantics() {
+        let entity = EntityID(index: 1, generation: 0)
+        var original = ComponentStore<CPosition>()
+        original.insert(CPosition(position: .zero), for: entity)
+        var copy = original
+
+        copy.update(for: entity) { position in
+            position.position = SIMD3<Float>(9, 8, 7)
+        }
+
+        #expect(original[entity]?.position == .zero)
+        #expect(copy[entity]?.position == SIMD3<Float>(9, 8, 7))
+    }
 }
