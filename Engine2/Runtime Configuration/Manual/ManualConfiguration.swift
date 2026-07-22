@@ -1,8 +1,8 @@
 /// Immutable recipe for constructing a caller-driven Simulation topology.
 ///
-/// Manual configurations have no Input Runtime and start no polling task. A
-/// debugger, test, turn-based host, or future tool coordinator advances the
-/// resulting assembly only through the Simulation Runtime's exact capability.
+/// Manual configurations have no Input Runtime or cadence driver. A debugger,
+/// test, turn-based host, or future tool coordinator advances the resulting
+/// assembly only through the Simulation Runtime's exact capability.
 nonisolated struct ManualConfiguration: Equatable, Sendable {
     let fixedTimeStep: Duration
 

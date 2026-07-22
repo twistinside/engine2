@@ -1,7 +1,8 @@
 /// Number of complete fixed steps committed by one Simulation advance.
 ///
-/// Unlike a requested step count, zero is meaningful when no requested work
-/// commits before an interruption or rejection is observed.
+/// Current completed results are positive. Zero is reserved so a future
+/// interrupted outcome can report that no requested work committed without
+/// weakening the strictly positive request-count contract.
 nonisolated struct SimulationCompletedStepCount: Hashable, Sendable {
     static let zero = SimulationCompletedStepCount(rawValue: 0)
 

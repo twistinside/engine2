@@ -1,5 +1,7 @@
-/// Owns simulation orchestration: frame-time accumulation, fixed-step timing,
-/// and ordered system execution against the world state.
+/// Owns exact fixed-step execution and ordered systems against one World.
+///
+/// Elapsed-time accumulation remains only for the unused legacy `update` path;
+/// configured App cadence belongs to `RealtimeAdvanceDriver`.
 final class Engine {
     private let fixedTimeStepSeconds: Float
 

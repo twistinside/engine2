@@ -16,9 +16,7 @@ struct ManualConfigurationTests {
 
         #expect(assembly.simulationRuntime.currentCursor.sessionID == sessionID)
         #expect(assembly.simulationRuntime.currentCursor.tick == .zero)
-        #expect(assembly.simulationRuntime.state.fixedTimeStep == .milliseconds(25))
-        #expect(assembly.simulationRuntime.state.isLoopRunning == false)
-        #expect(assembly.simulationRuntime.state.isRunning == false)
+        #expect(assembly.simulationRuntime.fixedTimeStep == .milliseconds(25))
         #expect(assembly.presentationSource.latestPresentationSnapshot.cursor == assembly.simulationRuntime.currentCursor)
     }
 
@@ -47,7 +45,8 @@ struct ManualConfigurationTests {
         #expect(result.completedStepCount.rawValue == 4)
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(assembly.simulationRuntime.latestPresentationSnapshot == result.finalPresentationSnapshot)
-        #expect(assembly.simulationRuntime.state.isLoopRunning == false)
+        await Task.yield()
+        #expect(assembly.simulationRuntime.currentCursor == result.finalCursor)
     }
 
     @Test @MainActor func assembliesOwnIndependentSessionsAndWorlds() {

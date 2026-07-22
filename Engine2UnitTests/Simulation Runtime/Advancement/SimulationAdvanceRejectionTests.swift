@@ -29,26 +29,5 @@ struct SimulationAdvanceRejectionTests {
         #expect(actualCurrent == current)
         requireSendable(rejection)
     }
-
-    @Test func activeAuthorityCarriesTheUnchangedCurrentCursor() {
-        let current = SimulationCursor(
-            sessionID: SimulationSessionID(
-                rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000016")!
-            ),
-            tick: SimulationTick(rawValue: 7)
-        )
-        let rejection = SimulationAdvanceRejection.advanceAuthorityActive(
-            current: current
-        )
-
-        guard case let .advanceAuthorityActive(actualCurrent) = rejection else {
-            Issue.record("Expected an active advance-authority rejection")
-            return
-        }
-
-        #expect(actualCurrent == current)
-        requireSendable(rejection)
-    }
-
     private func requireSendable(_ value: some Sendable) {}
 }

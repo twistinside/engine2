@@ -1,8 +1,8 @@
-/// Owns the async task that polls wall time and advances the engine.
+/// Legacy async wall-time adapter retained for migration-focused coverage.
 ///
-/// This sits above `Engine`: a higher-level owner decides when the simulation
-/// loop should run, while `Engine` still owns fixed-step accumulation and
-/// system order.
+/// The configured App now uses `RealtimeAdvanceDriver` and Runtime-level exact
+/// requests. Within this old path, `Engine.update(deltaTime:inputSnapshot:)`
+/// still owns elapsed-time accumulation and ordered execution.
 @MainActor
 final class SimulationLoop {
     /// Factory that creates a fresh elapsed-time sampler for each loop session.
