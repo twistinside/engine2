@@ -16,7 +16,7 @@ Engine2 applications should be explicit assemblies of independently owned runtim
 
 The decisive separation is:
 
-> A configuration-selected **advance authority** decides when and how much progress to request. The Simulation Runtime remains the only owner of what a simulation tick means and the only executor that can produce one.
+> A configuration-selected **advance authority** decides when and how much progress to request. The Simulation Runtime remains the only owner of what a simulation tick means and the only Runtime permitted to execute one.
 
 The Simulation Runtime continues to own:
 
@@ -52,10 +52,28 @@ A configuration has no autonomous cadence merely because it is a recipe. It prod
 A **Runtime Assembly** is one live realization of a Runtime Configuration. The App owns the assembly, and the assembly is its explicit transitive ownership mechanism rather than a new globally discoverable runtime. It strongly retains:
 
 - the runtime instances
-- App-owned adapters and coordinators
+- adapters and coordinators whose lifetimes are not private implementation details of one retained Runtime
 - connection tasks, subscriptions, and cancellation tokens
 - at most one active advance authority for each Simulation Runtime
 - lifecycle ordering and failure unwinding
+
+### Runtime Adapters, Sources, and Workers
+
+An **Adapter** translates an external mechanism into one narrow runtime-owned ingress or translates a runtime-owned value into an external mechanism. A keyboard adapter, game-controller adapter, MCP physical-control adapter, and network-control adapter can all feed the Input Runtime without becoming part of its authoritative state.
+
+Adapter lifetime is contextual. An Input Runtime may retain device readers that are intrinsic to its implementation, a view may retain its platform-event adapter, and an assembly may retain a connector between two peer capabilities. Whichever owner constructs an adapter must also make its cancellation and disconnection path explicit.
+
+The reusable principle is **parallel at the edge, serialized at the authority**. Adapters may wait for devices or transport messages concurrently, but the owning Runtime assigns source identity, orders accepted changes, and publishes one coherent boundary value. An adapter must never mutate another Runtime's state directly.
+
+The pattern generalizes, but the roles should keep contextual names rather than conforming to one universal `PRuntimeAdapter` abstraction:
+
+- Input has ingress sources that fan into one input authority.
+- Render has output targets or workers that fan immutable work out to one or more backends.
+- Network has connections or peers with transport-specific lifecycle.
+- Storage has providers or sinks with persistence-specific failure semantics.
+- Batch orchestration owns multiple complete Runtime instances rather than disguising independent authorities as adapters inside one Runtime.
+
+These roles share explicit ownership and typed boundaries, not necessarily one lifecycle, direction, concurrency model, or protocol.
 
 ### Advance Authority
 
@@ -103,7 +121,9 @@ A configuration is more than a collection of quality flags. It selects independe
 | Lifetime | Continuous application, finite job, request-driven session, one-shot test |
 | Backpressure | Drop, coalesce, bound, block the next request, persist |
 | Determinism | Best-effort live, recorded external inputs, reproducible exact-step session |
-| Execution location | Same actor, another executor, helper process, remote transport |
+| Execution placement | Framework-required actor, Runtime-owned in-process isolation, helper process, remote transport |
+
+A Runtime boundary is not necessarily a one-to-one mapping to an actor, executor, thread, or thread pool. A configuration may select an implementation or operational placement, while each Runtime remains responsible for the isolation and scheduling of its private mutable state.
 
 These choices must not be accidentally fused:
 
@@ -116,7 +136,51 @@ These choices must not be accidentally fused:
 
 Initially, concrete typed composition functions or configuration types are preferable to a universal runtime-graph DSL. Avoid a mutable dictionary of services, `Any`-typed ports, string-selected runtime classes, or one structure full of optional runtimes and Boolean mode flags. Those approaches hide invalid assemblies until execution.
 
-An application with a finite built-in catalog may use a strongly typed enum to select `realtime`, `offlineCapture`, or `mcp` construction. Engine consumers should still be able to define new concrete assemblies without extending a closed Engine2-wide enum.
+### Concrete Assembly Shape
+
+Each materially different topology should have a concrete recipe and a concrete live assembly. The exact production APIs remain open, but the construction should be this legible:
+
+```swift
+nonisolated struct RealtimeConfiguration: Sendable {
+    let simulationSeed: SimulationSeed
+    let catchUpPolicy: RealtimeCatchUpPolicy
+
+    @MainActor
+    func makeAssembly(
+        gameContent: BasicGameContent,
+        environment: RealtimeEnvironment
+    ) throws -> RealtimeAssembly
+}
+
+final class RealtimeAssembly {
+    let inputRuntime: InputRuntime
+    let simulationRuntime: SimulationRuntime
+    let screenRenderRuntime: ScreenRenderRuntime
+    let advanceDriver: RealtimeAdvanceDriver
+
+    // The assembly privately retains adapters, connections, and cancellation state.
+}
+```
+
+The recipe is an immutable transportable value. The illustrative factory is `@MainActor` because today's App constructs UI- and framework-bound objects there; that annotation governs assembly construction, not the execution placement of every Runtime it retains. A headless or otherwise non-UI configuration may construct its assembly from a different isolation domain.
+
+An `OfflineCaptureConfiguration` should produce an `OfflineCaptureAssembly` with an offline coordinator, offscreen Render Runtime, and artifact sink. An `MCPConfiguration` should produce an `MCPAssembly` with transport and agent-session ownership. They may reuse focused construction helpers, but they should not be represented by one `RuntimeAssembly` value containing twenty optional properties.
+
+Three decisions remain separate:
+
+1. **Topology** is expressed by the concrete configuration and assembly type.
+2. **Parameters** such as seed, endpoint, resolution, or output path are strongly typed and validated before start.
+3. **Selection** happens at the outer App or executable boundary.
+
+A finite App catalog may use a strongly typed enum such as `realtime`, `offlineCapture`, or `mcp`. Tests can construct a concrete configuration directly. Launch arguments or a configuration file can select and populate one recipe at process start. A development UI can stop one assembly and construct another through the coordinated transition described below. Materially different deployment and entitlement needs may justify separate executables that call the same builders. A Runtime Configuration is therefore not synonymous with an app target, command-line flag, or in-app mode; those are selection mechanisms around the same typed composition model.
+
+Engine consumers must be able to define their own concrete assemblies without extending a closed Engine2-wide enum.
+
+### Cardinality Belongs to the Assembly
+
+The default ownership unit is one authoritative Simulation session per ``SimulationRuntime``. A Monte Carlo, reinforcement-learning, validation, or branching configuration creates several isolated Simulation Runtime instances and lets an App-owned batch coordinator schedule them. This keeps each World, cursor, request gate, publication set, and failure boundary unambiguous.
+
+A future `SimulationHostRuntime` or session pool may earn a boundary when shared worker management creates concrete lifecycle or scheduling value. It should still expose session-qualified capabilities and preserve per-session isolation. Different seeds are not adapters inside one mutable Simulation Runtime, and a single Runtime should not silently multiplex independent Worlds merely because they execute similar code.
 
 Configurations select among declared typed capabilities and may choose per-connection buffering, retention, and backpressure policy where the publisher's contract permits it. They do not redefine publisher-owned vocabulary or reinterpret a latest-value source as an exact result or durable journal.
 
@@ -127,52 +191,55 @@ Snapshots and events are consumer-agnostic publications. Advancing Simulation is
 The Simulation Runtime should eventually expose a narrow, Simulation-owned advance capability. The exact API remains proposed, but its semantic shape should resemble:
 
 ```swift
-struct SimulationSessionID: Hashable, Sendable {
+nonisolated struct SimulationSessionID: Hashable, Sendable {
     let rawValue: UUID
 }
 
-struct SimulationCursor: Hashable, Sendable {
+nonisolated struct SimulationCursor: Hashable, Sendable {
     let sessionID: SimulationSessionID
     let tick: SimulationTick
 }
 
-struct SimulationStepCount: Hashable, Sendable {
+nonisolated struct SimulationStepCount: Hashable, Sendable {
     // Construction validates that rawValue is greater than zero.
     let rawValue: UInt32
 }
 
-struct SimulationCompletedStepCount: Hashable, Sendable {
+nonisolated struct SimulationCompletedStepCount: Hashable, Sendable {
     // Zero is valid when interruption occurs before the first requested tick.
     let rawValue: UInt32
 }
 
-struct SimulationAdvanceRequest: Sendable {
+nonisolated struct SimulationAdvanceRequest: Sendable {
     let expectedCursor: SimulationCursor?
     let stepCount: SimulationStepCount
 }
 
-struct SimulationAdvanceResult: Sendable {
+nonisolated struct SimulationAdvanceResult: Sendable {
     let initialCursor: SimulationCursor
     let finalCursor: SimulationCursor
     let completedStepCount: SimulationCompletedStepCount
     let finalPresentationSnapshot: SimulationPresentationSnapshot
 }
 
-enum SimulationAdvanceOutcome: Sendable {
+nonisolated enum SimulationAdvanceOutcome: Sendable {
     case completed(SimulationAdvanceResult)
     case interrupted(SimulationAdvanceResult, SimulationAdvanceStopReason)
     case rejected(currentCursor: SimulationCursor, SimulationAdvanceRejection)
 }
 
-@MainActor
-protocol PSimulationAdvanceTarget: AnyObject {
+nonisolated protocol PSimulationAdvanceTarget: AnyObject, Sendable {
     func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome
 }
 ```
 
-These names and fields are illustrative. `@MainActor` reflects the feasible first implementation, while the `Sendable` conformances describe the desired transport-safe value boundary. ``SimulationPresentationSnapshot`` and its complete value graph would need explicit concurrency review and conformance before this sketch compiled as written. Neither `async` nor actor isolation by itself establishes the request-ordering rules below.
+These names and fields are illustrative. The value declarations and protocol are explicitly `nonisolated` so they do not inherit the app target's current default `MainActor` isolation. The App may construct and retain the capability on `MainActor` without making main-actor execution part of the capability's semantics. `Sendable` makes transfer of the target capability and boundary values part of the contract. A concrete implementation may remain on `MainActor` during migration, use its own actor, or provide another concurrency-safe implementation. Existing ``SimulationTick``, ``SimulationPresentationSnapshot``, and the rest of their complete value graphs still need explicit concurrency review, `nonisolated` treatment where required, and `Sendable` conformance before this sketch compiles as written. Neither `async`, `Sendable`, nor actor isolation by itself establishes the request-ordering rules below.
 
-The request deliberately omits one universal control payload. The current physical-input MVP could atomically stage an ``InputSnapshot`` immediately before advancement, while replay, networking, bots, or Game Content may later require tick-addressed semantic control batches. The selected ingress must be attributable to the request without making keyboard-shaped state the permanent Simulation command vocabulary.
+The request deliberately omits one universal control payload. For the current physical-input vertical slice, the advance authority samples an immutable ``InputSnapshot`` and submits it through a typed Simulation Runtime advance entry point. The Runtime serializes that snapshot with the request, imports it only at the safe tick boundary, privately calls ``Engine/step(inputSnapshot:)``, commits publications, and returns the correlated result. The proposed Runtime must not retain a weak live Input source whose value can change independently of the request.
+
+Replay, networking, bots, or Game Content may later require tick-addressed semantic control batches. Those should use a Simulation-owned typed control surface or a deliberate evolution of the request rather than making keyboard-shaped state the permanent command vocabulary. Whatever the selected ingress, the controls consumed by a tick must be attributable to its advance request.
+
+For a multi-step physical-input request carrying one snapshot, the baseline policy imports that snapshot before the first requested tick: cumulative pointer and scroll transients are consumed once, while held state remains available to later ticks. A batch that changes controls between ticks requires an explicit tick-addressed schedule. Exact results or an accompanying journal should eventually identify the input revision or semantic-control identities consumed by the committed cursor range.
 
 `SimulationStepCount` is strictly positive. Reading the current cursor, presentation, or observation without advancing is a separate capability rather than a zero-step command with hidden side effects.
 
@@ -188,7 +255,7 @@ The required advancement semantics are more important than the illustrative API:
 
 The current in-place ECS is not a transactional rollback system. A process trap or future thrown failure halfway through system execution cannot truthfully be described as “the tick never happened”; recoverable rollback would require staging, undo, or checkpoint restoration. The achievable near-term guarantee is that no `await`, cooperative cancellation, successful receipt, or completed publication occurs in the middle of a tick. Bounded-batch cancellation and ordinary stoppage are observed between ticks, and a structured interrupted outcome reports the last fully completed cursor. If a future recoverable error escapes halfway through a tick, the Runtime must invalidate that session or restore a known checkpoint before accepting more work; it must not report the previous cursor while continuing from a partially mutated ``World``.
 
-Only one advance request may be active per Simulation session. The ticks committed by one bounded request form a contiguous cursor range. If the implementation yields between ticks to preserve executor fairness or observe cancellation, it must keep a non-reentrant request gate so another `advance` call cannot interleave. Cross-runtime rendering or encoding pressure belongs between separate advance requests, not inside a partially coordinated batch.
+Only one advance request may be active per Simulation session. The ticks committed by one bounded request form a contiguous cursor range. If the implementation cooperatively yields between ticks for fairness or cancellation, it must keep a non-reentrant request gate so another `advance` call cannot interleave. Cross-runtime rendering or encoding pressure belongs between separate advance requests, not inside a partially coordinated batch.
 
 Returning the final presentation value is one possible initial exact-result design, not a requirement that every future Simulation output be packed into one result. Agent observation, network replication, checkpoints, metrics, and other semantic surfaces should remain deliberately named capabilities.
 
@@ -217,6 +284,26 @@ This means the Simulation Runtime still defines the duration and meaning of one 
 
 The current ``Engine/update(deltaTime:inputSnapshot:)`` and ``SimulationLoop`` combine these responsibilities for today's real-time application. ``Engine/step(inputSnapshot:)`` already demonstrates that extraction is practical.
 
+## A Simulation Tick Is Indivisible
+
+Each tick committed by a Simulation advance executes one complete invariant fixed-step schedule. Configuration chooses whether and when to request that operation; it does not select an arbitrary subset of systems for the operation to run.
+
+Engine2 should not expose a general `step(mode:)`, public system mask, `cameraOnly` tick, or configuration-defined schedule bucket. Partial execution would give ``SimulationTick`` several meanings and make snapshots, events, deterministic replay, MCP results, and system invariants depend on an implicit run mode. A completed cursor must mean that the whole authoritative schedule committed.
+
+If a genuinely different authoritative operation later appears, it should receive a separately named capability with its own invariants, identity, publications, and tests. It should not increment ``SimulationTick`` while doing less than a Simulation tick.
+
+The current two-list schedule is therefore a transitional implementation, not the target configuration surface:
+
+| Current always-running work | Target disposition |
+| --- | --- |
+| ``SInputMapping`` | Simulation-domain mapping becomes an invariant early input-mapping stage within every complete tick; presentation-view bindings leave Simulation. |
+| ``SCameraInput`` | Free-orbit presentation control moves to a view-owned controller. Only gameplay-authoritative camera behavior remains in the complete Simulation schedule. |
+| ``SInputHistory`` | Simulation-consumed history runs on complete ticks; host or device diagnostics belong to Input Runtime or App tooling. |
+| ``SInputCleanup`` | Transient cleanup becomes an invariant final stage before every complete tick commits. |
+| Metrics and tracing | Observe requests, completed publications, and results without requiring a partial ECS mutation pass. |
+
+Ordinary frozen pause means the absence of advance requests and no cursor change. A future game-specific **soft pause** can remain authoritative game state processed by the complete schedule—for example, movement may stop while network/session rules, scripted world state, or explicitly pause-exempt entities continue. Menu UI and other presentation can progress independently without making a partial Simulation tick. Soft pause is not implemented by suppressing an arbitrary engine system list.
+
 ## Input Must Be Attributable to Ticks
 
 Current ``InputSnapshot`` semantics are useful across several configurations: held state persists, and cumulative pointer/scroll totals let Simulation derive motion across skipped publisher revisions. An MCP adapter can initially submit the same `InputEvent` values as the platform adapter and then request a tick.
@@ -229,9 +316,28 @@ That is not the only control boundary Engine2 will ever need. Three levels shoul
 
 MCP, bots, replays, network peers, and tests may eventually prefer semantic commands rather than impersonating a keyboard. Do not expand physical `InputEvent` into a universal command bag to serve those uses.
 
+### Multiple Sources Converge at One Input Authority
+
+Input sources may collect work concurrently, but ``InputRuntime`` owns the serialized acceptance order, canonical device state, publication session and revision, and coherent snapshot. The configuration supplies source-to-player assignment and merge policy; adapters do not mutate one shared pressed-key set directly.
+
+```text
+InputMetalView ------------------+
+controller source --------------+--> InputRuntime --> InputSnapshot
+MCP physical-control connector --+
+bot physical-control source -----+
+                       concurrent ingress
+                       serialized acceptance
+```
+
+Multi-source ingress requires stable source identity and source-local held state. If two sources hold the same key, releasing it from one source must not erase the other's contribution. Detaching or restarting a source neutralizes only that source. Axis combination, pointer ownership, focus, logical player assignment, source priority, and human-versus-bot takeover all require explicit policies; arrival order alone is not a merge policy.
+
+The Input Runtime assigns its own publication revision after accepting and merging source changes. Source-local sequence identities may additionally support deduplication, diagnostics, and replay. A deterministic configuration records the accepted total order whenever concurrent arrival can affect the result.
+
+Input Runtime normalization stops at input-domain state. Simulation-owned mapping converts imported input into player or other gameplay concepts at the fixed-tick boundary. Presentation viewpoint control may map the same input through its own recipient-domain bindings. A complete MCP or Network service with transport, authentication, and session lifetime remains a peer Runtime; only a deliberately configured physical-control connector participates in Input Runtime fan-in. Semantic commands may instead enter through a separately named Simulation-owned control boundary.
+
 Batch advancement must define its input behavior. “Apply this input and advance 30 ticks” is ambiguous unless the contract states whether a transition occurs once, held state persists, an action repeats every tick, or a distinct per-tick control schedule is supplied. One-step requests are the unambiguous baseline; an optimized batch should carry explicit input scheduling semantics.
 
-If several input producers control one session, an App-owned input arbiter must define source/player identity, merge rules, priority, and publication revision. Publisher-local revisions cannot be naively merged by choosing whichever snapshot arrived last.
+Publisher revisions from independent Runtime instances cannot be merged by choosing the numerically newest value. Multiple producers must converge through one configured input authority or through an App-owned arbiter that produces one coherent, source-attributed input publication.
 
 ## There Is At Most One Effective Advance Authority
 
@@ -241,14 +347,14 @@ A development assembly can expose real-time, manual-step, and MCP controls toget
 
 This also clarifies pause:
 
-- pausing the advance authority normally means no new simulation ticks occur
+- pausing the advance authority means no new simulation ticks occur
 - stopping a Runtime is a lifecycle operation
-- disabling a subset of gameplay systems is a separate Simulation execution mode, if that capability is deliberately retained
 - rendering, inspection, encoding, input collection, and other peer-runtime work may continue while Simulation is paused
+- a game-specific soft pause, when needed, remains state processed by complete ticks rather than a partial schedule
 
 Every pause policy must also state what happens to input revisions accumulated while no ticks occur. A configuration may ingest them on resume, rebase and discard transient totals, neutralize controls, or journal tick-addressed transitions. Rebasing wall-clock time alone does not resolve accumulated input.
 
-The current `pauseSimulation()` leaves ``SimulationLoop`` active, runs always systems, and advances tick identity while simulation-gated systems are disabled. That behavior may remain useful as a specially named mode, but it should not define universal pause semantics for deterministic offline, replay, test, or MCP configurations.
+The current `pauseSimulation()` leaves ``SimulationLoop`` active, runs always systems, and advances tick identity while simulation-gated systems are disabled. This makes camera input usable in the prototype, but gives one tick two meanings. The target design retires that coupling: frozen Simulation stops ticking, presentation viewpoint control continues on its own cadence, and the current always-running work is reclassified as described above.
 
 ## Publications and Exact Results Serve Different Work
 
@@ -275,7 +381,7 @@ Backpressure belongs to each connection:
 - a replay recorder may fail or stop advancement rather than lose required history
 - an MCP operation may bound work, return partial completed progress, and allow a later request to continue
 
-No connection may suspend the executor halfway through a world mutation. Pressure is applied after a completed tick and before the next request.
+Simulation must not await cross-runtime work from inside a world mutation. Backpressure is applied after a completed tick and before the next request.
 
 ## Realtime Interactive Configuration
 
@@ -319,7 +425,7 @@ script, replay, or authored timeline
              +-- advance request ------------------> SimulationRuntime
              <-- exact cursor + immutable snapshot -+
              |
-             +-- render(snapshot, settings) -------> OffscreenRenderRuntime
+             +-- render(snapshot, viewpoint, settings) -> OffscreenRenderRuntime
              <-- rendered output -------------------+
              |
              +-- encode / write -------------------> ArtifactSink
@@ -331,7 +437,7 @@ script, replay, or authored timeline
 The coordinator can hold Simulation at one cursor while Render:
 
 - accumulates thousands of samples
-- renders tiles or several cameras
+- renders the same immutable scene from several explicit viewpoints
 - produces multiple resolutions or diagnostic passes
 - encodes a high-dynamic-range master and a smaller JPEG observation proxy
 - retries an export without re-running Simulation
@@ -348,6 +454,49 @@ A 60 Hz Simulation and a 24 fps movie do not have an integral one-tick/one-frame
 - several shutter sample times when motion blur requires them
 
 Render may interpolate immutable presentation values. It must not privately half-step the ECS, vary the Simulation fixed delta, or read a live world. Selecting a smaller Simulation fixed step is an explicit session choice that changes simulation behavior and therefore identifies a different run.
+
+## Scene Authority and Viewpoint Authority Are Distinct
+
+“Camera” does not imply one universal owner.
+
+Simulation owns camera-related facts when they are authoritative Simulation state or canonical Simulation-authored presentation facts whose evolution is tied to complete ticks. Examples include player aim, a gameplay-significant camera rig, a simulated sensor, a scripted camera synchronized to the world, or a canonical camera anchor/default viewpoint published with completed presentation state.
+
+An output-specific **viewpoint** is different. A free-orbit camera, photo-mode view, editor viewport, spectator view, minimap, split-screen view, MCP inspection view, or offline camera track selects how one consumer observes an immutable scene. Its owner is the presentation assembly, view controller, capture coordinator, tracking Runtime, or other policy that selects that output. Render owns final projection and backend work, but it need not originate every viewpoint it consumes.
+
+Render settings such as exposure, accumulation, depth of field, shutter sampling, resolution, and diagnostic output remain Render-owned policy.
+
+The current `World.camera`, ``SCameraInput``, singular camera in ``SimulationPresentationSnapshot``, and implicit use of that camera by ``RenderFrame/project(from:)`` form a practical first implementation. They should not become a requirement that every render of a Simulation snapshot use one Simulation-mutated camera. The long-term semantic boundary is:
+
+```text
+immutable scene state + explicit viewpoint + render settings
+                              |
+                              v
+                         render result
+```
+
+A Simulation-published camera can remain the default when a configuration supplies no override. The exact viewpoint type and whether a screen assembly retains an ordinary controller or eventually earns a dedicated Runtime should follow concrete implementation needs.
+
+### Photo Mode Without Simulation Ticks
+
+Photo mode freezes the Simulation cursor while presentation work continues:
+
+```text
+InputRuntime ---> active view bindings ---> ViewpointController
+                                                |
+frozen Simulation presentation ----------------+--> Screen or Offscreen Render
+```
+
+The viewpoint controller may process orbit, zoom, lens, or framing controls according to presentation input or render cadence. Render can redraw the same immutable Simulation state after each viewpoint change without requesting a Simulation tick.
+
+Entering and leaving photo mode requires explicit input routing and rebasing. Presentation controls must not accidentally become gameplay commands, and pointer motion accumulated during photo mode must not replay into Simulation when advancement resumes. With several windows, routing additionally needs focus and viewpoint identity rather than merging all pointer motion into one global camera.
+
+An MCP assembly uses the same separation: Codex may set or orbit a viewpoint and request several images from one stable Simulation cursor before deciding whether to advance.
+
+### Multi-Camera Rendering
+
+Multi-camera rendering pairs one exact immutable scene value with several explicit viewpoints. The coordinator may obtain them from an authored camera track, named Simulation-published anchors, per-output configuration, an MCP request, or generated dataset parameters. A serial policy renders every required view before requesting the next Simulation step. A bounded pipeline may retain the exact scene value and advance while its views render. Neither policy mutates Simulation once per camera.
+
+Artifacts produced this way identify at least the source Simulation cursor, viewpoint identity or revision, and render-settings identity. A Simulation cursor alone cannot distinguish images rendered from different viewpoints while gameplay remains frozen.
 
 ## MCP and Codex-Controlled Configuration
 
@@ -368,7 +517,7 @@ Codex tool call
       +-- advance(expected cursor, control) -----> SimulationRuntime
       <-- exact cursor + immutable snapshot -------+
       |
-      +-- render(snapshot, settings) ------------> OffscreenRenderRuntime
+      +-- render(snapshot, viewpoint, settings) -> OffscreenRenderRuntime
       <-- JPEG / PNG artifact ---------------------+
       |
       +-- correlated tool result ----------------> MCPRuntime --> Codex
@@ -397,7 +546,7 @@ Remote tools retry, callers disconnect, and requests can overlap. An agent coord
 - chunking and cancellation only between committed ticks
 - a result that reports the exact final cursor even after partial completion
 - serialization so input, advancement, inspection, and capture from different clients cannot interleave accidentally
-- artifact metadata containing at least the Simulation cursor and render settings identity
+- artifact metadata containing at least the Simulation cursor, resolved viewpoint identity or revision, render-settings identity, and content identity
 
 An advance-and-render operation is a workflow, not a rollback transaction. If Simulation advances successfully and JPEG encoding later fails, the response should report the new cursor. The coordinator can retry rendering the retained exact snapshot instead of silently advancing again.
 
@@ -414,16 +563,16 @@ The same ownership model supports many arrangements.
 | Desktop real time | Monotonic real-time driver | Device input, fixed Simulation, latest screen render, optional audio |
 | Display-woken real time | Real-time driver awakened by display callbacks | Elapsed time still maps to fixed ticks; frame and tick remain independent |
 | Manual debugger | Debug coordinator | Pause, step one or N ticks, inspect exact results, redraw one snapshot repeatedly |
-| Photo mode | No active Simulation advancement | Render one frozen snapshot with many cameras, exposures, or quality levels |
+| Photo mode | No active Simulation advancement | A frozen scene is redrawn from an independently controlled viewpoint without changing the Simulation cursor |
 | Multi-window live play | Real-time driver | Primary view, minimap, spectator, recorder, and telemetry consume independent outputs |
-| AR or VR | Real-time driver | Simulation remains fixed-step; Render owns late pose and presentation prediction |
+| AR or VR | Real-time driver | Simulation remains fixed-step; tracking/presentation owns late pose, which Render consumes for late projection or prediction |
 
 ### Offline, Batch, and Content Work
 
 | Configuration | Advance authority | Notable topology |
 | --- | --- | --- |
 | Cinematic capture | Offline output timeline | Exact snapshots, path tracing, image sequence or video encoding |
-| Multi-camera capture | Offline coordinator | One Simulation cursor feeds many camera renders before the next step |
+| Multi-camera capture | Offline coordinator | One exact scene value is paired with several explicit viewpoints before the coordinator requests the next step |
 | Deterministic re-render | Replay coordinator or none | Re-simulate from checkpoint/input or render recorded presentation snapshots directly |
 | Asset preview | None | Game Content render descriptions feed Render without a live Simulation Runtime |
 | Thumbnail farm | Batch coordinator | Many isolated render-only or short Simulation assemblies |
@@ -531,7 +680,7 @@ An assembly should fail before start with useful diagnostics when:
 - a deterministic configuration includes an unrecorded nondeterministic input or asynchronous result
 - a surface renderer has no surface, or an offscreen renderer cannot satisfy requested format, size, color space, or quality
 - multiple input sources fan in without an explicit merge policy
-- a connection crosses an actor, process, or transport boundary with values that cannot safely cross it
+- a connection crosses an isolation, process, or transport boundary with values that cannot safely cross it
 - restored input baselines can leave held controls stuck across publication sessions
 - output and Simulation rates require interpolation but no interpolation or sampling policy exists
 
@@ -550,15 +699,24 @@ initial world + fixed step + invariant schedule + seed + tick-addressed controls
 
 Wall-clock speed, GPU duration, and Codex thinking time determine when requests arrive, not the result of a tick.
 
-The project can initially coordinate configurations on the main actor. Parallel batch sessions, worker rendering, or an out-of-process MCP host will eventually require:
+A Runtime boundary is a semantic ownership and lifecycle boundary, not a promise of one actor, executor, thread, or pool. Each Runtime owns a concurrency policy that keeps its private mutable state inside its boundary. Cross-runtime work uses immutable `Sendable` values and explicit publication or request/result capabilities.
+
+The App may construct assemblies, expose UI-observable lifecycle state, and perform framework-required view work on `MainActor`. That does not require potentially long-running Simulation ticks, Render preparation and encoding, or other Runtime CPU work whose cadence must remain independent to execute there. The current shared main-actor placement is a transitional implementation constraint, not a requirement for new Runtime capabilities.
+
+Each authoritative Simulation session requires one serialized world-mutation domain. A complete tick executes synchronously within that domain, cannot `await`, and cannot overlap another tick for the same session. Runtimes whose cadences should remain independent must not place long-running work on the same required serial isolation domain merely because the App wires them together. Multiple Runtime instances and Simulation sessions may still share bounded execution capacity.
+
+The mechanism remains deliberately open. Swift actors, custom executors, bounded worker pools, helper processes, or other designs can satisfy the contract. A Runtime Configuration may choose an implementation or process placement; it should not expose raw thread management as Runtime topology.
+
+This direction requires:
 
 - immutable boundary values that explicitly conform to `Sendable`
 - serialization or `Codable` contracts where values cross processes
-- one isolated executor for each authoritative Simulation session
+- explicit ordering when ingress arrives from several concurrency domains
+- one serialized mutation domain for each authoritative Simulation session
 - no `await` inside the mutation of one tick
-- bounded batches so one session cannot monopolize an executor
+- bounded batches so one session cannot monopolize shared execution capacity
 - cancellation between ticks, never during partial world mutation
-- GPU completion and encoding isolated inside Render/Capture ownership
+- GPU completion and encoding state remain owned by Render/Capture and cross Runtime boundaries only through immutable results
 
 Configuration alone does not guarantee bitwise replay across hardware. Stable system ordering, seeded randomness, recorded external results, content/version fingerprints, and disciplined floating-point behavior remain separate requirements.
 
@@ -576,14 +734,15 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 
 | Current element | Relevance to the proposed model |
 | --- | --- |
-| ``Engine/step(inputSnapshot:)`` | Existing exact one-step execution seam |
+| ``Engine/step(inputSnapshot:)`` | Existing exact one-step execution seam; remains private to Simulation implementation and focused Engine tests rather than becoming the configuration boundary |
 | ``Engine/update(deltaTime:inputSnapshot:)`` | Current real-time remainder and catch-up policy; candidate to move behind the real-time driver |
 | ``SimulationLoop`` | Current wall-clock cadence adapter; candidate to become configuration/App-owned rather than Simulation-owned |
 | ``SimulationRuntime`` | Correct owner of session construction, authoritative state, step serialization, and completed publications; currently hard-wires the real-time driver |
-| ``InputRuntime`` | Replaceable physical-input owner with narrow ingress and latest-snapshot capabilities |
-| ``SimulationPresentationSnapshot`` | Existing immutable publisher-owned presentation surface |
+| ``InputRuntime`` | Implemented physical-input authority with narrow ingress and latest-snapshot capabilities; multi-source fan-in still needs source identity, source-local state, and configured merge policy |
+| `World.camera` and ``SCameraInput`` | Current single Simulation-owned orbit camera; useful implementation evidence but too coupled for frozen photo mode and independent output viewpoints |
+| ``SimulationPresentationSnapshot`` | Existing immutable publisher-owned presentation surface with one Simulation-published camera that can become a default rather than the only permitted viewpoint |
 | `PSimulationPresentationSource` | Existing latest-value live boundary, suitable for droppable consumers |
-| ``RenderFrame`` | Existing Render-owned private projection with source-tick attribution |
+| ``RenderFrame`` | Existing Render-owned private projection with source-tick attribution and an implicit source camera; candidate to accept an explicitly resolved viewpoint |
 | `MetalRenderer` and `MetalSceneView` | Current screen-oriented rendering path; view ownership and drawable cadence still need extraction for a full Render Runtime |
 | Render integration test support | Evidence that explicit offscreen textures and GPU submission are practical, though production artifact readback/encoding remains absent |
 
@@ -591,17 +750,23 @@ The most important current gaps are:
 
 - ``SimulationRuntime`` always constructs a concrete ``SimulationLoop``
 - the Runtime retains one input source instead of receiving explicit tick-boundary control through an advance request
+- Input Runtime has no source identity, source-local held state, or merge policy for simultaneous hardware, MCP, network, and bot ingress
 - direct ``Engine/step(inputSnapshot:)`` does not automatically update Runtime publications according to their declared semantics
 - `SimulationRuntime.engine` is internally visible and `SimulationRuntime.world` exposes the live mutable world; current App tooling such as input-history and entity-motion panes uses that escape instead of deliberate inspection capabilities
 - `start`, `stop`, `resumeSimulation`, and `pauseSimulation` combine lifecycle, driver, and schedule-gating concerns
+- the always-versus-gated Engine schedule exists largely to keep camera and tool/input state responsive while gameplay systems are paused, so the same tick identity currently describes partial and complete schedules
+- output-specific orbit and zoom currently enter Simulation-owned `InputState`; the snapshot and ``RenderFrame`` assume one Simulation-published camera and cannot attribute viewpoint changes independently from cursor changes
 - ``Engine/update(deltaTime:inputSnapshot:)`` contains unbounded real-time catch-up policy
 - latest presentation publication can skip intermediate ticks and cannot guarantee an exact offline/MCP result by itself
 - ``SimulationTick`` is not qualified by a Simulation session identity
+- concrete configuration builders, concrete assembly types, and host selection remain proposed
 - there is no production view-independent `RenderRuntime`, offscreen request API, image artifact contract, or JPEG encoder
 - ordered Simulation events, input transitions, checkpoints, and journals remain proposed
-- many cross-runtime values and capabilities remain main-actor-bound rather than explicitly `Sendable`
+- the project currently defaults unannotated code to `MainActor`, while existing Input, Simulation, presentation-source, and Metal boundaries reinforce that placement; migration requires deliberate isolation and `Sendable` work rather than deleting one outer annotation
 
 None of these gaps require weakening ECS authority or introducing backend objects into ``World``.
+
+The first CPU-isolation evidence is tracked in [GitHub issue #16, *Define executor isolation between Simulation and Render CPU work*](https://github.com/twistinside/engine2/issues/16). It asks the implementation to prove independent Simulation and Render CPU progress while preserving required UI and view isolation; this article intentionally leaves the actor, executor, pooling, and process strategy open.
 
 ## Incremental Implementation Path
 
@@ -611,7 +776,7 @@ Add a Simulation session/epoch identity and pair it with ``SimulationTick``. Pro
 
 ### 2. Add a Runtime-Level Exact Advance Capability
 
-Make ``SimulationRuntime`` the only application/configuration integration boundary that calls ``Engine/step(inputSnapshot:)``. Direct calls remain valid inside Simulation implementation and focused ``Engine`` unit tests. The Runtime should serialize the request, complete full ticks, update snapshots and events according to each lane's declared semantics, and return an exact correlated result.
+Make ``SimulationRuntime`` the only application/configuration integration boundary that calls ``Engine/step(inputSnapshot:)``. Direct calls remain valid inside Simulation implementation and focused ``Engine`` unit tests. For the physical-input slice, the advance authority captures an immutable ``InputSnapshot`` and submits it as part of the same non-interleavable Runtime request. The Runtime imports it at the tick boundary, completes full ticks, updates snapshots and events according to each lane's declared semantics, and returns an exact correlated result.
 
 Replace App-tooling access to the live `world` with deliberate read or inspection snapshots before making the Runtime boundary inaccessible. UI and MCP inspection must not become alternate mutation paths.
 
@@ -619,31 +784,37 @@ Replace App-tooling access to the live `world` with deliberate read or inspectio
 
 Move ``SimulationLoop`` ownership into the App's first concrete Runtime Assembly. Move elapsed-time remainder, catch-up cap, and overload policy out of the deterministic Simulation core. Rebuild today's app as `RealtimeConfiguration` and prove parity with existing tests.
 
-### 4. Make Pause an Advancement Policy
+### 4. Separate Viewpoint Control and Make Pause an Advancement Policy
 
-Stop issuing ticks while ordinarily paused. If always-running tool/input stages remain necessary, give that operation and its tick semantics an explicit name rather than conflating it with a frozen simulation.
+Move output-specific orbit and zoom control out of the partial Simulation schedule and into a per-view or App-owned presentation controller. Allow Render to combine an unchanged Simulation presentation value with an explicit viewpoint while retaining the current Simulation camera as a default during migration.
+
+Once paused camera behavior has an independent path, stop issuing Simulation ticks during ordinary pause. Retire `isSimulationRunning` and the always-versus-gated list split as the production pause mechanism. Simulation-facing input import, cleanup, and export remain invariant stages of every complete tick; genuinely authoritative camera rigs remain ordinary members of that complete schedule.
 
 ### 5. Prove a Manual Configuration
 
 Add a tiny deterministic assembly that can advance exactly one or N ticks without a polling task. This is the cheapest proof that Simulation is no longer tied to real time and is a foundation for tests, replay, offline work, and MCP.
 
-### 6. Create a View-Independent Render Runtime Boundary
+### 6. Add Multi-Source Input Ingress
+
+Give Input Runtime source identities, source-local state, deterministic acceptance ordering, detach neutralization, and explicit merge policy. Prove concurrent adapters at the edge while keeping canonical mutation and publication serialized at the Runtime boundary.
+
+### 7. Create a View-Independent Render Runtime Boundary
 
 Separate render resource ownership and explicit-frame encoding from `MTKViewDelegate` and SwiftUI view lifetime. Preserve the existing view adapter for screen presentation.
 
-### 7. Add Production Offscreen Request/Result Rendering
+### 8. Add Production Offscreen Request/Result Rendering
 
-Accept an exact immutable presentation value plus explicit target/quality settings, await GPU completion, read back, encode, and return an artifact labeled with its Simulation cursor. Reuse current backend passes where practical.
+Accept an exact immutable presentation value plus an explicit viewpoint and target/quality settings, await GPU completion, read back, encode, and return an artifact labeled with its Simulation cursor, viewpoint identity, and settings identity. Reuse current backend passes where practical.
 
-### 8. Add Offline Render-Gated Coordination
+### 9. Add Offline Render-Gated Coordination
 
 Map an output timeline to exact Simulation cursors, render one or more outputs per cursor, and apply the configuration's declared serial or bounded-pipeline backpressure policy.
 
-### 9. Add MCP Coordination
+### 10. Add MCP Coordination
 
 Start with physical input emulation if useful, then add semantic control deliberately. Serialize commands, enforce expected cursors and idempotency, bound steps, expose structured observations, and return exact image artifacts.
 
-### 10. Add History Only for Concrete Needs
+### 11. Add History Only for Concrete Needs
 
 Introduce event lanes, checkpoints, journals, rollback, and time travel when their configurations require them. Do not burden ordinary latest-value real-time connections with durable history by default.
 
@@ -654,16 +825,24 @@ Tests for this direction should prove:
 - a Runtime-level manual step advances exactly once and publishes/returns the exact completed cursor
 - no application/configuration path can mutate the Engine while bypassing Runtime publication invariants; focused Engine tests remain valid
 - extracted real-time driving preserves current fixed-step and input behavior
-- pause causes no cursor change unless an explicitly named alternate execution mode is requested
+- ordinary pause causes no Simulation cursor change
+- a presentation viewpoint can change and trigger another render while the source Simulation cursor remains unchanged
+- one exact Simulation presentation value can render from several independently identified viewpoints
+- entering and leaving photo mode does not replay or misroute accumulated physical input
+- no production advancement path allows an external caller to select a partial Simulation system schedule
+- full-tick input import, cleanup, system ordering, publication, and cursor advancement remain invariant across every advance authority
 - input revisions and transient totals are consumed exactly once across one-step and batched requests
+- two input sources holding the same control do not cancel one another when either source releases or disconnects
 - a world rebuild produces a new session-qualified cursor
 - stale expected-cursor and duplicate MCP requests cannot double-advance
 - cancellation reports only fully completed ticks
 - offline Render receives the exact requested immutable snapshot even if rendering is slow
-- one snapshot can render many cameras or samples without re-running Simulation
 - configuration startup, partial failure, and reverse-order shutdown are deterministic
+- realtime and manual builders construct complete assemblies with exactly one effective advance authority per Simulation session
 - multiple assemblies have no global mutable-state contamination
-- offscreen artifacts preserve cursor, render settings, and content identity needed for attribution
+- two seeded Simulation Runtime instances advance, publish, stop, and rebuild without shared mutable state or cursor contamination
+- in a configuration whose policy permits independent progress, long-running Simulation CPU work does not prevent Render-side CPU progress, and slow Render preparation does not stop completed Simulation ticks
+- offscreen artifacts preserve Simulation cursor, viewpoint identity or revision, render settings, and content identity needed for attribution
 - each event or publication connection obeys its declared backpressure and retention policy
 
 ## Architectural Traps
@@ -675,7 +854,11 @@ Avoid:
 - letting a Render Runtime, MCP Runtime, Network Runtime, or view call ``Engine`` or mutate ``World``
 - exposing elapsed `deltaTime` as the only portable advancement API
 - allowing several drivers to race and relying on actor serialization to make the order meaningful
+- using a camera-only, tooling-only, or caller-selected system bucket as a second meaning of Simulation tick
 - assuming one render frame equals one simulation tick
+- requiring every render of a Simulation presentation value to use one embedded default camera
+- advancing the Simulation cursor merely to move an output-specific viewpoint
+- allowing presentation input accumulated while paused to replay as gameplay input on resume
 - using a replaceable latest slot for an exact offline or MCP result
 - losing intermediate events silently during a multi-tick request
 - identifying state by a resettable bare tick
@@ -689,6 +872,9 @@ Avoid:
 - retaining unbounded history for every configuration
 - hot-swapping advance authority while work is in flight
 - creating a Runtime for every stateless adapter or formatter
+- treating independent Simulation sessions as adapters inside one mutable World-owning Runtime
+- equating one Runtime with exactly one actor, executor, operating-system thread, or private thread pool
+- executing potentially long-running Runtime CPU work on `MainActor` merely because App composition begins there
 - putting JPEG, terminal, network, or Metal backend concerns into ECS state
 - assuming every valid assembly contains both Simulation and Render
 
@@ -711,6 +897,10 @@ Future configuration work should preserve these rules:
 13. Cancellation is observed only between ticks or supported output operations; recoverable failures do not expose partially mutated Simulation as a valid cursor and report the last committed cursor or completed artifact state.
 14. Runtime topology is explicit at the App composition root and never globally discoverable mutable state.
 15. Multiple complete assemblies can coexist without contaminating one another.
+16. A Simulation cursor advances only after the complete invariant schedule has been evaluated; configurations do not select partial system subsets.
+17. Output-specific viewpoints may change independently of Simulation state, and exact render results identify both their scene source and viewpoint.
+18. Each Runtime owns the concurrency policy for its private mutable state; cross-runtime mutable implementation state never escapes its boundary.
+19. Runtime ownership does not require a dedicated actor, executor, thread, or pool, but independently advancing Runtimes must not be forced through one required serial execution domain.
 
 ## Open Design Questions
 
@@ -721,7 +911,12 @@ The following details should remain open until the first vertical slices provide
 - the optimized representation of per-tick input/control batches
 - how long exact snapshots are retained for render retries and remote requests
 - whether the real-time driver is an ordinary App-owned coordinator or earns a Runtime boundary
-- how actor isolation evolves beyond the current main-actor implementation
+- the exact immutable viewpoint boundary and how a Simulation-published default camera or anchor composes with consumer-supplied viewpoints
+- whether an interactive screen assembly retains an ordinary viewpoint controller or eventually justifies a dedicated Runtime
+- how Runtime internals migrate away from the project-wide `MainActor` default while preserving App, UI, and framework-required isolation
+- which Runtime implementations require distinct isolation domains and which may share bounded execution capacity
+- whether concrete isolation uses actors, custom executors, another in-process mechanism, helper processes, or a combination
+- which Render preparation and encoding work can leave view-facing isolation
 - the first structured agent-observation contract
 - production image artifact ownership, formats, metadata, and persistence
 - interpolation contracts for offline temporal sampling and high-refresh display presentation
