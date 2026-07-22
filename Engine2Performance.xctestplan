@@ -1,0 +1,32 @@
+{
+  "configurations" : [
+    {
+      "id" : "C71A81E8-7B0F-4A22-A98C-57F9F225CE29",
+      "name" : "Release Performance",
+      "options" : {
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Engine2.xcodeproj",
+      "identifier" : "CB1B38342F5E1E1000A375C6",
+      "name" : "Engine2"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "selectedTests" : [
+        "DiagnosticsPerformanceTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Engine2.xcodeproj",
+        "identifier" : "CB1B38412F5E1E1000A375C6",
+        "name" : "Engine2Tests"
+      }
+    }
+  ],
+  "version" : 1
+}

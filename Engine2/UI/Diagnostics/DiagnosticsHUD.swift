@@ -43,8 +43,10 @@ struct DiagnosticsHUD: View {
     }
 }
 
-#Preview("Healthy diagnostics HUD") {
-    DiagnosticsHUD(presentation: .preview)
-        .padding()
-        .frame(width: 320)
-}
+#if DEBUG
+    #Preview("Healthy diagnostics HUD") {
+        DiagnosticsHUD(presentation: .preview)
+            .padding()
+            .frame(width: 320)
+    }
+#endif

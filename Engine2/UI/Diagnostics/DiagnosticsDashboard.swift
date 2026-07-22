@@ -142,18 +142,20 @@ struct DiagnosticsDashboard: View {
     }
 }
 
-#Preview("Empty dashboard") {
-    DiagnosticsDashboard(presentation: .preview(.empty))
-}
+#if DEBUG
+    #Preview("Empty dashboard") {
+        DiagnosticsDashboard(presentation: .preview(.empty))
+    }
 
-#Preview("Healthy dashboard") {
-    DiagnosticsDashboard(presentation: .preview(.healthy))
-}
+    #Preview("Healthy dashboard") {
+        DiagnosticsDashboard(presentation: .preview(.healthy))
+    }
 
-#Preview("Backlog dashboard") {
-    DiagnosticsDashboard(presentation: .preview(.backlog))
-}
+    #Preview("Backlog dashboard") {
+        DiagnosticsDashboard(presentation: .preview(.backlog))
+    }
 
-#Preview("Render error dashboard") {
-    DiagnosticsDashboard(presentation: .preview(.renderError))
-}
+    #Preview("Render error dashboard") {
+        DiagnosticsDashboard(presentation: .preview(.renderError))
+    }
+#endif

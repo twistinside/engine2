@@ -1,0 +1,18 @@
+#!/bin/zsh
+set -euo pipefail
+
+script_directory="${0:A:h}"
+repository_root="${script_directory:h}"
+
+exec xcodebuild \
+    -project "${repository_root}/Engine2.xcodeproj" \
+    -scheme Engine2Performance \
+    -destination 'platform=macOS' \
+    -enableCodeCoverage NO \
+    ENABLE_TESTABILITY=YES \
+    ENABLE_HARDENED_RUNTIME=NO \
+    ENABLE_ADDRESS_SANITIZER=NO \
+    ENABLE_THREAD_SANITIZER=NO \
+    ENABLE_UNDEFINED_BEHAVIOR_SANITIZER=NO \
+    'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) PERFORMANCE' \
+    test
