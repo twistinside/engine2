@@ -9,4 +9,8 @@ struct AppDebugOptionsTests {
     @Test func surfaceRenderingIsTheDefaultOutput() {
         #expect(AppDebugOptions().renderOutputMode == .surface)
     }
+
+    @Test func diagnosticsHUDIsOptIn() {
+        #expect(!AppDebugOptions().showsDiagnosticsHUD)
+    }
 }

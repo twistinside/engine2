@@ -57,12 +57,14 @@ struct Engine2App: App {
                 simulation: simulation,
                 debugOptions: debugOptions,
                 renderAssetCatalog: gameContent.renderAssetCatalog,
-                diagnostics: diagnostics
+                diagnostics: diagnostics,
+                diagnosticsSource: diagnosticsRuntime
             )
         }
         .commands {
             CommandMenu("Debug") {
                 Toggle("Show Input History", isOn: $debugOptions.showsInputHistory)
+                Toggle("Show Diagnostics HUD", isOn: $debugOptions.showsDiagnosticsHUD)
 
                 Picker("Render Output", selection: $debugOptions.renderOutputMode) {
                     Text("Surface").tag(RenderOutputMode.surface)

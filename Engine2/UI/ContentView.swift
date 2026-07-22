@@ -12,6 +12,7 @@ struct ContentView: View {
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
     let diagnostics: DiagnosticsEmitter
+    let diagnosticsSource: any PDiagnosticsSnapshotSource
 
     var body: some View {
         ZStack {
@@ -42,6 +43,12 @@ struct ContentView: View {
                 InputHistoryPane(simulation: simulation)
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+
+            if debugOptions.showsDiagnosticsHUD {
+                DiagnosticsHUDHost(source: diagnosticsSource)
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
         }
     }
