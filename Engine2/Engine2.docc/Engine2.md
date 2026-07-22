@@ -10,18 +10,20 @@ The current codebase is intentionally small, but the core direction is already e
 - ``Engine`` owns exact fixed-step execution and ordered system orchestration; its elapsed-time adapter remains only as a legacy migration path.
 - ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
 - ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
-- ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot`` and Render derives its private ``RenderFrame`` projection without reading live ``World`` state.
+- ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot``. The snapshot camera is a publisher-authored default, not a requirement that every output use one Simulation-mutated view.
+- The App-owned ``ScreenViewpointController`` can change one screen's presentation while Simulation is paused. Render combines its immutable ``RenderViewpoint`` with the exact Simulation snapshot and records both Simulation-cursor and optional viewpoint attribution in ``RenderFrame``.
 This documentation catalog serves two purposes:
 - document the behavior that already exists in the codebase
 - capture architectural direction that is intentionally not implemented yet
 At the moment, the codebase already includes:
 - an App-owned Input Runtime whose immutable latest snapshot is captured by ``RealtimeAdvanceDriver`` and assigned to an exact Simulation request
-- a two-list system runner in ``Engine`` for always-running input/tool systems and simulation-gated systems
+- a two-list system runner in ``Engine`` whose exact-step path executes the complete schedule; the default schedule no longer installs the legacy `SInputMapping` or `SCameraInput` camera path
 - an App-owned real-time driver that translates wall time into cursor-qualified exact requests, plus a clock-free ``ManualConfiguration``
 - an app-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world construction policy, and completed publication
-- a presentation-snapshot publication and render projection path via ``SimulationPresentationSnapshot``, ``RenderFrame.project(from:)``, and ``MetalSceneView``
+- a current real-time assembly that explicitly fans screen host events to both ``InputRuntime`` and ``ScreenViewpointController`` while leaving Simulation advancement under the separate driver
+- a presentation-snapshot, explicit-viewpoint, and render-projection path via ``SimulationPresentationSnapshot``, ``RenderViewpoint``, ``RenderFrame.project(from:viewpoint:)``, and ``MetalSceneView``
 
-``SimulationLoop`` and ``Engine.update(deltaTime:inputSnapshot:)`` remain in the source tree only as unused legacy migration paths; new App composition advances through the Runtime-level exact capability.
+``SimulationLoop``, ``Engine.update(deltaTime:inputSnapshot:)``, `SInputMapping`, and `SCameraInput` remain in the source tree only as legacy migration paths or focused-test seams; new App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Typed multi-source routing, multi-window bindings, observer anchors, production offscreen rendering, and MCP composition remain proposed.
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>

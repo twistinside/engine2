@@ -2,16 +2,18 @@
 This article captures the intended scheduling direction for Engine2.
 ## Status
 Partially implemented. Parts of this model are not implemented yet.
-The current engine already runs two ordered system lists:
-- always-running systems for simulation-side input interpretation, history, cleanup, and tooling
-- simulation-gated systems for gameplay state advancement
+The current engine still stores two ordered system lists:
+- an always-running list whose defaults are fixed-tick input history and cleanup
+- a simulation-gated list whose defaults advance gameplay state
+
+That split remains for the unused legacy elapsed-time path. Production real-time advancement uses exact ``Engine/step(inputSnapshot:)`` calls, for which both lists form one complete tick, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. `SInputMapping` and `SCameraInput` remain in the source tree with focused tests pending deletion, but ``Engine`` no longer installs either type in its default schedule. Output-specific orbit and zoom now belong to the App-owned ``ScreenViewpointController`` and can change without a Simulation tick.
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
 
 A configuration-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Configurations-and-Advancement>.
 
-Platform collection is not a scheduled ECS system. ``InputRuntime`` publishes a latest immutable `InputSnapshot`, and ``Engine`` imports a sampled value into World-owned `InputState` only at the beginning of an actual fixed step. `SInputMapping`, `SCameraInput`, fixed-tick `InputHistory`, and cleanup remain scheduled Simulation Runtime work after that boundary import.
+Platform collection is not a scheduled ECS system. ``InputRuntime`` publishes a latest immutable `InputSnapshot`, and ``Engine`` imports an assigned value into World-owned `InputState` only at the beginning of an actual fixed step. The current default then records fixed-tick input history, performs authoritative Simulation work, and clears transient input as part of the same complete tick. The retained `SInputMapping` and `SCameraInput` types are legacy camera-control code, not evidence that output viewpoint control remains scheduled Simulation work.
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
 When the clock produces new elapsed time, the engine should treat that as additional backlog, not permission to begin another overlapping world update. If the engine is already stepping systems, newly arrived time should be accumulated and drained later.
@@ -40,7 +42,7 @@ This staged model is the intended way to preserve deterministic ordering while s
 ## Phase Thinking
 Not every dependency needs to be expressed as a hand-written edge.
 It is useful to think in coarse simulation phases, then let the dependency graph provide finer ordering inside those phases. Likely phases include:
-- input interpretation
+- authoritative input interpretation
 - gameplay contribution
 - detection
 - resolution
@@ -50,6 +52,8 @@ It is useful to think in coarse simulation phases, then let the dependency graph
 - presentation or export
 The exact phase list is expected to evolve with the engine.
 Only the export side of presentation belongs in the simulation schedule. Actual rendering and Metal submission should happen after export, from the frozen presentation data, rather than as a world-mutating system.
+
+Likewise, an output-specific viewpoint controller is not a scheduler phase. The current screen controller consumes its configured presentation gestures outside Simulation, while a genuinely gameplay-authoritative camera rig or sensor would remain ordinary complete-tick Simulation work.
 ## Cadence
 Some systems should not need to run every simulation tick.
 Examples include:

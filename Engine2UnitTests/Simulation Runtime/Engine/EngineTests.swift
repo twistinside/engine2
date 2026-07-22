@@ -8,6 +8,30 @@ struct EngineTests {
         #expect(engine.fixedTimeStep > .zero)
     }
 
+    @Test func defaultScheduleRecordsInputWithoutMutatingTheSimulationCamera() {
+        let world = World()
+        let initialCamera = world.camera
+        let engine = Engine(world: world, systems: [])
+        let snapshot = InputSnapshot(
+            revision: InputRevision(session: 1, sequence: 1),
+            pointerPosition: .zero,
+            pointerMotionTotal: SIMD2<Float>(40, 0),
+            scrollTotal: SIMD2<Float>(0, 30),
+            pressedMouseButtons: [],
+            pressedKeys: []
+        )
+
+        engine.step(inputSnapshot: snapshot)
+
+        #expect(world.camera == initialCamera)
+        #expect(world.input.history.first?.tokens == [
+            "Mouse dx:+40 dy:+0",
+            "Wheel:+30"
+        ])
+        #expect(world.input.mouse.delta == .zero)
+        #expect(world.input.mouse.scrollDelta == .zero)
+    }
+
     @Test func updateAccumulatesTimeUntilFixedStepBoundary() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)

@@ -11,10 +11,6 @@ struct ContentView: View {
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
 
-    private var inputRuntime: InputRuntime {
-        realtimeAssembly.inputRuntime
-    }
-
     private var simulation: SimulationRuntime {
         realtimeAssembly.simulationRuntime
     }
@@ -24,7 +20,8 @@ struct ContentView: View {
             MetalSceneView(
                 renderAssetCatalog: renderAssetCatalog,
                 presentationSource: simulation,
-                inputSink: inputRuntime,
+                viewpointSource: realtimeAssembly.screenViewpointController,
+                inputSink: realtimeAssembly,
                 outputMode: debugOptions.renderOutputMode
             )
                 .ignoresSafeArea()

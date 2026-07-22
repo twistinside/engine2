@@ -22,8 +22,6 @@ final class Engine {
         world: World = World(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         alwaysSystems: [any PSystem] = [
-            SInputMapping(),
-            SCameraInput(),
             SInputHistory(),
             SInputCleanup()
         ],

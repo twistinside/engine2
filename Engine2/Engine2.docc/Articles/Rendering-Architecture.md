@@ -4,9 +4,11 @@ This article captures the intended rendering direction for Engine2.
 Partially implemented.
 The current codebase already has:
 - ``SimulationPresentationSnapshot`` as the Simulation Runtime-owned completed presentation value
-- ``RenderFrame.project(from:)`` as the Render Runtime-owned private projection
+- ``RenderViewpoint`` plus `PRenderViewpointSource` as the immutable output-specific camera boundary
+- ``RenderFrame.project(from:viewpoint:)`` as the Render Runtime-owned private projection, preserving source-cursor and optional viewpoint attribution
 - ``MetalSceneView`` as the SwiftUI/MetalKit bridge
-- ``MetalRenderer`` as the backend-specific Metal 4 renderer
+- ``MetalRenderer`` as the backend-specific Metal 4 renderer that samples presentation and viewpoint sources independently
+- ``ScreenViewpointController`` as the App-owned free-orbit controller for the current screen output
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
   command queue, typed state caches, decoded models, and frame-resource ring
 - `MetalResidencyManager` as the owner of committed static-asset and
@@ -69,7 +71,7 @@ Simulation systems update `World`, the Simulation Runtime publishes an immutable
 ## Simulation Truth Stays in ECS
 Rendering should not become a second gameplay state model.
 The authoritative simulation state should remain in ECS component stores. Render code should consume a completed `SimulationPresentationSnapshot`, not read or mutate gameplay state directly through entity objects during drawing.
-`World` may still contain abstract presentation state such as mesh handles, material handles, visibility, camera settings, and render style. What it should not contain are backend-specific Metal objects.
+`World` may still contain abstract presentation state such as mesh handles, material handles, visibility, Simulation-authoritative camera settings, and render style. Its published camera is the current default when an output supplies no override. Output-specific free orbit and zoom belong to presentation ownership, and `World` should not contain backend-specific Metal objects.
 
 The current `CRenderable` component demonstrates that distinction. It stores a
 `MeshID` and `MaterialID`, while `BasicGameContent` maps `MeshID.ball` to the
@@ -83,12 +85,15 @@ The implemented runtime boundary separates publication and projection:
 
 - `World` remains private authoritative simulation state
 - the Simulation Runtime publishes a completed, backend-neutral `SimulationPresentationSnapshot`
-- the Render Runtime selects and projects the fields it needs
+- the App may supply a separately owned output-specific `RenderViewpoint`
+- the Render Runtime selects and projects the scene and resolved viewpoint it needs
 - the renderer consumes its private render snapshot and backend resources
 
 This accepts that any explicitly connected presentation consumer can observe fields in `SimulationPresentationSnapshot` that it does not currently use. It still cannot mutate simulation state, inspect ECS storage machinery, or access `World` directly.
 ## Render Projection
-The renderer consumes a flat ``RenderFrame`` of `RenderInstance` values projected from ``SimulationPresentationSnapshot``. ``RenderFrame.project(from:)`` is render-owned because only Render knows which destination fields and derived values it needs. The presentation snapshot already contains only entities with explicit abstract presentation state; Render filters that set for the position it needs, applies render defaults, and preserves the optional source ``SimulationCursor`` for deterministic attribution across session resets.
+The renderer consumes a flat ``RenderFrame`` of `RenderInstance` values projected from one exact ``SimulationPresentationSnapshot`` and an optional explicit ``RenderViewpoint``. ``RenderFrame.project(from:viewpoint:)`` is render-owned because only Render knows which destination fields and derived values it needs. The presentation snapshot already contains only entities with explicit abstract presentation state; Render filters that set for the position it needs and applies render defaults.
+
+When a viewpoint is supplied, its camera overrides the snapshot's default and the frame preserves its ``RenderViewpointID`` and ``RenderViewpointRevision`` beside the source ``SimulationCursor``. Without one, the frame uses the snapshot camera exactly and leaves viewpoint attribution absent. Distinct explicit viewpoints can therefore project the same immutable Simulation cursor without fabricating extra ticks.
 
 The render-oriented structs may grow to represent only the data needed to issue draw calls, such as:
 - transform data
@@ -99,14 +104,21 @@ The render-oriented structs may grow to represent only the data needed to issue 
 - any other renderer-facing flags needed for visibility, instancing, or ordering
 These projected values should be small, stable, and detached from gameplay-facing entity objects.
 The important boundary is that Simulation publishes completed observable facts while Render defines its private frame format.
+
+## Viewpoint Resolution Is Output-Specific
+
+The current interactive screen owns a ``ScreenViewpointController`` in ``RealtimeAssembly``. Before its first meaningful drag or scroll, and after reset, it passes through the latest Simulation-published camera exactly. A meaningful gesture seeds its orbit state from that default and advances a monotonic viewpoint revision without mutating Simulation.
+
+At draw cadence, `MetalRenderer` samples one ``SimulationPresentationSnapshot``, then asks its optional `PRenderViewpointSource` to resolve against that same snapshot's camera. This ordering makes the camera fallback explicit and keeps the scene cursor stable when only presentation changes. The current ``RealtimeAssembly`` hard-codes screen-event delivery to the controller; typed input routes, route epochs, per-window controllers and bindings, Simulation observer anchors, and a production offscreen viewpoint source remain proposed.
 ## Snapshot Publication and Storage
 ``SimulationRuntime.latestPresentationSnapshot`` is the first explicit latest-value publication slot. Every successful exact advance replaces it after the entire requested batch completes; in the current real-time configuration, ``RealtimeAdvanceDriver`` requests those batches from elapsed wall time. Slow consumers may therefore skip superseded cursors by design. The clock-free manual assembly uses the same Runtime boundary, and future supported advancement paths must update required publications there according to each lane's declared semantics.
 
 The current model is:
 1. Simulation publishes a completed `SimulationPresentationSnapshot` through a latest-value boundary
 2. Render selects the latest available presentation snapshot when it is ready
-3. Render projects that source value into its private render snapshot or back buffer
-4. Render presents from the latest completed private value
+3. Render independently resolves the configured output viewpoint against that snapshot's default camera
+4. Render projects both values into its private render snapshot or back buffer
+5. Render presents from the latest completed private value
 
 This keeps rendering from reading partially updated simulation data and allows it to skip superseded presentation snapshots. Retained history, replay journals, subscription APIs, and private Render front/back buffering remain future work rather than responsibilities of the ordinary latest-value slot.
 ## Draws Follow Presentation Cadence
@@ -118,6 +130,8 @@ The intended model is:
 - Render projects the latest available value into render data
 - rendering consumes the latest completed front buffer when a draw is requested
 This allows zero, one, or many simulation ticks between draws without making draw cadence the owner of simulation state.
+
+It also allows the current screen controller to change a viewpoint while ``RealtimeAdvanceDriver`` is paused. A later draw can then use a higher viewpoint revision with the same source Simulation cursor and entity presentation. The renderer neither requests a tick nor reads raw input to make that happen.
 
 That latest-value model is appropriate for a screen surface. An offline render workflow instead needs an exact immutable snapshot correlated with its advance request and may render it for minutes, many samples, or several cameras before an App-owned coordinator requests the next Simulation tick. Render completion may therefore gate further advancement without giving the Render Runtime ownership of Simulation. See <doc:Runtime-Configurations-and-Advancement>.
 
@@ -199,20 +213,22 @@ not belong in these residency sets.
 A likely long-term frame flow is:
 1. simulation systems update ECS state
 2. the Simulation Runtime publishes a completed `SimulationPresentationSnapshot`
-3. the Render Runtime projects the latest simulation state into render items
-4. render items are sorted or batched
-5. private front and back render buffers swap
-6. Render constructs tiled or clustered light lists for the frozen frame
-7. opaque surfaces are shaded through the Forward+ PBR path
-8. ordered forward layers such as clouds, atmospheres, rings, and transparency are composed
-9. shared post-processing produces the presented image
+3. the output resolves an explicit viewpoint or uses the snapshot's default camera
+4. the Render Runtime projects the scene and viewpoint into render items
+5. render items are sorted or batched
+6. private front and back render buffers swap
+7. Render constructs tiled or clustered light lists for the frozen frame
+8. opaque surfaces are shaded through the Forward+ PBR path
+9. ordered forward layers such as clouds, atmospheres, rings, and transparency are composed
+10. shared post-processing produces the presented image
 This is the intended path toward deterministic simulation, cleaner render isolation, and later optimizations such as culling and instancing.
 ## Related Direction
 This rendering approach fits the broader engine direction:
 - ``World`` remains the authoritative simulation container
 - ``PSystem`` implementations continue to operate on ECS data
 - the Simulation Runtime publishes its own presentation snapshot without requiring a Render Runtime
-- the Render Runtime projects published state instead of reading live simulation objects
+- output-specific viewpoints can change without mutating or advancing Simulation
+- the Render Runtime projects published state plus an explicit viewpoint instead of reading live simulation objects
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>

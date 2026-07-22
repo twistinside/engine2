@@ -6,7 +6,9 @@ This article defines the proposed communication model between Engine2 runtimes.
 
 Partially implemented.
 
-The Input Runtime now publishes a revisioned latest ``InputSnapshot`` through `PInputSnapshotSource`. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. The Simulation Runtime also publishes a latest completed ``SimulationPresentationSnapshot``, which Render projects into a private ``RenderFrame``. Ordered event publication, additional semantic snapshot surfaces, subscription lifetimes, retained history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
+The Input Runtime now publishes a revisioned latest ``InputSnapshot`` through `PInputSnapshotSource`. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. The Simulation Runtime publishes a latest completed ``SimulationPresentationSnapshot``. The current screen renderer independently resolves an immutable ``RenderViewpoint`` from an App-owned ``ScreenViewpointController`` and projects both values into a private ``RenderFrame`` carrying Simulation-cursor and optional viewpoint attribution.
+
+``RealtimeAssembly`` is currently the screen's `PInputEventSink` and explicitly forwards each accepted host event to ``InputRuntime`` and the one screen controller. That hard-coded fan-out proves independent presentation changes during Simulation pause; it is not a general event publication or input-routing facility. Ordered event publication, typed multi-source routes, multi-window output bindings, additional semantic snapshot surfaces, subscription lifetimes, retained history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
 
 ## Runtimes Publish State and Occurrences
 
@@ -36,7 +38,7 @@ Snapshots and events are publisher-owned vocabulary. A runtime defines the meani
 
 A runtime may publish more than one snapshot when it owns several distinct semantic surfaces. Consumer-agnostic publication means that the publisher does not name or depend on receiving runtimes, their implementations, lifecycles, or cadences. It does not require one universal value designed without a use case.
 
-The current ``SimulationPresentationSnapshot`` is the first such surface. It publishes a completed ``SimulationCursor``, camera state, and ``EntityPresentationSnapshot`` values for entities carrying explicit abstract presentation state. It excludes non-presented entities as well as:
+The current ``SimulationPresentationSnapshot`` is the first such surface. It publishes a completed ``SimulationCursor``, a Simulation-authored default camera, and ``EntityPresentationSnapshot`` values for entities carrying explicit abstract presentation state. An output-specific viewpoint is resolved separately; the snapshot camera remains the exact fallback when no output override exists. The snapshot excludes non-presented entities as well as:
 
 - ``World`` and mutable entity-object references
 - component-store sparse and dense representation
@@ -57,7 +59,8 @@ A receiving runtime transforms a publisher-owned snapshot into its own private o
 SimulationRuntime
     publishes SimulationPresentationSnapshot
                         |
-                        +--> RenderRuntime projects RenderFrame
+                        +--> RenderRuntime combines an output RenderViewpoint
+                        |                  and projects RenderFrame
                         +--> optional capture or inspection tooling
 ```
 
@@ -68,6 +71,8 @@ There is no jointly owned snapshot in this flow:
 - the App owns the connection between the two runtime boundaries
 
 For rendering, `SimulationPresentationSnapshot` contains backend-neutral completed presentation state. The Render Runtime selects and transforms the fields it needs into render-oriented data such as matrices, resolved presentation keys, visibility results, sort keys, or batches. The Simulation Runtime does not define those render details.
+
+In the implemented screen path, ``ScreenViewpointController`` conforms to `PRenderViewpointSource`. `MetalRenderer` first samples one exact latest Simulation presentation, then asks the viewpoint source to resolve against that snapshot's camera. ``RenderFrame`` uses the returned camera and retains its stable ``RenderViewpointID`` and ``RenderViewpointRevision`` alongside the source ``SimulationCursor``. With no viewpoint source, projection uses the snapshot camera and leaves viewpoint attribution absent. Resolving or changing the viewpoint never advances Simulation.
 
 Rendering is snapshot-driven. It may ignore intermediate simulation snapshots and converge on the latest completed value. Any occurrence that must remain visible, such as a muzzle flash or explosion, therefore needs snapshot-visible identity and lifetime rather than depending on Render receiving a transient simulation event.
 
@@ -89,12 +94,17 @@ Consumers that begin late can converge from the latest snapshot. Ordinary epheme
 The App remains the composition root. It decides which runtime outputs are connected to which runtime inputs.
 
 ```text
-InputMetalView -- InputEvent -------------> InputRuntime
+InputMetalView -- InputEvent -------------> RealtimeAssembly
+RealtimeAssembly -- device-state fan-out -> InputRuntime
+RealtimeAssembly -- screen-gesture fan-out
+                                      ----> ScreenViewpointController
 InputRuntime -- latest InputSnapshot -----> RealtimeAdvanceDriver
 RealtimeAdvanceDriver
     +-- SimulationAdvanceRequest ---------> SimulationRuntime
 SimulationRuntime
-    +-- SimulationPresentationSnapshot ---> RenderRuntime
+    +-- SimulationPresentationSnapshot ---+--> RenderRuntime
+ScreenViewpointController
+    +-- RenderViewpoint -------------------+
     +-- selected SimulationEvent ----------> AudioRuntime
     +-- selected SimulationEvent ----------> AchievementRuntime
 ```
@@ -113,7 +123,7 @@ A shared infrastructure type resembling `RuntimeOutput<Snapshot, Event>` may eve
 
 An App-owned router or hub may be an implementation detail, but it must not erase the explicit typed topology or become globally discoverable mutable state.
 
-The implemented input connection uses two narrow capabilities. Platform adapters such as `InputMetalView` submit `InputEvent` values to ``InputRuntime`` through `PInputEventSink`. ``RealtimeAdvanceDriver`` receives only the immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. The App owns both connections. `InputEvent` is therefore host ingress, not a runtime-published event stream and not a direct call into Simulation.
+The implemented input connection uses narrow capabilities but one deliberately concrete assembly connector. `InputMetalView` submits `InputEvent` values through `PInputEventSink`, currently implemented by ``RealtimeAssembly``. While Input is running, the assembly forwards the event to ``InputRuntime`` for canonical device-state publication and directly to its ``ScreenViewpointController`` for output-specific orbit or zoom. ``RealtimeAdvanceDriver`` receives only the immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. The App owns these connections. `InputEvent` is therefore host ingress, not a runtime-published event stream and not a direct call into Simulation. The two-recipient fan-out has no source identity, route epoch, recipient baseline, exclusivity, or multi-window binding semantics; those remain future typed-routing work.
 
 ## Directed Advancement Needs an Exact Result
 
@@ -158,6 +168,7 @@ Likewise, a Storage Runtime may publish its own status snapshot and completion e
 The following mechanics remain intentionally unresolved:
 
 - typed subscription APIs beyond the implemented latest input and simulation-presentation sources
+- typed input routes, route epochs, independent recipient baselines, and multi-window/output bindings beyond the implemented one-screen fan-out
 - ordered Input Runtime transition publication and its buffering or journaling policy
 - whether exchanges use actors, async sequences, callbacks, lock-free slots, or another mechanism
 - ownership and cancellation of subscription lifetimes
