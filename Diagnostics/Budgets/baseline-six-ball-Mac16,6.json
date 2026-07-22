@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "baseline-six-ball",
+  "buildConfiguration": "release",
+  "environment": {
+    "machineArchitecture": "arm64",
+    "machineModel": "Mac16,6",
+    "operatingSystem": "Darwin",
+    "operatingSystemVersion": "27.0"
+  },
+  "owner": "Engine2 maintainers",
+  "lastReviewed": "2026-07-21",
+  "rationale": "Initial local budget from five optimized 901-tick six-Ball runs. Limits preserve roughly 50 percent p95 headroom while structural correctness remains exact.",
+  "structuralInventory": {
+    "alwaysSystemIDs": [
+      "inputMapping",
+      "cameraInput",
+      "inputHistory",
+      "inputCleanup"
+    ],
+    "componentStores": [
+      { "rowCount": 6, "storeID": "angularMotionAccumulator" },
+      { "rowCount": 6, "storeID": "angularVelocity" },
+      { "rowCount": 6, "storeID": "motion" },
+      { "rowCount": 6, "storeID": "position" },
+      { "rowCount": 6, "storeID": "renderable" },
+      { "rowCount": 6, "storeID": "rotation" },
+      { "rowCount": 0, "storeID": "scale" },
+      { "rowCount": 6, "storeID": "selectable" }
+    ],
+    "presentationEntityCount": 6,
+    "simulationSystemIDs": [
+      "accelerationIntent",
+      "movement",
+      "rotation"
+    ]
+  },
+  "distributions": {
+    "presentationSnapshot": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 2500
+    },
+    "renderProjection": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 12000
+    },
+    "simulationStep": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 17000
+    },
+    "systemUpdate.accelerationIntent": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 1500
+    },
+    "systemUpdate.cameraInput": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 1500
+    },
+    "systemUpdate.inputCleanup": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 7500
+    },
+    "systemUpdate.inputHistory": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 1500
+    },
+    "systemUpdate.inputMapping": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 1500
+    },
+    "systemUpdate.movement": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 1700
+    },
+    "systemUpdate.rotation": {
+      "unit": "nanoseconds",
+      "minimumCount": 900,
+      "maximumP95": 2500
+    }
+  }
+}

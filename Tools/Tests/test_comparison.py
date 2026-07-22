@@ -48,6 +48,38 @@ class ComparisonTests(unittest.TestCase):
         regressed["distributions"]["simulationStep"]["p95"] = 110
         self.assertEqual(compare_summaries(baseline, regressed)["exitCode"], ComparisonExitCode.REGRESSION)
 
+    def test_reviewed_budget_accepts_noise_but_rejects_an_exceeded_limit(self) -> None:
+        baseline = summary()
+        candidate = copy.deepcopy(baseline)
+        candidate["distributions"]["simulationStep"].update(
+            {"count": 900, "maximum": 140, "p95": 110}
+        )
+        budget = {
+            "schemaVersion": 1,
+            "scenarioID": "baseline-six-ball",
+            "buildConfiguration": "release",
+            "environment": {"machineModel": "MacFixture"},
+            "owner": "Engine2 maintainers",
+            "lastReviewed": "2026-07-21",
+            "rationale": "Fixture budget",
+            "distributions": {
+                "simulationStep": {
+                    "unit": "nanoseconds",
+                    "minimumCount": 800,
+                    "maximumP95": 120,
+                    "maximumValue": 150,
+                }
+            },
+        }
+        accepted = compare_summaries(baseline, candidate, budget)
+        self.assertEqual(accepted["exitCode"], ComparisonExitCode.PASS)
+        self.assertEqual(accepted["regressedDistributions"], ["simulationStep"])
+
+        budget["distributions"]["simulationStep"]["maximumP95"] = 105
+        rejected = compare_summaries(baseline, candidate, budget)
+        self.assertEqual(rejected["exitCode"], ComparisonExitCode.REGRESSION)
+        self.assertIn("simulationStep p95 110 exceeds 105", rejected["budgetViolations"])
+
     def test_incompatible_hardware_and_scenario_are_rejected_first(self) -> None:
         baseline = summary()
         hardware = copy.deepcopy(baseline)

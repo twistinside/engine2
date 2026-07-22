@@ -37,12 +37,17 @@ COMPATIBLE_ENVIRONMENT_FIELDS = (
 )
 
 
-def compare_captures(baseline_path: Path, candidate_path: Path) -> dict[str, Any]:
+def compare_captures(
+    baseline_path: Path,
+    candidate_path: Path,
+    budget_path: Path | None = None,
+) -> dict[str, Any]:
     """Compare existing summaries and persist the candidate-side result."""
 
     baseline = _read_summary(baseline_path)
     candidate = _read_summary(candidate_path)
-    result = compare_summaries(baseline, candidate)
+    budget = _read_budget(budget_path) if budget_path is not None else None
+    result = compare_summaries(baseline, candidate, budget)
     (candidate_path / "comparison.json").write_text(
         json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -50,7 +55,11 @@ def compare_captures(baseline_path: Path, candidate_path: Path) -> dict[str, Any
     return result
 
 
-def compare_summaries(baseline: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+def compare_summaries(
+    baseline: dict[str, Any],
+    candidate: dict[str, Any],
+    budget: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Stop at incompatibility or bad evidence before calculating deltas."""
 
     incompatibilities = _compatibility_differences(baseline, candidate)
@@ -97,8 +106,34 @@ def compare_summaries(baseline: dict[str, Any], candidate: dict[str, Any]) -> di
         if absolute > 0:
             regressed.append(name)
 
-    code = ComparisonExitCode.REGRESSION if regressed else ComparisonExitCode.PASS
-    return _result(code, deltas=deltas, regressedDistributions=regressed)
+    if budget is None:
+        code = ComparisonExitCode.REGRESSION if regressed else ComparisonExitCode.PASS
+        return _result(code, deltas=deltas, regressedDistributions=regressed)
+
+    budget_incompatibilities = _budget_compatibility_differences(budget, candidate)
+    if budget_incompatibilities:
+        return _result(
+            ComparisonExitCode.INCOMPATIBLE,
+            incompatibilities=budget_incompatibilities,
+        )
+    budget_missing, violations = _evaluate_budget(budget, candidate)
+    if budget_missing:
+        return _result(
+            ComparisonExitCode.MISSING_EVIDENCE,
+            missingEvidence=budget_missing,
+        )
+    code = ComparisonExitCode.REGRESSION if violations else ComparisonExitCode.PASS
+    return _result(
+        code,
+        deltas=deltas,
+        regressedDistributions=regressed,
+        budgetMetadata={
+            "owner": budget.get("owner"),
+            "lastReviewed": budget.get("lastReviewed"),
+            "rationale": budget.get("rationale"),
+        },
+        budgetViolations=violations,
+    )
 
 
 def render_comparison_markdown(result: dict[str, Any]) -> str:
@@ -117,6 +152,21 @@ def render_comparison_markdown(result: dict[str, Any]) -> str:
     if result.get("correctnessFailures"):
         lines.extend(["", "## Correctness failures", ""])
         lines.extend(f"- {value}" for value in result["correctnessFailures"])
+    if result.get("budgetMetadata"):
+        metadata = result["budgetMetadata"]
+        lines.extend(
+            [
+                "",
+                "## Reviewed budget",
+                "",
+                f"- Owner: {metadata.get('owner')}",
+                f"- Last reviewed: {metadata.get('lastReviewed')}",
+                f"- Rationale: {metadata.get('rationale')}",
+            ]
+        )
+    if result.get("budgetViolations"):
+        lines.extend(["", "## Budget violations", ""])
+        lines.extend(f"- {value}" for value in result["budgetViolations"])
     if result.get("deltas"):
         lines.extend(
             [
@@ -154,6 +204,64 @@ def _compatibility_differences(
     return differences
 
 
+def _budget_compatibility_differences(
+    budget: dict[str, Any], candidate: dict[str, Any]
+) -> list[str]:
+    differences: list[str] = []
+    manifest = candidate.get("manifest") or {}
+    environment = candidate.get("environment") or {}
+    if budget.get("schemaVersion") != 1:
+        differences.append("budget schema version is not supported")
+    for field in ("scenarioID", "buildConfiguration"):
+        if budget.get(field) != manifest.get(field):
+            differences.append(f"budget manifest field differs: {field}")
+    for field, expected in (budget.get("environment") or {}).items():
+        if environment.get(field) != expected:
+            differences.append(f"budget environment field differs: {field}")
+    return differences
+
+
+def _evaluate_budget(
+    budget: dict[str, Any], candidate: dict[str, Any]
+) -> tuple[list[str], list[str]]:
+    missing: list[str] = []
+    violations: list[str] = []
+    distributions = candidate.get("distributions") or {}
+    expected_inventory = budget.get("structuralInventory")
+    if expected_inventory is not None and candidate.get("structuralInventory") != expected_inventory:
+        violations.append("structural inventory does not match the reviewed budget")
+    for name, constraint in sorted((budget.get("distributions") or {}).items()):
+        measured = distributions.get(name)
+        if measured is None:
+            missing.append(name)
+            continue
+        if measured.get("unit") != constraint.get("unit"):
+            violations.append(f"{name} unit is {measured.get('unit')}, expected {constraint.get('unit')}")
+            continue
+        _append_limit_violation(violations, name, "p95", measured, constraint, "maximumP95")
+        _append_limit_violation(violations, name, "maximum", measured, constraint, "maximumValue")
+        minimum_count = constraint.get("minimumCount")
+        if minimum_count is not None and measured.get("count", 0) < minimum_count:
+            violations.append(
+                f"{name} count {measured.get('count', 0):g} is below {minimum_count:g}"
+            )
+    return missing, violations
+
+
+def _append_limit_violation(
+    violations: list[str],
+    name: str,
+    measurement_field: str,
+    measured: dict[str, Any],
+    constraint: dict[str, Any],
+    constraint_field: str,
+) -> None:
+    limit = constraint.get(constraint_field)
+    value = measured.get(measurement_field)
+    if limit is not None and value is not None and value > limit:
+        violations.append(f"{name} {measurement_field} {value:g} exceeds {limit:g}")
+
+
 def _result(code: ComparisonExitCode, **details: Any) -> dict[str, Any]:
     return {
         "schemaVersion": 1,
@@ -168,3 +276,10 @@ def _read_summary(capture_path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise FileNotFoundError(f"summary does not exist: {path}")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _read_budget(path: Path) -> dict[str, Any]:
+    resolved = path.expanduser().resolve()
+    if not resolved.is_file():
+        raise FileNotFoundError(f"budget does not exist: {resolved}")
+    return json.loads(resolved.read_text(encoding="utf-8"))

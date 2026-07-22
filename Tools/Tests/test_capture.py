@@ -8,7 +8,8 @@ import unittest
 
 from diagnostics_lib.artifact import ArtifactValidationError, validate_ndjson
 from diagnostics_lib.capture import CaptureError, CaptureRequest, capture
-from diagnostics_lib.cli import build_parser
+from diagnostics_lib.cli import build_parser, main
+from diagnostics_lib.comparison import ComparisonExitCode
 
 
 MANIFEST = {
@@ -36,12 +37,65 @@ SAMPLE = {
         },
     },
 }
+INVENTORY_SAMPLE = {
+    "schemaVersion": 1,
+    "kind": "sample",
+    "sample": {
+        "sessionID": MANIFEST["sessionID"],
+        "timestamp": {"nanosecondsSinceSessionStart": 0},
+        "category": "simulation.loop",
+        "payload": {
+            "simulationRuntimeInventory": {
+                "_0": {
+                    "alwaysSystemIDs": [],
+                    "simulationSystemIDs": ["movement"],
+                    "presentationEntityCount": 0,
+                }
+            }
+        },
+    },
+}
+SYSTEM_SAMPLE = {
+    "schemaVersion": 1,
+    "kind": "sample",
+    "sample": {
+        "sessionID": MANIFEST["sessionID"],
+        "timestamp": {"nanosecondsSinceSessionStart": 1},
+        "category": "simulation.system",
+        "payload": {
+            "systemUpdate": {
+                "_0": {
+                    "durationNanoseconds": 1,
+                    "systemID": "movement",
+                    "tick": {"rawValue": 1},
+                }
+            }
+        },
+    },
+}
+PRESENTATION_SAMPLE = {
+    "schemaVersion": 1,
+    "kind": "sample",
+    "sample": {
+        "sessionID": MANIFEST["sessionID"],
+        "timestamp": {"nanosecondsSinceSessionStart": 2},
+        "category": "simulation.snapshot",
+        "payload": {
+            "presentationSnapshot": {
+                "_0": {"durationNanoseconds": 1, "tick": {"rawValue": 1}}
+            }
+        },
+    },
+}
 
 
 def stream() -> bytes:
     records = [
         {"schemaVersion": 1, "kind": "manifest", "manifest": MANIFEST},
+        INVENTORY_SAMPLE,
         SAMPLE,
+        SYSTEM_SAMPLE,
+        PRESENTATION_SAMPLE,
     ]
     return b"".join((json.dumps(record) + "\n").encode() for record in records)
 
@@ -103,6 +157,52 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(validate_ndjson((output / "diagnostics.ndjson").read_bytes()).manifest, MANIFEST)
             self.assertTrue((output / "summary.json").is_file())
             self.assertTrue((output / "summary.md").is_file())
+
+    def test_loop_captures_two_runs_and_returns_the_budget_result(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = stream().decode().replace("'", "'\\''")
+            app = self._script(root, "success", f"#!/bin/sh\nprintf '%s' '{payload}'\n")
+            budget = root / "budget.json"
+            budget.write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "scenarioID": "baseline-six-ball",
+                        "buildConfiguration": "release",
+                        "environment": {},
+                        "owner": "tests",
+                        "lastReviewed": "2026-07-21",
+                        "rationale": "loop fixture",
+                        "distributions": {
+                            "simulationStep": {
+                                "unit": "nanoseconds",
+                                "minimumCount": 1,
+                                "maximumP95": 1,
+                            }
+                        },
+                    }
+                )
+            )
+            output = root / "loop"
+            result = main(
+                [
+                    "loop",
+                    "--app",
+                    str(app),
+                    "--output",
+                    str(output),
+                    "--budgets",
+                    str(budget),
+                    "--warm-up-nanoseconds",
+                    "0",
+                    "--measurement-nanoseconds",
+                    "1",
+                ]
+            )
+            self.assertEqual(result, ComparisonExitCode.PASS)
+            self.assertTrue((output / "baseline" / "summary.json").is_file())
+            self.assertTrue((output / "candidate" / "comparison.json").is_file())
 
     def _script(self, root: Path, name: str, body: str) -> Path:
         path = root / name

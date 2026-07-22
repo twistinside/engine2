@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "scenarioID": "baseline-six-ball",
+  "buildConfiguration": "release",
+  "environment": {
+    "machineArchitecture": "arm64",
+    "machineModel": "Mac16,6",
+    "operatingSystem": "Darwin",
+    "operatingSystemVersion": "27.0"
+  },
+  "sourceRevision": "f756ccf",
+  "collectedAt": "2026-07-21",
+  "runCount": 5,
+  "ticksPerRun": 901,
+  "samplesPerRun": 9011,
+  "p95NanosecondsAcrossRuns": {
+    "presentationSnapshot": {
+      "minimum": 1375,
+      "median": 1416,
+      "maximum": 1417
+    },
+    "renderProjection": {
+      "minimum": 7042,
+      "median": 7500,
+      "maximum": 7959
+    },
+    "simulationStep": {
+      "minimum": 10625,
+      "median": 10875,
+      "maximum": 10958
+    },
+    "systemUpdate.accelerationIntent": {
+      "minimum": 667,
+      "median": 791,
+      "maximum": 834
+    },
+    "systemUpdate.cameraInput": {
+      "minimum": 667,
+      "median": 708,
+      "maximum": 750
+    },
+    "systemUpdate.inputCleanup": {
+      "minimum": 4833,
+      "median": 4833,
+      "maximum": 4875
+    },
+    "systemUpdate.inputHistory": {
+      "minimum": 625,
+      "median": 666,
+      "maximum": 667
+    },
+    "systemUpdate.inputMapping": {
+      "minimum": 667,
+      "median": 708,
+      "maximum": 708
+    },
+    "systemUpdate.movement": {
+      "minimum": 875,
+      "median": 916,
+      "maximum": 958
+    },
+    "systemUpdate.rotation": {
+      "minimum": 1333,
+      "median": 1375,
+      "maximum": 1459
+    }
+  }
+}
