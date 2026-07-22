@@ -11,6 +11,8 @@ The current code already reflects the core ownership split:
 - render-specific Metal objects remain owned by ``MetalResourceStore``
 - ``MetalFrameEncoder`` owns reusable frame preparation and command encoding without owning a view, drawable, target lifetime, queue submission, or presentation
 - ``MetalRenderer`` owns the current screen's source sampling, frame-ring slot, drawable, submission, presentation, and terminal error policy
+- ``POffscreenRenderTarget`` defines exact asynchronous request/outcome ownership without exposing backend resources
+- ``MetalOffscreenRenderRuntime`` owns dedicated one-slot Metal resources, request-scoped targets, queue-feedback lifetime, and detached raw readback without owning a source, Simulation advancement, view, drawable, or artifact encoder
 - ``RenderFrame`` acts as the current translation boundary into presentation data
 ## Resource Scope Follows Runtime Ownership
 Engine2 should treat `resource` as a storage, cardinality, and lifetime role inside an owning runtime, not as the primary naming vocabulary for every type.
@@ -66,7 +68,9 @@ This keeps backend lifetime concerns and platform-specific details isolated from
 
 The current implementation now separates reusable encoding from output orchestration. ``MetalFrameEncoder`` owns authored-material preflight, the fixed scene/depth/destination format contract, frame-buffer packing, pipelines and argument tables, the HDR pass, and model draws. Its caller supplies the textures, an available `FrameResources` slot, and an already-begun Metal 4 command buffer. The caller also owns target allocation and retention, residency hookup, command-buffer lifecycle and submission, feedback, readback or presentation, and error policy.
 
-For the screen, ``MetalRenderer`` is that caller and remains tied to MetalKit cadence and drawable presentation. An integration test is a second caller: it uses the production encoder with its own offscreen textures, explicit residency and feedback, and completion-gated readback without an `MTKView` or `CAMetalDrawable`. This is ownership evidence, not yet a production offscreen Runtime or artifact API.
+For the screen, ``MetalRenderer`` is that caller and remains tied to MetalKit cadence and drawable presentation. ``MetalOffscreenRenderRuntime`` is the production exact caller. It owns a dedicated `MetalResourceStore(frameCount: 1)`, ``MetalFrameEncoder``, configurable safety limits, one single-flight request gate, request-local destination/depth targets and residency, command submission, and queue-feedback lifetime. It has no `MTKView` or `CAMetalDrawable` and never samples a source or advances Simulation.
+
+The offscreen Runtime strictly projects every requested presentation fact and resolves every requested model and material before mutable GPU work. It refuses malformed viewpoints, malformed presented entities, and frames above the 256-instance capacity rather than returning an ambiguous partial image. It also fails preparation for a missing model or incomplete drawable indexed geometry instead of inheriting the screen's tolerant draw omission. Its submission token retains the complete referenced Metal object graph until real feedback and releases the sole frame slot exactly once. A GPU feedback error latches the original terminal cause so later requests fail without reusing uncertain queue state.
 ## Snapshot Publication Is the Translation Boundary
 The current code separates simulation publication from render projection:
 
@@ -78,6 +82,8 @@ The current code separates simulation publication from render projection:
 6. an output-specific caller supplies targets and submission lifetime to ``MetalFrameEncoder``
 
 `World` should not directly emit Metal-facing structs as part of its core API, and the renderer should not read live gameplay state during drawing. The Render Runtime owns the destination projection while Simulation remains unaware of render-specific fields and backend choices.
+
+The exact offscreen branch replaces steps 2–3 with one immutable ``OffscreenRenderRequest`` that already contains the completed ``SimulationPresentationSnapshot``, explicit ``RenderViewpoint``, and settings. ``POffscreenRenderTarget`` returns a correlated outcome rather than consulting replaceable latest-value slots. A successful result owns detached, tightly packed, top-left, opaque BGRA8-sRGB bytes and echoes the request identity, source cursor, complete viewpoint, and settings.
 ## Draw Cadence Is Separate From Simulation Cadence
 Simulation stepping and drawing should not be treated as the same event.
 Under a fixed-step engine:
@@ -86,9 +92,9 @@ Under a fixed-step engine:
 - presentation should consume the latest completed render data rather than reach back into live simulation state
 In a Metal view-driven application, the view still dictates when a drawable is available. That should control when the renderer submits work, not when gameplay state advances.
 
-That display rule belongs to ``MetalRenderer``, not ``MetalFrameEncoder``. The encoder can record the same production frame work into matching caller-owned offscreen targets, but it deliberately has no policy for source selection, surface availability, frame-slot arbitration, queue submission, completion, presentation, readback, or artifact encoding.
+That display rule belongs to ``MetalRenderer``, not ``MetalFrameEncoder``. The encoder can record the same production frame work into matching caller-owned offscreen targets, but it deliberately has no policy for source selection, surface availability, frame-slot arbitration, queue submission, completion, presentation, readback, or artifact encoding. ``MetalOffscreenRenderRuntime`` supplies the implemented exact target, submission, cancellation, completion, and raw-readback policy without adding those responsibilities to the encoder.
 
-This display-driven rule is not the only presentation configuration. An offline coordinator may request one exact Simulation advancement, pass the resulting immutable snapshot to an offscreen renderer, and deliberately wait for rendering and encoding before requesting more progress. The coordinator owns that directed workflow; Render still does not own or mutate Simulation. The low-level encoding seam is now implemented and tested offscreen, while the production request/result coordinator, async worker, artifact metadata, and JPEG pipeline remain proposed. See <doc:Runtime-Configurations-and-Advancement>.
+This display-driven rule is not the only presentation configuration. An offline coordinator may request one exact Simulation advancement, pass the resulting immutable snapshot and its explicit viewpoint to ``POffscreenRenderTarget``, and deliberately wait for rendering and artifact encoding before requesting more progress. The coordinator owns that directed workflow; Render still does not own or mutate Simulation. Raw exact request/result rendering is implemented. The capture coordinator, dedicated render actor or worker, pooled targets, HDR master and sample accumulation, artifact metadata, persistence, and JPEG or PNG pipeline remain proposed. See <doc:Runtime-Configurations-and-Advancement>.
 The intended presentation model is:
 1. simulation updates `World`
 2. Simulation publishes a new immutable simulation presentation snapshot

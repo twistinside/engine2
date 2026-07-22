@@ -10,7 +10,7 @@ The current code implements ``InputRuntime`` as the platform-input lifecycle and
 
 The first output-viewpoint separation is also implemented. ``RealtimeAssembly`` retains an ordinary App-owned ``ScreenViewpointController`` and performs one explicit hard-coded screen-event fan-out to it and ``InputRuntime``. `MetalRenderer` samples the latest ``SimulationPresentationSnapshot`` and independently resolves a ``RenderViewpoint``; ``RenderFrame`` preserves the source Simulation cursor plus optional explicit-viewpoint identity and revision. The screen viewpoint can change while the real-time driver issues no Simulation requests, and the Simulation-published camera remains the exact fallback when there is no override. The default ``Engine`` schedule no longer installs `SInputMapping` or `SCameraInput`, although those legacy types and the legacy ``SimulationLoop`` path remain pending deletion.
 
-Reusable Metal frame encoding is now view-independent. ``MetalFrameEncoder`` owns material preflight, fixed target formats, frame-buffer packing, backend state binding, the HDR pass, and model draws while callers own textures, frame-slot and command-buffer lifetime, submission, presentation, and failure policy. ``MetalRenderer`` is the current thin MetalKit screen caller. A render integration test drives the production encoder through caller-owned offscreen targets, explicit residency and feedback, and readback without a view or drawable. This implements the encoding seam, not a complete `RenderRuntime`, production offscreen request/result capability, artifact/JPEG pipeline, or asynchronous worker. Focused tests and real driver-to-Simulation integration coverage exist. Broader authority recovery/arbitration, typed routing, multi-output bindings, observer anchors, complete screen/offscreen Runtime assemblies, and MCP composition remain proposed.
+Reusable Metal frame encoding and the first production offscreen Runtime boundary are now view-independent. ``MetalFrameEncoder`` owns material preflight, fixed target formats, frame-buffer packing, backend state binding, the HDR pass, and model draws while callers own targets and submission policy. ``MetalRenderer`` is the thin MetalKit screen caller. ``MetalOffscreenRenderRuntime`` implements the backend-neutral async ``POffscreenRenderTarget`` capability using request-carried immutable Simulation presentation, an explicit viewpoint, settings, configurable limits, dedicated one-slot resources, strict presentation/model/geometry preflight, real queue-feedback lifetime, and detached raw BGRA8-sRGB results. It samples no source, advances no Simulation, and owns no view or drawable. Focused tests and real driver-to-Simulation and offscreen GPU integration coverage exist. Broader authority recovery/arbitration, typed routing, multi-output bindings, observer anchors, offline capture coordination, artifact encoding, dedicated Render isolation, and MCP composition remain proposed.
 
 ## Runtimes Are the Top-Level Application Objects
 
@@ -45,7 +45,7 @@ For example, Game Content may provide a world builder to the Simulation Runtime,
 
 A **Runtime Configuration** is an App-owned recipe for selecting runtime implementations, typed connections, advancement policy, lifecycle policy, and per-connection delivery policy for one situation. An App-owned live **Runtime Assembly** strongly retains the instances and connection lifetimes produced from that recipe on the App's behalf.
 
-Concrete ``RealtimeConfiguration`` and ``ManualConfiguration`` recipes now construct distinct assemblies. The manual topology owns only caller-driven Simulation with no automatic cadence. The application's real-time topology connects platform input and authoritative Simulation through its App-owned wall-clock driver while one screen independently combines completed snapshots with an App-owned viewpoint. Its assembly is also the current `PInputEventSink`: it forwards each accepted host event to the Input Runtime and the one screen controller. That fixed fan-out is implementation evidence for explicit composition, not the proposed typed routing or multi-window binding model. Offline capture, MCP-driven stepping, headless servers, replay, and alternate presentation still need different explicit assemblies without changing what a Simulation tick means.
+Concrete ``RealtimeConfiguration`` and ``ManualConfiguration`` recipes now construct distinct assemblies. The manual topology owns only caller-driven Simulation with no automatic cadence. The application's real-time topology connects platform input and authoritative Simulation through its App-owned wall-clock driver while one screen independently combines completed snapshots with an App-owned viewpoint. Its assembly is also the current `PInputEventSink`: it forwards each accepted host event to the Input Runtime and the one screen controller. That fixed fan-out is implementation evidence for explicit composition, not the proposed typed routing or multi-window binding model. The exact offscreen render capability is implemented independently, but offline capture, MCP-driven stepping, headless servers, replay, and alternate presentation still need explicit assemblies that coordinate it with other Runtimes without changing what a Simulation tick means.
 
 See <doc:Runtime-Configurations-and-Advancement> for the proposed configuration vocabulary, advance boundary, scenario space, feasibility assessment, and migration path.
 
@@ -78,7 +78,7 @@ A runtime is independent when it can be constructed, lifecycle-managed as approp
 
 - An Input Runtime can collect platform input with no active game consuming it.
 - A Simulation Runtime can advance with neutral input and no presentation runtimes attached.
-- A Render Runtime with no simulation snapshot may draw an empty or loading presentation.
+- A screen Render Runtime with no simulation snapshot may draw an empty or loading presentation; an exact offscreen request is instead incomplete without its required immutable snapshot and explicit viewpoint.
 - An Audio Runtime with no game state may remain silent.
 - An Achievement Runtime may wait for relevant game output.
 
@@ -113,6 +113,8 @@ Snapshot types should use a descriptive `Snapshot` suffix rather than an `S` pre
 A receiving runtime may derive its own private snapshot or operational model from a publisher-owned snapshot. For example, the Simulation Runtime publishes `SimulationPresentationSnapshot`; the Render Runtime projects that value into its own render-oriented snapshot. Simulation owns the source vocabulary, Render owns the projection and destination model, and the App owns the connection.
 
 The implemented boundary now separates those roles: ``SimulationPresentationSnapshot`` is publisher-owned abstract presentation state labeled with its exact ``SimulationCursor``, while ``RenderFrame`` is the Render Runtime's private projection. A frame preserves optional source-cursor attribution and, when projected with an explicit ``RenderViewpoint``, its ``RenderViewpointID`` and ``RenderViewpointRevision``. The App connects the read-only presentation and viewpoint sources explicitly. This is one deliberate Simulation Runtime publication plus an output-owned selection, not a universal snapshot of every simulation concern.
+
+Exact offscreen work uses a directed request/result boundary instead of sampling those latest sources. ``OffscreenRenderRequest`` carries one completed snapshot, one explicit viewpoint, and settings by value through ``POffscreenRenderTarget``. A successful ``OffscreenRenderResult`` echoes the request identity, source cursor, complete viewpoint, settings, and detached image, so slow rendering cannot silently switch to a newer scene or camera.
 
 ### Events
 
@@ -170,6 +172,8 @@ Avoid making directed commands the default peer-to-peer boundary. "AudioRuntime,
 
 Directed request-and-result workflows are still valid when a dependency is intentional, but the App should normally coordinate them. For example, the App can ask a Storage Runtime to load a saved `GameCheckpoint`, then construct or replace the Simulation Runtime with the result. The Simulation Runtime does not need to own or discover the Storage Runtime.
 
+``POffscreenRenderTarget`` is another directed capability. Its concrete Metal Runtime neither discovers nor calls Simulation; an App-owned coordinator passes the exact completed snapshot and explicit viewpoint into the request and decides whether render completion gates another Simulation advance.
+
 ## Runtimes Advance at Different Cadences
 
 There is no single universal application frame.
@@ -177,7 +181,7 @@ There is no single universal application frame.
 - Input arrives according to platform event delivery.
 - The Simulation Runtime executes fixed simulation ticks when the active advance authority requests progress.
 - The current screen viewpoint changes when its configured presentation gestures arrive, including while the Simulation cursor is frozen.
-- The Render Runtime submits work according to presentation cadence.
+- A screen Render Runtime submits work according to presentation cadence; ``MetalOffscreenRenderRuntime`` submits only when an exact asynchronous request is accepted.
 - Audio, Network, and Storage runtimes may be event-driven or use their own scheduling policies.
 
 One host update may therefore collect input, execute zero or several simulation ticks, publish one new simulation presentation snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
@@ -228,12 +232,14 @@ The current implementation maps onto the proposed model as follows:
 | ``World`` | Authoritative simulation state inside the Simulation Runtime |
 | ``SimulationPresentationSnapshot`` | Latest completed publisher-owned Simulation Runtime presentation value labeled with its exact cursor; its camera is the default for outputs without an override |
 | ``RenderViewpoint``, ``RenderViewpointID``, ``RenderViewpointRevision``, and `PRenderViewpointSource` | Implemented immutable output-specific camera selection and Render-owned source boundary |
-| ``RenderFrame`` | Render Runtime-owned private projection derived from one Simulation snapshot and an optional explicit viewpoint, preserving both kinds of attribution |
+| ``RenderFrame`` | Render Runtime-owned private projection derived from one Simulation snapshot and an optional explicit viewpoint, preserving both kinds of attribution; screen projection tolerantly omits malformed entities while exact projection returns a typed error |
 | ``MetalFrameEncoder`` | Implemented view-independent preparation and encoding against caller-owned textures, `FrameResources`, and an already-begun Metal 4 command buffer; it owns no source sampling, surface, queue submission, presentation, or error policy |
 | `MetalSceneView` and `MetalRenderer` | Current MetalKit screen adapter; samples presentation/viewpoint sources, selects ring slots and drawables, submits, presents, and owns screen error policy while delegating reusable encoding |
+| ``POffscreenRenderTarget`` and its request/outcome values | Implemented backend-neutral exact asynchronous boundary requiring an immutable Simulation presentation, explicit viewpoint, and render settings; successful results preserve request, source, viewpoint, and settings provenance |
+| ``MetalOffscreenRenderRuntime`` | Implemented production Metal offscreen Runtime with configurable limits, one dedicated frame slot, single-flight refusal, strict presentation/model/drawable-geometry preflight, queue-feedback lifetime, defined cancellation, terminal GPU-failure latching, and detached BGRA8-sRGB readback; owns no source, Simulation advance, view, drawable, or artifact encoder |
 | ``MetalResourceStore`` | Device-scoped backend owner whose default frame count and compiled target formats are independent of the screen adapter |
 
-Future changes should introduce the remaining boundaries incrementally. The one-screen fan-out is not a substitute for typed multi-source routing, route epochs, observer anchors, or multi-output bindings. Ordered discrete input-transition publication and retained input replay are also not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
+Future changes should introduce the remaining boundaries incrementally. The one-screen fan-out is not a substitute for typed multi-source routing, route epochs, observer anchors, or multi-output bindings, and the raw offscreen Runtime is not an offline capture coordinator, high-quality accumulation pipeline, artifact sink, or MCP assembly. Ordered discrete input-transition publication and retained input replay are also not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
 
 ## Related Direction
 

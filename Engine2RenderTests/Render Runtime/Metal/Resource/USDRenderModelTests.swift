@@ -7,6 +7,13 @@ import Testing
 
 struct USDRenderModelTests {
     @MainActor
+    @Test func modelWithoutMeshesHasNoCompleteDrawableIndexedGeometry() {
+        let model = USDRenderModel(meshes: [])
+
+        #expect(!model.hasCompleteDrawableIndexedGeometry)
+    }
+
+    @MainActor
     @Test func emptyCatalogResolvesToNoBackendModels() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
 
@@ -137,6 +144,8 @@ struct USDRenderModelTests {
             device: device
         )
         let model = try #require(models[.ball])
+
+        #expect(model.hasCompleteDrawableIndexedGeometry)
 
         // Validate the renderer's decoded result rather than the source file.
         // Model I/O may weld seam vertices or split a USD mesh while importing,
