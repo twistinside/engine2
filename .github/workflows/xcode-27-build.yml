@@ -1,4 +1,4 @@
-name: Xcode 27 Build and Test
+name: Xcode 27 Build
 
 on:
   pull_request:
@@ -8,12 +8,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: xcode-27-build-test-${{ github.event.pull_request.number || github.ref }}
+  group: xcode-27-build-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Build and test app
+    name: Build app
     runs-on: xcode-27
     timeout-minutes: 20
 
@@ -44,7 +44,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Run Engine2 tests
+      # The preview runner hosts macOS 26, which cannot execute macOS 27 tests.
+      - name: Run Engine2 tests (requires macOS 27 runner)
+        if: ${{ false }}
         run: |
           xcodebuild \
             -project Engine2.xcodeproj \
