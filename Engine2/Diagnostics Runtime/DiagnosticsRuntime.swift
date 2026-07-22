@@ -3,7 +3,7 @@
 /// The runtime consumes reported values and publishes immutable snapshots. It
 /// never discovers peer runtimes or reads live World, renderer, or GPU state.
 @MainActor
-final class DiagnosticsRuntime: PDiagnosticsSink, PDiagnosticsSnapshotSource {
+final class DiagnosticsRuntime: PDiagnosticsSink, PDiagnosticsController {
     let sessionID: DiagnosticsSessionID
 
     private var aggregates: [DiagnosticsSampleKind: DiagnosticsAggregateAccumulator] = [:]

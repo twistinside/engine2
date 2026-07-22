@@ -19,8 +19,9 @@ struct Engine2App: App {
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
+        let arguments = ProcessInfo.processInfo.arguments
         let gameContent = BasicGameContent()
-        let isScenarioLaunch = ProcessInfo.processInfo.arguments.contains(
+        let isScenarioLaunch = arguments.contains(
             DiagnosticsScenarioConfiguration.scenarioArgument
         )
         let diagnosticsRuntime = DiagnosticsRuntime(
@@ -34,6 +35,16 @@ struct Engine2App: App {
         self.gameContent = gameContent
         self.diagnosticsRuntime = diagnosticsRuntime
         self.diagnostics = diagnostics
+        _debugOptions = State(
+            initialValue: AppDebugOptions(
+                showsInputHistory: true,
+                showsDiagnosticsHUD: false,
+                showsDiagnosticsDashboard: arguments.contains(
+                    "--diagnostics-show-dashboard"
+                ),
+                renderOutputMode: .surface
+            )
+        )
         _inputRuntime = State(initialValue: inputRuntime)
         _simulation = State(
             initialValue: SimulationRuntime(
@@ -43,7 +54,7 @@ struct Engine2App: App {
             )
         )
         DiagnosticsScenarioProcessAdapter.runIfRequested(
-            arguments: ProcessInfo.processInfo.arguments,
+            arguments: arguments,
             simulation: _simulation.wrappedValue,
             diagnosticsRuntime: diagnosticsRuntime,
             diagnostics: diagnostics

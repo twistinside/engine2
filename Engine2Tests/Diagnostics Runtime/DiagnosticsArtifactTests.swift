@@ -78,4 +78,39 @@ struct DiagnosticsArtifactTests {
             try DiagnosticsNDJSONDecoder().decode(Data("{}".utf8))
         }
     }
+
+    @MainActor
+    @Test func interactiveExportUsesTheSameSchemaValidatedStream() throws {
+        let sessionID = DiagnosticsSessionID()
+        let sample = DiagnosticsSample(
+            sessionID: sessionID,
+            timestamp: DiagnosticsTimestamp(nanosecondsSinceSessionStart: 123),
+            category: .simulationLoop,
+            payload: .simulationStep(
+                SimulationStepDiagnostics(
+                    tick: SimulationTick(rawValue: 1),
+                    didRunSimulationSystems: true,
+                    durationNanoseconds: 10
+                )
+            )
+        )
+        let snapshot = DiagnosticsSnapshot(
+            sessionID: sessionID,
+            isCollectionEnabled: true,
+            recentSampleCapacity: 8,
+            totalSamplesReceived: 1,
+            recentSamples: [sample],
+            aggregates: []
+        )
+
+        let data = try DiagnosticsSnapshotExportDocument(
+            snapshot: snapshot,
+            fixedStepNanoseconds: 16_666_666
+        ).encodedData()
+        let records = try DiagnosticsNDJSONDecoder().decode(data)
+
+        #expect(records.count == 2)
+        #expect(records.first?.manifest?.scenarioID == .interactiveAppSession)
+        #expect(records.last?.sample == sample)
+    }
 }

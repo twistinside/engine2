@@ -12,7 +12,7 @@ struct ContentView: View {
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
     let diagnostics: DiagnosticsEmitter
-    let diagnosticsSource: any PDiagnosticsSnapshotSource
+    let diagnosticsSource: any PDiagnosticsController
 
     var body: some View {
         ZStack {
@@ -52,7 +52,10 @@ struct ContentView: View {
             }
 
             if debugOptions.showsDiagnosticsDashboard {
-                DiagnosticsDashboardHost(source: diagnosticsSource)
+                DiagnosticsDashboardHost(
+                    controller: diagnosticsSource,
+                    fixedStepNanoseconds: simulation.state.fixedTimeStep.diagnosticsNanoseconds
+                )
                     .padding(32)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
