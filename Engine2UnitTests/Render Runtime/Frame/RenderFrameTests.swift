@@ -5,6 +5,7 @@ import Testing
 struct RenderFrameTests {
     @Test func projectionCreatesInstancesFromPublishedPresentationFacts() async throws {
         let world = World()
+        let cursor = Self.cursor(at: SimulationTick(rawValue: 7))
         let first = EntityID(index: 0, generation: 0)
         let second = EntityID(index: 1, generation: 0)
 
@@ -21,10 +22,11 @@ struct RenderFrameTests {
 
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: SimulationTick(rawValue: 7)
+            at: cursor
         )
         let frame = RenderFrame.project(from: snapshot)
 
+        #expect(frame.sourceCursor == cursor)
         #expect(frame.sourceTick == SimulationTick(rawValue: 7))
         #expect(
             frame.instances == [
@@ -44,6 +46,7 @@ struct RenderFrameTests {
 
     @Test func projectionDetachesMaterialIdentityFromLaterECSMutation() throws {
         let world = World()
+        let sessionID = SimulationSessionID()
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(CPosition(position: .zero), for: entity)
         world.renderableComponents.insert(
@@ -53,7 +56,7 @@ struct RenderFrameTests {
 
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: .zero
+            at: SimulationCursor(sessionID: sessionID, tick: .zero)
         )
         let frame = RenderFrame.project(from: snapshot)
         let didUpdateMaterial = world.renderableComponents.update(for: entity) {
@@ -66,7 +69,10 @@ struct RenderFrameTests {
         let laterEntity = try #require(
             SimulationPresentationSnapshot.capture(
                 from: world,
-                at: SimulationTick(rawValue: 1)
+                at: SimulationCursor(
+                    sessionID: sessionID,
+                    tick: SimulationTick(rawValue: 1)
+                )
             ).entityPresentations.first
         )
 
@@ -82,7 +88,10 @@ struct RenderFrameTests {
 
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: entity)
 
-        let snapshot = SimulationPresentationSnapshot.capture(from: world, at: .zero)
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: Self.cursor()
+        )
 
         #expect(snapshot.entityPresentations.isEmpty)
         #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
@@ -96,7 +105,10 @@ struct RenderFrameTests {
             for: entity
         )
 
-        let snapshot = SimulationPresentationSnapshot.capture(from: world, at: .zero)
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: Self.cursor()
+        )
 
         #expect(snapshot.entityPresentations.map(\.id) == [entity])
         #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
@@ -117,7 +129,10 @@ struct RenderFrameTests {
         world.rotationComponents.insert(CRotation(rotation: rotation), for: entity)
         world.scaleComponents.insert(CScale(scale: scale), for: entity)
 
-        let snapshot = SimulationPresentationSnapshot.capture(from: world, at: .zero)
+        let snapshot = SimulationPresentationSnapshot.capture(
+            from: world,
+            at: Self.cursor()
+        )
         let frame = RenderFrame.project(from: snapshot)
 
         #expect(frame.camera == world.camera)
@@ -162,7 +177,7 @@ struct RenderFrameTests {
 
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: .zero
+            at: Self.cursor()
         )
 
         #expect(snapshot.entityPresentations.count == 2)
@@ -171,6 +186,7 @@ struct RenderFrameTests {
 
     @Test func projectionProducesNoInstancesForAnInvalidCameraTransform() {
         let world = World()
+        let cursor = Self.cursor(at: SimulationTick(rawValue: 3))
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(CPosition(position: .zero), for: entity)
         world.renderableComponents.insert(
@@ -181,10 +197,11 @@ struct RenderFrameTests {
 
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: SimulationTick(rawValue: 3)
+            at: cursor
         )
         let frame = RenderFrame.project(from: snapshot)
 
+        #expect(frame.sourceCursor == cursor)
         #expect(frame.sourceTick == SimulationTick(rawValue: 3))
         #expect(frame.camera == snapshot.camera)
         #expect(frame.instances.isEmpty)
@@ -209,10 +226,21 @@ struct RenderFrameTests {
 
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: .zero
+            at: Self.cursor()
         )
 
         #expect(snapshot.camera.supportsViewTransform)
         #expect(RenderFrame.project(from: snapshot).instances.isEmpty)
+    }
+
+    @Test func emptyFrameDoesNotFabricateSimulationProvenance() {
+        #expect(RenderFrame.empty.sourceCursor == nil)
+        #expect(RenderFrame.empty.sourceTick == nil)
+    }
+
+    private static func cursor(
+        at tick: SimulationTick = .zero
+    ) -> SimulationCursor {
+        SimulationCursor(sessionID: SimulationSessionID(), tick: tick)
     }
 }

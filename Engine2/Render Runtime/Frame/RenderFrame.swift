@@ -3,14 +3,20 @@ import simd
 /// Render Runtime-owned projection for one simulation presentation snapshot.
 struct RenderFrame: Equatable {
     static let empty = RenderFrame(
-        sourceTick: .zero,
+        sourceCursor: nil,
         camera: Camera(),
         instances: []
     )
 
-    let sourceTick: SimulationTick
+    /// Exact Simulation publication projected into this frame, when present.
+    let sourceCursor: SimulationCursor?
     let camera: Camera
     let instances: [RenderInstance]
+
+    /// Tick-only migration view for consumers confined to one known session.
+    var sourceTick: SimulationTick? {
+        sourceCursor?.tick
+    }
 
     /// Projects publisher-owned presentation facts into private render data.
     static func project(
@@ -21,7 +27,7 @@ struct RenderFrame: Equatable {
         // frame rather than sending NaN positions or normals to the GPU.
         guard snapshot.camera.supportsViewTransform else {
             return RenderFrame(
-                sourceTick: snapshot.tick,
+                sourceCursor: snapshot.cursor,
                 camera: snapshot.camera,
                 instances: []
             )
@@ -63,7 +69,7 @@ struct RenderFrame: Equatable {
         }
 
         return RenderFrame(
-            sourceTick: snapshot.tick,
+            sourceCursor: snapshot.cursor,
             camera: snapshot.camera,
             instances: instances
         )

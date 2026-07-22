@@ -1,7 +1,7 @@
 import simd
 
 /// Position, orientation, and scale used to place one renderable object in world space.
-struct Transform {
+nonisolated struct Transform: Sendable {
     static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
 
     var position: SIMD3<Float>
@@ -56,7 +56,7 @@ struct Transform {
     }
 }
 
-extension Transform: Equatable {
+nonisolated extension Transform: Equatable {
     static func == (lhs: Transform, rhs: Transform) -> Bool {
         lhs.position == rhs.position &&
         lhs.rotation.vector == rhs.rotation.vector &&
@@ -64,7 +64,7 @@ extension Transform: Equatable {
     }
 }
 
-extension simd_float4x4 {
+nonisolated extension simd_float4x4 {
     /// Whether every scalar in this matrix is finite.
     ///
     /// Checking the constructed matrix catches arithmetic overflow that finite

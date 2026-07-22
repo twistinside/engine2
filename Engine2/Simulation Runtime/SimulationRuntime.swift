@@ -7,7 +7,7 @@ import Observation
 /// the invariant system schedule.
 @MainActor
 @Observable
-final class SimulationRuntime: PSimulationPresentationSource {
+final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentationSource {
     /// Minimal session state intended for SwiftUI and other presentation code.
     struct State {
         var fixedTimeStep: Duration
@@ -27,6 +27,11 @@ final class SimulationRuntime: PSimulationPresentationSource {
     @ObservationIgnored
     private weak var inputSource: (any PInputSnapshotSource)?
 
+    /// Identity of the uninterrupted authoritative timeline currently owned by
+    /// this Runtime. Rebuilding the World begins a new session at tick zero.
+    @ObservationIgnored
+    private(set) var sessionID: SimulationSessionID
+
     /// Latest completed publisher-owned value available to peer runtimes.
     @ObservationIgnored
     private(set) var latestPresentationSnapshot: SimulationPresentationSnapshot
@@ -37,9 +42,15 @@ final class SimulationRuntime: PSimulationPresentationSource {
         engine.world
     }
 
+    /// Exact committed position of the currently owned authoritative timeline.
+    var currentCursor: SimulationCursor {
+        SimulationCursor(sessionID: sessionID, tick: engine.completedTick)
+    }
+
     init(
         worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
         inputSource: (any PInputSnapshotSource)? = nil,
+        sessionID: SimulationSessionID = SimulationSessionID(),
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         pollInterval: Duration? = nil,
         clockFactory: @escaping SimulationLoop.ClockFactory = { SystemClock() },
@@ -49,6 +60,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
     ) {
         self.worldBuilder = worldBuilder
         self.inputSource = inputSource
+        self.sessionID = sessionID
         let world = worldBuilder.buildWorld()
         if let inputSnapshot = inputSource?.latestInputSnapshot {
             world.input.rebase(to: inputSnapshot)
@@ -61,7 +73,10 @@ final class SimulationRuntime: PSimulationPresentationSource {
         engine.isSimulationRunning = false
         self.latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
             from: engine.world,
-            at: engine.completedTick
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: engine.completedTick
+            )
         )
         self.state = State(fixedTimeStep: fixedTimeStep)
 
@@ -83,6 +98,7 @@ final class SimulationRuntime: PSimulationPresentationSource {
 
     /// Rebuilds the active world from the current builder and swaps it into the engine.
     func rebuildWorld() {
+        sessionID = SimulationSessionID()
         engine.replaceWorld(
             with: worldBuilder.buildWorld(),
             inputBaseline: inputSource?.latestInputSnapshot
@@ -99,6 +115,74 @@ final class SimulationRuntime: PSimulationPresentationSource {
         if rebuildWorldImmediately {
             rebuildWorld()
         }
+    }
+
+    /// Advances an idle Runtime by an exact number of complete fixed steps.
+    ///
+    /// The legacy polling loop and this directed capability are mutually
+    /// exclusive advance authorities. Input is accepted only through the
+    /// immutable assignment carried by the request and is applied once at the
+    /// first requested tick boundary.
+    nonisolated func advance(
+        _ request: SimulationAdvanceRequest
+    ) async -> SimulationAdvanceOutcome {
+        await MainActor.run {
+            advanceSynchronously(request)
+        }
+    }
+
+    /// Performs one non-suspending batch inside the Runtime's serialized
+    /// mutation domain. The nonisolated protocol witness above only transports
+    /// the immutable request and result across that boundary.
+    private func advanceSynchronously(
+        _ request: SimulationAdvanceRequest
+    ) -> SimulationAdvanceOutcome {
+        let initialCursor = currentCursor
+
+        guard simulationLoop.isRunning == false else {
+            return .rejected(.advanceAuthorityActive(current: initialCursor))
+        }
+
+        if let expectedCursor = request.expectedCursor,
+           expectedCursor != initialCursor {
+            return .rejected(
+                .cursorMismatch(
+                    expected: expectedCursor,
+                    current: initialCursor
+                )
+            )
+        }
+
+        let firstStepInput: InputSnapshot?
+        switch request.inputAssignment {
+        case .none:
+            firstStepInput = nil
+
+        case let .ingest(snapshot):
+            firstStepInput = snapshot
+
+        case let .rebase(snapshot):
+            engine.world.input.rebase(to: snapshot)
+            firstStepInput = nil
+        }
+
+        for stepIndex in 0..<request.stepCount.rawValue {
+            engine.step(
+                inputSnapshot: stepIndex == 0 ? firstStepInput : nil
+            )
+        }
+
+        let finalSnapshot = publishPresentationSnapshot(at: engine.completedTick)
+        let result = SimulationAdvanceResult(
+            initialCursor: initialCursor,
+            finalCursor: currentCursor,
+            completedStepCount: SimulationCompletedStepCount(
+                rawValue: request.stepCount.rawValue
+            ),
+            finalPresentationSnapshot: finalSnapshot
+        )
+
+        return .completed(result)
     }
 
     /// Starts the session's polling loop if it is not already active.
@@ -127,10 +211,15 @@ final class SimulationRuntime: PSimulationPresentationSource {
     }
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.
-    private func publishPresentationSnapshot(at tick: SimulationTick) {
-        latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
+    @discardableResult
+    private func publishPresentationSnapshot(
+        at tick: SimulationTick
+    ) -> SimulationPresentationSnapshot {
+        let snapshot = SimulationPresentationSnapshot.capture(
             from: engine.world,
-            at: tick
+            at: SimulationCursor(sessionID: sessionID, tick: tick)
         )
+        latestPresentationSnapshot = snapshot
+        return snapshot
     }
 }

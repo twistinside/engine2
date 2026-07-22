@@ -37,7 +37,7 @@ struct EngineTests {
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
-    @Test func pausedUpdateRunsAlwaysSystemsButSkipsSimulationSystems() async throws {
+    @Test func legacyPausedUpdateRunsAlwaysSystemsButSkipsSimulationSystems() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
 
@@ -66,6 +66,49 @@ struct EngineTests {
         #expect(world.input.history.count == 1)
         #expect(world.input.history[0].tokens == ["LMB"])
         #expect(engine.accumulatedTime == .zero)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+    }
+
+    @Test func exactStepRunsCompleteScheduleWhileLegacyRealtimeGateIsPaused() {
+        let recorder = ExecutionRecorder()
+        let engine = Engine(
+            alwaysSystems: [RecordingSystem(name: "always", recorder: recorder)],
+            systems: [RecordingSystem(name: "simulation", recorder: recorder)]
+        )
+        engine.isSimulationRunning = false
+
+        engine.step()
+
+        #expect(recorder.entries == ["always", "simulation"])
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+    }
+
+    @Test func exactStepDoesNotConsumeInputPendingFromLegacyElapsedTime() {
+        let world = World()
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .seconds(1),
+            systems: []
+        )
+        let key = KeyboardKey(keyCode: 13, displayName: "W")
+        let pendingSnapshot = InputSnapshot(
+            revision: InputRevision(session: 1, sequence: 1),
+            pointerPosition: .zero,
+            pointerMotionTotal: SIMD2<Float>(4, 2),
+            scrollTotal: .zero,
+            pressedMouseButtons: [],
+            pressedKeys: [key]
+        )
+        engine.update(
+            deltaTime: .milliseconds(500),
+            inputSnapshot: pendingSnapshot
+        )
+
+        engine.step()
+
+        #expect(world.input.keyboard.keys.isEmpty)
+        #expect(world.input.history.isEmpty)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
     @Test func updateRunsMultipleFixedStepsAndRetainsRemainder() {

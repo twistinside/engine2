@@ -29,9 +29,10 @@ struct BasicWorldBuilderTests {
 
     @Test func materialSphereSceneRemainsQuiescentAcrossFixedSteps() {
         let initialWorld = BasicWorldBuilder().buildWorld()
+        let sessionID = SimulationSessionID()
         let initialSnapshot = SimulationPresentationSnapshot.capture(
             from: initialWorld,
-            at: .zero
+            at: SimulationCursor(sessionID: sessionID, tick: .zero)
         )
         let engine = Engine(world: initialWorld)
 
@@ -43,7 +44,10 @@ struct BasicWorldBuilderTests {
 
         let laterSnapshot = SimulationPresentationSnapshot.capture(
             from: engine.world,
-            at: engine.completedTick
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: engine.completedTick
+            )
         )
 
         #expect(engine.completedTick == SimulationTick(rawValue: 120))

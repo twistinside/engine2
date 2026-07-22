@@ -4,7 +4,7 @@ import simd
 ///
 /// This first boundary exposes identity, spatial state, and abstract
 /// presentation identity without exposing component rows or entity facades.
-struct EntityPresentationSnapshot {
+nonisolated struct EntityPresentationSnapshot: Sendable {
     let id: EntityID
     let position: SIMD3<Float>?
     let rotation: simd_quatf?
