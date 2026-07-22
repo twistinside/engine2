@@ -35,4 +35,10 @@ struct SimulationTickTests {
         #expect(decoded == tick)
         #expect(decoded.advanced() == SimulationTick(rawValue: .max))
     }
+
+    @Test func tickIsSafeToTransferAsAnImmutableBoundaryValue() {
+        requireSendable(SimulationTick(rawValue: 8))
+    }
+
+    private func requireSendable(_ value: some Sendable) {}
 }

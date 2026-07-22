@@ -7,13 +7,18 @@ struct BasicWorldBuilderRenderTests {
     @Test func materialSphereSceneUsesOrdinarySnapshotAndRenderFramePath() {
         let world = BasicWorldBuilder().buildWorld()
         let tick = SimulationTick(rawValue: 41)
+        let cursor = SimulationCursor(
+            sessionID: SimulationSessionID(),
+            tick: tick
+        )
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: tick
+            at: cursor
         )
         let frame = RenderFrame.project(from: snapshot)
 
         #expect(snapshot.tick == tick)
+        #expect(snapshot.cursor == cursor)
         expectReferenceCamera(snapshot.camera)
         #expect(snapshot.entityPresentations.map(\.id) == Self.expectedEntityIDs)
         #expect(
@@ -30,6 +35,7 @@ struct BasicWorldBuilderRenderTests {
         )
         #expect(snapshot.entityPresentations.allSatisfy { $0.scale == nil })
 
+        #expect(frame.sourceCursor == cursor)
         #expect(frame.sourceTick == tick)
         expectReferenceCamera(frame.camera)
         #expect(frame.instances.map(\.transform.position) == Self.expectedPositions)

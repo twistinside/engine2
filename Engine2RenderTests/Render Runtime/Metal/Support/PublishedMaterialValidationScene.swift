@@ -16,7 +16,10 @@ struct PublishedMaterialValidationScene {
         let world = gameContent.worldBuilder.buildWorld()
         let snapshot = SimulationPresentationSnapshot.capture(
             from: world,
-            at: .zero
+            at: SimulationCursor(
+                sessionID: SimulationSessionID(),
+                tick: .zero
+            )
         )
 
         self.catalog = gameContent.renderAssetCatalog

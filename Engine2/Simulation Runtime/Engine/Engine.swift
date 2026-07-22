@@ -11,6 +11,8 @@ final class Engine {
     let fixedTimeStep: Duration
 
     private(set) var completedTick: SimulationTick
+    /// Legacy real-time pause policy used only by `update(deltaTime:inputSnapshot:)`.
+    /// Explicit `step(inputSnapshot:)` calls always execute a complete schedule.
     var isSimulationRunning = true
     private(set) var world: World
 
@@ -48,15 +50,32 @@ final class Engine {
 
         // Advance simulation in deterministic fixed-size chunks.
         while accumulatedTime >= fixedTimeStep {
-            step()
+            stepForLegacyRealtimeUpdate()
             accumulatedTime -= fixedTimeStep
         }
     }
 
-    /// Advances the world by one fixed simulation step.
+    /// Advances the world by one complete fixed simulation step.
+    ///
+    /// Unlike the legacy real-time `update` path, an explicit step is exact:
+    /// both the always-running and simulation schedules execute regardless of
+    /// `isSimulationRunning`.
     func step(inputSnapshot: InputSnapshot? = nil) {
+        // Pending input belongs to the legacy elapsed-time path. An exact step
+        // must consume only the value explicitly attributable to this request.
+        pendingInputSnapshot = nil
         retainLatestInputSnapshot(inputSnapshot)
 
+        performStep(includingSimulationSystems: true)
+    }
+
+    /// Preserves the existing real-time pause behavior while explicit
+    /// advancement migrates to the complete `step(inputSnapshot:)` contract.
+    private func stepForLegacyRealtimeUpdate() {
+        performStep(includingSimulationSystems: isSimulationRunning)
+    }
+
+    private func performStep(includingSimulationSystems: Bool) {
         // Import raw input once, immediately before the fixed-step schedule.
         // Cleanup at the end of the always-running schedule prevents a catch-up
         // update from replaying transient motion on later steps.
@@ -67,11 +86,13 @@ final class Engine {
 
         run(&alwaysSystems)
 
-        if isSimulationRunning {
+        if includingSimulationSystems {
             run(&simulationSystems)
         }
 
-        // Publishable state is complete only after the full ordered schedule.
+        // Exact steps reach this point after the complete schedule. The legacy
+        // gated path intentionally retains its existing cursor behavior while
+        // real-time pause policy is migrated out of Engine.
         completedTick = completedTick.advanced()
     }
 

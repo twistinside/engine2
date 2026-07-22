@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 /// Abstract render camera state owned by the engine, not by a specific backend.
-struct Camera {
+nonisolated struct Camera: Sendable {
     /// Backend-neutral projection parameters used to construct a clip-space matrix.
     ///
     /// Associated values are expressed in world units and radians. Both
@@ -10,7 +10,7 @@ struct Camera {
     /// the camera's local forward axis, which points down view-space `-Z`.
     /// Camera initialization validates the dimensions and clipping-plane
     /// ordering so render backends can consume a well-formed projection.
-    enum Projection: Equatable {
+    nonisolated enum Projection: Equatable, Sendable {
         case orthographic(height: Float, near: Float, far: Float)
         case perspective(verticalFieldOfView: Float, near: Float, far: Float)
     }
@@ -193,7 +193,7 @@ struct Camera {
     }
 }
 
-extension Camera: Equatable {
+nonisolated extension Camera: Equatable {
     static func == (lhs: Camera, rhs: Camera) -> Bool {
         lhs.position == rhs.position &&
         lhs.rotation.vector == rhs.rotation.vector &&
@@ -201,7 +201,7 @@ extension Camera: Equatable {
     }
 }
 
-private extension simd_float4x4 {
+nonisolated private extension simd_float4x4 {
     static func orthographic(
         left: Float,
         right: Float,
