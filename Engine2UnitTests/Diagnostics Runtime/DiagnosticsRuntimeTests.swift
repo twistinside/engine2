@@ -70,6 +70,34 @@ struct DiagnosticsRuntimeTests {
         #expect(weakRuntime == nil)
         _ = emitter
     }
+
+    @MainActor
+    @Test func samplesFromAnotherSessionAreIgnoredCompletely() {
+        let runtime = DiagnosticsRuntime(recentSampleCapacity: 2)
+        let foreignSession = DiagnosticsSessionID()
+
+        runtime.record(stepSample(sessionID: foreignSession, tick: 1))
+
+        #expect(runtime.totalSamplesReceived == 0)
+        #expect(runtime.latestDiagnosticsSnapshot.recentSamples.isEmpty)
+        #expect(runtime.latestDiagnosticsSnapshot.aggregates.isEmpty)
+    }
+
+    @MainActor
+    @Test func publishedSnapshotsRemainDetachedAfterResetAndFurtherRecording() {
+        let runtime = DiagnosticsRuntime(recentSampleCapacity: 2)
+        runtime.record(stepSample(sessionID: runtime.sessionID, tick: 1))
+        let beforeReset = runtime.latestDiagnosticsSnapshot
+
+        runtime.reset()
+        runtime.record(stepSample(sessionID: runtime.sessionID, tick: 2))
+        let afterReset = runtime.latestDiagnosticsSnapshot
+
+        #expect(beforeReset.totalSamplesReceived == 1)
+        #expect(beforeReset.recentSamples.compactMap(stepTick) == [1])
+        #expect(afterReset.totalSamplesReceived == 1)
+        #expect(afterReset.recentSamples.compactMap(stepTick) == [2])
+    }
 }
 
 @MainActor

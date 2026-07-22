@@ -24,7 +24,7 @@
       "target" : {
         "containerPath" : "container:Engine2.xcodeproj",
         "identifier" : "CB1B38412F5E1E1000A375C6",
-        "name" : "Engine2Tests"
+        "name" : "Engine2UnitTests"
       }
     }
   ],

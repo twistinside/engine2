@@ -130,6 +130,65 @@ struct EngineTests {
         #expect(world.input.mouse.delta == .zero)
     }
 
+    @Test func pendingInputKeepsNewestRevisionAcrossSubstepPolls() {
+        let world = World()
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: .milliseconds(100),
+            alwaysSystems: [],
+            systems: []
+        )
+
+        engine.update(
+            deltaTime: .milliseconds(40),
+            inputSnapshot: inputSnapshot(
+                sequence: 5,
+                pointerMotionTotal: SIMD2<Float>(5, 0)
+            )
+        )
+        engine.update(
+            deltaTime: .milliseconds(40),
+            inputSnapshot: inputSnapshot(
+                sequence: 4,
+                pointerMotionTotal: SIMD2<Float>(99, 0)
+            )
+        )
+        engine.update(deltaTime: .milliseconds(20))
+
+        #expect(world.input.mouse.delta == SIMD2<Float>(5, 0))
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+    }
+
+    @Test func replacingWorldClearsPendingInputAndRebasesToExplicitBaseline() {
+        let engine = Engine(
+            fixedTimeStep: .milliseconds(100),
+            alwaysSystems: [],
+            systems: []
+        )
+        engine.update(
+            deltaTime: .milliseconds(50),
+            inputSnapshot: inputSnapshot(
+                sequence: 1,
+                pointerMotionTotal: SIMD2<Float>(4, 0)
+            )
+        )
+        let replacement = World()
+        let baseline = inputSnapshot(
+            session: 2,
+            sequence: 10,
+            pointerMotionTotal: SIMD2<Float>(100, 0),
+            pressedMouseButtons: [.right]
+        )
+
+        engine.replaceWorld(with: replacement, inputBaseline: baseline)
+        engine.update(deltaTime: .milliseconds(100))
+
+        #expect(replacement.input.mouse.delta == .zero)
+        #expect(replacement.input.mouse.buttons == [.right])
+        #expect(engine.accumulatedTime == .zero)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+    }
+
     @Test func appendedSystemsRunInAlwaysThenSimulationOrder() {
         let recorder = ExecutionRecorder()
         let engine = Engine(alwaysSystems: [], systems: [])

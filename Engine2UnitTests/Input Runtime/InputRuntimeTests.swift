@@ -217,4 +217,39 @@ struct InputRuntimeTests {
         #expect(firstRuntime.latestInputSnapshot.pressedMouseButtons.isEmpty)
         #expect(secondRuntime.latestInputSnapshot.pressedMouseButtons == [.right])
     }
+
+    @MainActor
+    @Test func duplicateHeldStateTransitionsRemainSetLikeButStillPublish() {
+        let runtime = InputRuntime()
+        runtime.start()
+
+        runtime.receive(.mouseButtonDown(.left, position: SIMD2<Float>(1, 1)))
+        runtime.receive(.mouseButtonDown(.left, position: SIMD2<Float>(2, 2)))
+
+        #expect(runtime.latestInputSnapshot.pressedMouseButtons == [.left])
+        #expect(runtime.latestInputSnapshot.pointerPosition == SIMD2<Float>(2, 2))
+        #expect(runtime.latestInputSnapshot.revision.sequence == 2)
+
+        runtime.receive(.mouseButtonUp(.left, position: SIMD2<Float>(3, 3)))
+        runtime.receive(.mouseButtonUp(.left, position: SIMD2<Float>(4, 4)))
+
+        #expect(runtime.latestInputSnapshot.pressedMouseButtons.isEmpty)
+        #expect(runtime.latestInputSnapshot.pointerPosition == SIMD2<Float>(4, 4))
+        #expect(runtime.latestInputSnapshot.revision.sequence == 4)
+    }
+
+    @MainActor
+    @Test func zeroMagnitudeContinuousEventsStillProduceOrderedPublications() {
+        let runtime = InputRuntime()
+        runtime.start()
+        let initial = runtime.latestInputSnapshot
+
+        runtime.receive(.mouseDragged(delta: .zero, position: .zero))
+        runtime.receive(.scroll(delta: .zero))
+
+        #expect(runtime.latestInputSnapshot.pointerMotionTotal == .zero)
+        #expect(runtime.latestInputSnapshot.scrollTotal == .zero)
+        #expect(runtime.latestInputSnapshot.revision.sequence == initial.revision.sequence + 2)
+        #expect(runtime.latestInputSnapshot != initial)
+    }
 }
