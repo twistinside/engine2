@@ -88,7 +88,7 @@ The implemented runtime boundary separates publication and projection:
 
 This accepts that any explicitly connected presentation consumer can observe fields in `SimulationPresentationSnapshot` that it does not currently use. It still cannot mutate simulation state, inspect ECS storage machinery, or access `World` directly.
 ## Render Projection
-The renderer consumes a flat ``RenderFrame`` of `RenderInstance` values projected from ``SimulationPresentationSnapshot``. ``RenderFrame.project(from:)`` is render-owned because only Render knows which destination fields and derived values it needs. The presentation snapshot already contains only entities with explicit abstract presentation state; Render filters that set for the position it needs, applies render defaults, and preserves the source ``SimulationTick`` for deterministic attribution.
+The renderer consumes a flat ``RenderFrame`` of `RenderInstance` values projected from ``SimulationPresentationSnapshot``. ``RenderFrame.project(from:)`` is render-owned because only Render knows which destination fields and derived values it needs. The presentation snapshot already contains only entities with explicit abstract presentation state; Render filters that set for the position it needs, applies render defaults, and preserves the optional source ``SimulationCursor`` for deterministic attribution across session resets.
 
 The render-oriented structs may grow to represent only the data needed to issue draw calls, such as:
 - transform data
@@ -100,7 +100,7 @@ The render-oriented structs may grow to represent only the data needed to issue 
 These projected values should be small, stable, and detached from gameplay-facing entity objects.
 The important boundary is that Simulation publishes completed observable facts while Render defines its private frame format.
 ## Snapshot Publication and Storage
-``SimulationRuntime.latestPresentationSnapshot`` is the first explicit latest-value publication slot. In the current real-time configuration, ``SimulationLoop`` causes it to be replaced after one or more fixed steps complete; slow consumers may therefore skip superseded ticks by design. In the proposed configuration model, every supported Simulation Runtime advancement path updates required publications through the Runtime boundary according to each lane's declared semantics, even when no wall-clock loop exists.
+``SimulationRuntime.latestPresentationSnapshot`` is the first explicit latest-value publication slot. Every successful exact advance replaces it after the entire requested batch completes; in the current real-time configuration, ``RealtimeAdvanceDriver`` requests those batches from elapsed wall time. Slow consumers may therefore skip superseded cursors by design. The clock-free manual assembly uses the same Runtime boundary, and future supported advancement paths must update required publications there according to each lane's declared semantics.
 
 The current model is:
 1. Simulation publishes a completed `SimulationPresentationSnapshot` through a latest-value boundary

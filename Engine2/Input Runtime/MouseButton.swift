@@ -1,5 +1,5 @@
 /// Platform-neutral mouse button identity.
-enum MouseButton: Hashable, Comparable, Sendable {
+nonisolated enum MouseButton: Hashable, Comparable, Sendable {
     case left
     case right
     case middle

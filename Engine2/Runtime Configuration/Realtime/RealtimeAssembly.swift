@@ -1,33 +1,118 @@
 /// Owns the live Runtime instances and lifecycle ordering for real-time play.
 ///
-/// This first concrete assembly preserves the application's existing topology:
-/// one Input Runtime feeds one Simulation Runtime. Future real-time input routes,
-/// advance drivers, and output bindings belong here as they gain concrete APIs;
-/// they do not become peer-discovery responsibilities of either Runtime.
+/// One Input Runtime publishes latest input, one cadence driver translates wall
+/// time into exact requests, and one Simulation Runtime commits those requests.
+/// None of the three discovers or controls a peer directly.
 @MainActor
 final class RealtimeAssembly {
     let inputRuntime: InputRuntime
     let simulationRuntime: SimulationRuntime
+    let advanceDriver: RealtimeAdvanceDriver
+
+    private var lifecycleGeneration: UInt64 = 0
+
+    /// Whether user policy currently permits real-time Simulation progress.
+    var isAdvancementEnabled: Bool {
+        advanceDriver.isAdvancementEnabled
+    }
+
+    /// Whether the permitted policy currently has a live cadence task.
+    var isAdvancementActive: Bool {
+        advanceDriver.isAdvancementEnabled && advanceDriver.isRunning
+    }
+
+    /// Authority failure requiring an App-coordinated cursor transition.
+    var advancementFault: RealtimeAdvanceDriverFault? {
+        advanceDriver.fault
+    }
 
     init(
         inputRuntime: InputRuntime,
-        simulationRuntime: SimulationRuntime
+        simulationRuntime: SimulationRuntime,
+        advanceDriver: RealtimeAdvanceDriver
     ) {
         self.inputRuntime = inputRuntime
         self.simulationRuntime = simulationRuntime
+        self.advanceDriver = advanceDriver
     }
 
-    /// Starts producers before consumers so the first Simulation sample belongs
-    /// to an active Input Runtime publication session.
+    /// Starts the publisher before the cadence connection.
+    ///
+    /// Starting a fresh driver run makes reactivation an explicit input-connection
+    /// boundary. The driver captures that publication immediately, then carries
+    /// later active input with it in the first enabled request.
     func start() {
+        beginLifecycleTransition()
         inputRuntime.start()
-        simulationRuntime.start()
+        advanceDriver.start()
     }
 
-    /// Stops consumers before producers so no Simulation poll observes a later
-    /// Input Runtime lifecycle transition during coordinated shutdown.
-    func stop() {
-        simulationRuntime.stop()
+    /// Stops the cadence connection before its publisher.
+    ///
+    /// The driver's advancement preference is retained, so app backgrounding
+    /// never turns a deliberate user pause back on.
+    func stop() async {
+        let transition = beginLifecycleTransition()
+        await advanceDriver.stopAndDrain()
+
+        // A newer start owns lifecycle policy now. Do not let completion of an
+        // older asynchronous stop shut down its Input publication session.
+        guard lifecycleGeneration == transition else {
+            return
+        }
+
         inputRuntime.stop()
+    }
+
+    /// Pauses authoritative progress while Input collection remains live.
+    func pauseAdvancement() {
+        advanceDriver.pauseAdvancement()
+    }
+
+    /// Resumes progress from a captured Input baseline on the next request.
+    func resumeAdvancement() {
+        advanceDriver.resumeAdvancement()
+
+        // A fault or unexpected sleeper failure can end cadence independently
+        // of the user's desired playback policy. If this assembly is active,
+        // resume also restores the task after policy recovery.
+        if inputRuntime.isRunning,
+           advanceDriver.fault == nil {
+            advanceDriver.start()
+        }
+    }
+
+    /// Reconstructs Simulation as one coordinated cursor and input-baseline cutover.
+    func rebuildSimulation() async {
+        let transition = beginLifecycleTransition()
+        let wasRunning = advanceDriver.isRunning
+        await advanceDriver.stopAndDrain()
+
+        guard lifecycleGeneration == transition else {
+            return
+        }
+
+        let inputBaseline = inputRuntime.latestInputSnapshot
+        simulationRuntime.rebuildWorld(inputBaseline: inputBaseline)
+        advanceDriver.synchronize(
+            to: simulationRuntime.currentCursor,
+            inputBaseline: inputBaseline
+        )
+
+        if wasRunning {
+            advanceDriver.start()
+        }
+    }
+
+    /// Advances lifecycle identity so stale asynchronous completions cannot
+    /// apply an older App-scene decision after a newer one.
+    @discardableResult
+    private func beginLifecycleTransition() -> UInt64 {
+        precondition(
+            lifecycleGeneration < .max,
+            "Real-time assembly lifecycle generation exhausted."
+        )
+        lifecycleGeneration += 1
+        return lifecycleGeneration
     }
 }

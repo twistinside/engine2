@@ -4,13 +4,20 @@ import SwiftUI
 ///
 /// The view receives runtime capabilities from the App composition root. It
 /// does not own simulation truth: the Metal scene consumes immutable
-/// presentation snapshots, while controls invoke the Simulation Runtime's
-/// explicit lifecycle API.
+/// presentation snapshots, while controls change the real-time assembly's
+/// independently owned advancement policy.
 struct ContentView: View {
-    let inputRuntime: InputRuntime
-    let simulation: SimulationRuntime
+    let realtimeAssembly: RealtimeAssembly
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
+
+    private var inputRuntime: InputRuntime {
+        realtimeAssembly.inputRuntime
+    }
+
+    private var simulation: SimulationRuntime {
+        realtimeAssembly.simulationRuntime
+    }
 
     var body: some View {
         ZStack {
@@ -26,8 +33,12 @@ struct ContentView: View {
                 toggleSimulation()
             } label: {
                 Label(
-                    simulation.state.isRunning ? "Simulation Running" : "Simulation Paused",
-                    systemImage: simulation.state.isRunning ? "pause.fill" : "play.fill"
+                    realtimeAssembly.isAdvancementActive
+                        ? "Simulation Running"
+                        : "Simulation Paused",
+                    systemImage: realtimeAssembly.isAdvancementActive
+                        ? "pause.fill"
+                        : "play.fill"
                 )
                 .font(.caption)
             }
@@ -45,10 +56,10 @@ struct ContentView: View {
     }
 
     private func toggleSimulation() {
-        if simulation.state.isRunning {
-            simulation.pauseSimulation()
+        if realtimeAssembly.isAdvancementActive {
+            realtimeAssembly.pauseAdvancement()
         } else {
-            simulation.resumeSimulation()
+            realtimeAssembly.resumeAdvancement()
         }
     }
 }

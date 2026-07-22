@@ -30,5 +30,33 @@ struct SimulationInputAssignmentTests {
         requireSendable(ingest)
     }
 
+    @Test func transitionPreservesBothImmutableBoundaryValues() {
+        let baseline = InputSnapshot.empty
+        let snapshot = InputSnapshot(
+            revision: baseline.revision.advanced(),
+            pointerPosition: SIMD2<Float>(4, 2),
+            pointerMotionTotal: SIMD2<Float>(4, 2),
+            scrollTotal: .zero,
+            pressedMouseButtons: [],
+            pressedKeys: []
+        )
+        let assignment = SimulationInputAssignment.rebaseThenIngest(
+            baseline: baseline,
+            snapshot: snapshot
+        )
+
+        guard case let .rebaseThenIngest(
+            capturedBaseline,
+            capturedSnapshot
+        ) = assignment else {
+            Issue.record("Expected a transition input assignment.")
+            return
+        }
+
+        #expect(capturedBaseline == baseline)
+        #expect(capturedSnapshot == snapshot)
+        requireSendable(assignment)
+    }
+
     private func requireSendable(_ value: some Sendable) {}
 }

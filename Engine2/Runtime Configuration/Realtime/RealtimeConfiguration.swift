@@ -7,10 +7,12 @@
 nonisolated struct RealtimeConfiguration: Equatable, Sendable {
     let fixedTimeStep: Duration
     let pollInterval: Duration?
+    let catchUpPolicy: RealtimeCatchUpPolicy
 
     init(
         fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        pollInterval: Duration? = nil
+        pollInterval: Duration? = nil,
+        catchUpPolicy: RealtimeCatchUpPolicy = .interactive
     ) {
         precondition(fixedTimeStep > .zero, "Real-time simulation requires a positive fixed time step.")
         if let pollInterval {
@@ -19,6 +21,7 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
 
         self.fixedTimeStep = fixedTimeStep
         self.pollInterval = pollInterval
+        self.catchUpPolicy = catchUpPolicy
     }
 
     /// Constructs one isolated real-time Runtime Assembly from Game Content.
@@ -27,14 +30,22 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
+            inputBaseline: inputRuntime.latestInputSnapshot,
+            fixedTimeStep: fixedTimeStep
+        )
+        let advanceDriver = RealtimeAdvanceDriver(
+            advanceTarget: simulationRuntime,
             inputSource: inputRuntime,
+            initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: fixedTimeStep,
-            pollInterval: pollInterval
+            pollInterval: pollInterval,
+            catchUpPolicy: catchUpPolicy
         )
 
         return RealtimeAssembly(
             inputRuntime: inputRuntime,
-            simulationRuntime: simulationRuntime
+            simulationRuntime: simulationRuntime,
+            advanceDriver: advanceDriver
         )
     }
 }

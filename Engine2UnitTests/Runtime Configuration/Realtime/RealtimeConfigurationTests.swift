@@ -5,7 +5,11 @@ struct RealtimeConfigurationTests {
     @Test @MainActor func makeAssemblyUsesConfigurationAndGameContent() throws {
         let configuration = RealtimeConfiguration(
             fixedTimeStep: .milliseconds(20),
-            pollInterval: .seconds(60)
+            pollInterval: .seconds(60),
+            catchUpPolicy: RealtimeCatchUpPolicy(
+                maximumStepsPerWake: SimulationStepCount(rawValue: 2),
+                backlogTreatment: .preserve
+            )
         )
         let gameContent = BasicGameContent(
             worldBuilder: RealtimeTestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
@@ -16,14 +20,16 @@ struct RealtimeConfigurationTests {
             assembly.simulationRuntime.world.positionComponents.entities.first
         )
 
-        #expect(assembly.simulationRuntime.state.fixedTimeStep == .milliseconds(20))
+        #expect(assembly.simulationRuntime.fixedTimeStep == .milliseconds(20))
+        #expect(assembly.advanceDriver.fixedTimeStep == .milliseconds(20))
+        #expect(assembly.advanceDriver.pollInterval == .seconds(60))
+        #expect(assembly.advanceDriver.catchUpPolicy == configuration.catchUpPolicy)
         #expect(
             assembly.simulationRuntime.world.positionComponents[entity]?.position ==
             SIMD3<Float>(3, 4, 5)
         )
         #expect(assembly.inputRuntime.isRunning == false)
-        #expect(assembly.simulationRuntime.state.isLoopRunning == false)
-        #expect(assembly.simulationRuntime.state.isRunning == false)
+        #expect(assembly.advanceDriver.isRunning == false)
     }
 
     @Test @MainActor func assembliesOwnIsolatedRuntimeInstances() {
@@ -38,6 +44,7 @@ struct RealtimeConfigurationTests {
         #expect(first !== second)
         #expect(first.inputRuntime !== second.inputRuntime)
         #expect(first.simulationRuntime !== second.simulationRuntime)
+        #expect(first.advanceDriver !== second.advanceDriver)
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
     }
 }

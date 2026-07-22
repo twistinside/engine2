@@ -11,6 +11,7 @@ struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var debugOptions = AppDebugOptions()
     @State private var realtimeAssembly: RealtimeAssembly
+    @State private var lifecycleRequestID: UInt64 = 0
     private let gameContent: BasicGameContent
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -28,8 +29,7 @@ struct Engine2App: App {
     var body: some Scene {
         WindowGroup {
             ContentView(
-                inputRuntime: realtimeAssembly.inputRuntime,
-                simulation: realtimeAssembly.simulationRuntime,
+                realtimeAssembly: realtimeAssembly,
                 debugOptions: debugOptions,
                 renderAssetCatalog: gameContent.renderAssetCatalog
             )
@@ -45,20 +45,33 @@ struct Engine2App: App {
             }
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
-            if isRunningTests {
-                realtimeAssembly.stop()
-                return
-            }
+            precondition(
+                lifecycleRequestID < .max,
+                "App lifecycle request identity exhausted."
+            )
+            lifecycleRequestID += 1
+            let requestID = lifecycleRequestID
 
-            // Keep the highest-level engine driver tied to app activity rather
-            // than any individual view's lifecycle.
-            switch newPhase {
-            case .active:
-                realtimeAssembly.start()
-            case .inactive, .background:
-                realtimeAssembly.stop()
-            @unknown default:
-                realtimeAssembly.stop()
+            Task { @MainActor in
+                guard lifecycleRequestID == requestID else {
+                    return
+                }
+
+                if isRunningTests {
+                    await realtimeAssembly.stop()
+                    return
+                }
+
+                // Keep the highest-level engine driver tied to app activity
+                // rather than any individual view's lifecycle.
+                switch newPhase {
+                case .active:
+                    realtimeAssembly.start()
+                case .inactive, .background:
+                    await realtimeAssembly.stop()
+                @unknown default:
+                    await realtimeAssembly.stop()
+                }
             }
         }
     }
