@@ -17,6 +17,7 @@ final class MetalInFlightSubmission: @unchecked Sendable {
     private let sceneTarget: MetalHDRSceneTarget
     private let frame: FrameResources
     private let errorState: MetalRenderErrorState
+    private let gpuFrameCompletion: GPUFrameCompletion?
 
     @MainActor
     init(
@@ -25,7 +26,8 @@ final class MetalInFlightSubmission: @unchecked Sendable {
         depthTexture: (any MTLTexture)?,
         sceneTarget: MetalHDRSceneTarget,
         frame: FrameResources,
-        errorState: MetalRenderErrorState
+        errorState: MetalRenderErrorState,
+        gpuFrameCompletion: GPUFrameCompletion? = nil
     ) {
         self.resources = resources
         self.drawable = drawable
@@ -33,6 +35,7 @@ final class MetalInFlightSubmission: @unchecked Sendable {
         self.sceneTarget = sceneTarget
         self.frame = frame
         self.errorState = errorState
+        self.gpuFrameCompletion = gpuFrameCompletion
     }
 
     /// Releases the frame slot after the queue reports GPU completion.
@@ -42,6 +45,7 @@ final class MetalInFlightSubmission: @unchecked Sendable {
     /// also releases the retained Metal object graph.
     nonisolated func complete(feedbackError: (any Error)?) {
         errorState.record(feedbackError)
+        gpuFrameCompletion?.complete(feedbackError: feedbackError)
         frame.markAvailable()
     }
 }

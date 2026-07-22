@@ -6,6 +6,7 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
     case assetLoad(AssetLoadDiagnostics)
     case frameEncode(FrameEncodeDiagnostics)
     case frameSlotWait(FrameSlotWaitDiagnostics)
+    case gpuFrame(GPUFrameDiagnostics)
     case inputReceive(InputReceiveDiagnostics)
     case inputSnapshot(InputSnapshotDiagnostics)
     case presentationSnapshot(PresentationSnapshotDiagnostics)
@@ -24,6 +25,7 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
         case .assetLoad: .assetLoad
         case .frameEncode: .frameEncode
         case .frameSlotWait: .frameSlotWait
+        case .gpuFrame: .gpuFrame
         case .inputReceive: .inputReceive
         case .inputSnapshot: .inputSnapshot
         case .presentationSnapshot: .presentationSnapshot
@@ -49,6 +51,8 @@ enum DiagnosticsSamplePayload: Codable, Equatable, Sendable {
         case let .frameEncode(payload):
             payload.durationNanoseconds
         case let .frameSlotWait(payload):
+            payload.durationNanoseconds
+        case let .gpuFrame(payload):
             payload.durationNanoseconds
         case let .presentationSnapshot(payload):
             payload.durationNanoseconds

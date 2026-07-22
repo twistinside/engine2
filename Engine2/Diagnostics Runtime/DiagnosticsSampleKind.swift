@@ -3,6 +3,7 @@ enum DiagnosticsSampleKind: String, Codable, CaseIterable, Hashable, Sendable {
     case assetLoad
     case frameEncode
     case frameSlotWait
+    case gpuFrame
     case inputReceive
     case inputSnapshot
     case presentationSnapshot

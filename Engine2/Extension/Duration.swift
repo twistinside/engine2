@@ -12,7 +12,7 @@ extension Duration {
     ///
     /// Negative injected-clock deltas clamp to zero. Extremely large values
     /// saturate instead of wrapping into a plausible short duration.
-    var diagnosticsNanoseconds: UInt64 {
+    nonisolated var diagnosticsNanoseconds: UInt64 {
         guard self > .zero else {
             return 0
         }

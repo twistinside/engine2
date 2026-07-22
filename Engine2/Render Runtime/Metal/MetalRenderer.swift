@@ -89,6 +89,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     /// Render cadence identity and latest sampled Simulation publication.
     private var nextFrameSequence = RenderFrameSequence.zero
+    private var nextSubmissionID = RenderSubmissionID.zero
     private var lastSourceTick: SimulationTick?
 
     init(
@@ -381,13 +382,22 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Metal 4 residency is not object ownership. Retain the complete store,
         // the drawable, and this pass's view-owned depth texture independently
         // of the SwiftUI coordinator until queue feedback reports completion.
+        let submissionID = nextSubmissionID
+        nextSubmissionID = submissionID.advanced()
+        let gpuFrameCompletion = diagnostics.beginGPUFrame(
+            submissionID: submissionID,
+            frameSequence: frameSequence,
+            sourceTick: renderFrame.sourceTick,
+            frameSlot: frameSlot
+        )
         let submission = MetalInFlightSubmission(
             resources: resources,
             drawable: drawable,
             depthTexture: depthTexture,
             sceneTarget: sceneTarget,
             frame: frame,
-            errorState: renderErrorState
+            errorState: renderErrorState,
+            gpuFrameCompletion: gpuFrameCompletion
         )
 
         // Feedback is the point where this renderer learns the GPU is done with
@@ -409,6 +419,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             )
         }
         guard submitted else {
+            gpuFrameCompletion.completeWithoutSubmission()
             frame.markAvailable()
             outcome.result = .abandonedAfterError
             return outcome

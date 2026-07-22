@@ -353,6 +353,57 @@ final class DiagnosticsEmitter {
         )
     }
 
+    /// Begins a GPU interval that remains valid through asynchronous feedback.
+    func beginGPUFrame(
+        submissionID: RenderSubmissionID,
+        frameSequence: RenderFrameSequence,
+        sourceTick: SimulationTick,
+        frameSlot: Int
+    ) -> GPUFrameCompletion {
+        let start = timeSource()
+        let signposter = DiagnosticsOSHandles.signposter(for: .renderGPU)
+        let state = signposter.beginInterval(
+            "GPUFrame",
+            id: signposter.makeSignpostID(),
+            "session=\(self.sessionID.rawValue.uuidString, privacy: .public) submission=\(submissionID.rawValue, privacy: .public) frame=\(frameSequence.rawValue, privacy: .public) tick=\(sourceTick.rawValue, privacy: .public) slot=\(frameSlot, privacy: .public)"
+        )
+        return GPUFrameCompletion(
+            emitter: self,
+            measurement: GPUFrameDiagnostics(
+                submissionID: submissionID,
+                frameSequence: frameSequence,
+                sourceTick: sourceTick,
+                frameSlot: frameSlot,
+                result: .notSubmitted,
+                errorType: nil,
+                durationNanoseconds: 0
+            ),
+            sessionStart: sessionStart,
+            start: start,
+            signpostState: state
+        )
+    }
+
+    /// Retains completed GPU feedback using its exact completion timestamp.
+    func recordCompletedGPUFrame(
+        _ measurement: GPUFrameDiagnostics,
+        timestamp: DiagnosticsTimestamp
+    ) {
+        if measurement.result == .failed {
+            DiagnosticsOSHandles.logger(for: .renderGPU).error(
+                "event=render_submission_failed session=\(self.sessionID.rawValue.uuidString, privacy: .public) submission=\(measurement.submissionID.rawValue, privacy: .public) frame=\(measurement.frameSequence.rawValue, privacy: .public)"
+            )
+        }
+        sink?.record(
+            DiagnosticsSample(
+                sessionID: sessionID,
+                timestamp: timestamp,
+                category: .renderGPU,
+                payload: .gpuFrame(measurement)
+            )
+        )
+    }
+
     /// Measures one app-loop poll and records its fixed-step/backlog outcome.
     func measureSimulationPoll(
         sampledWallDelta: Duration,

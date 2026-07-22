@@ -1,7 +1,7 @@
 import OSLog
 
 /// Centralized immutable handles for Engine2 unified logs and signposts.
-enum DiagnosticsOSHandles {
+nonisolated enum DiagnosticsOSHandles {
     static let subsystem = "com.example.Engine2"
 
     static func logger(for category: DiagnosticsCategory) -> Logger {
