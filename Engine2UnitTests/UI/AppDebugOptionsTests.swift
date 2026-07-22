@@ -12,5 +12,6 @@ struct AppDebugOptionsTests {
 
     @Test func diagnosticsHUDIsOptIn() {
         #expect(!AppDebugOptions().showsDiagnosticsHUD)
+        #expect(!AppDebugOptions().showsDiagnosticsDashboard)
     }
 }

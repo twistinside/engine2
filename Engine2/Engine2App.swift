@@ -65,6 +65,10 @@ struct Engine2App: App {
             CommandMenu("Debug") {
                 Toggle("Show Input History", isOn: $debugOptions.showsInputHistory)
                 Toggle("Show Diagnostics HUD", isOn: $debugOptions.showsDiagnosticsHUD)
+                Toggle(
+                    "Show Diagnostics Dashboard",
+                    isOn: $debugOptions.showsDiagnosticsDashboard
+                )
 
                 Picker("Render Output", selection: $debugOptions.renderOutputMode) {
                     Text("Surface").tag(RenderOutputMode.surface)

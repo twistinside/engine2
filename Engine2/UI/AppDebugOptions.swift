@@ -2,5 +2,6 @@
 struct AppDebugOptions {
     var showsInputHistory = true
     var showsDiagnosticsHUD = false
+    var showsDiagnosticsDashboard = false
     var renderOutputMode = RenderOutputMode.surface
 }

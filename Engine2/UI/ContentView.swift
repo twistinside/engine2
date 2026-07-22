@@ -50,6 +50,12 @@ struct ContentView: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
+
+            if debugOptions.showsDiagnosticsDashboard {
+                DiagnosticsDashboardHost(source: diagnosticsSource)
+                    .padding(32)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 
