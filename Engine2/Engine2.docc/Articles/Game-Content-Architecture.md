@@ -264,6 +264,7 @@ The first extraction should move example content out of reusable engine targets 
 
 - <doc:Runtime-Communication>
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Configurations-and-Advancement>
 - <doc:Engine-Architecture>
 - <doc:Rendering-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>

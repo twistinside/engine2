@@ -23,6 +23,7 @@ At the moment, the codebase already includes:
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Configurations-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 - <doc:Engine-Architecture>

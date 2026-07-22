@@ -100,7 +100,7 @@ The render-oriented structs may grow to represent only the data needed to issue 
 These projected values should be small, stable, and detached from gameplay-facing entity objects.
 The important boundary is that Simulation publishes completed observable facts while Render defines its private frame format.
 ## Snapshot Publication and Storage
-``SimulationRuntime.latestPresentationSnapshot`` is the first explicit latest-value publication slot. ``SimulationLoop`` replaces it after one or more fixed steps complete; slow consumers may therefore skip superseded ticks by design.
+``SimulationRuntime.latestPresentationSnapshot`` is the first explicit latest-value publication slot. In the current real-time configuration, ``SimulationLoop`` causes it to be replaced after one or more fixed steps complete; slow consumers may therefore skip superseded ticks by design. In the proposed configuration model, every supported Simulation Runtime advancement path updates required publications through the Runtime boundary according to each lane's declared semantics, even when no wall-clock loop exists.
 
 The current model is:
 1. Simulation publishes a completed `SimulationPresentationSnapshot` through a latest-value boundary
@@ -118,6 +118,8 @@ The intended model is:
 - Render projects the latest available value into render data
 - rendering consumes the latest completed front buffer when a draw is requested
 This allows zero, one, or many simulation ticks between draws without making draw cadence the owner of simulation state.
+
+That latest-value model is appropriate for a screen surface. An offline render workflow instead needs an exact immutable snapshot correlated with its advance request and may render it for minutes, many samples, or several cameras before an App-owned coordinator requests the next Simulation tick. Render completion may therefore gate further advancement without giving the Render Runtime ownership of Simulation. See <doc:Runtime-Configurations-and-Advancement>.
 
 Rendering is snapshot-only. It does not rely on receiving simulation events. A transient visual occurrence must therefore remain represented in snapshot-visible presentation state long enough for a renderer that skips intermediate snapshots to observe or converge past it correctly.
 ## Batching
@@ -214,6 +216,7 @@ This rendering approach fits the broader engine direction:
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Configurations-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 - <doc:PBR-Implementation-Plan>

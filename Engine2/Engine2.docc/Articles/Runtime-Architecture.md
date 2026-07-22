@@ -6,7 +6,7 @@ This article defines the intended top-level application architecture for Engine2
 
 Partially implemented direction.
 
-The current code implements ``InputRuntime`` as the platform-input lifecycle and latest-snapshot publisher, and ``SimulationRuntime`` as the authoritative lifecycle boundary around ``Engine``, ``World``, and ``SimulationLoop``. A complete `RenderRuntime` remains proposed; ``RenderFrame`` and `MetalRenderer` implement important parts of that responsibility today.
+The current code implements ``InputRuntime`` as the platform-input lifecycle and latest-snapshot publisher, and ``SimulationRuntime`` as the authoritative lifecycle boundary around ``Engine``, ``World``, and ``SimulationLoop``. This hard-wires the current real-time configuration. Separating configuration-selected advance authority from Simulation-owned tick execution remains proposed. A complete `RenderRuntime` also remains proposed; ``RenderFrame`` and `MetalRenderer` implement important parts of that responsibility today.
 
 ## Runtimes Are the Top-Level Application Objects
 
@@ -37,21 +37,32 @@ Game-specific entities, initial world construction, presentation descriptions, a
 
 For example, Game Content may provide a world builder to the Simulation Runtime, mesh and material catalogs to the Render Runtime, and sound catalogs plus event-presentation rules to the Audio Runtime. See <doc:Game-Content-Architecture> for the canonical content boundary and proposed construction model.
 
+## Runtime Configurations Assemble Runtimes
+
+A **Runtime Configuration** is an App-owned recipe for selecting runtime implementations, typed connections, advancement policy, lifecycle policy, and per-connection delivery policy for one situation. An App-owned live **Runtime Assembly** strongly retains the instances and connection lifetimes produced from that recipe on the App's behalf.
+
+The current application is one real-time configuration: platform input, wall-clock advancement, authoritative Simulation, and screen presentation. Offline capture, MCP-driven stepping, headless servers, replay, tests, and alternate presentation should use different explicit assemblies without changing what a Simulation tick means.
+
+See <doc:Runtime-Configurations-and-Advancement> for the proposed configuration vocabulary, advance boundary, scenario space, feasibility assessment, and migration path.
+
 ## The Simulation Runtime Is Authoritative
 
 The runtimes are peers in ownership and encapsulation, but they are not symmetric in purpose. The **Simulation Runtime** is the authoritative runtime for gameplay state.
 
 The Simulation Runtime owns:
 
-- ``Engine`` and fixed-step accumulation
+- ``Engine``, the fixed-step definition, and exact step execution
 - ``World`` and authoritative ECS state
 - ECS components and resources
 - scheduled ``PSystem`` implementations
-- simulation ticks
+- simulation session and tick identity
+- completed Simulation-owned publications
 
 That ownership includes the invariant system schedule. Position, orientation, input consumption, and other mechanics required for a valid simulation remain Simulation Runtime implementation. Future consumer-defined behavior may enter through deliberate extension points, but Game Content does not replace or assemble the simulation's required foundation.
 
 Other runtimes may provide inputs to the Simulation Runtime or project its outputs, but they do not reach into `World` or mutate simulation state directly.
+
+Owning tick execution does not require Simulation to own the policy that decides when a tick is requested. The current ``SimulationLoop`` and ``Engine/update(deltaTime:inputSnapshot:)`` keep wall-clock polling, elapsed-time accumulation, and exact execution together. The proposed configuration model moves pacing and catch-up policy into an App-owned real-time driver while preserving the Simulation Runtime as the sole executor and publisher of completed ticks.
 
 This makes the Simulation Runtime first among peers: it is the semantic center of the game without becoming a global owner of the other runtimes. The Simulation Runtime must remain valid when Render, Audio, Achievement, Storage, or Network runtimes are absent. Outputs for absent consumers simply go unobserved.
 
@@ -153,13 +164,15 @@ Directed request-and-result workflows are still valid when a dependency is inten
 There is no single universal application frame.
 
 - Input arrives according to platform event delivery.
-- The Simulation Runtime advances in fixed simulation ticks.
+- The Simulation Runtime executes fixed simulation ticks when the active advance authority requests progress.
 - The Render Runtime submits work according to presentation cadence.
 - Audio, Network, and Storage runtimes may be event-driven or use their own scheduling policies.
 
 One host update may therefore collect input, execute zero or several simulation ticks, publish one new simulation presentation snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
 
-The word **tick** refers specifically to one fixed Simulation Runtime simulation advancement. A render frame refers to one presentation attempt. An input snapshot is a revisioned latest value defined by the Input Runtime. ``SimulationLoop`` may sample several input revisions before a tick or the same revision across several host polls; ``Engine`` imports a sampled value only when it actually begins a fixed step.
+The word **tick** refers specifically to one fixed Simulation Runtime simulation advancement. A render frame refers to one presentation attempt. An input snapshot is a revisioned latest value defined by the Input Runtime. In the current real-time implementation, ``SimulationLoop`` may sample several input revisions before a tick or the same revision across several host polls; ``Engine`` imports a sampled value only when it actually begins a fixed step.
+
+Other configurations may request exact ticks after an offline render completes, when an MCP caller is ready, after a network input barrier, or as fast as a deterministic test permits. Wall time, render time, network time, output-media time, and simulation time remain distinct. The configuration assigns advance authority; Simulation retains tick meaning and mutation authority.
 
 ## ECS Systems Live Inside the Simulation Runtime
 
@@ -193,8 +206,9 @@ The current implementation maps onto the proposed model as follows:
 | `InputMetalView` | Platform adapter that submits `InputEvent` values through `PInputEventSink`; it does not call Simulation directly |
 | `InputSnapshot`, `InputRevision`, and `PInputSnapshotSource` | Implemented revisioned latest-value boundary containing held state plus cumulative pointer-motion and scroll totals |
 | `InputState` and Simulation input systems | Simulation-owned fixed-tick interpretation, action mapping, history, and transient cleanup after snapshot ingestion |
-| ``SimulationRuntime`` and ``SimulationLoop`` | Implemented Simulation Runtime lifecycle and host-time polling |
-| ``Engine`` | Fixed-step scheduler inside the Simulation Runtime |
+| ``SimulationRuntime`` | Implemented Simulation Runtime lifecycle, authoritative state, and completed publication; currently also owns one concrete real-time loop |
+| ``SimulationLoop`` | Implemented host-time polling and input sampling; proposed to become the current configuration's App-owned real-time advance driver |
+| ``Engine`` | Fixed-step scheduler inside the Simulation Runtime; currently also owns elapsed-time accumulation used by the real-time path |
 | ``World`` | Authoritative simulation state inside the Simulation Runtime |
 | ``SimulationPresentationSnapshot`` | Latest completed publisher-owned Simulation Runtime presentation value |
 | ``RenderFrame`` | Render Runtime-owned private projection derived from one simulation snapshot and labeled with its source tick |
@@ -205,6 +219,7 @@ Future changes should introduce the remaining boundaries incrementally. Ordered 
 ## Related Direction
 
 - <doc:Runtime-Communication>
+- <doc:Runtime-Configurations-and-Advancement>
 - <doc:Game-Content-Architecture>
 - <doc:Engine-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>
