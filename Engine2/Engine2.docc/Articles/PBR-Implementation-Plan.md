@@ -19,6 +19,13 @@ remains a fixed Render-owned validation input. A deterministic six-sphere scene
 exercises the ordinary Game Content-to-Simulation-to-Render path; semantic
 lighting is not yet a Simulation or snapshot concept.
 
+The production PBR/HDR encoding path now lives in view-independent
+``MetalFrameEncoder``. A render integration test drives that encoder through
+caller-owned offscreen textures, residency, queue feedback, and readback with
+no view or drawable. This validates reuse of the production path, but it does
+not establish a production offscreen request API, artifact/JPEG pipeline, or
+asynchronous Render worker.
+
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
 working without code from the next milestone.
@@ -332,13 +339,13 @@ system:
   `MaterialID`. They contain no factors, compact GPU indices, buffers, or Metal
   objects. Snapshot capture copies the identity by value, so a later ECS change
   cannot alter an already published presentation.
-- `MetalResourceStore` retains the validated CPU descriptions. `MetalRenderer`
-  waits for a frame slot, samples the newest completed presentation, and
-  resolves the bounded submitted prefix before resetting, writing, or encoding
-  mutable GPU state. The slot then packs base color plus metallic and roughness
-  into each draw's existing `GPUInstance`. The 208-byte record remains stable
-  through the frame-ring completion rule; no separate material allocation or
-  residency set exists.
+- `MetalResourceStore` retains the validated CPU descriptions. ``MetalRenderer``
+  waits for a screen frame slot and samples the newest completed presentation;
+  ``MetalFrameEncoder`` resolves the bounded submitted prefix before the caller
+  resets, writes, or encodes mutable GPU state. The encoder then packs base
+  color plus metallic and roughness into each draw's existing `GPUInstance`.
+  The 208-byte record remains stable through the caller's frame-completion rule;
+  no separate material allocation or residency set exists.
 - `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
   directional light is transformed into view space once per frame, while the
   fragment stage reads the current draw's material from its instance record.

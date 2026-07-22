@@ -7,7 +7,8 @@ The current codebase already has:
 - ``RenderViewpoint`` plus `PRenderViewpointSource` as the immutable output-specific camera boundary
 - ``RenderFrame.project(from:viewpoint:)`` as the Render Runtime-owned private projection, preserving source-cursor and optional viewpoint attribution
 - ``MetalSceneView`` as the SwiftUI/MetalKit bridge
-- ``MetalRenderer`` as the backend-specific Metal 4 renderer that samples presentation and viewpoint sources independently
+- ``MetalFrameEncoder`` as the view-independent owner of reusable Metal frame preparation and encoding
+- ``MetalRenderer`` as the thin MetalKit adapter that samples presentation and viewpoint sources, owns screen submission/presentation policy, and delegates encoding
 - ``ScreenViewpointController`` as the App-owned free-orbit controller for the current screen output
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
   command queue, typed state caches, decoded models, and frame-resource ring
@@ -15,7 +16,7 @@ The current codebase already has:
   frame-allocation residency sets
 - typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
   between Game Content descriptions and renderer-owned resources
-The broader ideas below describe where that path is expected to grow.
+The production frame encoder is also exercised by a real render integration test using caller-owned offscreen textures, explicit residency and queue feedback, and texture readback without an `MTKView` or `CAMetalDrawable`. This proves the encoding boundary; it does not yet provide a production `RenderRuntime`, offscreen request/result API, artifact/JPEG contract, or asynchronous render worker. The broader ideas below describe where that path is expected to grow.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
 See <doc:PBR-Implementation-Plan> for the staged path from the current visible
@@ -79,7 +80,7 @@ packaged `Ball.usdz` asset and maps its closed material identities to
 `PBRMaterialDescription` values. The Render Runtime's `MetalResourceStore`
 receives that catalog and privately owns the validated descriptions, decoded
 meshes, buffers, compiled state, and residency organization consumed by
-``MetalRenderer``.
+``MetalFrameEncoder`` and its callers.
 ## Rendering Projects Published Simulation State
 The implemented runtime boundary separates publication and projection:
 
@@ -133,6 +134,8 @@ This allows zero, one, or many simulation ticks between draws without making dra
 
 It also allows the current screen controller to change a viewpoint while ``RealtimeAdvanceDriver`` is paused. A later draw can then use a higher viewpoint revision with the same source Simulation cursor and entity presentation. The renderer neither requests a tick nor reads raw input to make that happen.
 
+The MetalKit screen adapter is only one caller of the reusable encoding boundary. A render integration test constructs the production ``MetalFrameEncoder``, supplies its own offscreen color, depth, and destination textures and `FrameResources`, begins a Metal 4 command buffer, manages residency and feedback, and reads back the rendered destination without a view or drawable. A future production offscreen caller still needs request validation, target-allocation policy, submission lifetime, asynchronous completion, readback and encoding, artifact metadata, and failure semantics.
+
 That latest-value model is appropriate for a screen surface. An offline render workflow instead needs an exact immutable snapshot correlated with its advance request and may render it for minutes, many samples, or several cameras before an App-owned coordinator requests the next Simulation tick. Render completion may therefore gate further advancement without giving the Render Runtime ownership of Simulation. See <doc:Runtime-Configurations-and-Advancement>.
 
 Rendering is snapshot-only. It does not rely on receiving simulation events. A transient visual occurrence must therefore remain represented in snapshot-visible presentation state long enough for a renderer that skips intermediate snapshots to observe or converge past it correctly.
@@ -173,7 +176,7 @@ The store eagerly creates the resources required by the current renderer:
 Each backend identity is a closed Render Runtime enum whose case determines the
 complete resource definition. The store builds each case once and retains the
 result for lookup. Required resources are compiled before drawing begins, so
-``MetalRenderer.draw(in:)`` never performs shader or pipeline compilation.
+``MetalFrameEncoder`` performs deterministic lookup rather than shader or pipeline compilation while preparing or encoding a frame.
 Catalog or renderer construction failures remain observable through the
 `MetalSceneView` coordinator's latest render error rather than being discarded
 when the bridge cannot create a renderer.
@@ -181,6 +184,21 @@ when the bridge cannot create a renderer.
 Future vertex layouts, function constants, blend state, and attachment
 variants should become explicit enum cases or deliberately modeled variant
 keys instead of silently sharing a pipeline identity.
+
+## View-Independent Metal Frame Encoding
+
+``MetalFrameEncoder`` owns the backend work shared by screen and future offscreen callers:
+
+- authored-material preflight for the bounded submitted instance prefix
+- the fixed `rgba16Float` scene, `depth32Float` depth, and `bgra8Unorm_srgb` destination format contract
+- `FrameResources` buffer packing
+- model, diagnostic, depth, and presentation pipeline and argument-table selection
+- the ordered HDR scene and presentation pass
+- model draw iteration and binding
+
+The caller supplies one prepared ``RenderFrame``, caller-owned scene-color, depth, and destination textures with matching positive dimensions and formats, an available `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. The encoder records work but does not sample Simulation or viewpoint sources, choose or wait for a frame-ring slot, acquire an `MTKView` or `CAMetalDrawable`, begin, end, or submit a command buffer, manage target residency or completion feedback, present an image, or decide whether an error is terminal.
+
+``MetalRenderer`` now owns exactly those screen-specific policies: latest-source and viewpoint sampling, ring-slot arbitration, drawable and depth acquisition, target and residency hookup, queue submission and feedback lifetime, drawable presentation, and terminal screen error state. `MetalResourceStore.defaultFrameCount` and compiled target formats no longer depend on the adapter; the store owns its default ring cardinality and compiles against ``MetalFrameEncoder``'s format contract.
 
 ## Metal 4 Residency Sets
 
@@ -202,6 +220,8 @@ attached to the exact command buffer that uses it, and the in-flight submission
 token retains the target and set until queue feedback completes. Resize replaces
 a slot's target only after that slot is no longer in flight.
 
+Those are current screen-caller lifetime choices, not responsibilities hidden inside ``MetalFrameEncoder``. The offscreen integration test supplies and retains its own destination and depth targets and committed residency set, attaches both caller- and frame-owned sets, releases the frame slot from explicit queue feedback, and performs readback only after completion.
+
 MetalKit and Core Animation continue to own their drawable-related allocations.
 Their view and layer residency sets are registered with the command queue when
 the `MTKView` is configured rather than copied into an engine-owned set.
@@ -218,9 +238,11 @@ A likely long-term frame flow is:
 5. render items are sorted or batched
 6. private front and back render buffers swap
 7. Render constructs tiled or clustered light lists for the frozen frame
-8. opaque surfaces are shaded through the Forward+ PBR path
-9. ordered forward layers such as clouds, atmospheres, rings, and transparency are composed
-10. shared post-processing produces the presented image
+8. a caller selects targets, frame resources, submission lifetime, and output policy
+9. ``MetalFrameEncoder`` prepares and records the reusable GPU work
+10. opaque surfaces are shaded through the Forward+ PBR path
+11. ordered forward layers such as clouds, atmospheres, rings, and transparency are composed
+12. shared post-processing produces the caller-owned destination image
 This is the intended path toward deterministic simulation, cleaner render isolation, and later optimizations such as culling and instancing.
 ## Related Direction
 This rendering approach fits the broader engine direction:

@@ -41,7 +41,7 @@ final class MetalHDRFramePass {
             descriptor: sceneRenderPassDescriptor,
             options: []
         ) else {
-            throw MetalRendererError.missingSceneEncoder
+            throw MetalFrameEncoderError.missingSceneEncoder
         }
 
         encodeScene(sceneEncoder)
@@ -62,7 +62,7 @@ final class MetalHDRFramePass {
             outputMode: outputMode,
             into: commandBuffer
         ) else {
-            throw MetalRendererError.missingPresentationEncoder
+            throw MetalFrameEncoderError.missingPresentationEncoder
         }
     }
 
@@ -81,7 +81,7 @@ final class MetalHDRFramePass {
         descriptor.depthAttachment.texture = depthTexture
         descriptor.depthAttachment.loadAction = .clear
         descriptor.depthAttachment.storeAction = .dontCare
-        descriptor.depthAttachment.clearDepth = MetalRenderer.clearDepth
+        descriptor.depthAttachment.clearDepth = MetalFrameEncoder.clearDepth
         return descriptor
     }
 }

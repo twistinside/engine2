@@ -11,6 +11,8 @@ struct MetalResourceStoreTests {
             renderAssetCatalog: .materialOnlyTestCatalog
         )
 
+        #expect(store.frames.count == MetalResourceStore.defaultFrameCount)
+
         let library = try store.shaderLibrary(for: .engine)
         let pbrPipeline = try store.renderPipelineState(for: .modelPBR)
         let normalPipeline = try store.renderPipelineState(

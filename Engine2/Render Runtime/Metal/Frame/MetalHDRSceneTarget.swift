@@ -26,7 +26,7 @@ final class MetalHDRSceneTarget {
         )
 
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.sceneColorPixelFormat,
+            pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
             width: width,
             height: height,
             mipmapped: false
