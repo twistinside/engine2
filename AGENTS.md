@@ -157,23 +157,31 @@ Current example ownership:
   - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
   - `PSimulationPresentationSource` exposes that latest-value publication as a read-only capability without exposing the wider Simulation Runtime API.
   - Ordinary live publication uses latest-value semantics; retained replay history remains an explicit future recorder concern.
-- `Engine2/Engine2/Render Runtime/*.swift`
-  - `RenderFrame.project(from:)` converts a `SimulationPresentationSnapshot` into private render instances and preserves the source tick identity.
+- `Engine2/Engine2/Render Runtime/Asset/*.swift`
   - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values.
-  - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
+- `Engine2/Engine2/Render Runtime/Frame/*.swift`
+  - `RenderFrame.project(from:)` converts a `SimulationPresentationSnapshot` into private render instances and preserves the source tick identity.
+- `Engine2/Engine2/Render Runtime/Metal/**/*.swift`
   - `MetalRenderer` consumes `RenderFrame` using backend-specific state retained by its `MetalResourceStore`.
-- `Engine2/Engine2/Render Runtime/Resource/*.swift`
+  - Per-frame state, render passes, backend resources, and Swift/Metal shader contracts live in focused subfolders beneath the Metal backend.
+- `Engine2/Engine2/Render Runtime/Metal/Resource/*.swift`
   - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, typed shader/pipeline/depth/argument-table caches, validated authored material descriptions, decoded models, and frame resources.
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
+- `Engine2/Engine2/Render Runtime/View/*.swift`
+  - `MetalSceneView` bridges SwiftUI to MetalKit input and drawing.
+- `Engine2/Engine2/UI/ContentView.swift`
+  - Root App UI that composes independently owned runtime capabilities and app-level controls.
 - `Engine2/Engine2/UI/Input/InputMetalView.swift`
   - Platform adapter that translates AppKit events into `InputEvent` values and submits them through `PInputEventSink`.
 - `Engine2UnitTests/`
   - Fast, deterministic Swift Testing coverage directly exercises individual production types and methods.
   - The unit-test tree mirrors the app/source tree where practical.
+  - Render contract, frame, presentation, and CPU-side shader-layout tests mirror their production folders under `Engine2UnitTests/Render Runtime/`.
 - `Engine2RenderTests/`
   - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
   - Test-only Metal renderers and GPU submission helpers remain private to this target instead of compiling into the unit-test bundle.
+  - Render integration tests mirror the Metal backend folders, with shared test-only infrastructure grouped under `Engine2RenderTests/Render Runtime/Metal/Support/`.
 ### Folder Organization
 New simulation systems are added to `Engine2/Engine2/Simulation Runtime/Engine/System/<system name>.`
 When a new system is created, the requisite components, resources, and protocols will be added in their own subfolders. The `System` folders are organized in funcitonal blocks to ensure proximity of files used in that `System`.
