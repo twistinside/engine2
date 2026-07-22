@@ -13,6 +13,7 @@ The current code already reflects the core ownership split:
 - ``MetalRenderer`` owns the current screen's source sampling, frame-ring slot, drawable, submission, presentation, and terminal error policy
 - ``POffscreenRenderTarget`` defines exact asynchronous request/outcome ownership without exposing backend resources
 - ``MetalOffscreenRenderRuntime`` owns dedicated one-slot Metal resources, request-scoped targets, queue-feedback lifetime, and detached raw readback without owning a source, Simulation advancement, view, drawable, or artifact encoder
+- ``JPEGArtifactEncoder`` owns no mutable resource or Runtime lifecycle; it transforms detached raw results into detached JPEG artifacts while preserving exact provenance
 - ``RenderFrame`` acts as the current translation boundary into presentation data
 ## Resource Scope Follows Runtime Ownership
 Engine2 should treat `resource` as a storage, cardinality, and lifetime role inside an owning runtime, not as the primary naming vocabulary for every type.
@@ -84,6 +85,8 @@ The current code separates simulation publication from render projection:
 `World` should not directly emit Metal-facing structs as part of its core API, and the renderer should not read live gameplay state during drawing. The Render Runtime owns the destination projection while Simulation remains unaware of render-specific fields and backend choices.
 
 The exact offscreen branch replaces steps 2–3 with one immutable ``OffscreenRenderRequest`` that already contains the completed ``SimulationPresentationSnapshot``, explicit ``RenderViewpoint``, and settings. ``POffscreenRenderTarget`` returns a correlated outcome rather than consulting replaceable latest-value slots. A successful result owns detached, tightly packed, top-left, opaque BGRA8-sRGB bytes and echoes the request identity, source cursor, complete viewpoint, and settings.
+
+``JPEGArtifactEncoder`` consumes that detached value afterward. Its ``RenderedImageArtifact`` owns independent encoded data and repeats the exact request, cursor, complete viewpoint, and render settings together with the JPEG settings. Because the encoder is stateless and nonisolated, the caller selects its execution context. Encoding failure does not affect either Runtime and can retry from the same raw result without ticking or rerendering.
 ## Draw Cadence Is Separate From Simulation Cadence
 Simulation stepping and drawing should not be treated as the same event.
 Under a fixed-step engine:
@@ -94,7 +97,7 @@ In a Metal view-driven application, the view still dictates when a drawable is a
 
 That display rule belongs to ``MetalRenderer``, not ``MetalFrameEncoder``. The encoder can record the same production frame work into matching caller-owned offscreen targets, but it deliberately has no policy for source selection, surface availability, frame-slot arbitration, queue submission, completion, presentation, readback, or artifact encoding. ``MetalOffscreenRenderRuntime`` supplies the implemented exact target, submission, cancellation, completion, and raw-readback policy without adding those responsibilities to the encoder.
 
-This display-driven rule is not the only presentation configuration. An offline coordinator may request one exact Simulation advancement, pass the resulting immutable snapshot and its explicit viewpoint to ``POffscreenRenderTarget``, and deliberately wait for rendering and artifact encoding before requesting more progress. The coordinator owns that directed workflow; Render still does not own or mutate Simulation. Raw exact request/result rendering is implemented. The capture coordinator, dedicated render actor or worker, pooled targets, HDR master and sample accumulation, artifact metadata, persistence, and JPEG or PNG pipeline remain proposed. See <doc:Runtime-Configurations-and-Advancement>.
+This display-driven rule is not the only presentation configuration. An offline coordinator may request one exact Simulation advancement, pass the resulting immutable snapshot and its explicit viewpoint to ``POffscreenRenderTarget``, and deliberately wait for rendering and artifact encoding before requesting more progress. The coordinator owns that directed workflow; Render still does not own or mutate Simulation. Raw exact request/result rendering and stateless JPEG derivation are implemented. The capture coordinator, dedicated render actor or worker, pooled targets, HDR master and sample accumulation, PNG encoding, expanded artifact metadata, persistence, and `ArtifactSink` remain proposed. See <doc:Runtime-Configurations-and-Advancement>.
 The intended presentation model is:
 1. simulation updates `World`
 2. Simulation publishes a new immutable simulation presentation snapshot

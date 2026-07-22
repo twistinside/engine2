@@ -16,7 +16,9 @@ The first view-independent Metal encoding seam is implemented as ``MetalFrameEnc
 
 The first production offscreen Runtime boundary is also implemented. ``POffscreenRenderTarget`` accepts an exact immutable snapshot, explicit viewpoint, and settings asynchronously. ``MetalOffscreenRenderRuntime`` applies configurable limits and a single-flight busy gate, strictly validates presentation and drawable geometry, owns dedicated one-slot resources and queue-feedback lifetime, and returns a detached raw BGRA8-sRGB result with exact provenance without sampling a source, advancing Simulation, or acquiring a view or drawable.
 
-Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, offline capture coordination, artifact/JPEG or PNG output, HDR-master and quality accumulation, a dedicated asynchronous render worker, MCP, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
+The first encoded artifact transformation is implemented independently. ``JPEGArtifactEncoder`` is a stateless, nonisolated CPU value that synchronously derives detached JPEG data from a completed ``OffscreenRenderResult`` while preserving its request, cursor, complete viewpoint, and render settings alongside the selected JPEG settings. Its caller chooses the execution context. Encoding failure can retry against the same raw result without another Simulation tick or render request.
+
+Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, offline capture coordination, PNG output, HDR-master and quality accumulation, artifact persistence and sinks, a dedicated asynchronous render worker, MCP, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
 
 The overall feasibility is high. The work is primarily a separation of pacing, coordination, and exact-result delivery from simulation execution rather than a replacement of the ECS core.
 
@@ -99,6 +101,8 @@ An **Advance Driver** translates one cadence source into Simulation advance requ
 A **Coordinator** deliberately sequences request/result operations across several narrow runtime capabilities. An offline capture coordinator can advance Simulation, render the exact completed snapshot, encode an artifact, and then request the next tick.
 
 Not every small driver or coordinator earns a Runtime boundary. An MCP server with transport state, request lifetime, and an independent lifecycle plausibly earns `MCPRuntime`; a small deterministic test driver remains an ordinary helper. The existing Runtime criteria still apply.
+
+Likewise, a stateless formatter does not become a Runtime merely because a coordinator uses it. The implemented ``JPEGArtifactEncoder`` has no lifecycle or cadence and selects no actor, queue, task, or worker; the coordinating caller owns that execution policy.
 
 ### Simulation Cursor
 
@@ -528,13 +532,16 @@ script, replay, or authored timeline
              +-- render(snapshot, viewpoint, settings) -> POffscreenRenderTarget
              <-- exact raw image outcome ------------+
              |
-             +-- encode / write -------------------> ArtifactSink
+             +-- encode(raw, JPEG settings) -------> JPEGArtifactEncoder
+             <-- detached JPEG + provenance --------+
+             |
+             +-- persist --------------------------> ArtifactSink (proposed)
              <-- completion -------------------------+
              |
              +-- serial policy may permit the next required step
 ```
 
-The exact raw render operation in this graph is implemented by ``MetalOffscreenRenderRuntime``. It accepts only the supplied immutable scene and explicit viewpoint, enforces its configured size/pixel policy, and returns a detached image after real queue feedback. It does not yet implement `OfflineCaptureCoordinator` or `ArtifactSink`.
+The exact raw render operation in this graph is implemented by ``MetalOffscreenRenderRuntime``. It accepts only the supplied immutable scene and explicit viewpoint, enforces its configured size/pixel policy, and returns a detached image after real queue feedback. The JPEG transformation is also implemented by ``JPEGArtifactEncoder`` as a separate synchronous CPU operation over that result. Neither component implements `OfflineCaptureCoordinator`, persistence, or `ArtifactSink`, and the caller decides where the stateless encoding work executes.
 
 A future coordinator can hold Simulation at one cursor while Render:
 
@@ -543,6 +550,8 @@ A future coordinator can hold Simulation at one cursor while Render:
 - produces multiple resolutions or diagnostic passes
 - encodes a high-dynamic-range master and a smaller JPEG observation proxy
 - retries an export without re-running Simulation
+
+The current JPEG layer proves the simplest retry boundary: once raw rendering completes, encoding may fail and retry against the same detached ``OffscreenRenderResult`` without another tick or rerender. HDR masters, accumulation, and persistence in the examples above remain proposed.
 
 This can be intentional backpressure between complete operations, not shared ownership. A bounded serial job waits for its artifact before requesting more progress. Another configuration may retain several exact immutable snapshots and pipeline bounded render jobs while Simulation advances ahead. GPU work always proceeds from immutable values and never holds a lock on ``World``; serial versus pipelined behavior is an explicit configuration policy.
 
@@ -717,8 +726,11 @@ Codex tool call
       +-- render(snapshot, viewpoint, settings) -> POffscreenRenderTarget
       <-- detached raw image + provenance ---------+
       |
-      +-- encode / persist ----------------------> ArtifactSink
-      <-- JPEG / PNG artifact ---------------------+
+      +-- encode(raw, settings) -----------------> JPEGArtifactEncoder
+      <-- detached JPEG artifact ------------------+
+      |
+      +-- persist -------------------------------> ArtifactSink (proposed)
+      <-- stored reference ------------------------+
       |
       +-- correlated tool result ----------------> MCPRuntime --> Codex
 ```
@@ -748,9 +760,9 @@ Remote tools retry, callers disconnect, and requests can overlap. An agent coord
 - serialization so input, advancement, inspection, and capture from different clients cannot interleave accidentally
 - artifact metadata containing at least the Simulation cursor, resolved viewpoint identity or revision, render-settings identity, and content identity
 
-An advance-and-render operation is a workflow, not a rollback transaction. If Simulation advances successfully and JPEG encoding later fails, the response should report the new cursor. The coordinator can retry rendering the retained exact snapshot instead of silently advancing again.
+An advance-and-render operation is a workflow, not a rollback transaction. If Simulation advances successfully and JPEG encoding later fails, the response should report the new cursor. Because the raw offscreen result is detached, a coordinator can retry ``JPEGArtifactEncoder`` against that same value without silently advancing or rerendering. If it did not retain the raw result, it may render the retained exact snapshot again, still without advancing Simulation.
 
-JPEG is valuable as a Codex-readable observation, but it should not be the only machine-readable output. A purpose-specific agent or inspection snapshot can expose structured state, selected events, terminal conditions, or deterministic hashes without turning ``SimulationPresentationSnapshot`` into a copy of all ECS state.
+JPEG is now available as a local Codex-readable artifact transformation, but no MCP Runtime or agent-session coordinator currently exposes it. JPEG also should not be the only machine-readable output. A purpose-specific agent or inspection snapshot can expose structured state, selected events, terminal conditions, or deterministic hashes without turning ``SimulationPresentationSnapshot`` into a copy of all ECS state.
 
 ## Broader Configuration Space
 
@@ -960,6 +972,7 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | `MetalRenderer` and `MetalSceneView` | Thin current screen adapter: samples presentation and viewpoint sources, arbitrates the ring slot and drawable, submits, presents, and owns terminal screen error policy while delegating reusable encoding |
 | ``POffscreenRenderTarget``, ``OffscreenRenderRequest``, and ``OffscreenRenderOutcome`` | Implemented backend-neutral exact asynchronous boundary requiring one immutable presentation snapshot, explicit viewpoint, and settings, with correlated completion, refusal, failure, and post-submission cancellation outcomes |
 | ``MetalOffscreenRenderRuntime`` | Implemented production raw offscreen Runtime with configurable limits, dedicated one-slot resources, explicit single-flight refusal, strict presentation/model/material/drawable-geometry/capacity preflight, real queue-feedback lifetime, terminal GPU-failure latching, and detached top-left BGRA8-sRGB readback; samples no source and advances no Simulation |
+| ``JPEGArtifactEncoder``, ``JPEGEncodingSettings``, and ``RenderedImageArtifact`` | Implemented stateless CPU JPEG transformation with validated quality, detached encoded data, and exact source request/cursor/viewpoint/render/encoding provenance; selects no execution context and can retry without ticking or rerendering |
 | ``MetalResourceStore`` | Device-scoped backend owner whose default frame-ring count and compiled target formats no longer depend on `MetalRenderer` |
 | Production offscreen render integration coverage | Drives both the reusable encoder seam and the exact Runtime through caller-owned targets, explicit residency, real queue feedback, completion-gated readback, and no `MTKView` or `CAMetalDrawable` |
 
@@ -978,7 +991,7 @@ The most important current gaps are:
 - ``Engine/update(deltaTime:inputSnapshot:)`` contains unbounded real-time catch-up policy
 - latest presentation publication can skip intermediate ticks; exact advance now returns its final value, while event retention and other exact semantic surfaces remain absent
 - only real-time and manual configuration builders exist; host selection and offline, MCP, network, replay, and alternate-output assemblies remain proposed
-- exact raw Metal offscreen rendering is implemented, but there is no offline capture configuration, dedicated Render actor or worker, pooled target policy, HDR-master/quality accumulation path, image artifact sink, persistence contract, or JPEG/PNG encoder
+- exact raw Metal offscreen rendering and stateless JPEG derivation are implemented, but there is no offline capture configuration, dedicated Render actor or worker, pooled target policy, HDR-master/quality accumulation path, PNG encoder, image artifact sink, or persistence contract
 - there is no Audio Runtime, immutable listener-description contract, listener resolver, or Audio output-binding implementation; Audio examples in this article are directional
 - ordered Simulation events, input transitions, checkpoints, and journals remain proposed
 - the project currently defaults unannotated code to `MainActor`, while existing Input, Simulation, presentation-source, and Metal boundaries reinforce that placement; migration requires deliberate isolation and `Sendable` work rather than deleting one outer annotation
@@ -991,7 +1004,7 @@ The first CPU-isolation evidence is tracked in [GitHub issue #16, *Define execut
 
 ### 1. Establish Session-Qualified Identity
 
-Implemented for the current presentation path: ``SimulationSessionID`` pairs with ``SimulationTick`` as ``SimulationCursor``, rebuilds establish a new session, and snapshots, render attribution, and advance results preserve the cursor. Future events and artifacts still need the same attribution.
+Implemented for the current presentation path: ``SimulationSessionID`` pairs with ``SimulationTick`` as ``SimulationCursor``, rebuilds establish a new session, and snapshots, render attribution, advance results, and JPEG artifacts preserve the cursor. Future events and other artifact formats still need the same discipline.
 
 ### 2. Add a Runtime-Level Exact Advance Capability
 
@@ -1045,9 +1058,11 @@ This step does not require every Render implementation to share one universal `R
 
 ### 8. Add Production Offscreen Request/Result Rendering
 
-Partially implemented. ``OffscreenRenderRequest`` carries an exact immutable presentation value, explicit viewpoint, validated size, output mode, and exposure. ``MetalOffscreenRenderRuntime`` strictly projects every presented entity, bounds the instance count, validates complete model/material/drawable geometry, awaits actual GPU feedback, and returns detached tightly packed BGRA8-sRGB pixels labeled with request identity, source cursor, complete viewpoint, and settings. Cancellation before commit rejects; cancellation after commit waits for feedback and returns without readback; GPU feedback failure latches the terminal cause.
+Implemented for the first raw and artifact slices. ``OffscreenRenderRequest`` carries an exact immutable presentation value, explicit viewpoint, validated size, output mode, and exposure. ``MetalOffscreenRenderRuntime`` strictly projects every presented entity, bounds the instance count, validates complete model/material/drawable geometry, awaits actual GPU feedback, and returns detached tightly packed BGRA8-sRGB pixels labeled with request identity, source cursor, complete viewpoint, and settings. Cancellation before commit rejects; cancellation after commit waits for feedback and returns without readback; GPU feedback failure latches the terminal cause.
 
-The remaining step is artifact production and higher-quality policy: HDR masters, accumulation and temporal sampling, JPEG or PNG encoding, metadata/content identity beyond the raw render provenance, persistence, retry policy, pooled targets, and any dedicated render worker.
+``JPEGArtifactEncoder`` then derives detached JPEG data on the CPU while preserving the raw result's provenance and the chosen encoding settings. This step is synchronous and stateless; the caller chooses its execution context, and a failure can retry from the same raw result without ticking or rerendering.
+
+The remaining higher-quality and delivery work is HDR masters, accumulation and temporal sampling, PNG encoding, content identity beyond current provenance, persistence and `ArtifactSink`, coordinator-level retry policy, pooled targets, and any dedicated render worker.
 
 ### 9. Add Offline Render-Gated Coordination
 
@@ -1098,10 +1113,12 @@ Remaining vertical slices should prove:
 - cancellation before offscreen commit submits no work, while cancellation after commit still awaits queue feedback and releases every retained resource before returning without readback
 - a Metal queue-feedback failure becomes the Runtime's terminal cause and later requests reproduce that failure without touching GPU state
 - successful raw offscreen results preserve request identity, source cursor, complete viewpoint, settings, tightly packed top-left BGRA8-sRGB layout, and detached ownership
+- JPEG artifacts preserve the exact raw result's request identity, Simulation cursor, complete viewpoint, and render settings together with validated JPEG settings and detached encoded data
+- JPEG encoding can be repeated or retried from one detached raw result without advancing Simulation, sampling state, submitting Metal work, or rerendering
 - configuration startup, partial failure, and reverse-order shutdown are deterministic
 - two seeded Simulation Runtime instances advance, publish, stop, and rebuild without shared mutable state or cursor contamination
 - in a configuration whose policy permits independent progress, long-running Simulation CPU work does not prevent Render-side CPU progress, and slow Render preparation does not stop completed Simulation ticks
-- offscreen artifacts preserve Simulation cursor, viewpoint identity or revision, render settings, and content identity needed for attribution
+- future persisted or multi-format artifacts preserve the implemented JPEG provenance and add any content identity required by their storage contract
 - each event or publication connection obeys its declared backpressure and retention policy
 
 ## Architectural Traps
@@ -1190,7 +1207,7 @@ The following details should remain open until the first vertical slices provide
 - whether concrete isolation uses actors, custom executors, another in-process mechanism, helper processes, or a combination
 - which Render preparation and encoding work can leave view-facing isolation
 - the first structured agent-observation contract
-- production image artifact ownership, formats, metadata, and persistence
+- persistence ownership, `ArtifactSink`, additional image formats, and metadata/content identity beyond the implemented detached JPEG provenance
 - interpolation contracts for offline temporal sampling and high-refresh display presentation
 - configuration diagnostics and whether a reusable assembly type is valuable before several concrete configurations exist
 
