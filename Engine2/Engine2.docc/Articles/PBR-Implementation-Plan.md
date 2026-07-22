@@ -20,11 +20,13 @@ exercises the ordinary Game Content-to-Simulation-to-Render path; semantic
 lighting is not yet a Simulation or snapshot concept.
 
 The production PBR/HDR encoding path now lives in view-independent
-``MetalFrameEncoder``. A render integration test drives that encoder through
-caller-owned offscreen textures, residency, queue feedback, and readback with
-no view or drawable. This validates reuse of the production path, but it does
-not establish a production offscreen request API, artifact/JPEG pipeline, or
-asynchronous Render worker.
+``MetalFrameEncoder``. ``MetalOffscreenRenderRuntime`` now drives that encoder
+through a production exact async request/outcome boundary with dedicated
+one-slot resources, explicit residency and queue-feedback lifetime, and raw
+BGRA8-sRGB readback with no view or drawable. This establishes the production
+offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
+artifact/JPEG or PNG pipeline, pooled targets, dedicated Render worker, or
+offline capture configuration.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
@@ -109,6 +111,7 @@ Render owns:
 - the fixed directional-light validation input
 - depth and HDR targets
 - Metal pipelines, argument tables, synchronization, and residency
+- exact offscreen target, submission, cancellation, and raw-readback policy
 - the eventual Forward+ light-assignment data
 
 No Metal object, tile index, GPU address, or renderer capacity enters ECS or a
@@ -346,6 +349,13 @@ system:
   color plus metallic and roughness into each draw's existing `GPUInstance`.
   The 208-byte record remains stable through the caller's frame-completion rule;
   no separate material allocation or residency set exists.
+- Exact ``MetalOffscreenRenderRuntime`` requests additionally use strict frame
+  projection, prove complete model and drawable indexed-geometry coverage, and
+  reject more than 256 projected instances before allocator reset or target
+  mutation. Unlike the live screen, an offline request never silently omits a
+  malformed presented entity, missing model, unusable vertex slice, empty mesh
+  or submesh, or invalid index slice, and never truncates the encoder's bounded
+  prefix into a misleading partial image.
 - `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
   directional light is transformed into view space once per frame, while the
   fragment stage reads the current draw's material from its instance record.
@@ -487,6 +497,8 @@ sphere baseline:
 - semantic light components, snapshot publication, and local-light types
 - physically calibrated radiometric or photometric lights and camera exposure
 - pre-exposure, automatic exposure, and a final tone-mapping look
+- offline HDR-master formats, quality accumulation, temporal sampling, pooled
+  targets, and JPEG or PNG artifact encoding
 - reversed-Z, `Double` or sector-local world positions, and render-origin policy
 - atmosphere, clouds, rings, and transparency
 

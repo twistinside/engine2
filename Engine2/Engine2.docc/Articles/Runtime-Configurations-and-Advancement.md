@@ -14,7 +14,9 @@ The first viewpoint slice is also implemented. ``RealtimeAssembly`` owns one ord
 
 The first view-independent Metal encoding seam is implemented as ``MetalFrameEncoder``. It prepares and records a frame into caller-owned textures, `FrameResources`, and an already-begun Metal 4 command buffer without source sampling, MetalKit/view/drawable access, frame-slot arbitration, queue submission, presentation, or caller error policy. ``MetalRenderer`` is now the thin screen adapter that owns those MetalKit-specific decisions. A real integration test uses the production encoder with caller-owned offscreen targets, explicit residency and feedback, and readback without a view or drawable.
 
-Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, a production Render Runtime, offscreen request/result rendering, artifact/JPEG output, an asynchronous render worker, MCP, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
+The first production offscreen Runtime boundary is also implemented. ``POffscreenRenderTarget`` accepts an exact immutable snapshot, explicit viewpoint, and settings asynchronously. ``MetalOffscreenRenderRuntime`` applies configurable limits and a single-flight busy gate, strictly validates presentation and drawable geometry, owns dedicated one-slot resources and queue-feedback lifetime, and returns a detached raw BGRA8-sRGB result with exact provenance without sampling a source, advancing Simulation, or acquiring a view or drawable.
+
+Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, offline capture coordination, artifact/JPEG or PNG output, HDR-master and quality accumulation, a dedicated asynchronous render worker, MCP, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
 
 The overall feasibility is high. The work is primarily a separation of pacing, coordination, and exact-result delivery from simulation execution rather than a replacement of the ECS core.
 
@@ -175,7 +177,7 @@ final class RealtimeAssembly {
 
 The recipe is an immutable transportable value. The illustrative factory is `@MainActor` because today's App constructs UI- and framework-bound objects there; that annotation governs assembly construction, not the execution placement of every Runtime it retains. A headless or otherwise non-UI configuration may construct its assembly from a different isolation domain.
 
-An `OfflineCaptureConfiguration` should produce an `OfflineCaptureAssembly` with an offline coordinator, offscreen Render Runtime, and artifact sink. An `MCPConfiguration` should produce an `MCPAssembly` with transport and agent-session ownership. They may reuse focused construction helpers, but they should not be represented by one `RuntimeAssembly` value containing twenty optional properties.
+An `OfflineCaptureConfiguration` should produce an `OfflineCaptureAssembly` that connects an offline coordinator, the implemented offscreen render capability, and a future artifact sink. An `MCPConfiguration` should produce an `MCPAssembly` with transport and agent-session ownership. They may reuse focused construction helpers, but they should not be represented by one `RuntimeAssembly` value containing twenty optional properties.
 
 Three decisions remain separate:
 
@@ -442,6 +444,8 @@ Cumulative input snapshots recover aggregate pointer/scroll motion and current h
 
 ``PSimulationPresentationSource`` is intentionally a latest-value boundary. That is correct for a display renderer that can skip superseded states. It is insufficient by itself for an offline frame job or an MCP operation that must render exactly the state produced by its own advance request.
 
+``POffscreenRenderTarget`` now implements the complementary exact shape. Its request carries the completed ``SimulationPresentationSnapshot``, explicit ``RenderViewpoint``, and ``OffscreenRenderSettings`` by value, and its outcome remains correlated through ``OffscreenRenderRequestID``. The target never samples `latestPresentationSnapshot` or a viewpoint source while fulfilling that request.
+
 An exact workflow must receive or retain the immutable snapshot associated with the completed cursor. It must not advance, read `latestPresentationSnapshot` after an unrelated caller has changed it, and silently render the wrong state.
 
 Likewise, a multi-tick advance must not imply that events from intermediate ticks are safely recoverable from the final snapshot. A workflow that needs every occurrence must use an ordered lane or explicit journal with a result cursor.
@@ -521,8 +525,8 @@ script, replay, or authored timeline
              +-- advance request ------------------> SimulationRuntime
              <-- exact cursor + immutable snapshot -+
              |
-             +-- render(snapshot, viewpoint, settings) -> OffscreenRenderRuntime
-             <-- rendered output -------------------+
+             +-- render(snapshot, viewpoint, settings) -> POffscreenRenderTarget
+             <-- exact raw image outcome ------------+
              |
              +-- encode / write -------------------> ArtifactSink
              <-- completion -------------------------+
@@ -530,7 +534,9 @@ script, replay, or authored timeline
              +-- serial policy may permit the next required step
 ```
 
-The coordinator can hold Simulation at one cursor while Render:
+The exact raw render operation in this graph is implemented by ``MetalOffscreenRenderRuntime``. It accepts only the supplied immutable scene and explicit viewpoint, enforces its configured size/pixel policy, and returns a detached image after real queue feedback. It does not yet implement `OfflineCaptureCoordinator` or `ArtifactSink`.
+
+A future coordinator can hold Simulation at one cursor while Render:
 
 - accumulates thousands of samples
 - renders the same immutable scene from several explicit viewpoints
@@ -559,7 +565,7 @@ Simulation owns camera-related facts when they are authoritative Simulation stat
 
 An output-specific **viewpoint** is different. A free-orbit camera, photo-mode view, editor viewport, spectator view, minimap, split-screen view, MCP inspection view, or offline camera track selects how one consumer observes an immutable scene. Its owner is the presentation assembly, view controller, capture coordinator, tracking Runtime, or other policy that selects that output. Render owns final projection and backend work, but it need not originate every viewpoint it consumes.
 
-Render settings such as exposure, accumulation, depth of field, shutter sampling, resolution, and diagnostic output remain Render-owned policy.
+The implemented exact settings carry resolution, manual exposure, and diagnostic output mode. Future accumulation, depth of field, shutter sampling, HDR-master format, and other quality settings remain Render-owned policy.
 
 The first separation is implemented. `World.camera` and the singular camera in
 ``SimulationPresentationSnapshot`` remain the Simulation-authored default.
@@ -708,7 +714,10 @@ Codex tool call
       +-- advance(expected cursor, control) -----> SimulationRuntime
       <-- exact cursor + immutable snapshot -------+
       |
-      +-- render(snapshot, viewpoint, settings) -> OffscreenRenderRuntime
+      +-- render(snapshot, viewpoint, settings) -> POffscreenRenderTarget
+      <-- detached raw image + provenance ---------+
+      |
+      +-- encode / persist ----------------------> ArtifactSink
       <-- JPEG / PNG artifact ---------------------+
       |
       +-- correlated tool result ----------------> MCPRuntime --> Codex
@@ -946,11 +955,13 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | ``RenderViewpoint``, ``RenderViewpointID``, ``RenderViewpointRevision``, and `PRenderViewpointSource` | Implemented immutable output-specific camera value, attribution, and Render-owned resolution boundary |
 | ``SimulationPresentationSnapshot`` | Immutable, `Sendable` publisher-owned presentation surface labeled with its exact ``SimulationCursor``; its camera is the fallback rather than the only permitted viewpoint |
 | `PSimulationPresentationSource` | Existing latest-value live boundary, suitable for droppable consumers |
-| ``RenderFrame`` | Implemented Render-owned private projection with optional source-cursor plus explicit-viewpoint identity/revision attribution and snapshot-camera fallback |
+| ``RenderFrame`` | Implemented Render-owned private projection with optional source-cursor plus explicit-viewpoint identity/revision attribution and snapshot-camera fallback; `projectExact` returns typed malformed-presentation errors instead of using the screen path's tolerant omission |
 | ``MetalFrameEncoder`` | Implemented view-independent material preflight, fixed format contract, frame-buffer packing, pipeline/argument-table binding, HDR pass, and model-draw encoding against caller-owned targets, frame resources, and command buffer |
 | `MetalRenderer` and `MetalSceneView` | Thin current screen adapter: samples presentation and viewpoint sources, arbitrates the ring slot and drawable, submits, presents, and owns terminal screen error policy while delegating reusable encoding |
+| ``POffscreenRenderTarget``, ``OffscreenRenderRequest``, and ``OffscreenRenderOutcome`` | Implemented backend-neutral exact asynchronous boundary requiring one immutable presentation snapshot, explicit viewpoint, and settings, with correlated completion, refusal, failure, and post-submission cancellation outcomes |
+| ``MetalOffscreenRenderRuntime`` | Implemented production raw offscreen Runtime with configurable limits, dedicated one-slot resources, explicit single-flight refusal, strict presentation/model/material/drawable-geometry/capacity preflight, real queue-feedback lifetime, terminal GPU-failure latching, and detached top-left BGRA8-sRGB readback; samples no source and advances no Simulation |
 | ``MetalResourceStore`` | Device-scoped backend owner whose default frame-ring count and compiled target formats no longer depend on `MetalRenderer` |
-| Production-encoder offscreen integration test | Uses caller-owned textures, explicit residency and queue feedback, completion-gated readback, and no `MTKView` or `CAMetalDrawable`; proves the encoding boundary but is not a production offscreen API |
+| Production offscreen render integration coverage | Drives both the reusable encoder seam and the exact Runtime through caller-owned targets, explicit residency, real queue feedback, completion-gated readback, and no `MTKView` or `CAMetalDrawable` |
 
 The most important current gaps are:
 
@@ -967,7 +978,7 @@ The most important current gaps are:
 - ``Engine/update(deltaTime:inputSnapshot:)`` contains unbounded real-time catch-up policy
 - latest presentation publication can skip intermediate ticks; exact advance now returns its final value, while event retention and other exact semantic surfaces remain absent
 - only real-time and manual configuration builders exist; host selection and offline, MCP, network, replay, and alternate-output assemblies remain proposed
-- reusable production Metal encoding is view-independent, but there is no production `RenderRuntime`, offscreen request API, async render worker, image artifact contract, or JPEG encoder
+- exact raw Metal offscreen rendering is implemented, but there is no offline capture configuration, dedicated Render actor or worker, pooled target policy, HDR-master/quality accumulation path, image artifact sink, persistence contract, or JPEG/PNG encoder
 - there is no Audio Runtime, immutable listener-description contract, listener resolver, or Audio output-binding implementation; Audio examples in this article are directional
 - ordered Simulation events, input transitions, checkpoints, and journals remain proposed
 - the project currently defaults unannotated code to `MainActor`, while existing Input, Simulation, presentation-source, and Metal boundaries reinforce that placement; migration requires deliberate isolation and `Sendable` work rather than deleting one outer annotation
@@ -1028,13 +1039,15 @@ Give Input Runtime source and channel identities, source-local state, determinis
 
 ### 7. Create a View-Independent Render Runtime Boundary
 
-The explicit-frame encoding portion is implemented. ``MetalFrameEncoder`` owns reusable preparation and GPU command recording independently of `MTKViewDelegate`, SwiftUI, `MTKView`, and `CAMetalDrawable`; ``MetalRenderer`` remains the MetalKit screen adapter. A real offscreen integration test proves that the production encoder accepts caller-owned targets and submission lifetime without a view.
+Implemented for the first production boundary. ``MetalFrameEncoder`` owns reusable preparation and GPU command recording independently of `MTKViewDelegate`, SwiftUI, `MTKView`, and `CAMetalDrawable`; ``MetalRenderer`` remains the MetalKit screen adapter. ``POffscreenRenderTarget`` now supplies the exact backend-neutral async capability, and ``MetalOffscreenRenderRuntime`` owns target allocation, one-slot/single-flight policy, submission, completion, cancellation, failure, and raw-readback lifetime without a view or drawable.
 
-The remainder of this roadmap step is still proposed: introduce a production view-independent `RenderRuntime` or equivalent request capability with explicit lifetime, isolation, target ownership, submission, completion, cancellation, and failure contracts. The encoder extraction alone is not that top-level Runtime boundary.
+This step does not require every Render implementation to share one universal `RenderRuntime` class. The screen and exact offscreen callers have different source, cadence, surface, and failure policies while sharing ``MetalFrameEncoder``. Dedicated Render isolation and reusable multi-output assembly abstractions remain evidence-driven future work.
 
 ### 8. Add Production Offscreen Request/Result Rendering
 
-Accept an exact immutable presentation value plus an explicit viewpoint and target/quality settings, await GPU completion, read back, encode, and return an artifact labeled with its Simulation cursor, viewpoint identity, and settings identity. Reuse current backend passes where practical.
+Partially implemented. ``OffscreenRenderRequest`` carries an exact immutable presentation value, explicit viewpoint, validated size, output mode, and exposure. ``MetalOffscreenRenderRuntime`` strictly projects every presented entity, bounds the instance count, validates complete model/material/drawable geometry, awaits actual GPU feedback, and returns detached tightly packed BGRA8-sRGB pixels labeled with request identity, source cursor, complete viewpoint, and settings. Cancellation before commit rejects; cancellation after commit waits for feedback and returns without readback; GPU feedback failure latches the terminal cause.
+
+The remaining step is artifact production and higher-quality policy: HDR masters, accumulation and temporal sampling, JPEG or PNG encoding, metadata/content identity beyond the raw render provenance, persistence, retry policy, pooled targets, and any dedicated render worker.
 
 ### 9. Add Offline Render-Gated Coordination
 
@@ -1080,6 +1093,11 @@ Remaining vertical slices should prove:
 - stale expected-cursor and duplicate MCP requests cannot double-advance
 - cancellation reports only fully completed ticks
 - offline Render receives the exact requested immutable snapshot even if rendering is slow
+- exact offscreen admission rejects invalid viewpoints, malformed presented entities, policy-limit violations, and more than 256 projected instances before submission; missing models and incomplete drawable indexed geometry fail preflight before mutable GPU work rather than producing partial images
+- concurrent offscreen requests observe explicit single-flight busy refusal rather than an implicit unbounded queue
+- cancellation before offscreen commit submits no work, while cancellation after commit still awaits queue feedback and releases every retained resource before returning without readback
+- a Metal queue-feedback failure becomes the Runtime's terminal cause and later requests reproduce that failure without touching GPU state
+- successful raw offscreen results preserve request identity, source cursor, complete viewpoint, settings, tightly packed top-left BGRA8-sRGB layout, and detached ownership
 - configuration startup, partial failure, and reverse-order shutdown are deterministic
 - two seeded Simulation Runtime instances advance, publish, stop, and rebuild without shared mutable state or cursor contamination
 - in a configuration whose policy permits independent progress, long-running Simulation CPU work does not prevent Render-side CPU progress, and slow Render preparation does not stop completed Simulation ticks

@@ -11,6 +11,45 @@ import ModelIO
 struct USDRenderModel {
     let meshes: [MTKMesh]
 
+    /// Whether every indexed draw visited by the frame encoder has complete,
+    /// usable geometry.
+    ///
+    /// The production encoder binds only the first vertex buffer of each mesh
+    /// and emits indexed draws for its submeshes. Exact rendering uses this
+    /// predicate during preparation so a decoded-but-empty or partially
+    /// malformed model is distinct from a missing model. Requiring every mesh
+    /// and submesh prevents an exact result from silently omitting only part of
+    /// a decoded asset; live screen rendering remains free to tolerate it.
+    var hasCompleteDrawableIndexedGeometry: Bool {
+        guard !meshes.isEmpty else {
+            return false
+        }
+
+        return meshes.allSatisfy { mesh in
+            guard let vertexBuffer = mesh.vertexBuffers.first,
+                  Self.containsUsableBytes(vertexBuffer, minimumByteCount: 1),
+                  !mesh.submeshes.isEmpty
+            else {
+                return false
+            }
+
+            return mesh.submeshes.allSatisfy { submesh in
+                guard submesh.indexCount > 0,
+                      let requiredByteCount = Self.requiredIndexByteCount(
+                        for: submesh
+                      )
+                else {
+                    return false
+                }
+
+                return Self.containsUsableBytes(
+                    submesh.indexBuffer,
+                    minimumByteCount: requiredByteCount
+                )
+            }
+        }
+    }
+
     /// Unique Metal allocations retained by this decoded model. The resource
     /// store decides which residency set owns their residency lifetime.
     var allocations: [any MTLAllocation] {
@@ -126,5 +165,47 @@ struct USDRenderModel {
         }
 
         allocations.append(allocation)
+    }
+
+    /// Computes the byte range consumed by one indexed draw without allowing
+    /// malformed counts to overflow into an apparently small buffer request.
+    private static func requiredIndexByteCount(
+        for submesh: MTKSubmesh
+    ) -> Int? {
+        let bytesPerIndex: Int
+        switch submesh.indexType {
+        case .uint16:
+            bytesPerIndex = MemoryLayout<UInt16>.stride
+
+        case .uint32:
+            bytesPerIndex = MemoryLayout<UInt32>.stride
+
+        @unknown default:
+            return nil
+        }
+
+        let result = submesh.indexCount.multipliedReportingOverflow(
+            by: bytesPerIndex
+        )
+        return result.overflow ? nil : result.partialValue
+    }
+
+    /// Proves the MetalKit slice contains the bytes the encoder will address.
+    private static func containsUsableBytes(
+        _ meshBuffer: MTKMeshBuffer,
+        minimumByteCount: Int
+    ) -> Bool {
+        guard minimumByteCount > 0,
+              meshBuffer.offset >= 0,
+              meshBuffer.length >= minimumByteCount
+        else {
+            return false
+        }
+
+        let sliceEnd = meshBuffer.offset.addingReportingOverflow(
+            meshBuffer.length
+        )
+        return !sliceEnd.overflow
+            && sliceEnd.partialValue <= meshBuffer.buffer.length
     }
 }
