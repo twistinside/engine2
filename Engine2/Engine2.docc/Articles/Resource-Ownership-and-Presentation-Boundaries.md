@@ -78,6 +78,8 @@ Under a fixed-step engine:
 - a draw may happen even when no new simulation tick has occurred
 - presentation should consume the latest completed render data rather than reach back into live simulation state
 In a Metal view-driven application, the view still dictates when a drawable is available. That should control when the renderer submits work, not when gameplay state advances.
+
+This display-driven rule is not the only presentation configuration. An offline coordinator may request one exact Simulation advancement, pass the resulting immutable snapshot to an offscreen renderer, and deliberately wait for rendering and encoding before requesting more progress. The coordinator owns that directed workflow; Render still does not own or mutate Simulation. See <doc:Runtime-Configurations-and-Advancement>.
 The intended presentation model is:
 1. simulation updates `World`
 2. Simulation publishes a new immutable simulation presentation snapshot
@@ -101,6 +103,7 @@ This boundary preserves the current engine direction:
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Configurations-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 ### Related Symbols

@@ -115,6 +115,16 @@ An App-owned router or hub may be an implementation detail, but it must not eras
 
 The implemented input connection uses two narrow capabilities. Platform adapters such as `InputMetalView` submit `InputEvent` values to ``InputRuntime`` through `PInputEventSink`. Consumers receive only the immutable latest `InputSnapshot` through `PInputSnapshotSource`. The App owns both connections. `InputEvent` is therefore host ingress, not a runtime-published event stream and not a direct call into Simulation.
 
+## Directed Advancement Needs an Exact Result
+
+Advancing Simulation is neither a snapshot nor an event. It is a deliberate request to perform authoritative work, so the App or an App-owned configuration coordinator should route it through a narrow Simulation-owned request/result capability.
+
+The requester may be a real-time driver, offline capture workflow, MCP session coordinator, network lockstep policy, replay driver, or test. It decides when and how many ticks to request; ``SimulationRuntime`` remains the only owner that executes the complete fixed-step schedule, mutates ``World``, advances tick identity, and publishes committed outputs.
+
+Latest-value publication remains correct for consumers allowed to skip superseded states. It is not sufficient for an offline or MCP workflow that must render exactly the state produced by its own command. Such a workflow needs an immutable exact result or cursor-addressed rendezvous labeled with a Simulation session identity and tick. A cursor identifies state but does not imply that state is retained. A multi-tick result must expose enough initial/final cursor correlation for a separately configured ordered event lane or journal to recover required occurrences; the final snapshot does not imply their retention.
+
+See <doc:Runtime-Configurations-and-Advancement> for the proposed advance authority, correlation, idempotency, backpressure, and configuration model.
+
 ## Snapshots and Events Need Different Delivery Semantics
 
 Snapshots naturally use latest-value semantics:
@@ -163,6 +173,7 @@ These choices should preserve the ownership model in this article rather than re
 ## Related Direction
 
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Configurations-and-Advancement>
 - <doc:Game-Content-Architecture>
 - <doc:Rendering-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>

@@ -9,6 +9,8 @@ The ideas below describe the intended next layer of scheduling behavior as the e
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
 
+A configuration-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Configurations-and-Advancement>.
+
 Platform collection is not a scheduled ECS system. ``InputRuntime`` publishes a latest immutable `InputSnapshot`, and ``Engine`` imports a sampled value into World-owned `InputState` only at the beginning of an actual fixed step. `SInputMapping`, `SCameraInput`, fixed-tick `InputHistory`, and cleanup remain scheduled Simulation Runtime work after that boundary import.
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
@@ -70,6 +72,7 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
+- <doc:Runtime-Configurations-and-Advancement>
 ### Related Symbols
 - ``Engine``
 - ``World``
