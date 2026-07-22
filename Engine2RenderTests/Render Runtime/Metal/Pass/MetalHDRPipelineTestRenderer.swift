@@ -279,7 +279,7 @@ final class MetalHDRPipelineTestRenderer {
                 // Exercise the production binding primitive so the GPU proof
                 // fails if visible rendering regresses its instance stride,
                 // fragment buffer index, or per-draw fragment-table bind.
-                MetalRenderer.selectModelInstance(
+                MetalFrameEncoder.selectModelInstance(
                     at: instanceIndex,
                     in: frame,
                     modelArgumentTable: modelArgumentTable,
@@ -368,7 +368,7 @@ final class MetalHDRPipelineTestRenderer {
             descriptor.vertexFunctionDescriptor = vertexFunction
             descriptor.fragmentFunctionDescriptor = fragmentFunction
             descriptor.rasterSampleCount = 1
-            descriptor.colorAttachments[0].pixelFormat = MetalRenderer.sceneColorPixelFormat
+            descriptor.colorAttachments[0].pixelFormat = MetalFrameEncoder.sceneColorPixelFormat
 
             pipelines[output] = try resources.compiler.makeRenderPipelineState(
                 descriptor: descriptor
@@ -483,7 +483,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private func makeSceneTexture() throws -> any MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.sceneColorPixelFormat,
+            pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
             width: Self.width,
             height: Self.height,
             mipmapped: false
@@ -501,7 +501,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private func makeDepthTexture() throws -> any MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.depthPixelFormat,
+            pixelFormat: MetalFrameEncoder.depthPixelFormat,
             width: Self.width,
             height: Self.height,
             mipmapped: false
@@ -516,7 +516,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private func makePresentedTexture() throws -> any MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.colorPixelFormat,
+            pixelFormat: MetalFrameEncoder.destinationColorPixelFormat,
             width: Self.width,
             height: Self.height,
             mipmapped: false

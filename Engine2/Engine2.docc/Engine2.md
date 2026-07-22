@@ -12,6 +12,7 @@ The current codebase is intentionally small, but the core direction is already e
 - ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
 - ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot``. The snapshot camera is a publisher-authored default, not a requirement that every output use one Simulation-mutated view.
 - The App-owned ``ScreenViewpointController`` can change one screen's presentation while Simulation is paused. Render combines its immutable ``RenderViewpoint`` with the exact Simulation snapshot and records both Simulation-cursor and optional viewpoint attribution in ``RenderFrame``.
+- ``MetalFrameEncoder`` prepares and encodes the reusable Metal frame against caller-owned textures, frame resources, and a command buffer without depending on MetalKit view or drawable ownership.
 This documentation catalog serves two purposes:
 - document the behavior that already exists in the codebase
 - capture architectural direction that is intentionally not implemented yet
@@ -22,8 +23,9 @@ At the moment, the codebase already includes:
 - an app-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world construction policy, and completed publication
 - a current real-time assembly that explicitly fans screen host events to both ``InputRuntime`` and ``ScreenViewpointController`` while leaving Simulation advancement under the separate driver
 - a presentation-snapshot, explicit-viewpoint, and render-projection path via ``SimulationPresentationSnapshot``, ``RenderViewpoint``, ``RenderFrame.project(from:viewpoint:)``, and ``MetalSceneView``
+- a view-independent production ``MetalFrameEncoder`` used by both the thin MetalKit screen adapter and a real offscreen integration test
 
-``SimulationLoop``, ``Engine.update(deltaTime:inputSnapshot:)``, `SInputMapping`, and `SCameraInput` remain in the source tree only as legacy migration paths or focused-test seams; new App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Typed multi-source routing, multi-window bindings, observer anchors, production offscreen rendering, and MCP composition remain proposed.
+``SimulationLoop``, ``Engine.update(deltaTime:inputSnapshot:)``, `SInputMapping`, and `SCameraInput` remain in the source tree only as legacy migration paths or focused-test seams; new App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. The reusable Metal encoder is implemented, but a production `RenderRuntime`, offscreen request/result API, asynchronous worker, artifact/JPEG contract, typed multi-source routing, multi-window bindings, observer anchors, and MCP composition remain proposed.
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>

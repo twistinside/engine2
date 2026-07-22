@@ -12,7 +12,9 @@ The App-owned ``RealtimeAdvanceDriver`` is now integrated into ``RealtimeConfigu
 
 The first viewpoint slice is also implemented. ``RealtimeAssembly`` owns one ordinary ``ScreenViewpointController`` and explicitly fans each accepted screen `InputEvent` to it and ``InputRuntime``. The screen controller can revise an immutable ``RenderViewpoint`` while ``RealtimeAdvanceDriver`` is paused and the Simulation cursor remains unchanged. `MetalRenderer` samples the exact latest ``SimulationPresentationSnapshot`` and resolves that viewpoint independently; ``RenderFrame`` preserves the Simulation cursor plus optional ``RenderViewpointID`` and ``RenderViewpointRevision``. The snapshot camera remains the exact fallback before an override or when no viewpoint is supplied. ``Engine`` no longer installs `SInputMapping` or `SCameraInput` in its default schedule, although those legacy files, ``SimulationLoop``, and the Engine elapsed-time path remain pending deletion.
 
-Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, a view-independent Render Runtime, offscreen request/result rendering, MCP, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
+The first view-independent Metal encoding seam is implemented as ``MetalFrameEncoder``. It prepares and records a frame into caller-owned textures, `FrameResources`, and an already-begun Metal 4 command buffer without source sampling, MetalKit/view/drawable access, frame-slot arbitration, queue submission, presentation, or caller error policy. ``MetalRenderer`` is now the thin screen adapter that owns those MetalKit-specific decisions. A real integration test uses the production encoder with caller-owned offscreen targets, explicit residency and feedback, and readback without a view or drawable.
+
+Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, a production Render Runtime, offscreen request/result rendering, artifact/JPEG output, an asynchronous render worker, MCP, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
 
 The overall feasibility is high. The work is primarily a separation of pacing, coordination, and exact-result delivery from simulation execution rather than a replacement of the ECS core.
 
@@ -945,8 +947,10 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | ``SimulationPresentationSnapshot`` | Immutable, `Sendable` publisher-owned presentation surface labeled with its exact ``SimulationCursor``; its camera is the fallback rather than the only permitted viewpoint |
 | `PSimulationPresentationSource` | Existing latest-value live boundary, suitable for droppable consumers |
 | ``RenderFrame`` | Implemented Render-owned private projection with optional source-cursor plus explicit-viewpoint identity/revision attribution and snapshot-camera fallback |
-| `MetalRenderer` and `MetalSceneView` | Current screen-oriented rendering path samples presentation and viewpoint sources independently; view ownership and drawable cadence still need extraction for a full Render Runtime |
-| Render integration test support | Evidence that explicit offscreen textures and GPU submission are practical, though production artifact readback/encoding remains absent |
+| ``MetalFrameEncoder`` | Implemented view-independent material preflight, fixed format contract, frame-buffer packing, pipeline/argument-table binding, HDR pass, and model-draw encoding against caller-owned targets, frame resources, and command buffer |
+| `MetalRenderer` and `MetalSceneView` | Thin current screen adapter: samples presentation and viewpoint sources, arbitrates the ring slot and drawable, submits, presents, and owns terminal screen error policy while delegating reusable encoding |
+| ``MetalResourceStore`` | Device-scoped backend owner whose default frame-ring count and compiled target formats no longer depend on `MetalRenderer` |
+| Production-encoder offscreen integration test | Uses caller-owned textures, explicit residency and queue feedback, completion-gated readback, and no `MTKView` or `CAMetalDrawable`; proves the encoding boundary but is not a production offscreen API |
 
 The most important current gaps are:
 
@@ -963,7 +967,7 @@ The most important current gaps are:
 - ``Engine/update(deltaTime:inputSnapshot:)`` contains unbounded real-time catch-up policy
 - latest presentation publication can skip intermediate ticks; exact advance now returns its final value, while event retention and other exact semantic surfaces remain absent
 - only real-time and manual configuration builders exist; host selection and offline, MCP, network, replay, and alternate-output assemblies remain proposed
-- there is no production view-independent `RenderRuntime`, offscreen request API, image artifact contract, or JPEG encoder
+- reusable production Metal encoding is view-independent, but there is no production `RenderRuntime`, offscreen request API, async render worker, image artifact contract, or JPEG encoder
 - there is no Audio Runtime, immutable listener-description contract, listener resolver, or Audio output-binding implementation; Audio examples in this article are directional
 - ordered Simulation events, input transitions, checkpoints, and journals remain proposed
 - the project currently defaults unannotated code to `MainActor`, while existing Input, Simulation, presentation-source, and Metal boundaries reinforce that placement; migration requires deliberate isolation and `Sendable` work rather than deleting one outer annotation
@@ -1024,7 +1028,9 @@ Give Input Runtime source and channel identities, source-local state, determinis
 
 ### 7. Create a View-Independent Render Runtime Boundary
 
-Separate render resource ownership and explicit-frame encoding from `MTKViewDelegate` and SwiftUI view lifetime. Preserve the existing view adapter for screen presentation.
+The explicit-frame encoding portion is implemented. ``MetalFrameEncoder`` owns reusable preparation and GPU command recording independently of `MTKViewDelegate`, SwiftUI, `MTKView`, and `CAMetalDrawable`; ``MetalRenderer`` remains the MetalKit screen adapter. A real offscreen integration test proves that the production encoder accepts caller-owned targets and submission lifetime without a view.
+
+The remainder of this roadmap step is still proposed: introduce a production view-independent `RenderRuntime` or equivalent request capability with explicit lifetime, isolation, target ownership, submission, completion, cancellation, and failure contracts. The encoder extraction alone is not that top-level Runtime boundary.
 
 ### 8. Add Production Offscreen Request/Result Rendering
 

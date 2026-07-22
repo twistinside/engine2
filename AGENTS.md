@@ -31,9 +31,10 @@ Current types implement part of this direction:
 - `ScreenViewpointController` is an ordinary App-owned presentation controller, not a Runtime. It can revise one screen's free-orbit viewpoint while Simulation is paused.
 - `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value. Its camera is the publisher-authored default when an output supplies no override.
 - `RenderViewpoint` is an immutable output-specific camera value with stable identity and monotonic revision. `RenderFrame` is the Render Runtime-owned private projection that preserves the source Simulation cursor plus optional explicit-viewpoint identity and revision.
-- `MetalSceneView` and `MetalRenderer` cover early Render Runtime responsibilities. The renderer samples Simulation presentation and viewpoint sources independently at draw cadence and never reads live `World` state.
+- `MetalFrameEncoder` owns view-independent Metal frame preparation and encoding against caller-owned targets, frame resources, and an already-begun command buffer.
+- `MetalSceneView` and `MetalRenderer` cover the screen adapter responsibilities. `MetalRenderer` samples Simulation presentation and viewpoint sources, arbitrates the frame ring and drawable, submits, presents, and owns screen error policy; it delegates reusable GPU encoding to `MetalFrameEncoder` and never reads live `World` state.
 
-The current screen fan-out is intentionally one concrete connection, not a generalized routing framework. Multi-source input, typed routes and route epochs, multi-window/output bindings, Simulation observer anchors, offscreen rendering, and MCP composition remain proposed.
+The current screen fan-out is intentionally one concrete connection, not a generalized routing framework. Multi-source input, typed routes and route epochs, multi-window/output bindings, Simulation observer anchors, production offscreen request/result rendering, and MCP composition remain proposed.
 
 Do not rename or wrap existing types solely to match the vocabulary. Introduce a runtime boundary when it creates concrete ownership, lifecycle, cadence, or testing value.
 
@@ -178,10 +179,14 @@ Current example ownership:
 - `Engine2/Render Runtime/Viewpoint/*.swift`
   - `RenderViewpoint` carries one output-specific camera, stable `RenderViewpointID`, and monotonic `RenderViewpointRevision` through the Render-owned `PRenderViewpointSource` boundary.
 - `Engine2/Render Runtime/Metal/**/*.swift`
-  - `MetalRenderer` resolves an optional output viewpoint independently from the latest Simulation presentation, projects both into `RenderFrame`, and consumes that frame using backend-specific state retained by its `MetalResourceStore`.
+  - `MetalRenderer` is the thin MetalKit screen adapter. It resolves an optional output viewpoint independently from the latest Simulation presentation, selects a frame-ring slot and drawable, owns command-buffer submission/presentation and terminal screen error policy, and delegates reusable encoding.
   - Per-frame state, render passes, backend resources, and Swift/Metal shader contracts live in focused subfolders beneath the Metal backend.
+- `Engine2/Render Runtime/Metal/Frame/MetalFrameEncoder.swift`
+  - `MetalFrameEncoder` owns authored-material preflight, fixed target formats, frame-buffer packing, pipelines and argument tables, the HDR frame pass, and model draws.
+  - Its caller supplies matching scene-color, depth, and destination textures, one `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. The encoder does not sample runtime sources, choose a frame slot, acquire a view or drawable, submit or present, or impose terminal-error policy.
 - `Engine2/Render Runtime/Metal/Resource/*.swift`
   - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, typed shader/pipeline/depth/argument-table caches, validated authored material descriptions, decoded models, and frame resources.
+  - `MetalResourceStore.defaultFrameCount` and pipeline target formats are backend contracts independent of `MetalRenderer`; target formats come from `MetalFrameEncoder`.
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Render Runtime/View/*.swift`
@@ -196,6 +201,7 @@ Current example ownership:
   - Render contract, frame, presentation, and CPU-side shader-layout tests mirror their production folders under `Engine2UnitTests/Render Runtime/`.
 - `Engine2RenderTests/`
   - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
+  - `MetalFrameEncoderTests` drives the production encoder with caller-owned offscreen textures and explicit residency, queue feedback, and readback without an `MTKView` or `CAMetalDrawable`.
   - Test-only Metal renderers and GPU submission helpers remain private to this target instead of compiling into the unit-test bundle.
   - Render integration tests mirror the Metal backend folders, with shared test-only infrastructure grouped under `Engine2RenderTests/Render Runtime/Metal/Support/`.
 ### Folder Organization
@@ -295,6 +301,7 @@ The DocC runtime and render articles contain proposed architecture, not only imp
 - publish an immutable render snapshot without requiring a Render Runtime to exist
 - let the Render Runtime consume completed snapshots according to its own cadence
 - let each output resolve an explicit viewpoint independently, with the Simulation-published camera as a valid fallback
+- keep reusable frame encoding independent of MetalKit surface acquisition, source sampling, queue submission, presentation, and caller error policy
 ### Documentation Can Drift Quickly
 The code has already moved past earlier examples such as `Missile` and `CAcceleration`. When editing docs or contributor guidance, check current source names first and update examples to match durable concepts rather than stale placeholder types.
 ## Guidance for Future Changes
@@ -324,7 +331,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.
 - Systems still run in two ordered lists; the DocC scheduling graph/stage model is proposed, not implemented.
 - `SMovement` and `SRotation` currently combine integration and transform advancement; the future collision/constraint pipeline may need a more explicit phase split.
-- Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, production offscreen rendering, and MCP composition remain proposed.
+- Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, a production Render Runtime/offscreen request API, artifact/JPEG output, and MCP composition remain proposed. The view-independent `MetalFrameEncoder` is implemented, but it is only the reusable GPU encoding seam beneath those future workflows.
 - Capability accessors are strict live reads with `fatalError`; optional inspection/editor lookup paths do not exist yet.
 - Tests do not yet cover component removal, dense iteration with stale generations, or spawn precondition failures.
 - The legacy `SimulationLoop`, `Engine.update(deltaTime:inputSnapshot:)`, elapsed-time accumulator, and partial-schedule pause path still need focused-test migration and removal.

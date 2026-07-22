@@ -101,10 +101,10 @@ struct MetalRendererTests {
         var visitedMaterialIDs: [MaterialID] = []
         var decodedMeshCounts: [Int] = []
 
-        // Call the same ordered lookup seam as `MetalRenderer.draw(in:)`.
+        // Call the same ordered lookup seam as `MetalFrameEncoder.encode`.
         // Together with the GPU binding proof, this closes the join between the
         // real projected frame, its shared MeshID, and all six visible draws.
-        MetalRenderer.forEachRenderableModel(
+        MetalFrameEncoder.forEachRenderableModel(
             in: instances,
             instanceCount: instances.count,
             resources: resources
@@ -130,8 +130,8 @@ struct MetalRendererTests {
 
         // Scene radiance remains linear half-float until the second phase.
         // Only that presentation phase targets the display's sRGB drawable.
-        #expect(MetalRenderer.sceneColorPixelFormat == .rgba16Float)
-        #expect(MetalRenderer.colorPixelFormat == .bgra8Unorm_srgb)
+        #expect(MetalFrameEncoder.sceneColorPixelFormat == .rgba16Float)
+        #expect(MetalFrameEncoder.destinationColorPixelFormat == .bgra8Unorm_srgb)
         #expect(view.colorPixelFormat == .bgra8Unorm_srgb)
         #expect(view.depthStencilPixelFormat == .depth32Float)
         #expect(view.clearDepth == 1)
@@ -281,7 +281,7 @@ struct MetalRendererTests {
         #expect(attachedDepthTexture as AnyObject === depthTexture as AnyObject)
         #expect(descriptor.depthAttachment.loadAction == .clear)
         #expect(descriptor.depthAttachment.storeAction == .dontCare)
-        #expect(descriptor.depthAttachment.clearDepth == MetalRenderer.clearDepth)
+        #expect(descriptor.depthAttachment.clearDepth == MetalFrameEncoder.clearDepth)
     }
 
     @MainActor

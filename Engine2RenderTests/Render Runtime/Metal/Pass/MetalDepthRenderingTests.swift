@@ -81,7 +81,7 @@ private func renderCenterPixel(
 ) throws -> SIMD4<Float> {
     let textureSize = 8
     let colorTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-        pixelFormat: MetalRenderer.sceneColorPixelFormat,
+        pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
         width: textureSize,
         height: textureSize,
         mipmapped: false
@@ -90,7 +90,7 @@ private func renderCenterPixel(
     colorTextureDescriptor.usage = [.renderTarget, .shaderRead]
 
     let depthTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-        pixelFormat: MetalRenderer.depthPixelFormat,
+        pixelFormat: MetalFrameEncoder.depthPixelFormat,
         width: textureSize,
         height: textureSize,
         mipmapped: false
@@ -176,7 +176,7 @@ private func renderCenterPixel(
     renderPass.depthAttachment.texture = depthTexture
     renderPass.depthAttachment.loadAction = .clear
     renderPass.depthAttachment.storeAction = .dontCare
-    renderPass.depthAttachment.clearDepth = MetalRenderer.clearDepth
+    renderPass.depthAttachment.clearDepth = MetalFrameEncoder.clearDepth
 
     let commandBuffer = try #require(resources.device.makeCommandBuffer())
     commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)

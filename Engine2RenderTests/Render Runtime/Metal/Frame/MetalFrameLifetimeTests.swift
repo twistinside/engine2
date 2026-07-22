@@ -80,7 +80,7 @@ struct MetalFrameLifetimeTests {
     ) throws -> any CAMetalDrawable {
         let layer = CAMetalLayer()
         layer.device = device
-        layer.pixelFormat = MetalRenderer.colorPixelFormat
+        layer.pixelFormat = MetalFrameEncoder.destinationColorPixelFormat
         layer.drawableSize = CGSize(width: 16, height: 16)
 
         // An unattached layer still supplies a real CAMetalDrawable on the
