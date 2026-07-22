@@ -11,6 +11,7 @@ The current codebase already has:
 - ``MetalRenderer`` as the thin MetalKit adapter that samples presentation and viewpoint sources, owns screen submission/presentation policy, and delegates encoding
 - ``POffscreenRenderTarget`` and its request/outcome values as the backend-neutral asynchronous exact-render boundary
 - ``MetalOffscreenRenderRuntime`` as the production view- and drawable-independent Metal implementation with dedicated one-slot resources and explicit single-flight backpressure
+- ``JPEGArtifactEncoder`` as the stateless CPU-only transformation from one completed raw result to a detached, provenance-rich JPEG artifact
 - ``ScreenViewpointController`` as the App-owned free-orbit controller for the current screen output
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
   command queue, typed state caches, decoded models, and frame-resource ring
@@ -18,7 +19,7 @@ The current codebase already has:
   frame-allocation residency sets
 - typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
   between Game Content descriptions and renderer-owned resources
-The production frame encoder is exercised by both the screen adapter and ``MetalOffscreenRenderRuntime``. The offscreen Runtime accepts an immutable ``OffscreenRenderRequest``, applies configurable allocation/readback limits, submits through real Metal 4 queue feedback, and returns a detached ``RenderedBGRA8SRGBImage`` with exact provenance without an `MTKView` or `CAMetalDrawable`. Artifact/JPEG or PNG encoding, HDR masters, sample accumulation, pooled targets, a dedicated render actor or worker, and an App-owned offline capture configuration remain future layers.
+The production frame encoder is exercised by both the screen adapter and ``MetalOffscreenRenderRuntime``. The offscreen Runtime accepts an immutable ``OffscreenRenderRequest``, applies configurable allocation/readback limits, submits through real Metal 4 queue feedback, and returns a detached ``RenderedBGRA8SRGBImage`` with exact provenance without an `MTKView` or `CAMetalDrawable`. ``JPEGArtifactEncoder`` can derive a detached JPEG from that completed value without touching Metal or application state. PNG encoding, HDR masters and sample accumulation, pooled targets, persistence or an `ArtifactSink`, a dedicated render actor or worker, an App-owned offline capture configuration, and MCP coordination remain future layers.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
 See <doc:PBR-Implementation-Plan> for the staged path from the current visible
@@ -136,7 +137,7 @@ This allows zero, one, or many simulation ticks between draws without making dra
 
 It also allows the current screen controller to change a viewpoint while ``RealtimeAdvanceDriver`` is paused. A later draw can then use a higher viewpoint revision with the same source Simulation cursor and entity presentation. The renderer neither requests a tick nor reads raw input to make that happen.
 
-The MetalKit screen adapter is only one caller of the reusable encoding boundary. ``MetalOffscreenRenderRuntime`` is now the production exact caller: it validates one immutable snapshot, explicit viewpoint, and settings value; owns target allocation and submission lifetime; awaits feedback; and reads back a detached raw image without a view or drawable. Artifact encoding and persistence remain separate because GPU rendering success and JPEG, PNG, or storage failure have different ownership and retry semantics.
+The MetalKit screen adapter is only one caller of the reusable encoding boundary. ``MetalOffscreenRenderRuntime`` is now the production exact caller: it validates one immutable snapshot, explicit viewpoint, and settings value; owns target allocation and submission lifetime; awaits feedback; and reads back a detached raw image without a view or drawable. JPEG encoding and persistence remain separate from GPU completion because rendering, encoding, and storage have different ownership and retry semantics. The implemented JPEG transform can be retried against the same raw result without another tick or render; persistence remains proposed.
 
 That latest-value model is appropriate for a screen surface. An offline render workflow instead needs an exact immutable snapshot correlated with its advance request and may render it for minutes, many samples, or several cameras before an App-owned coordinator requests the next Simulation tick. Render completion may therefore gate further advancement without giving the Render Runtime ownership of Simulation. See <doc:Runtime-Configurations-and-Advancement>.
 
@@ -220,7 +221,15 @@ One request owns the sole mutable frame slot through completion. Request-local t
 
 Cancellation before commit rejects the request and releases unsubmitted resources. Cancellation after commit cannot abandon Metal work: the Runtime still awaits feedback and releases GPU lifetime correctly, then returns `cancelledAfterSubmission` without allocating or reading back the CPU image. A queue-feedback error becomes a `.gpuExecution` failure and latches its original terminal cause; later requests return that same failure without touching GPU state.
 
-On success, the Runtime reads the shared destination only after feedback and returns an opaque, tightly packed, top-left BGRA8-sRGB image. ``OffscreenRenderResult`` echoes the request identity, source ``SimulationCursor``, complete viewpoint, settings, and detached bytes. It is a raw rendered result, not yet an HDR master, accumulated high-quality frame, encoded artifact, file, or MCP response.
+On success, the Runtime reads the shared destination only after feedback and returns an opaque, tightly packed, top-left BGRA8-sRGB image. ``OffscreenRenderResult`` echoes the request identity, source ``SimulationCursor``, complete viewpoint, settings, and detached bytes. It is a raw rendered result, not an HDR master, accumulated high-quality frame, file, or MCP response. A completed result can subsequently become an encoded JPEG artifact without changing or reacquiring the rendered pixels.
+
+## JPEG Artifact Encoding Is a Separate CPU Transformation
+
+``JPEGArtifactEncoder`` is a stateless, nonisolated, `Sendable` value above the raw offscreen boundary. Its synchronous `encode(_:settings:)` operation wraps one completed, opaque, top-left BGRA8-sRGB image as sRGB and asks Image I/O to produce JPEG data. It does not flip rows, apply the sRGB transfer again, sample a Runtime source, touch Metal, or issue another render request. JPEG has no alpha channel, so the guaranteed-opaque fourth source byte is deliberately discarded.
+
+``RenderedImageArtifact`` owns detached encoded data and preserves the exact source ``OffscreenRenderRequestID``, ``SimulationCursor``, complete ``RenderViewpoint``, ``OffscreenRenderSettings``, and ``JPEGEncodingSettings``. Encoding quality is a validated finite `0...1` ``JPEGQuality`` rather than an unvalidated scalar.
+
+Because this layer has no mutable state and no Runtime lifecycle, it does not choose an actor, task, queue, or worker. The caller chooses the execution context appropriate to its configuration. An encoding failure leaves the detached ``OffscreenRenderResult`` unchanged, so the caller may retry JPEG encoding—possibly with different settings—without advancing Simulation or rerendering. No PNG encoder, HDR-master or accumulation workflow, persistence contract, `ArtifactSink`, offline capture coordinator, or MCP coordinator is implemented yet.
 
 ## Metal 4 Residency Sets
 
@@ -288,3 +297,5 @@ This rendering approach fits the broader engine direction:
 - ``ComponentStore``
 - ``POffscreenRenderTarget``
 - ``MetalOffscreenRenderRuntime``
+- ``JPEGArtifactEncoder``
+- ``RenderedImageArtifact``

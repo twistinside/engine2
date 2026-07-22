@@ -10,7 +10,7 @@ The current code implements ``InputRuntime`` as the platform-input lifecycle and
 
 The first output-viewpoint separation is also implemented. ``RealtimeAssembly`` retains an ordinary App-owned ``ScreenViewpointController`` and performs one explicit hard-coded screen-event fan-out to it and ``InputRuntime``. `MetalRenderer` samples the latest ``SimulationPresentationSnapshot`` and independently resolves a ``RenderViewpoint``; ``RenderFrame`` preserves the source Simulation cursor plus optional explicit-viewpoint identity and revision. The screen viewpoint can change while the real-time driver issues no Simulation requests, and the Simulation-published camera remains the exact fallback when there is no override. The default ``Engine`` schedule no longer installs `SInputMapping` or `SCameraInput`, although those legacy types and the legacy ``SimulationLoop`` path remain pending deletion.
 
-Reusable Metal frame encoding and the first production offscreen Runtime boundary are now view-independent. ``MetalFrameEncoder`` owns material preflight, fixed target formats, frame-buffer packing, backend state binding, the HDR pass, and model draws while callers own targets and submission policy. ``MetalRenderer`` is the thin MetalKit screen caller. ``MetalOffscreenRenderRuntime`` implements the backend-neutral async ``POffscreenRenderTarget`` capability using request-carried immutable Simulation presentation, an explicit viewpoint, settings, configurable limits, dedicated one-slot resources, strict presentation/model/geometry preflight, real queue-feedback lifetime, and detached raw BGRA8-sRGB results. It samples no source, advances no Simulation, and owns no view or drawable. Focused tests and real driver-to-Simulation and offscreen GPU integration coverage exist. Broader authority recovery/arbitration, typed routing, multi-output bindings, observer anchors, offline capture coordination, artifact encoding, dedicated Render isolation, and MCP composition remain proposed.
+Reusable Metal frame encoding and the first production offscreen Runtime boundary are now view-independent. ``MetalFrameEncoder`` owns material preflight, fixed target formats, frame-buffer packing, backend state binding, the HDR pass, and model draws while callers own targets and submission policy. ``MetalRenderer`` is the thin MetalKit screen caller. ``MetalOffscreenRenderRuntime`` implements the backend-neutral async ``POffscreenRenderTarget`` capability using request-carried immutable Simulation presentation, an explicit viewpoint, settings, configurable limits, dedicated one-slot resources, strict presentation/model/geometry preflight, real queue-feedback lifetime, and detached raw BGRA8-sRGB results. It samples no source, advances no Simulation, and owns no view or drawable. ``JPEGArtifactEncoder`` is the implemented stateless CPU transformation from that detached result to a provenance-rich JPEG; it selects no execution context and can be retried without ticking or rerendering. Focused tests and real driver-to-Simulation and offscreen GPU integration coverage exist. Broader authority recovery/arbitration, typed routing, multi-output bindings, observer anchors, offline capture coordination, PNG and HDR accumulation, artifact persistence/sinks, dedicated Render isolation, and MCP composition remain proposed.
 
 ## Runtimes Are the Top-Level Application Objects
 
@@ -116,6 +116,8 @@ The implemented boundary now separates those roles: ``SimulationPresentationSnap
 
 Exact offscreen work uses a directed request/result boundary instead of sampling those latest sources. ``OffscreenRenderRequest`` carries one completed snapshot, one explicit viewpoint, and settings by value through ``POffscreenRenderTarget``. A successful ``OffscreenRenderResult`` echoes the request identity, source cursor, complete viewpoint, settings, and detached image, so slow rendering cannot silently switch to a newer scene or camera.
 
+Artifact derivation begins only after that exact result exists. ``JPEGArtifactEncoder`` synchronously transforms its detached BGRA8-sRGB pixels on the CPU and returns ``RenderedImageArtifact`` with the source request identity, Simulation cursor, complete viewpoint, render settings, and JPEG settings intact. The encoder is an ordinary stateless value rather than a Runtime; the caller chooses where it executes. Encoding failure leaves the raw result available for retry and never implies another Simulation advance or render.
+
 ### Events
 
 An **Event** is an immutable fact published by a runtime after something happened within that runtime's authority.
@@ -174,6 +176,8 @@ Directed request-and-result workflows are still valid when a dependency is inten
 
 ``POffscreenRenderTarget`` is another directed capability. Its concrete Metal Runtime neither discovers nor calls Simulation; an App-owned coordinator passes the exact completed snapshot and explicit viewpoint into the request and decides whether render completion gates another Simulation advance.
 
+JPEG derivation is not another directed Runtime capability. It is a local transformation of an already completed value. A future offline or MCP coordinator may sequence rendering, encoding, and persistence, but no such coordinator, persistence boundary, or `ArtifactSink` is implemented yet.
+
 ## Runtimes Advance at Different Cadences
 
 There is no single universal application frame.
@@ -182,6 +186,7 @@ There is no single universal application frame.
 - The Simulation Runtime executes fixed simulation ticks when the active advance authority requests progress.
 - The current screen viewpoint changes when its configured presentation gestures arrive, including while the Simulation cursor is frozen.
 - A screen Render Runtime submits work according to presentation cadence; ``MetalOffscreenRenderRuntime`` submits only when an exact asynchronous request is accepted.
+- ``JPEGArtifactEncoder`` has no cadence or isolation policy; its caller selects an execution context for each synchronous CPU transformation.
 - Audio, Network, and Storage runtimes may be event-driven or use their own scheduling policies.
 
 One host update may therefore collect input, execute zero or several simulation ticks, publish one new simulation presentation snapshot, and present zero or several render frames. Runtime boundaries must not assume one-to-one cadence.
@@ -237,9 +242,10 @@ The current implementation maps onto the proposed model as follows:
 | `MetalSceneView` and `MetalRenderer` | Current MetalKit screen adapter; samples presentation/viewpoint sources, selects ring slots and drawables, submits, presents, and owns screen error policy while delegating reusable encoding |
 | ``POffscreenRenderTarget`` and its request/outcome values | Implemented backend-neutral exact asynchronous boundary requiring an immutable Simulation presentation, explicit viewpoint, and render settings; successful results preserve request, source, viewpoint, and settings provenance |
 | ``MetalOffscreenRenderRuntime`` | Implemented production Metal offscreen Runtime with configurable limits, one dedicated frame slot, single-flight refusal, strict presentation/model/drawable-geometry preflight, queue-feedback lifetime, defined cancellation, terminal GPU-failure latching, and detached BGRA8-sRGB readback; owns no source, Simulation advance, view, drawable, or artifact encoder |
+| ``JPEGArtifactEncoder`` and ``RenderedImageArtifact`` | Implemented stateless CPU JPEG derivation from detached exact offscreen results with validated quality and preserved request, cursor, viewpoint, render, and encoding provenance; owns no Runtime lifecycle, execution context, Metal work, persistence, or sink |
 | ``MetalResourceStore`` | Device-scoped backend owner whose default frame count and compiled target formats are independent of the screen adapter |
 
-Future changes should introduce the remaining boundaries incrementally. The one-screen fan-out is not a substitute for typed multi-source routing, route epochs, observer anchors, or multi-output bindings, and the raw offscreen Runtime is not an offline capture coordinator, high-quality accumulation pipeline, artifact sink, or MCP assembly. Ordered discrete input-transition publication and retained input replay are also not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
+Future changes should introduce the remaining boundaries incrementally. The one-screen fan-out is not a substitute for typed multi-source routing, route epochs, observer anchors, or multi-output bindings, and raw offscreen rendering plus stateless JPEG derivation is not an offline capture coordinator, high-quality accumulation pipeline, artifact sink, persistence layer, or MCP assembly. PNG and HDR accumulation are not implemented. Ordered discrete input-transition publication and retained input replay are also not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
 
 ## Related Direction
 
