@@ -2,29 +2,25 @@ import SwiftUI
 
 /// The application composition root for Engine2's independently owned runtimes.
 ///
-/// `Engine2App` constructs Game Content, wires the Input and Simulation
-/// Runtimes explicitly, and supplies their narrow capabilities to the UI and
-/// Render Runtime boundary. It also applies app-scene lifecycle policy so no
-/// runtime needs to discover or control a peer through global state.
+/// `Engine2App` selects a Runtime Configuration, retains its concrete assembly,
+/// and supplies narrow Runtime capabilities to the UI and Render boundary. It
+/// also applies app-scene lifecycle policy so no Runtime needs to discover or
+/// control a peer through global state.
 @main
 struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var debugOptions = AppDebugOptions()
-    @State private var inputRuntime: InputRuntime
-    @State private var simulation: SimulationRuntime
+    @State private var realtimeAssembly: RealtimeAssembly
     private let gameContent: BasicGameContent
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
     init() {
         let gameContent = BasicGameContent()
-        let inputRuntime = InputRuntime()
         self.gameContent = gameContent
-        _inputRuntime = State(initialValue: inputRuntime)
-        _simulation = State(
-            initialValue: SimulationRuntime(
-                worldBuilder: gameContent.worldBuilder,
-                inputSource: inputRuntime
+        _realtimeAssembly = State(
+            initialValue: RealtimeConfiguration().makeAssembly(
+                gameContent: gameContent
             )
         )
     }
@@ -32,8 +28,8 @@ struct Engine2App: App {
     var body: some Scene {
         WindowGroup {
             ContentView(
-                inputRuntime: inputRuntime,
-                simulation: simulation,
+                inputRuntime: realtimeAssembly.inputRuntime,
+                simulation: realtimeAssembly.simulationRuntime,
                 debugOptions: debugOptions,
                 renderAssetCatalog: gameContent.renderAssetCatalog
             )
@@ -50,8 +46,7 @@ struct Engine2App: App {
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
             if isRunningTests {
-                simulation.stop()
-                inputRuntime.stop()
+                realtimeAssembly.stop()
                 return
             }
 
@@ -59,14 +54,11 @@ struct Engine2App: App {
             // than any individual view's lifecycle.
             switch newPhase {
             case .active:
-                inputRuntime.start()
-                simulation.start()
+                realtimeAssembly.start()
             case .inactive, .background:
-                simulation.stop()
-                inputRuntime.stop()
+                realtimeAssembly.stop()
             @unknown default:
-                simulation.stop()
-                inputRuntime.stop()
+                realtimeAssembly.stop()
             }
         }
     }
