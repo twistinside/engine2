@@ -157,6 +157,9 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(validate_ndjson((output / "diagnostics.ndjson").read_bytes()).manifest, MANIFEST)
             self.assertTrue((output / "summary.json").is_file())
             self.assertTrue((output / "summary.md").is_file())
+            environment = json.loads((output / "environment.json").read_text())
+            self.assertIn("gitRevision", environment)
+            self.assertIn("gitDirty", environment)
 
     def test_loop_captures_two_runs_and_returns_the_budget_result(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -82,7 +82,7 @@ def capture(request: CaptureRequest) -> dict[str, Any]:
 
     (request.output / "diagnostics.ndjson").write_bytes(completed.stdout)
     _write_json(request.output / "manifest.json", artifact.manifest)
-    _write_json(request.output / "environment.json", capture_environment())
+    _write_json(request.output / "environment.json", capture_environment(request.app))
     log_result: dict[str, Any]
     if request.log_policy == LogCapturePolicy.SKIP:
         log_result = {"status": "skipped"}
