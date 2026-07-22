@@ -1,27 +1,51 @@
 # Instrumentation and Diagnostics
 
-This article proposes an observability architecture for understanding Engine2 performance, diagnosing failures, and tracking the cost of architectural growth.
+This article documents Engine2's observability architecture for understanding performance, diagnosing failures, and tracking the cost of architectural growth.
 
 ## Status
 
-Proposed architecture with implementation planned on the long-lived `instrumentation-diagnostics` branch.
+Implemented experimental architecture on the long-lived `instrumentation-diagnostics` branch.
 
 That branch is the working integration line for the numbered changes in this article. It is expected to be rebased onto `main` regularly while the design is exercised, measured, and revised. A committed experiment may be replaced when evidence shows a better boundary, but every retained commit should remain buildable and reviewable.
 
 ### Implementation Checkpoint
 
-Rollout commits 1 through 9 are implemented on `instrumentation-diagnostics` as of July 21, 2026. The current branch provides the typed boundary, centralized Apple-system emission, Input and Simulation instrumentation, structural inventory, a bounded App-owned `DiagnosticsRuntime`, and a versioned NDJSON schema with golden validation.
+Rollout commits 1 through 24 are implemented on `instrumentation-diagnostics` as of July 21, 2026. The branch now provides the typed boundary, centralized Apple-system emission, Input/Simulation/Render instrumentation, structural inventory, a bounded App-owned `DiagnosticsRuntime`, versioned NDJSON artifacts, unified-log and Instruments capture, generated summaries and comparisons, debug visualizations, a Release performance lane, and reviewed machine-class budgets.
 
 Early implementation choices that should be evaluated with real captures are:
 
-- `DiagnosticsRuntime` currently retains the latest 4,096 samples and constant-space lifetime aggregates. A sample capacity is explicit and testable; replace it with or augment it by a 15–30 second policy only after measured sample rates show the required safe bound.
+- `DiagnosticsRuntime` retains the latest 4,096 samples during ordinary interactive use and 65,536 samples during a deterministic scenario, plus constant-space lifetime aggregates. The explicit capacities keep memory use testable and allow a complete 15-second baseline run to remain available.
 - Continuous pointer-drag and scroll ingress reports the first event and then every eighth event by default. Immutable input snapshot publication is not sampled.
 - System work counts are reported only when an existing store count supplies the value in constant time. No diagnostic-only component scan has been added.
-- One App-constructed emitter correlates Input and Simulation through a shared session. Emitters retain their optional sink weakly, so peer runtimes do not extend the Diagnostics Runtime lifecycle.
+- One App-constructed emitter correlates Input, Simulation, and Render through a shared session. Emitters retain their optional sink weakly, so peer runtimes do not extend the Diagnostics Runtime lifecycle.
+- The checked-in `Mac16,6` budget is deliberately local. A different machine model or operating-system version is incompatible until repeated runs produce a separately reviewed summary and budget.
+- Dashboard screenshots remain an outer UI-automation action. The `--diagnostics-show-dashboard` launch argument exposes a deterministic entry point without giving Render screenshot or filesystem responsibility.
 
-The baseline scenario and outer capture tooling remain the next implementation block. Render and debug-visualization work remains proposed until that repeatable consumption path is available.
+The numbered rollout is complete. Conditional follow-ups such as heterogeneous CI policy, MetricKit archival, scale scenarios, real wall-cadence integration scenarios, and a custom Instrument still require evidence or a separate product decision.
 
-The current app also has useful pre-existing debug surfaces, including input history, render output modes, and a retained terminal render error. The implemented foundation now supplies shared telemetry vocabulary, Input and Simulation signposts, structured loop logs, bounded typed samples, and a machine-readable stream schema. Repeatable app scenarios, outer capture bundles, Render instrumentation, and diagnostics visualizations remain to be implemented.
+The current app exposes a compact HUD and expanded Swift Charts dashboard from the Debug menu. The dashboard samples immutable diagnostic snapshots at 5 Hz, can pause and scrub its bounded history, controls collection independently, and exports the same schema-validated NDJSON used by the command-line workflow.
+
+### Operator Runbook
+
+Build or locate an optimized app, then run the full repeatability and budget check:
+
+```text
+xcodebuild -project Engine2.xcodeproj -scheme Engine2 -configuration Release -destination 'platform=macOS' build
+Tools/diagnostics loop \
+  --app <DerivedData>/Build/Products/Release/Engine2.app \
+  --output .build/diagnostics/<unique-loop-id> \
+  --budgets Diagnostics/Budgets/baseline-six-ball-Mac16,6.json
+```
+
+The loop refuses to overwrite evidence. It runs two compatible captures, validates both streams, generates JSON and Markdown summaries, checks correctness and structural inventory, records raw p95 deltas, and exits nonzero only for incompatibility, missing evidence, correctness failure, or an exceeded approved budget. Read the candidate's `comparison.md` first and use `comparison.json` for exact automation data.
+
+Run the isolated optimized XCTest measurements with:
+
+```text
+Tools/run-diagnostics-performance-tests
+```
+
+For forensic evidence, use one explicit capture with `--logs required --trace required`. For fast local iteration, the loop defaults both expensive system archives to `skip`; use `best-effort` when their absence should remain visible without failing the run. Open the in-app dashboard from Debug > Show Diagnostics Dashboard, or pass `--diagnostics-show-dashboard` when an outer UI test needs a repeatable screenshot surface.
 
 ## Goals
 
@@ -250,23 +274,24 @@ The dashboard is a debug presentation owned by the App. It is not a new source o
 
 ## Repeatable Codex Capture
 
-Create one repository-owned entry point with a stable command surface. The spelling below is proposed; the contract matters more than the implementation language.
+The repository-owned entry point has a stable, path-explicit command surface:
 
 ```text
-./Tools/diagnostics capture --scenario baseline-six-ball --duration 15s --configuration Release
-./Tools/diagnostics summarize .build/diagnostics/<capture-id>
-./Tools/diagnostics compare <baseline-capture> <candidate-capture>
+Tools/diagnostics capture --app <built-app> --output <capture> --logs required --trace required
+Tools/diagnostics summarize --capture <capture>
+Tools/diagnostics compare --baseline <baseline> --candidate <candidate> --budgets <budget.json>
+Tools/diagnostics loop --app <built-app> --output <loop> --budgets <budget.json>
 ```
 
-The capture command should:
+The capture command:
 
-1. Build through the project-aware Xcode workflow.
-2. Launch a named deterministic scenario with a fixed seed and explicit warm-up and measurement windows.
-3. Record an Instruments trace using a checked-in template.
-4. Collect the matching unified-log window by subsystem.
-5. Request the app's typed diagnostic export.
-6. Export selected trace tables and produce summaries.
-7. Validate that required artifacts exist and conform to their schema.
+1. Accepts an explicitly built app so building remains a project-aware outer workflow.
+2. Launches the named deterministic scenario with a fixed seed and explicit warm-up and measurement windows.
+3. Optionally records an Instruments trace using checked-in configuration.
+4. Optionally collects the matching unified-log window by subsystem and session.
+5. Captures the app's typed diagnostic stream from standard output.
+6. Exports known trace schemas and produces summaries.
+7. Validates that every required artifact exists and conforms to its schema.
 
 Use at least two scenario classes:
 
@@ -275,7 +300,7 @@ Use at least two scenario classes:
 
 Begin with the existing deterministic six-Ball scene. Add scale scenarios only when the world builder can produce them deliberately, for example 100, 1,000, and 10,000 quiescent renderables with fixed authored identities. An input script should use explicit `InputEvent` values and a fixed schedule rather than synthesized human input.
 
-Engine2 is sandboxed, so the capture design must not grant the app broad write access to the repository. In automated scenario mode, encode typed samples to standard output and let the outer runner redirect that stream to `diagnostics.ndjson`; `xctrace record` supports target-standard-output redirection for launched processes. A future interactive export can use an App-owned user-selected destination. In both cases, the capture runner—not a runtime—owns the artifact directory.
+Engine2 is sandboxed, so capture does not grant the app broad write access to the repository. In automated scenario mode, typed samples go to standard output and the outer runner writes `diagnostics.ndjson`; `xctrace record` supports target-standard-output redirection for launched processes. Interactive export uses an App-owned user-selected destination. In both cases, the capture runner or user—not a runtime—owns the artifact directory.
 
 ### Artifact Bundle
 
@@ -292,23 +317,22 @@ capture-id/
 ├── instruments.trace
 ├── trace-toc.xml
 ├── trace-signposts.xml
-├── dashboard.png
-└── result.xcresult
+├── logs-result.json
+├── trace-result.json
+└── capture-result.json
 ```
 
-Not every scenario needs every optional file, but the manifest must state which artifacts were requested, produced, skipped, or failed.
+Not every scenario needs every optional file. The result documents state as complete, skipped, or failed; native traces, log archives, screenshots, and XCTest result bundles remain uncommitted outer evidence.
 
-`manifest.json` records at least:
+`manifest.json` records the versioned in-process contract:
 
 - artifact schema version
-- Git revision and dirty-worktree state
 - scenario identity and scenario schema version
-- build configuration and compiler/Xcode version
-- operating system, hardware model, CPU, GPU, memory, and display characteristics
-- app version and bundle identifier
-- diagnostic feature flags
+- build configuration
 - warm-up and measurement durations
-- fixed step, render output mode, random seed, and content inventory
+- fixed step and random seed
+
+The outer `environment.json` records Git revision and dirty-worktree state, Xcode and Swift compiler versions, operating system, machine model, processor, physical memory, and available app bundle identity/version. `capture-result.json` preserves the exact launch command and requested log/trace outcome. Structural content and system inventory remain typed samples so the summary and budget evaluator validate what actually ran rather than trusting launch metadata.
 
 Raw numeric data goes in `diagnostics.ndjson`. `summary.json` contains distributions, deltas, threshold results, and links to supporting sample kinds. `summary.md` is a concise human and Codex orientation report generated entirely from `summary.json`.
 
@@ -362,15 +386,14 @@ Codex should be able to follow this fixed investigation loop:
 
 ## Regression Tests and Budgets
 
-XCTest remains the supported performance-test surface even though most current behavior tests use Swift Testing. Add focused XCTest performance cases where a stable workload exists.
+XCTest remains the supported performance-test surface even though most current behavior tests use Swift Testing. The `Engine2Performance` plan and its repository runner isolate optimized measurements from ordinary correctness tests.
 
-Initial tests should cover:
+The initial lane covers:
 
 - a fixed count of `Engine.step()` calls for the baseline world
-- each invariant system with a representative component population
-- `SimulationPresentationSnapshot.capture(from:at:)` at several scales
-- `RenderFrame.project(from:)` at several scales, including rejected transforms
-- Render resource-store construction and model loading on known supported hardware
+- the invariant movement and rotation systems with the baseline population
+- `SimulationPresentationSnapshot.capture(from:at:)` for the baseline world
+- `RenderFrame.project(from:)` for the baseline world
 - selected app-level signposts through `XCTOSSignpostMetric`
 
 Record wall time together with `XCTCPUMetric` and `XCTMemoryMetric` where they answer a specific risk. Set baselines only after collecting enough stable runs on the intended machine class. Do not begin with arbitrary hard thresholds that merely encode one noisy measurement.
@@ -383,7 +406,7 @@ Keep correctness gates separate from statistical budgets. The following are fail
 - an unexpected scenario inventory
 - missing diagnostic samples or an unrecognized artifact schema
 
-Once observations are stable, add reviewed budgets for p95 fixed-step duration, backlog, source-tick age, frame-slot wait, snapshot projection, and relevant memory/resource counts. Every budget should name its scenario, environment class, rationale, owner, and last review date.
+The first reviewed budget covers the deterministic evidence that the current scenario actually produces: p95 fixed-step, invariant-system, snapshot-capture, and Render-projection durations plus exact system/component inventory. Backlog, source-tick age, frame-slot wait, GPU feedback, and resource-loading budgets wait for a deterministic wall-cadence integration scenario rather than inventing thresholds from missing evidence. Every budget names its scenario, environment class, rationale, owner, and last review date.
 
 ## Field Evidence
 
