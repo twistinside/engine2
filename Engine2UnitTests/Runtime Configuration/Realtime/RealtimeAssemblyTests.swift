@@ -81,4 +81,45 @@ struct RealtimeAssemblyTests {
 
         await assembly.stop()
     }
+
+    @Test @MainActor func pausedInputChangesViewpointWithoutAdvancingSimulation() async {
+        let assembly = RealtimeConfiguration(
+            pollInterval: .seconds(60)
+        ).makeAssembly(gameContent: BasicGameContent())
+
+        // Disable advancement before activation so no cadence request can race
+        // the invariant this test is proving.
+        assembly.pauseAdvancement()
+        assembly.start()
+
+        let presentation = assembly.simulationRuntime.latestPresentationSnapshot
+        let cursor = assembly.simulationRuntime.currentCursor
+        let initialViewpoint = assembly.screenViewpointController.resolveViewpoint(
+            defaultCamera: presentation.camera
+        )
+
+        assembly.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(50, 0),
+                position: SIMD2<Float>(10, 20)
+            )
+        )
+        assembly.receive(.scroll(delta: SIMD2<Float>(0, 25)))
+
+        let changedViewpoint = assembly.screenViewpointController.resolveViewpoint(
+            defaultCamera: presentation.camera
+        )
+
+        #expect(assembly.simulationRuntime.currentCursor == cursor)
+        #expect(assembly.simulationRuntime.latestPresentationSnapshot == presentation)
+        #expect(changedViewpoint.id == initialViewpoint.id)
+        #expect(changedViewpoint.revision > initialViewpoint.revision)
+        #expect(changedViewpoint.camera != initialViewpoint.camera)
+        #expect(
+            assembly.inputRuntime.latestInputSnapshot.pointerMotionTotal ==
+            SIMD2<Float>(50, 0)
+        )
+
+        await assembly.stop()
+    }
 }

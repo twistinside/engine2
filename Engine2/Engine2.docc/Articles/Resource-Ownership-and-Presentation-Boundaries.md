@@ -32,9 +32,9 @@ Do not connect runtimes through process-global mutable resources. Globals hide o
 
 ## Input Ownership Stops at a Snapshot
 
-Platform input and simulation input have different owners and cadences. ``InputRuntime`` accepts host `InputEvent` values through `PInputEventSink`, maintains its private collection state, and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`. `InputMetalView` is only a platform adapter into that sink; it does not mutate `World` or call the Simulation Runtime.
+Platform input and simulation input have different owners and cadences. ``InputRuntime`` maintains private collection state and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`. In the current real-time topology, `InputMetalView` submits host `InputEvent` values through the ``RealtimeAssembly`` `PInputEventSink`; the assembly explicitly fans them to ``InputRuntime`` and one ``ScreenViewpointController``. The platform adapter and assembly connector do not mutate `World` or call the Simulation Runtime.
 
-In the real-time assembly, ``RealtimeAdvanceDriver`` captures a transition baseline immediately at start, resume, or synchronization, then samples the latest snapshot once per exact batch. It carries those immutable values together as rebase-then-ingest when both exist. ``SimulationRuntime`` applies the assignment only after cursor validation, and ``Engine`` consumes transient input only when the first requested fixed step actually begins. `InputState` remains a World resource because action mapping, camera input, fixed-tick history, and transient cleanup are simulation decisions. Snapshot revisions prevent the same publication from being consumed as new input twice. Within one publisher session, cumulative pointer-motion and scroll totals let Simulation derive the complete interval between sampled revisions without requiring Input and Simulation to advance together.
+In the real-time assembly, ``RealtimeAdvanceDriver`` captures a transition baseline immediately at start, resume, or synchronization, then samples the latest snapshot once per exact batch. It carries those immutable values together as rebase-then-ingest when both exist. ``SimulationRuntime`` applies the assignment only after cursor validation, and ``Engine`` consumes transient input only when the first requested fixed step actually begins. `InputState` remains a World resource for Simulation-facing held state, fixed-tick history, transient derivation, cleanup, and future gameplay action mapping. Output-specific orbit and zoom are no longer installed in the default Simulation schedule; the screen controller owns that presentation interpretation. Snapshot revisions prevent the same publication from being consumed as new Simulation input twice. Within one publisher session, cumulative pointer-motion and scroll totals let Simulation derive the complete interval between sampled revisions without requiring Input and Simulation to advance together.
 
 This latest-value boundary does not retain an ordered history of discrete transitions. The platform `InputEvent` type is ingress, not a published event journal. Replay or transition-sensitive consumption will require a separate explicit recording or ordered-event design.
 ## World Owns Abstract Presentation State
@@ -67,8 +67,9 @@ The current code separates simulation publication from render projection:
 
 1. the Simulation Runtime publishes a completed, backend-neutral `SimulationPresentationSnapshot`
 2. the Render Runtime selects the latest value according to its own cadence
-3. ``RenderFrame.project(from:)`` projects the fields Render needs into a private value
-4. Render resolves abstract identities into its privately owned backend resources
+3. an optional `PRenderViewpointSource` resolves an output-specific ``RenderViewpoint`` against the snapshot camera as its exact default
+4. ``RenderFrame.project(from:viewpoint:)`` projects the scene and selected camera into a private value while preserving Simulation and optional viewpoint attribution
+5. Render resolves abstract identities into its privately owned backend resources
 
 `World` should not directly emit Metal-facing structs as part of its core API, and the renderer should not read live gameplay state during drawing. The Render Runtime owns the destination projection while Simulation remains unaware of render-specific fields and backend choices.
 ## Draw Cadence Is Separate From Simulation Cadence

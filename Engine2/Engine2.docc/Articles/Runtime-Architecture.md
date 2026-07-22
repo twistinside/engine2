@@ -6,7 +6,9 @@ This article defines the intended top-level application architecture for Engine2
 
 Partially implemented direction.
 
-The current code implements ``InputRuntime`` as the platform-input lifecycle and latest-snapshot publisher. ``SimulationRuntime`` owns ``Engine`` and ``World`` but no longer owns cadence or a live Input source: its session-qualified ``PSimulationAdvanceTarget`` boundary accepts exact requests and returns correlated completed output. ``ManualConfiguration`` provides a caller-driven assembly, while ``RealtimeConfiguration`` connects Input and Simulation through an App-owned ``RealtimeAdvanceDriver`` with captured transition baselines, typed bounded catch-up, and explicit overflow policy. Async stop-and-drain plus assembly lifecycle generations make coordinated stop and rebuild wait for accepted work without letting stale completion reverse a newer App decision; the cadence task releases the driver between sleeps. Focused and real driver-to-Simulation integration coverage exist. Broader authority recovery/arbitration and removal of the legacy real-time path remain migration work. A complete `RenderRuntime` remains proposed; ``RenderFrame`` and `MetalRenderer` implement important parts of that responsibility today.
+The current code implements ``InputRuntime`` as the platform-input lifecycle and latest-snapshot publisher. ``SimulationRuntime`` owns ``Engine`` and ``World`` but no longer owns cadence or a live Input source: its session-qualified ``PSimulationAdvanceTarget`` boundary accepts exact requests and returns correlated completed output. ``ManualConfiguration`` provides a caller-driven assembly, while ``RealtimeConfiguration`` connects Input and Simulation through an App-owned ``RealtimeAdvanceDriver`` with captured transition baselines, typed bounded catch-up, and explicit overflow policy. Async stop-and-drain plus assembly lifecycle generations make coordinated stop and rebuild wait for accepted work without letting stale completion reverse a newer App decision; the cadence task releases the driver between sleeps.
+
+The first output-viewpoint separation is also implemented. ``RealtimeAssembly`` retains an ordinary App-owned ``ScreenViewpointController`` and performs one explicit hard-coded screen-event fan-out to it and ``InputRuntime``. `MetalRenderer` samples the latest ``SimulationPresentationSnapshot`` and independently resolves a ``RenderViewpoint``; ``RenderFrame`` preserves the source Simulation cursor plus optional explicit-viewpoint identity and revision. The screen viewpoint can change while the real-time driver issues no Simulation requests, and the Simulation-published camera remains the exact fallback when there is no override. The default ``Engine`` schedule no longer installs `SInputMapping` or `SCameraInput`, although those legacy types and the legacy ``SimulationLoop`` path remain pending deletion. Focused tests and real driver-to-Simulation integration coverage exist. Broader authority recovery/arbitration, typed routing, multi-output bindings, observer anchors, a complete `RenderRuntime`, offscreen rendering, and MCP composition remain proposed.
 
 ## Runtimes Are the Top-Level Application Objects
 
@@ -41,7 +43,7 @@ For example, Game Content may provide a world builder to the Simulation Runtime,
 
 A **Runtime Configuration** is an App-owned recipe for selecting runtime implementations, typed connections, advancement policy, lifecycle policy, and per-connection delivery policy for one situation. An App-owned live **Runtime Assembly** strongly retains the instances and connection lifetimes produced from that recipe on the App's behalf.
 
-Concrete ``RealtimeConfiguration`` and ``ManualConfiguration`` recipes now construct distinct assemblies. The manual topology owns only caller-driven Simulation with no automatic cadence. The application's real-time topology connects platform input and authoritative Simulation through its App-owned wall-clock driver while screen presentation independently consumes completed snapshots. Offline capture, MCP-driven stepping, headless servers, replay, and alternate presentation still need different explicit assemblies without changing what a Simulation tick means.
+Concrete ``RealtimeConfiguration`` and ``ManualConfiguration`` recipes now construct distinct assemblies. The manual topology owns only caller-driven Simulation with no automatic cadence. The application's real-time topology connects platform input and authoritative Simulation through its App-owned wall-clock driver while one screen independently combines completed snapshots with an App-owned viewpoint. Its assembly is also the current `PInputEventSink`: it forwards each accepted host event to the Input Runtime and the one screen controller. That fixed fan-out is implementation evidence for explicit composition, not the proposed typed routing or multi-window binding model. Offline capture, MCP-driven stepping, headless servers, replay, and alternate presentation still need different explicit assemblies without changing what a Simulation tick means.
 
 See <doc:Runtime-Configurations-and-Advancement> for the proposed configuration vocabulary, advance boundary, scenario space, feasibility assessment, and migration path.
 
@@ -61,6 +63,8 @@ The Simulation Runtime owns:
 That ownership includes the invariant system schedule. Position, orientation, input consumption, and other mechanics required for a valid simulation remain Simulation Runtime implementation. Future consumer-defined behavior may enter through deliberate extension points, but Game Content does not replace or assemble the simulation's required foundation.
 
 Other runtimes may provide inputs to the Simulation Runtime or project its outputs, but they do not reach into `World` or mutate simulation state directly.
+
+The camera carried by ``SimulationPresentationSnapshot`` is a completed Simulation-authored default. An output may use it exactly or supply a separately owned viewpoint without changing ``World`` or advancing the Simulation cursor. Output-specific free orbit and zoom therefore do not belong in the default Simulation schedule. A future gameplay-authoritative camera rig or sensor may still be ordinary Simulation state processed by complete ticks.
 
 Owning tick execution does not require Simulation to own the policy that decides when a tick is requested. ``SimulationRuntime`` now exposes exact advancement without owning a polling loop, and ``ManualConfiguration`` demonstrates progress with no wall clock. The App-owned ``RealtimeAdvanceDriver`` performs wall-clock polling, elapsed-time accumulation, bounded catch-up/overflow policy, pause/rebase policy, and input capture while Simulation remains the sole executor and publisher of completed ticks. ``SimulationLoop`` and ``Engine/update(deltaTime:inputSnapshot:)`` remain only as legacy migration paths pending final removal.
 
@@ -106,7 +110,7 @@ Snapshot types should use a descriptive `Snapshot` suffix rather than an `S` pre
 
 A receiving runtime may derive its own private snapshot or operational model from a publisher-owned snapshot. For example, the Simulation Runtime publishes `SimulationPresentationSnapshot`; the Render Runtime projects that value into its own render-oriented snapshot. Simulation owns the source vocabulary, Render owns the projection and destination model, and the App owns the connection.
 
-The implemented boundary now separates those roles: ``SimulationPresentationSnapshot`` is publisher-owned abstract presentation state labeled with its exact ``SimulationCursor``, while ``RenderFrame`` is the Render Runtime's private projection and preserves optional source-cursor attribution. The App connects the read-only latest-value source explicitly. This is one deliberate Simulation Runtime publication, not a universal or exhaustive snapshot of every simulation concern.
+The implemented boundary now separates those roles: ``SimulationPresentationSnapshot`` is publisher-owned abstract presentation state labeled with its exact ``SimulationCursor``, while ``RenderFrame`` is the Render Runtime's private projection. A frame preserves optional source-cursor attribution and, when projected with an explicit ``RenderViewpoint``, its ``RenderViewpointID`` and ``RenderViewpointRevision``. The App connects the read-only presentation and viewpoint sources explicitly. This is one deliberate Simulation Runtime publication plus an output-owned selection, not a universal snapshot of every simulation concern.
 
 ### Events
 
@@ -145,15 +149,18 @@ Peer runtimes should usually communicate through choreography:
 For example:
 
 ```text
-InputMetalView     -- InputEvent -----------------------------> InputRuntime
+InputMetalView     -- InputEvent -----------------------------> RealtimeAssembly
+RealtimeAssembly  -- hard-coded device-state fan-out --------> InputRuntime
+RealtimeAssembly  -- hard-coded screen-gesture fan-out ------> ScreenViewpointController
 InputRuntime       -- latest InputSnapshot -------------------> RealtimeAdvanceDriver
 RealtimeAdvanceDriver -- SimulationAdvanceRequest -----------> SimulationRuntime
-SimulationRuntime -- SimulationPresentationSnapshot ----------> RenderRuntime
+SimulationRuntime -- SimulationPresentationSnapshot ---------+--> RenderRuntime
+ScreenViewpointController -- RenderViewpoint -----------------+
 SimulationRuntime -- selected SimulationEvent ----------------> AudioRuntime
 SimulationRuntime -- selected SimulationEvent ----------------> AchievementRuntime
 ```
 
-The arrows show App-owned, explicitly typed wiring, not direct ownership between the runtimes. The current real-time input path combines a latest-value publication with a deliberate directed advance request; the Simulation publication paths remain choreography. Rendering consumes the simulation presentation snapshot and derives a private render model; it does not require a simulation event lane. Future continuous audio, networking, tooling, or other needs may justify additional purpose-specific publisher-owned snapshots rather than expanding one universal simulation snapshot.
+The arrows show App-owned, explicitly typed wiring, not direct ownership between the runtimes. ``ScreenViewpointController`` is a connection/controller retained by the assembly, not another Runtime. The two current event arrows out of ``RealtimeAssembly`` are deliberately hard-coded for one interactive screen and do not yet provide source identity, route epochs, recipient baselines, exclusivity, or multi-window binding. The real-time Simulation path combines a latest-value publication with a deliberate directed advance request; the Simulation publication paths remain choreography. Rendering consumes the simulation presentation snapshot and independently resolved viewpoint to derive a private render model; it does not require a simulation event lane. Future continuous audio, networking, tooling, or other needs may justify additional purpose-specific publisher-owned snapshots rather than expanding one universal simulation snapshot.
 
 Engine2 should not connect these publications through a process-global event bus, process-global snapshot database, or runtime service locator. A reusable App-owned router or exchange may eventually implement the connections, but it must preserve the explicit typed topology and may not make arbitrary publishers globally discoverable.
 
@@ -167,6 +174,7 @@ There is no single universal application frame.
 
 - Input arrives according to platform event delivery.
 - The Simulation Runtime executes fixed simulation ticks when the active advance authority requests progress.
+- The current screen viewpoint changes when its configured presentation gestures arrive, including while the Simulation cursor is frozen.
 - The Render Runtime submits work according to presentation cadence.
 - Audio, Network, and Storage runtimes may be event-driven or use their own scheduling policies.
 
@@ -182,7 +190,7 @@ An ECS **System** is not a runtime. It is scheduled simulation logic owned by th
 
 This distinction keeps the `S` prefix precise:
 
-- `SInputMapping` is an ECS system inside the Simulation Runtime, even though it consumes input.
+- `SInputMapping` and `SCameraInput` remain ECS-system types while they await deletion, even though the default ``Engine`` schedule no longer installs them.
 - `SRenderExtraction` may eventually be an ECS presentation-export system, but actual rendering belongs to the Render Runtime.
 - `InputRuntime` and `RenderRuntime` are top-level owners with independent lifecycles, not ECS systems.
 
@@ -205,21 +213,23 @@ The current implementation maps onto the proposed model as follows:
 | Current type | Emerging responsibility |
 | --- | --- |
 | ``InputRuntime`` | Implemented App-owned Input Runtime lifecycle, platform-event ingress, and latest immutable input-snapshot publication |
-| `InputMetalView` | Platform adapter that submits `InputEvent` values through `PInputEventSink`; it does not call Simulation directly |
+| `InputMetalView` | Platform adapter that submits `InputEvent` values through the current assembly's `PInputEventSink`; it does not call Simulation directly |
 | `InputSnapshot`, `InputRevision`, and `PInputSnapshotSource` | Implemented revisioned latest-value boundary containing held state plus cumulative pointer-motion and scroll totals |
-| `InputState` and Simulation input systems | Simulation-owned fixed-tick interpretation, action mapping, history, and transient cleanup after snapshot ingestion |
+| `InputState` and default Simulation input systems | Simulation-owned fixed-tick input state, history, and transient cleanup after snapshot ingestion; legacy camera mapping/control types are no longer installed by default |
 | ``SimulationSessionID`` and ``SimulationCursor`` | Implemented identity for one authoritative timeline and one committed position within it |
 | ``SimulationRuntime`` and ``PSimulationAdvanceTarget`` | Implemented authoritative state, exact request serialization, expected-cursor validation, immutable input assignment, and correlated completed publication without owning cadence |
 | ``ManualConfiguration`` and ``ManualAssembly`` | Implemented caller-driven topology with no Input Runtime or automatic cadence |
-| ``RealtimeConfiguration``, ``RealtimeAssembly``, and ``RealtimeAdvanceDriver`` | Implemented real-time composition with App-owned cadence, weak between-wake retention, pause policy, captured transition baselines, atomic rebase-then-ingest, bounded catch-up/overflow policy, exact requests, async stop-and-drain, lifecycle-generation protection, initial cursor-mismatch faulting, focused coverage, and real driver-to-Simulation integration coverage; broader authority recovery remains |
+| ``RealtimeConfiguration``, ``RealtimeAssembly``, and ``RealtimeAdvanceDriver`` | Implemented real-time composition with App-owned cadence, pause policy, exact requests, coordinated lifecycle, and one hard-coded screen-event fan-out; broader authority recovery and typed routing remain |
+| ``ScreenViewpointController`` | Implemented ordinary App-owned controller for one screen's optional free-orbit override; it passes through the exact latest Simulation camera until meaningfully changed and can revise while Simulation is paused |
 | ``SimulationLoop`` | Legacy host-time polling and input-sampling path retained while real-time migration is completed |
 | ``Engine`` | Fixed-step scheduler inside the Simulation Runtime; exact steps run the complete schedule, while the legacy elapsed-time and gated-pause path remains transitional |
 | ``World`` | Authoritative simulation state inside the Simulation Runtime |
-| ``SimulationPresentationSnapshot`` | Latest completed publisher-owned Simulation Runtime presentation value labeled with its exact cursor |
-| ``RenderFrame`` | Render Runtime-owned private projection derived from one simulation snapshot and preserving optional source-cursor attribution |
-| `MetalSceneView` and `MetalRenderer` | Early Render Runtime ownership and backend responsibilities |
+| ``SimulationPresentationSnapshot`` | Latest completed publisher-owned Simulation Runtime presentation value labeled with its exact cursor; its camera is the default for outputs without an override |
+| ``RenderViewpoint``, ``RenderViewpointID``, ``RenderViewpointRevision``, and `PRenderViewpointSource` | Implemented immutable output-specific camera selection and Render-owned source boundary |
+| ``RenderFrame`` | Render Runtime-owned private projection derived from one Simulation snapshot and an optional explicit viewpoint, preserving both kinds of attribution |
+| `MetalSceneView` and `MetalRenderer` | Early Render Runtime ownership and backend responsibilities; the current screen path samples presentation and viewpoint sources independently |
 
-Future changes should introduce the remaining boundaries incrementally. Ordered discrete input-transition publication and retained input replay are not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
+Future changes should introduce the remaining boundaries incrementally. The one-screen fan-out is not a substitute for typed multi-source routing, route epochs, observer anchors, or multi-output bindings. Ordered discrete input-transition publication and retained input replay are also not part of the implemented latest-snapshot boundary. Add those capabilities only with explicit delivery and storage semantics.
 
 ## Related Direction
 

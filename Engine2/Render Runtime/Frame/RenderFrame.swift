@@ -4,12 +4,18 @@ import simd
 struct RenderFrame: Equatable {
     static let empty = RenderFrame(
         sourceCursor: nil,
+        viewpointID: nil,
+        viewpointRevision: nil,
         camera: Camera(),
         instances: []
     )
 
     /// Exact Simulation publication projected into this frame, when present.
     let sourceCursor: SimulationCursor?
+    /// Explicit Render-owned viewpoint used for projection, when one overrides the snapshot camera.
+    let viewpointID: RenderViewpointID?
+    /// Revision of the explicit Render-owned viewpoint used for projection.
+    let viewpointRevision: RenderViewpointRevision?
     let camera: Camera
     let instances: [RenderInstance]
 
@@ -20,20 +26,26 @@ struct RenderFrame: Equatable {
 
     /// Projects publisher-owned presentation facts into private render data.
     static func project(
-        from snapshot: SimulationPresentationSnapshot
+        from snapshot: SimulationPresentationSnapshot,
+        viewpoint: RenderViewpoint? = nil
     ) -> RenderFrame {
+        let camera = viewpoint?.camera ?? snapshot.camera
+
         // An invalid camera would poison every model-view transform. Preserve
-        // the published camera value for inspection, but produce a safe empty
-        // frame rather than sending NaN positions or normals to the GPU.
-        guard snapshot.camera.supportsViewTransform else {
+        // the selected camera value and its provenance for inspection, but
+        // produce a safe empty frame rather than sending NaN positions or
+        // normals to the GPU.
+        guard camera.supportsViewTransform else {
             return RenderFrame(
                 sourceCursor: snapshot.cursor,
-                camera: snapshot.camera,
+                viewpointID: viewpoint?.id,
+                viewpointRevision: viewpoint?.revision,
+                camera: camera,
                 instances: []
             )
         }
 
-        let viewMatrix = snapshot.camera.viewMatrix
+        let viewMatrix = camera.viewMatrix
         let instances = snapshot.entityPresentations.compactMap { entity -> RenderInstance? in
             guard let position = entity.position else {
                 return nil
@@ -70,7 +82,9 @@ struct RenderFrame: Equatable {
 
         return RenderFrame(
             sourceCursor: snapshot.cursor,
-            camera: snapshot.camera,
+            viewpointID: viewpoint?.id,
+            viewpointRevision: viewpoint?.revision,
+            camera: camera,
             instances: instances
         )
     }
