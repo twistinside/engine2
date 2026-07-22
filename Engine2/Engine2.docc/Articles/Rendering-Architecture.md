@@ -119,6 +119,10 @@ The intended model is:
 - rendering consumes the latest completed front buffer when a draw is requested
 This allows zero, one, or many simulation ticks between draws without making draw cadence the owner of simulation state.
 
+The current Metal backend also treats an exhausted reusable frame-resource ring as ordinary bounded back pressure. It probes the next slot without blocking; if GPU feedback has not released it, Render drops that presentation opportunity and reports `frameSlotWait.unavailable` plus `renderFrameCPU.frameSlotUnavailable`. Simulation therefore does not wait for GPU completion merely because both runtime callbacks currently execute on the main actor. Conversely, Render may repeatedly project and present the same latest completed source tick while Simulation is paused or publishing more slowly.
+
+This policy establishes cadence independence at the snapshot and GPU-feedback boundaries. It does not make long synchronous CPU work concurrent: any callback that monopolizes the shared main actor can still delay other main-actor callbacks. Executor separation remains a future ownership and scheduling decision rather than an implied property of latest-value publication.
+
 Rendering is snapshot-only. It does not rely on receiving simulation events. A transient visual occurrence must therefore remain represented in snapshot-visible presentation state long enough for a renderer that skips intermediate snapshots to observe or converge past it correctly.
 ## Batching
 Once render items are extracted, the renderer should be able to batch or sort them by renderer-relevant state.

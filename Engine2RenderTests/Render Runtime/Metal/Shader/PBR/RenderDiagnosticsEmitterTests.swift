@@ -53,7 +53,12 @@ struct RenderDiagnosticsEmitterTests {
         let frameSequence = RenderFrameSequence(rawValue: 7)
         let sourceTick = SimulationTick(rawValue: 11)
 
-        emitter.measureFrameSlotWait(frameSequence: frameSequence, frameSlot: 1) {}
+        let acquired = emitter.measureFrameSlotWait(
+            frameSequence: frameSequence,
+            frameSlot: 1
+        ) {
+            true
+        }
         let encodeMeasurement = emitter.beginFrameEncode(
             frameSequence: frameSequence,
             sourceTick: sourceTick
@@ -89,6 +94,8 @@ struct RenderDiagnosticsEmitterTests {
         }
         #expect(wait.frameSequence == frameSequence)
         #expect(wait.frameSlot == 1)
+        #expect(wait.result == .acquired)
+        #expect(acquired)
         #expect(encode.sourceTick == sourceTick)
         #expect(encode.renderPassCount == 2)
         #expect(encode.drawCount == 3)

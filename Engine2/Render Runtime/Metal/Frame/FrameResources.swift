@@ -22,7 +22,7 @@ final class FrameResources: @unchecked Sendable {
     /// Lazily sized scene target for this exact reusable frame slot.
     private(set) var hdrSceneTarget: MetalHDRSceneTarget?
 
-    /// Starts available. A draw call waits on it before reusing the allocator,
+    /// Starts available. A draw call claims it before reusing the allocator,
     /// and the queue feedback handler signals it after GPU completion.
     private let availability = DispatchSemaphore(value: 1)
 
@@ -39,11 +39,22 @@ final class FrameResources: @unchecked Sendable {
         self.hdrSceneTarget = nil
     }
 
-    /// Blocks the main actor only when the CPU outruns all in-flight frame
-    /// slots. With three slots, this should happen only under sustained GPU
-    /// pressure.
+    /// Blocks until this slot becomes available.
+    ///
+    /// Production render callbacks use ``tryAcquire()`` so GPU back pressure
+    /// cannot stop another runtime that shares the main actor. This blocking
+    /// primitive remains useful for controlled ownership and lifetime tests.
     nonisolated func waitUntilAvailable() {
         availability.wait()
+    }
+
+    /// Attempts to claim this slot without waiting for in-flight GPU work.
+    ///
+    /// A successful caller owns the slot and must eventually call
+    /// ``markAvailable()`` or transfer that responsibility to submission
+    /// feedback. Failure leaves ownership unchanged.
+    nonisolated func tryAcquire() -> Bool {
+        availability.wait(timeout: .now()) == .success
     }
 
     /// Releases this frame slot for reuse by a later draw call.

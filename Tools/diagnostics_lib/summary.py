@@ -41,6 +41,7 @@ def calculate_summary(artifact: ValidatedArtifact) -> dict[str, Any]:
     """Aggregate durations, normalized costs, structure, and correctness."""
 
     kind_counts: Counter[str] = Counter()
+    outcome_counts: Counter[str] = Counter()
     durations: dict[str, list[Measurement]] = defaultdict(list)
     normalized: dict[str, list[Measurement]] = defaultdict(list)
     inventories: list[dict[str, Any]] = []
@@ -52,6 +53,9 @@ def calculate_summary(artifact: ValidatedArtifact) -> dict[str, Any]:
         payload = record["sample"]["payload"]
         kind, value = payload_entry(payload)
         kind_counts[kind] += 1
+        result = value.get("result")
+        if isinstance(result, str):
+            outcome_counts[f"{kind}.{result}"] += 1
         if kind == "simulationRuntimeInventory":
             inventories.append(value)
         if kind == "simulationStep":
@@ -102,6 +106,7 @@ def calculate_summary(artifact: ValidatedArtifact) -> dict[str, Any]:
         "manifest": artifact.manifest,
         "sampleCount": len(artifact.records) - 1,
         "sampleKindCounts": dict(sorted(kind_counts.items())),
+        "outcomeCounts": dict(sorted(outcome_counts.items())),
         "distributions": {
             name: summarize_measurements(values) for name, values in sorted(durations.items())
         },
@@ -162,6 +167,14 @@ def render_markdown(summary: dict[str, Any]) -> str:
             f"{distribution['p95']:g} | {distribution['p99']:g} | "
             f"{distribution['maximum']:g} | {distribution['unit']} |"
         )
+    lines.extend(["", "## Outcomes", ""])
+    if summary["outcomeCounts"]:
+        lines.extend(
+            f"- `{name}`: {count}"
+            for name, count in summary["outcomeCounts"].items()
+        )
+    else:
+        lines.append("- none")
     lines.extend(["", "## Evidence", ""])
     lines.append(f"- Missing: {', '.join(summary['missingEvidence']) or 'none'}")
     lines.append(f"- Correctness failures: {', '.join(summary['correctnessFailures']) or 'none'}")

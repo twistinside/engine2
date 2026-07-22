@@ -138,23 +138,25 @@ final class DiagnosticsEmitter {
         return frame
     }
 
-    /// Measures main-actor back pressure at the bounded frame ring.
+    /// Measures a nonblocking acquisition at the bounded frame ring.
+    @discardableResult
     func measureFrameSlotWait(
         frameSequence: RenderFrameSequence,
         frameSlot: Int,
-        operation: () -> Void
-    ) {
+        operation: () -> Bool
+    ) -> Bool {
         let start = timeSource()
         let signposter = DiagnosticsOSHandles.signposter(for: .renderFrame)
+        let acquired: Bool
         if signposter.isEnabled {
-            signposter.withIntervalSignpost(
+            acquired = signposter.withIntervalSignpost(
                 "FrameSlotWait",
                 id: signposter.makeSignpostID(),
                 "session=\(self.sessionID.rawValue.uuidString, privacy: .public) frame=\(frameSequence.rawValue, privacy: .public) slot=\(frameSlot, privacy: .public)",
                 around: operation
             )
         } else {
-            operation()
+            acquired = operation()
         }
         let end = timeSource()
         record(
@@ -164,10 +166,12 @@ final class DiagnosticsEmitter {
                 FrameSlotWaitDiagnostics(
                     frameSequence: frameSequence,
                     frameSlot: frameSlot,
+                    result: acquired ? .acquired : .unavailable,
                     durationNanoseconds: start.duration(to: end).diagnosticsNanoseconds
                 )
             )
         )
+        return acquired
     }
 
     /// Begins Render encoding without moving Metal objects across a closure boundary.

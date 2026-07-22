@@ -20,7 +20,7 @@ struct DiagnosticsArtifactTests {
         let encoded = try DiagnosticsNDJSONEncoder().encode(.manifest(manifest))
         let fixtureURL = URL(filePath: #filePath)
             .deletingLastPathComponent()
-            .appending(path: "Fixtures/manifest-v1.ndjson")
+            .appending(path: "Fixtures/manifest-v2.ndjson")
         let fixture = try Data(contentsOf: fixtureURL)
 
         #expect(encoded == fixture)

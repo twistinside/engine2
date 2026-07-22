@@ -47,6 +47,18 @@ Tools/run-diagnostics-performance-tests
 
 For forensic evidence, use one explicit capture with `--logs required --trace required`. For fast local iteration, the loop defaults both expensive system archives to `skip`; use `best-effort` when their absence should remain visible without failing the run. Open the in-app dashboard from Debug > Show Diagnostics Dashboard, or pass `--diagnostics-show-dashboard` when an outer UI test needs a repeatable screenshot surface.
 
+Run the adversarial cadence checks with:
+
+```text
+xcodebuild test \
+  -project Engine2.xcodeproj \
+  -scheme Engine2 \
+  -destination 'platform=macOS' \
+  -only-testing:Engine2Tests/RuntimeCadenceIndependenceTests
+```
+
+These tests create deterministic worst cases without sleeping. One retains every reusable Render frame slot, equivalent to GPU feedback that never arrives, and then proves 600 fixed Simulation steps complete. The other freezes Simulation publication completely and proves Render can project the same completed immutable snapshot 600 times. The checks validate non-waiting peer boundaries, not general CPU execution isolation: a synchronous job that monopolizes the shared main actor can still delay every other main-actor runtime. Moving CPU-heavy runtime execution to separate executors would require its own architectural change and tests.
+
 ## Goals
 
 Engine2 diagnostics should make it possible to answer four questions:
@@ -145,7 +157,7 @@ Apple recommends signposted intervals for measured tasks and events for notable 
 | `simulation.system` | `SystemUpdate` | interval | stable system identifier, schedule lane, tick, entity/work count when meaningful |
 | `simulation.snapshot` | `PresentationSnapshotCapture` | interval | tick and published entity count |
 | `render.frame` | `RenderFrameCPU` | interval | frame sequence, source tick, output mode, projected and submitted instance counts |
-| `render.frame` | `FrameSlotWait` | interval | frame slot and in-flight count |
+| `render.frame` | `FrameSlotWait` | interval | frame slot, acquisition result, and probe duration |
 | `render.frame` | `RenderProjection` | interval | source tick, published count, accepted count, rejected count |
 | `render.frame` | `FrameEncode` | interval | render pass count, draw count, submesh count, instance count |
 | `render.gpu` | `GPUFrame` | interval | submission sequence, frame sequence, source tick, feedback result |
@@ -157,6 +169,8 @@ The outer intervals explain cadence. Nested intervals explain where the outer ti
 Guard any expensive diagnostic payload construction with the signpost's enabled state. Messages should contain small scalar values and stable identifiers, not arrays, component dumps, model descriptions, or arbitrary object interpolation.
 
 The `GPUFrame` interval begins immediately before queue commit and ends from Metal feedback. It measures submission lifetime, not pure shader-core execution. Instruments Metal tracks and GPU counters remain authoritative for determining whether shader, bandwidth, synchronization, CPU submission, or display pacing is the limiting factor.
+
+`FrameSlotWait` is retained as a stable signpost name, but the production operation is now a nonblocking acquisition probe. An unavailable slot produces `frameSlotWait.unavailable` and `renderFrameCPU.frameSlotUnavailable` outcomes and drops that presentation opportunity. It does not wait on the main actor. Generated summaries include outcome counts so Codex can distinguish healthy frame submission from bounded back pressure without parsing individual NDJSON records.
 
 ## Logging Plan
 
@@ -210,7 +224,7 @@ Useful initial samples include:
 | Systems | duration by stable system ID | matching dense-row or joined-entity count where meaningful |
 | Snapshot boundary | capture duration | renderable rows and published presentations |
 | Render projection | projection duration | published, accepted, rejected, and truncated instance counts |
-| Render CPU | slot-wait, preparation, encode, and submit durations | frame sequence, source tick age, draw and submesh counts, missing drawable count |
+| Render CPU | slot-probe, preparation, encode, and submit durations | frame sequence, source tick age, draw and submesh counts, unavailable-slot and missing-drawable counts |
 | Render GPU | submission lifetime and feedback status | in-flight submissions and presentation cadence |
 | Resources | load and compile durations | models, meshes, pipelines, argument tables, frame slots, cache hits and misses |
 
@@ -332,6 +346,8 @@ Not every scenario needs every optional file. The result documents state as comp
 - warm-up and measurement durations
 - fixed step and random seed
 
+Artifact schema version 2 adds the closed frame-slot acquisition outcome and the `frameSlotUnavailable` Render CPU result. The Python validator and checked-in golden stream advance with the Swift encoder, so an older parser fails explicitly rather than silently ignoring the new back-pressure evidence.
+
 The outer `environment.json` records Git revision and dirty-worktree state, Xcode and Swift compiler versions, operating system, machine model, processor, physical memory, and available app bundle identity/version. `capture-result.json` preserves the exact launch command and requested log/trace outcome. Structural content and system inventory remain typed samples so the summary and budget evaluator validate what actually ran rather than trusting launch metadata.
 
 Raw numeric data goes in `diagnostics.ndjson`. `summary.json` contains distributions, deltas, threshold results, and links to supporting sample kinds. `summary.md` is a concise human and Codex orientation report generated entirely from `summary.json`.
@@ -405,6 +421,8 @@ Keep correctness gates separate from statistical budgets. The following are fail
 - an unbalanced required interval
 - an unexpected scenario inventory
 - missing diagnostic samples or an unrecognized artifact schema
+- an exhausted Render frame ring preventing Simulation progress
+- a frozen Simulation publication preventing Render from reusing its latest completed snapshot
 
 The first reviewed budget covers the deterministic evidence that the current scenario actually produces: p95 fixed-step, invariant-system, snapshot-capture, and Render-projection durations plus exact system/component inventory. Backlog, source-tick age, frame-slot wait, GPU feedback, and resource-loading budgets wait for a deterministic wall-cadence integration scenario rather than inventing thresholds from missing evidence. Every budget names its scenario, environment class, rationale, owner, and last review date.
 

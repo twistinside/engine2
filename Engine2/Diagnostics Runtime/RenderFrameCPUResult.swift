@@ -1,6 +1,7 @@
 /// Closed terminal outcomes for one Render Runtime CPU callback.
 enum RenderFrameCPUResult: String, Codable, CaseIterable, Sendable {
     case terminalError
+    case frameSlotUnavailable
     case materialResolutionFailed
     case missingDrawable
     case invalidDrawableSize

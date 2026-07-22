@@ -181,21 +181,22 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             return outcome
         }
 
-        // Pick the next frame slot before touching the drawable. If all slots
-        // are still in flight, this applies back pressure here instead of
-        // continuing to allocate command memory without bound.
-        let frameSlot = frameIndex
-        let frame = nextFrame()
-        diagnostics.measureFrameSlotWait(
-            frameSequence: frameSequence,
-            frameSlot: frameSlot
-        ) {
-            frame.waitUntilAvailable()
+        // Pick the next frame slot before touching the drawable. If that slot
+        // is still in flight, drop this presentation opportunity immediately.
+        // Bounded memory is preserved without letting slow GPU feedback block
+        // Simulation or other main-actor runtime work.
+        guard let acquisition = acquireNextFrameIfAvailable(
+            frameSequence: frameSequence
+        ) else {
+            outcome.result = .frameSlotUnavailable
+            return outcome
         }
+        let frameSlot = acquisition.frameSlot
+        let frame = acquisition.frame
 
-        // While this draw waits, Metal feedback may record a failure on another
-        // thread. Recheck after acquiring the slot so a failure that unblocked
-        // this very wait cannot trigger one more frame.
+        // Metal feedback may record a failure on another thread between the
+        // first check and slot acquisition. Do not submit one more frame after
+        // observing that terminal state.
         guard renderErrorState.latestError == nil else {
             frame.markAvailable()
             return outcome
@@ -206,14 +207,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // begin. Resolve its exact submitted prefix before resetting mutable
         // GPU state or acquiring a drawable; missing authored content therefore
         // cannot produce a partial frame.
-        let renderFrame: RenderFrame
-        if let presentationSource {
-            renderFrame = diagnostics.measureRenderProjection(
-                from: presentationSource.latestPresentationSnapshot
-            )
-        } else {
-            renderFrame = .empty
-        }
+        let renderFrame = projectLatestPresentation()
         outcome.sourceTick = renderFrame.sourceTick
         outcome.didSourceTickChange = lastSourceTick != renderFrame.sourceTick
         lastSourceTick = renderFrame.sourceTick
@@ -431,6 +425,37 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         drawable.present()
         outcome.result = .submitted
         return outcome
+    }
+
+    /// Claims the next ring slot without waiting for GPU completion.
+    ///
+    /// Returning `nil` is ordinary Render back pressure. The caller should skip
+    /// this presentation opportunity and let other runtimes continue.
+    func acquireNextFrameIfAvailable(
+        frameSequence: RenderFrameSequence
+    ) -> (frameSlot: Int, frame: FrameResources)? {
+        let frameSlot = frameIndex
+        let frame = nextFrame()
+        let acquired = diagnostics.measureFrameSlotWait(
+            frameSequence: frameSequence,
+            frameSlot: frameSlot
+        ) {
+            frame.tryAcquire()
+        }
+        return acquired ? (frameSlot, frame) : nil
+    }
+
+    /// Projects the latest completed Simulation publication at Render cadence.
+    ///
+    /// Repeated calls may intentionally return frames with the same source tick
+    /// when Simulation is paused or slower than presentation.
+    func projectLatestPresentation() -> RenderFrame {
+        guard let presentationSource else {
+            return .empty
+        }
+        return diagnostics.measureRenderProjection(
+            from: presentationSource.latestPresentationSnapshot
+        )
     }
 
     /// Advances through the fixed-size frame resource ring.

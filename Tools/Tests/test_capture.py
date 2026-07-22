@@ -6,14 +6,18 @@ import stat
 import tempfile
 import unittest
 
-from diagnostics_lib.artifact import ArtifactValidationError, validate_ndjson
+from diagnostics_lib.artifact import (
+    CURRENT_SCHEMA_VERSION,
+    ArtifactValidationError,
+    validate_ndjson,
+)
 from diagnostics_lib.capture import CaptureError, CaptureRequest, capture
 from diagnostics_lib.cli import build_parser, main
 from diagnostics_lib.comparison import ComparisonExitCode
 
 
 MANIFEST = {
-    "schemaVersion": 1,
+    "schemaVersion": CURRENT_SCHEMA_VERSION,
     "sessionID": {"rawValue": "00000000-0000-0000-0000-000000000001"},
     "scenarioID": "baseline-six-ball",
     "scenarioSchemaVersion": 1,
@@ -24,7 +28,7 @@ MANIFEST = {
     "measurementNanoseconds": 16_666_666,
 }
 SAMPLE = {
-    "schemaVersion": 1,
+    "schemaVersion": CURRENT_SCHEMA_VERSION,
     "kind": "sample",
     "sample": {
         "sessionID": MANIFEST["sessionID"],
@@ -38,7 +42,7 @@ SAMPLE = {
     },
 }
 INVENTORY_SAMPLE = {
-    "schemaVersion": 1,
+    "schemaVersion": CURRENT_SCHEMA_VERSION,
     "kind": "sample",
     "sample": {
         "sessionID": MANIFEST["sessionID"],
@@ -56,7 +60,7 @@ INVENTORY_SAMPLE = {
     },
 }
 SYSTEM_SAMPLE = {
-    "schemaVersion": 1,
+    "schemaVersion": CURRENT_SCHEMA_VERSION,
     "kind": "sample",
     "sample": {
         "sessionID": MANIFEST["sessionID"],
@@ -74,7 +78,7 @@ SYSTEM_SAMPLE = {
     },
 }
 PRESENTATION_SAMPLE = {
-    "schemaVersion": 1,
+    "schemaVersion": CURRENT_SCHEMA_VERSION,
     "kind": "sample",
     "sample": {
         "sessionID": MANIFEST["sessionID"],
@@ -87,15 +91,35 @@ PRESENTATION_SAMPLE = {
         },
     },
 }
+FRAME_SLOT_SAMPLE = {
+    "schemaVersion": CURRENT_SCHEMA_VERSION,
+    "kind": "sample",
+    "sample": {
+        "sessionID": MANIFEST["sessionID"],
+        "timestamp": {"nanosecondsSinceSessionStart": 3},
+        "category": "render.frame",
+        "payload": {
+            "frameSlotWait": {
+                "_0": {
+                    "durationNanoseconds": 1,
+                    "frameSequence": {"rawValue": 0},
+                    "frameSlot": 0,
+                    "result": "unavailable",
+                }
+            }
+        },
+    },
+}
 
 
 def stream() -> bytes:
     records = [
-        {"schemaVersion": 1, "kind": "manifest", "manifest": MANIFEST},
+        {"schemaVersion": CURRENT_SCHEMA_VERSION, "kind": "manifest", "manifest": MANIFEST},
         INVENTORY_SAMPLE,
         SAMPLE,
         SYSTEM_SAMPLE,
         PRESENTATION_SAMPLE,
+        FRAME_SLOT_SAMPLE,
     ]
     return b"".join((json.dumps(record) + "\n").encode() for record in records)
 
@@ -106,7 +130,18 @@ class ArtifactTests(unittest.TestCase):
         with self.assertRaises(ArtifactValidationError):
             validate_ndjson(stream().rstrip())
         with self.assertRaises(ArtifactValidationError):
-            validate_ndjson((json.dumps({"schemaVersion": 1, "kind": "manifest", "manifest": MANIFEST}) + "\n").encode())
+            validate_ndjson(
+                (
+                    json.dumps(
+                        {
+                            "schemaVersion": CURRENT_SCHEMA_VERSION,
+                            "kind": "manifest",
+                            "manifest": MANIFEST,
+                        }
+                    )
+                    + "\n"
+                ).encode()
+            )
 
 
 class CaptureTests(unittest.TestCase):
@@ -157,6 +192,8 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(validate_ndjson((output / "diagnostics.ndjson").read_bytes()).manifest, MANIFEST)
             self.assertTrue((output / "summary.json").is_file())
             self.assertTrue((output / "summary.md").is_file())
+            summary = json.loads((output / "summary.json").read_text())
+            self.assertEqual(summary["outcomeCounts"]["frameSlotWait.unavailable"], 1)
             environment = json.loads((output / "environment.json").read_text())
             self.assertIn("gitRevision", environment)
             self.assertIn("gitDirty", environment)
