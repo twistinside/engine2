@@ -1,0 +1,56 @@
+name: Xcode 27 Build and Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xcode-27-build-test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test app
+    runs-on: xcode-27
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Report Xcode version
+        run: xcodebuild -version
+
+      - name: Ensure Metal toolchain is installed
+        run: |
+          if ! xcodebuild -showComponent MetalToolchain -json \
+            | jq -e '.status == "installed"' > /dev/null; then
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+
+      - name: Build Engine2
+        run: |
+          xcodebuild \
+            -project Engine2.xcodeproj \
+            -scheme Engine2 \
+            -configuration Debug \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Run Engine2 tests
+        run: |
+          xcodebuild \
+            -project Engine2.xcodeproj \
+            -scheme Engine2 \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            test
