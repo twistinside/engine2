@@ -36,7 +36,7 @@ Current types implement part of this direction:
 - `POffscreenRenderTarget` is the backend-neutral exact asynchronous render capability. Its request carries one immutable Simulation presentation snapshot, one explicit viewpoint, and render settings; its outcome preserves expected refusals, accepted-request failures, post-submission cancellation, or a provenance-rich detached image.
 - `MetalOffscreenRenderRuntime` is the first production offscreen Runtime. It owns dedicated one-slot Metal resources, enforces a single-flight busy gate and configurable size limits, and drives `MetalFrameEncoder` without sampling sources, advancing Simulation, or acquiring a view or drawable.
 - `JPEGArtifactEncoder` is a stateless, nonisolated CPU transformation above the raw Render result. It preserves request, Simulation-cursor, complete-viewpoint, and render-settings provenance in a detached JPEG artifact; a failed encoding can be retried from the same raw result without advancing or rerendering.
-- `OfflineCaptureConfiguration` constructs one deliberately closed serial topology containing Simulation, exact offscreen Render, and `OfflineCaptureCoordinator`. Its assembly exposes only the initial cursor and `POfflineCaptureTarget`; the coordinator is the sole effective advance authority and executes one supplied advance request, exact-render, provenance-validation, then JPEG encoding.
+- `OfflineCaptureConfiguration` constructs one deliberately closed serial topology containing Simulation, exact offscreen Render, and `OfflineCaptureCoordinator`. Its assembly exposes only the initial cursor and `POfflineCaptureTarget`; the coordinator is the sole effective advance authority and executes one supplied advance request, exact-render, full result/cancellation correlation validation, then JPEG encoding outside its actor.
 
 The current screen fan-out is intentionally one concrete connection, not a generalized routing framework. Multi-source input, typed routes and route epochs, multi-window/output bindings, Simulation observer anchors, artifact persistence/sinks, PNG and HDR accumulation, dedicated Render workers, and MCP composition remain proposed.
 
@@ -155,8 +155,10 @@ Current example ownership:
 - `Engine2/Runtime Configuration/Offline/*.swift`
   - `OfflineCaptureConfiguration` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, and one `OfflineCaptureCoordinator`. It has no Input Runtime, wall-clock cadence, screen surface, or optional-runtime bag.
   - `OfflineCaptureAssembly` exposes only `initialCursor` and the narrow `POfflineCaptureTarget`; it does not expose either Runtime or a second advance capability.
-  - `OfflineCaptureCoordinator` is the sole effective advance authority. One accepted capture submits its supplied advance request at most once, renders only the returned completed snapshot with the requested viewpoint/settings, validates the completed render's full provenance, and then encodes JPEG. The advance request may itself contain one or more fixed steps. The coordinator never retries or rolls back implicitly.
-  - The actor's explicit in-flight gate gives a reentrant overlapping caller immediate `.coordinatorBusy` refusal instead of an invisible queue. Every outcome after completed advancement retains the exact `SimulationAdvanceResult`; cancellation after raw rendering and JPEG failure also retain the `OffscreenRenderResult` for caller-selected encoding retry without another advance or render.
+  - `OfflineCaptureCoordinator` is the sole effective advance authority. One accepted capture submits its supplied advance request at most once, renders only the returned completed snapshot with the requested viewpoint/settings, validates request/cursor/viewpoint/settings plus raw image size, and then encodes JPEG. The advance request may itself contain one or more fixed steps. The coordinator never retries or rolls back implicitly.
+  - Post-submission render cancellation must echo the requested `OffscreenRenderRequestID`. A mismatch returns typed expected/actual identities with the exact `SimulationAdvanceResult` instead of accepting corrupted correlation.
+  - Production JPEG work runs in an immediately awaited `Task.detached` outside the coordinator actor. That task deliberately does not inherit caller cancellation, so completion wins once encoding starts; the in-flight gate remains set while awaited, making reentrant overlap return `.coordinatorBusy` during encoding too. This is coordinator-selected policy—the standalone `JPEGArtifactEncoder` still selects no executor.
+  - Every outcome after completed advancement retains the exact `SimulationAdvanceResult`; cancellation after raw rendering and JPEG failure also retain the `OffscreenRenderResult` for caller-selected encoding retry without another advance or render.
 - `Engine2/Input Runtime/**/*.swift`
   - `InputRuntime` is the App-owned lifecycle boundary for platform input collection.
   - `PInputEventSink` is the platform-adapter ingress accepted by the runtime.
@@ -222,7 +224,7 @@ Current example ownership:
   - Fast, deterministic Swift Testing coverage directly exercises individual production types and methods.
   - The unit-test tree mirrors the app/source tree where practical.
   - Render contract, frame, presentation, and CPU-side shader-layout tests mirror their production folders under `Engine2UnitTests/Render Runtime/`.
-  - `OfflineCaptureCoordinatorTests` exercises exact stage ordering, at-most-once advance submission, provenance mismatch rejection, immediate reentrant busy refusal, cancellation boundaries, and retained post-advance/raw-render outcomes through deterministic typed seams.
+  - `OfflineCaptureCoordinatorTests` exercises exact stage ordering, at-most-once advance submission, identity/settings/image-size mismatch rejection, typed post-submission cancellation-ID mismatch, immediate reentrant busy refusal during dependency waits and JPEG work, cancellation boundaries, and retained post-advance/raw-render outcomes through deterministic typed seams.
 - `Engine2RenderTests/`
   - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
   - `MetalFrameEncoderTests` drives the production encoder with caller-owned offscreen textures and explicit residency, queue feedback, and readback without an `MTKView` or `CAMetalDrawable`.
@@ -332,6 +334,7 @@ The DocC runtime and render articles contain proposed architecture, not only imp
 - retain every submitted Metal object until real queue feedback; cancellation after commit must not abandon in-flight resources
 - keep artifact encoding above raw Render completion: a stateless encoder transforms detached pixels, preserves provenance, selects no execution context, and can be retried without ticking or rerendering
 - keep offline capture coordination as the only exposed advance path in its assembly; preserve committed advance and raw-render values in downstream failure outcomes rather than hiding progress, retrying, or rolling back
+- validate exact output dimensions and every cancellation/result correlation identity before accepting an offscreen outcome; keep long JPEG CPU work outside the coordinator actor while holding its explicit single-flight gate
 ### Documentation Can Drift Quickly
 The code has already moved past earlier examples such as `Missile` and `CAcceleration`. When editing docs or contributor guidance, check current source names first and update examples to match durable concepts rather than stale placeholder types.
 ## Guidance for Future Changes

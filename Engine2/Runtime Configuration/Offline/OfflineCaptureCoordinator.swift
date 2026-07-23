@@ -1,15 +1,16 @@
 /// Sole effective advance authority in one offline capture assembly.
 ///
 /// The coordinator serializes an exact Simulation request, an exact raw render
-/// of the returned immutable snapshot, and synchronous JPEG derivation. It does
-/// not sample latest-value sources, expose its dependencies, retry implicitly,
-/// or reinterpret a downstream failure as permission to advance again.
+/// of the returned immutable snapshot, and awaited CPU-side JPEG derivation. It
+/// keeps the CPU transform off its actor while retaining the single-flight gate.
+/// It does not sample latest-value sources, expose its dependencies, retry
+/// implicitly, or treat downstream failure as permission to advance again.
 actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     /// Injectable stateless encoding seam used by deterministic coordinator tests.
     typealias JPEGEncode = @Sendable (
         OffscreenRenderResult,
         JPEGEncodingSettings
-    ) -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
+    ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
 
     private let advanceTarget: any PSimulationAdvanceTarget
     private let renderTarget: any POffscreenRenderTarget
@@ -31,23 +32,30 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
         self.advanceTarget = advanceTarget
         self.renderTarget = renderTarget
         self.encodeJPEG = { renderResult, settings in
-            do {
-                return .success(
-                    try jpegArtifactEncoder.encode(
-                        renderResult,
-                        settings: settings
+            // JPEG derivation can be substantial at the offscreen size limit.
+            // Run the stateless Sendable transform outside this actor so its
+            // explicit in-flight gate remains observable by overlapping calls.
+            // The detached task deliberately does not inherit cancellation:
+            // once encoding starts, its completed value wins and is reported.
+            await Task.detached {
+                do {
+                    return .success(
+                        try jpegArtifactEncoder.encode(
+                            renderResult,
+                            settings: settings
+                        )
                     )
-                )
-            } catch let failure as JPEGArtifactEncoderError {
-                return .failure(failure)
-            } catch {
-                // `JPEGArtifactEncoder` owns a closed failure vocabulary. An
-                // undocumented error is a programming-contract violation, not
-                // a new recoverable capture state that should be stringly typed.
-                preconditionFailure(
-                    "JPEGArtifactEncoder threw an undocumented error: \(error)"
-                )
-            }
+                } catch let failure as JPEGArtifactEncoderError {
+                    return .failure(failure)
+                } catch {
+                    // `JPEGArtifactEncoder` owns a closed failure vocabulary.
+                    // An undocumented error is a programming-contract
+                    // violation, not a stringly typed capture state.
+                    preconditionFailure(
+                        "JPEGArtifactEncoder threw an undocumented error: \(error)"
+                    )
+                }
+            }.value
         }
     }
 
@@ -124,19 +132,28 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             )
 
         case let .cancelledAfterSubmission(requestID):
+            guard requestID == renderRequest.id else {
+                return .renderCancellationRequestIDMismatch(
+                    advanceResult: advanceResult,
+                    expectedRequestID: renderRequest.id,
+                    actualRequestID: requestID
+                )
+            }
             return .renderCancelledAfterSubmission(
                 advanceResult: advanceResult,
                 requestID: requestID
             )
         }
 
-        // A completed target must echo every identity-bearing render input.
-        // Never encode an image whose provenance diverges from the exact scene,
-        // viewpoint, settings, or request that this coordinator issued.
+        // A completed target must echo every identity-bearing render input and
+        // return pixels with the requested extent. Never encode an image whose
+        // provenance diverges from the exact scene, viewpoint, settings, or
+        // request that this coordinator issued.
         guard renderResult.requestID == renderRequest.id,
               renderResult.sourceCursor == advanceResult.finalCursor,
               renderResult.viewpoint == renderRequest.viewpoint,
-              renderResult.settings == renderRequest.settings else {
+              renderResult.settings == renderRequest.settings,
+              renderResult.image.size == renderRequest.settings.size else {
             return .renderResultMismatch(
                 advanceResult: advanceResult,
                 renderResult: renderResult
@@ -152,10 +169,11 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             )
         }
 
-        // JPEG encoding is synchronous and stateless. Once this call begins,
-        // completion wins over cancellation because there is no safe internal
-        // cancellation boundary and a successful artifact already exists.
-        switch encodeJPEG(renderResult, request.jpegSettings) {
+        // JPEG encoding is stateless and executes outside the coordinator actor
+        // so actor-reentrant overlap observes the busy gate. The detached work
+        // does not inherit cancellation: once this call begins, completion wins
+        // because a successful artifact already exists and must not be hidden.
+        switch await encodeJPEG(renderResult, request.jpegSettings) {
         case let .success(artifact):
             return .completed(
                 OfflineCaptureResult(

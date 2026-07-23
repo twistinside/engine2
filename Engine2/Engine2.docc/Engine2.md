@@ -15,7 +15,7 @@ The current codebase is intentionally small, but the core direction is already e
 - ``MetalFrameEncoder`` prepares and encodes the reusable Metal frame against caller-owned textures, frame resources, and a command buffer without depending on MetalKit view or drawable ownership.
 - ``POffscreenRenderTarget`` accepts an exact immutable snapshot, explicit viewpoint, and render settings asynchronously. ``MetalOffscreenRenderRuntime`` implements that capability with dedicated one-slot Metal resources and returns detached pixels with exact request, scene, viewpoint, and settings provenance.
 - ``JPEGArtifactEncoder`` transforms a completed raw offscreen result into a detached JPEG artifact on the CPU. The stateless encoder preserves exact source provenance, chooses no execution context, and can be retried without advancing Simulation or rerendering.
-- ``OfflineCaptureConfiguration`` composes one closed serial advance-render-encode topology. Its assembly exposes only the initial cursor and ``POfflineCaptureTarget``, keeping ``OfflineCaptureCoordinator`` as the sole effective advance authority.
+- ``OfflineCaptureConfiguration`` composes one closed serial advance-render-encode topology. Its assembly exposes only the initial cursor and ``POfflineCaptureTarget``, keeping ``OfflineCaptureCoordinator`` as the sole effective advance authority. The coordinator validates completed image extent and cancellation identity, then immediately awaits non-cancellation-inheriting JPEG work outside its actor while preserving busy backpressure.
 This documentation catalog serves two purposes:
 - document the behavior that already exists in the codebase
 - capture architectural direction that is intentionally not implemented yet
