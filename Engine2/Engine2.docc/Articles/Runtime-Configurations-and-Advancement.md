@@ -18,11 +18,11 @@ The first production offscreen Runtime boundary is also implemented. ``POffscree
 
 The first encoded artifact transformation is implemented independently. ``JPEGArtifactEncoder`` is a stateless, nonisolated CPU value that synchronously derives detached JPEG data from a completed ``OffscreenRenderResult`` while preserving its request, cursor, complete viewpoint, and render settings alongside the selected JPEG settings. Its caller chooses the execution context. Encoding failure can retry against the same raw result without another Simulation tick or render request.
 
-The first serial offline capture configuration is implemented. ``OfflineCaptureConfiguration`` constructs exactly one Simulation Runtime, one dedicated offscreen Metal Runtime, and ``OfflineCaptureCoordinator`` without an Input Runtime, automatic cadence, a screen, or optional peers. The assembly exposes only its initial cursor and ``POfflineCaptureTarget``, making the coordinator the sole effective advance authority. Each accepted capture submits its supplied advance request at most once, renders exactly the returned completed snapshot, validates result identity/settings/image extent and post-submission cancellation identity, and encodes JPEG. That request may contain one or more fixed steps. Production JPEG work runs outside the actor in an immediately awaited detached task that deliberately does not inherit cancellation; the single-flight gate remains set, so actor-reentrant overlap receives immediate busy refusal during encoding too. Typed downstream outcomes preserve every committed result needed to report progress or retry deliberately.
+The first serial offline capture configuration is implemented. ``OfflineCaptureConfiguration`` constructs exactly one Simulation Runtime, one dedicated offscreen Metal Runtime, and ``OfflineCaptureCoordinator`` without an Input Runtime, automatic cadence, a screen, or optional peers. The assembly exposes only its initial cursor and ``POfflineCaptureTarget``, making the coordinator the sole effective advance authority. The coordinator retains exactly one completed presentation: the initial value at construction and then each completed advance result immediately, even when a later output stage is cancelled or fails. The advancing operation commits a positive step count at most once before capture; ``POfflineCaptureTarget/captureCurrent(_:)`` instead requires the expected retained cursor and performs no Simulation request. Both operations share one single-flight gate and the same exact render-correlation and JPEG policy. Production JPEG work runs outside the actor in an immediately awaited detached task that deliberately does not inherit cancellation, so actor-reentrant overlap receives immediate busy refusal during encoding too. Typed outcomes preserve either the committed advance or the selected current snapshot, plus any raw result needed for deliberate retry.
 
-The first transport-neutral agent session is also implemented. ``AgentSessionConfiguration`` constructs an ``AgentSessionAssembly`` that privately retains the complete offline assembly, while ``AgentSessionCoordinator`` receives only ``POfflineCaptureTarget`` and cannot become a second direct advance or render authority. The agent assembly exposes only its session identity, initial cursor, first request identity, ``PAgentSessionTarget``, and drain-before-close operation. Mandatory expected cursors, stable complete capture payloads, bounded step counts, session-qualified monotonic request sequences, live-process at-most-once forwarding, exact retained replay, typed overlap and admission outcomes, and bounded response retention now sit above the proven offline workflow. A new payload that is not equal to itself—such as a viewpoint containing a NaN camera value—is rejected without consuming its sequence after prior identity status is resolved. Accepted high-water is independent of cache retention and next-sequence representability, so even an unretained maximum-sequence result remains evicted after its successor becomes `nil`; that `nil` is the typed sequence-exhaustion signal. Sixteen focused unit cases validate the coordinator matrix, including raw-image retention and concurrent drain waiters, and a real integration test proves an identical retained retry returns the byte-identical JPEG response without advancing before the next unique request continues from that cursor.
+The first transport-neutral agent session is also implemented. ``AgentSessionConfiguration`` constructs an ``AgentSessionAssembly`` that privately retains the complete offline assembly, while ``AgentSessionCoordinator`` receives only ``POfflineCaptureTarget`` and cannot become a second direct advance or render authority. The agent assembly exposes only its session identity, initial cursor, first request identity, ``PAgentSessionTarget``, and drain-before-close operation. ``AgentCaptureSource`` selects either `.advance(expectedCursor:stepCount:)` or `.current(expectedCursor:)`; only the advancing case is subject to the positive step-count bound and it continues to assign ``SimulationInputAssignment/none``. The complete source selection, render identity, viewpoint, and settings participate in one session-qualified monotonic request identity, one live-process at-most-once lane, exact retained replay, typed overlap and admission outcomes, and bounded response retention. A new payload that is not equal to itself—such as a viewpoint containing a NaN camera value—is rejected without consuming its sequence after prior identity status is resolved. Accepted high-water is independent of cache retention and next-sequence representability, so even an unretained maximum-sequence result remains evicted after its successor becomes `nil`; that `nil` is the typed sequence-exhaustion signal. Focused coverage validates both source variants through the same coordinator matrix. Real integration coverage advances to tick one, captures an alternate view of that retained cursor, replays that exact current-capture response, and then advances from tick one to tick two.
 
-Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, PNG output, HDR-master and quality accumulation, artifact persistence and sinks, a dedicated asynchronous render worker, actual MCP transport/authentication/wire DTOs, durable idempotency, controls, structured agent observation, networking, replay, and history remain proposed unless the implementation mapping below says otherwise.
+Broader authority recovery/arbitration, multi-source input and typed routing, route epochs, multi-window/output bindings, Simulation observer anchors, PNG output, HDR-master and quality accumulation, artifact persistence and sinks, a dedicated asynchronous render worker, actual MCP transport/authentication/wire DTOs, durable idempotency, controls, structured agent observation, networking, replay, and history remain proposed unless the implementation mapping below says otherwise. Physical and semantic agent controls remain deliberately absent because no current gameplay system consumes either vocabulary; an advancing agent request therefore still carries `.none` rather than adding inert ingress or reviving the legacy Simulation camera path.
 
 The overall feasibility is high. The work is primarily a separation of pacing, coordination, and exact-result delivery from simulation execution rather than a replacement of the ECS core.
 
@@ -275,7 +275,7 @@ Replay, networking, bots, or Game Content may later require tick-addressed seman
 
 For a multi-step physical-input request carrying one routed snapshot assignment, the baseline policy imports that snapshot before the first requested tick: that Simulation consumer derives cumulative pointer and scroll transients once for the first tick, while held state remains available to later ticks. The immutable snapshot remains available to other routed recipients with independent baselines. A batch that changes controls between ticks requires an explicit tick-addressed schedule. Exact results or an accompanying journal should eventually identify the input publisher, channel, route epoch, revision, or semantic-control identities consumed by the committed cursor range.
 
-`SimulationStepCount` is strictly positive. Reading the current cursor, presentation, or observation without advancing is a separate capability rather than a zero-step command with hidden side effects.
+`SimulationStepCount` is strictly positive. Reading or rendering completed state without advancing is a separate capability rather than a zero-step command with hidden side effects. The implemented ``POfflineCaptureTarget/captureCurrent(_:)`` follows that rule: it verifies a mandatory expected cursor against the coordinator's retained completed presentation and never constructs a `SimulationAdvanceRequest`.
 
 The required advancement semantics are more important than the illustrative API:
 
@@ -345,7 +345,7 @@ Ordinary frozen pause means the absence of advance requests and no cursor change
 
 ## Input Must Be Attributable to Ticks
 
-Current ``InputSnapshot`` semantics are useful across several configurations: held state persists, and cumulative pointer/scroll totals let Simulation derive motion across skipped publisher revisions. An MCP adapter can initially submit the same `InputEvent` values as the platform adapter and then request a tick.
+Current ``InputSnapshot`` semantics are useful across several configurations: held state persists, and cumulative pointer/scroll totals let Simulation derive motion across skipped publisher revisions. A future MCP physical-control adapter could submit the same `InputEvent` values as the platform adapter and then request a tick, but the implemented agent session does not do so. No current gameplay system consumes that agent input, and output viewpoint selection is already request-carried presentation state rather than authoritative physical control.
 
 That is not the only control boundary Engine2 will ever need. Three levels should remain distinct:
 
@@ -450,11 +450,11 @@ Engine2 needs several explicit boundary shapes rather than one universal bus:
 
 Cumulative input snapshots recover aggregate pointer/scroll motion and current held state across skipped publications within one publisher session; totals restart when the ``InputRevision`` session changes. They do not recover the order or multiplicity of discrete transitions. A future ordered Input event lane is a broadcast publication with an independent sequence position and cancellation lifetime for each subscription, plus explicit buffering and overflow policy for each connection. Storage may be shared or per subscription; one subscriber advancing or dropping its position must not advance another subscriber. When a consumer needs a coherent snapshot followed by ordered transitions, the publisher correlates the snapshot revision with an event-sequence boundary. Retained replay is a deliberate journal policy, not an accidental property of the live lane.
 
-``PSimulationPresentationSource`` is intentionally a latest-value boundary. That is correct for a display renderer that can skip superseded states. It is insufficient by itself for an offline frame job or an MCP operation that must render exactly the state produced by its own advance request.
+``PSimulationPresentationSource`` is intentionally a latest-value boundary. That is correct for a display renderer that can skip superseded states. It is insufficient by itself for an offline frame job or agent operation that must render exactly the state produced by its own advance request or recapture one already completed cursor.
 
 ``POffscreenRenderTarget`` now implements the complementary exact shape. Its request carries the completed ``SimulationPresentationSnapshot``, explicit ``RenderViewpoint``, and ``OffscreenRenderSettings`` by value, and its outcome remains correlated through ``OffscreenRenderRequestID``. The target never samples `latestPresentationSnapshot` or a viewpoint source while fulfilling that request.
 
-An exact workflow must receive or retain the immutable snapshot associated with the completed cursor. It must not advance, read `latestPresentationSnapshot` after an unrelated caller has changed it, and silently render the wrong state.
+An exact workflow must receive or retain the immutable snapshot associated with the completed cursor. ``OfflineCaptureCoordinator`` now retains exactly its initial completed presentation or the last presentation returned by its own completed advance; current-cursor capture verifies that value directly. It never implements recapture by advancing zero steps or by reading `latestPresentationSnapshot` after an unrelated caller could have changed it.
 
 Likewise, a multi-tick advance must not imply that events from intermediate ticks are safely recoverable from the final snapshot. A workflow that needs every occurrence must use an ordered lane or explicit journal with a result cursor.
 
@@ -522,7 +522,7 @@ The Screen Render Runtime draws according to surface availability or display cad
 
 ## Serial Offline Capture and High-Quality Direction
 
-“The renderer ticks Simulation” is useful workflow shorthand, but Render should not own or call Simulation directly. The implemented ``OfflineCaptureConfiguration`` constructs a closed serial assembly. Callers see only `initialCursor` and ``POfflineCaptureTarget``; the coordinator alone receives the narrow advance and render capabilities:
+“The renderer ticks Simulation” is useful workflow shorthand, but Render should not own or call Simulation directly. The implemented ``OfflineCaptureConfiguration`` constructs a closed serial assembly. Callers see only `initialCursor` and ``POfflineCaptureTarget``; the coordinator alone receives the narrow advance and render capabilities and privately retains one exact completed presentation:
 
 ```text
 caller-owned script or authored timeline
@@ -533,10 +533,13 @@ caller-owned script or authored timeline
                   v
        OfflineCaptureCoordinator (sole advance authority)
              |
-             +-- submit advance request at most once -> SimulationRuntime
-             <-- exact cursor + immutable snapshot -+
+             +-- capture: submit advance at most once -> SimulationRuntime
+             |            retain completed snapshot <-+
              |
-             +-- render(snapshot, viewpoint, settings) -> POffscreenRenderTarget
+             +-- captureCurrent: check expected cursor
+             |                   select retained snapshot; no advance
+             |
+             +-- both: render(snapshot, viewpoint, settings) -> POffscreenRenderTarget
              <-- exact raw image outcome ------------+
              |
              +-- validate identity, settings, and image extent
@@ -545,28 +548,32 @@ caller-owned script or authored timeline
              +-- detached + awaited JPEG work ----> JPEGArtifactEncoder
              <-- detached JPEG + provenance --------+
              |
-             +-- return typed OfflineCaptureOutcome
+             +-- return source-specific typed outcome
 
 future caller-owned persistence ----------> ArtifactSink (proposed)
 ```
 
-``OfflineCaptureCoordinator`` implements the complete advance-render-validate-encode sequence. It issues each accepted ``SimulationAdvanceRequest`` at most once, renders only `SimulationAdvanceResult.finalPresentationSnapshot`, and refuses to encode if the returned render result does not echo the requested identity, final cursor, complete viewpoint, settings, and requested raw image size. A post-submission cancellation outcome must also echo the expected request ID. A mismatch becomes a typed ``OfflineCaptureOutcome`` containing the exact ``SimulationAdvanceResult`` plus expected and actual IDs; it is not accepted as this capture's cancellation. The coordinator never samples a latest source, retries, rolls back, or treats downstream failure as permission to advance again.
+``OfflineCaptureCoordinator`` is seeded with Simulation's initial completed presentation. ``SimulationAdvanceResult`` itself enforces one session, exact cursor arithmetic, a positive completed count, and a final snapshot labeled with its final cursor. When ``POfflineCaptureTarget/capture(_:)`` receives that coherent completed value, the coordinator replaces its one retained presentation immediately, before checking cancellation or beginning output work. It then verifies the returned initial cursor and completed count against both its prior retained cursor and the submitted command. A coherent but request-mismatched result returns typed `.advanceResultMismatch` without rendering; because work may already have committed, its final snapshot remains the new current presentation. The advancing operation otherwise renders only `SimulationAdvanceResult.finalPresentationSnapshot`, which remains current even if rendering or JPEG derivation later fails.
 
-Actor reentrancy is explicit backpressure rather than an implicit queue. While one request awaits Simulation, Render, or JPEG, another entry immediately returns `.coordinatorBusy`. Cancellation before advance commits nothing. Every cancellation or failure after a completed advance carries that exact ``SimulationAdvanceResult``. Cancellation after raw rendering and JPEG failure also carry the detached ``OffscreenRenderResult``, allowing a caller-selected encoding retry without another render or advance.
+``POfflineCaptureTarget/captureCurrent(_:)`` selects that retained value only when the mandatory expected cursor matches. Cursor mismatch or cancellation before rendering performs no output work, and no current-capture case calls Simulation, samples a latest-value source, or manufactures a zero-step advance. ``OfflineCurrentCaptureResult`` carries the selected source snapshot rather than a nonexistent advance result.
+
+Both operations then use the same exact render-and-JPEG derivation. The coordinator refuses to encode if a completed render does not echo the requested identity, selected source cursor, complete viewpoint, settings, and raw image size. A post-submission cancellation must also echo the expected request ID. Advance-aware outcomes retain their exact ``SimulationAdvanceResult``; current-aware outcomes retain their exact source snapshot. Cancellation after raw rendering and JPEG failure additionally retain the detached ``OffscreenRenderResult``, allowing caller-selected encoding retry without another render or advance.
+
+Actor reentrancy is explicit backpressure rather than an implicit queue. One shared gate spans both operation kinds, so a current capture cannot slip between a completed advance and its output, and an advance cannot replace a snapshot selected by current output work. While one workflow awaits Simulation, Render, or JPEG as applicable, every overlapping advance or current entry immediately returns `.coordinatorBusy`.
 
 ``JPEGArtifactEncoder`` remains a synchronous stateless value that chooses no executor. The production coordinator chooses its own policy: it starts one `Task.detached` after the last cancellation boundary and immediately awaits it while keeping the capture gate set. The detached task intentionally does not inherit caller cancellation. Once encoding begins, completion wins and the produced artifact or typed encoding failure is reported rather than hidden by later cancellation. This is bounded out-of-actor CPU scheduling, not a dedicated Render worker or an unobserved background job.
 
-The assembly is intentionally narrow: it has no Input Runtime, wall-clock cadence, screen, persistence dependency, or optional peers. It exposes neither concrete Runtime, preventing a second caller from bypassing coordinator serialization and becoming another advance authority.
+The assembly is intentionally narrow: it has no Input Runtime, wall-clock cadence, screen, persistence dependency, or optional peers. It exposes neither concrete Runtime, the latest Simulation publication, nor a second advance path. Callers can request output from the retained exact current presentation without becoming another state or advance authority.
 
-A future higher-quality coordinator or extension could hold Simulation at one cursor while Render:
+The current-cursor operation is the first primitive for holding Simulation at one cursor while producing additional output. A future higher-quality coordinator or extension could use it or a richer exact-scene job to:
 
-- accumulates thousands of samples
-- renders the same immutable scene from several explicit viewpoints
-- produces multiple resolutions or diagnostic passes
-- encodes a high-dynamic-range master and a smaller JPEG observation proxy
-- retries an export without re-running Simulation
+- accumulate thousands of samples
+- render the same immutable scene from several explicit viewpoints
+- produce multiple resolutions or diagnostic passes
+- encode a high-dynamic-range master and a smaller JPEG observation proxy
+- retry an export without re-running Simulation
 
-The current serial coordinator proves the simplest retry boundary but does not retry automatically: once raw rendering completes, its failure outcome retains the exact raw value so external policy may retry encoding without another tick or rerender. HDR masters, accumulation, persistence, PNG, and an `ArtifactSink` remain proposed.
+The current serial coordinator proves same-cursor output and the simplest retry boundary but does not provide an atomic multi-view batch or retry automatically. Once raw rendering completes, its failure outcome retains the exact raw value so external policy may retry encoding without another tick or rerender. HDR masters, accumulation, persistence, PNG, and an `ArtifactSink` remain proposed.
 
 This can be intentional backpressure between complete operations, not shared ownership. A bounded serial job waits for its artifact before requesting more progress. Another configuration may retain several exact immutable snapshots and pipeline bounded render jobs while Simulation advances ahead. GPU work always proceeds from immutable values and never holds a lock on ``World``; serial versus pipelined behavior is an explicit configuration policy.
 
@@ -695,7 +702,7 @@ With several windows, each route additionally carries window or viewport and
 viewpoint identity rather than merging all pointer motion into one global
 camera.
 
-A future richer MCP assembly can use the same separation: Codex may eventually set or orbit a viewpoint and request several images from one stable Simulation cursor before deciding whether to advance. The implemented agent session currently performs one bounded advance-and-capture operation per unique request.
+The implemented agent session now uses the same separation for exact output: one unique request may advance and capture, while later `.current` requests can supply alternate explicit viewpoints and produce several images from the retained Simulation cursor before another advance. Each image remains a separately identified serial request rather than an atomic multi-camera batch. A future richer MCP assembly may add persistent viewpoint control or orbit operations, but those controls are distinct from the request-carried ``RenderViewpoint`` already supported here.
 
 ### Replay Chooses an Output Binding
 
@@ -742,7 +749,10 @@ future authenticated MCP transport
                 |
                 v
  OfflineCaptureCoordinator (sole effective advance authority)
-       | exact advance -> raw render -> JPEG
+       | select exact scene:
+       |   advance -> retain completed presentation
+       |   current -> check retained cursor; no advance
+       | exact raw render -> JPEG
        v
  correlated AgentSessionResponse with known cursor and exact artifact
 ```
@@ -750,22 +760,32 @@ future authenticated MCP transport
 ``AgentSessionConfiguration`` constructs an assembly that privately retains the
 entire ``OfflineCaptureAssembly``. Its coordinator cannot call ``SimulationRuntime``
 or ``POffscreenRenderTarget`` directly and does not reproduce the offline
-advance-render-encode workflow. The outer assembly exposes only `sessionID`,
+scene-selection/render/encode workflow. The outer assembly exposes only `sessionID`,
 `initialCursor`, `firstRequestID`, ``PAgentSessionTarget``, and
 `stopAndDrain()`; it is neither a generic service bag nor a new Runtime.
 
-The implemented ``AgentCaptureRequest`` performs one operation: advance a
-mandatory expected cursor by a positive bounded step count, then capture the
-exact returned presentation using a stable render request identity, viewpoint,
-render settings, and JPEG settings. The request always uses
-``SimulationInputAssignment/none``. There is no physical-control emulation,
-semantic action boundary, zero-step render-current operation, or structured
-inspection surface in this slice.
+The implemented ``AgentCaptureRequest`` carries a mandatory exact scene choice
+through ``AgentCaptureSource``. `.advance(expectedCursor:stepCount:)` submits a
+positive bounded Simulation batch with ``SimulationInputAssignment/none`` and
+then captures its exact returned presentation. `.current(expectedCursor:)`
+cursor-checks and captures the offline coordinator's retained completed
+presentation without issuing a Simulation request. Both choices carry a stable
+render request identity, explicit viewpoint, render settings, and JPEG settings.
+Current capture is a visual artifact operation, not a zero-step advance and not
+a structured inspection surface.
+
+Physical-control emulation and game-semantic actions remain deliberately absent.
+No current gameplay system consumes an agent control vocabulary, so adding one
+now would either be inert plumbing or incorrectly restore presentation-camera
+behavior to authoritative Simulation. Introduce control only with a typed
+Simulation-owned consumer and tick-attribution contract.
 
 The absence of a request means no progress. An agent may think for seconds or
-hours while the Simulation cursor remains stable. It can request any number of
-sequential bounded operations, but each unique operation must use the exact
-next ``AgentSessionRequestID`` and the cursor proven by its preceding response.
+hours while the Simulation cursor remains stable. A `.current` request performs
+output work while leaving that cursor unchanged. The agent can submit any number
+of sequential source-selected captures, but each unique operation must use the
+exact next ``AgentSessionRequestID`` and the cursor proven by its preceding
+response; only `.advance` work is subject to the step-count bound.
 
 ### Implemented Live-Session Correctness
 
@@ -779,8 +799,9 @@ representable sequence, which establishes these rules:
   ``AgentSessionResponse``, including byte-identical artifact data
 - an identical retry while its first call is active receives
   `.requestInProgress`; a different identity receives typed busy backpressure
-- reusing one identity with changed step, cursor, render identity, viewpoint,
-  render settings, or JPEG settings is a typed conflict
+- reusing one identity with a changed ``AgentCaptureSource`` or changed cursor,
+  step count, render identity, viewpoint, render settings, or JPEG settings is a
+  typed conflict
 - wrong sessions and sequence gaps are refused without consuming the identity
 - existing cached, active, or evicted identity status is resolved before fresh
   payload validation, so a malformed retry retains its conflict/eviction meaning
@@ -791,9 +812,10 @@ representable sequence, which establishes these rules:
   `nil`; that optional result is the typed exhaustion signal
 - cancellation observed before acceptance and session closure refuse new work
   without changing accepted high-water
-- a request exceeding ``AgentSessionLimits.maximumStepCount`` is accepted and
-  consumes its identity, but produces a cached `.stepLimitExceeded` terminal
-  response without calling the offline capability
+- an `.advance` request exceeding ``AgentSessionLimits.maximumStepCount`` is
+  accepted and consumes its identity, but produces a cached
+  `.stepLimitExceeded` terminal response without calling the offline capability;
+  `.current` has no step count
 
 ``AgentSessionLimits`` bounds retained result count and
 `maximumRetainedImageBytes`. The latter counts only retained encoded artifact
@@ -803,12 +825,15 @@ response larger than the image-byte budget is returned once but not cached.
 High-water still prevents its later retry from executing.
 
 Every executed or replayed ``AgentSessionResponse`` carries `knownCursor`.
-Completed and downstream offline outcomes report the exact completed advance;
-cursor mismatch adopts Simulation's reported current cursor; pre-advance busy
-or cancellation keeps the previously known cursor. `stopAndDrain()` closes
+Advance-aware completion and downstream outcomes derive it from the exact
+completed advance. Current-aware completion and downstream outcomes derive it
+from the selected source snapshot; a current cursor mismatch adopts the
+coordinator's reported retained cursor. Busy or cancellation before either
+source is selected keeps the previously known cursor. `stopAndDrain()` closes
 new unique admission immediately and waits for one accepted workflow to reach a
 terminal result without cancelling or rolling it back. Retained identical
-requests remain replayable after close while the assembly remains alive.
+requests of either source remain replayable after close while the assembly
+remains alive.
 
 This guarantee is intentionally **live-process only**. No durable journal is
 restored after process or assembly replacement, and a new agent-session identity
@@ -818,26 +843,26 @@ prevents old request IDs from colliding with a new topology.
 
 An actual MCP Runtime can later own transport, authentication, request lifetime,
 wire DTO conversion, and any persisted result reference while calling the narrow
-agent capability. Broader useful operations may eventually include:
+agent capability. Exact advance-and-capture and current-cursor visual capture
+already exist through ``AgentCaptureSource``. Broader useful operations may
+eventually include:
 
 - create, reset, or load a named session with an explicit seed/configuration
 - press, release, or set physical controls
 - submit a game-semantic action when that boundary exists
-- advance one or a bounded number of exact ticks
+- advance one or a bounded number of exact ticks without requiring an image
 - inspect a deliberate structured observation surface
-- render the current exact cursor
-- perform a serialized advance-and-render workflow
 - create a checkpoint or fork a lineage when those capabilities exist
 
 ### MCP Correctness Requirements
 
 Remote tools retry, callers disconnect, and requests can overlap. The live agent
-session now implements the first five foundations below for its single capture
-operation; transport-wide and multi-operation policy remains future:
+session now implements the first five foundations below for both capture-source
+choices in one unified identity lane; transport-wide policy remains future:
 
 - a session-qualified request identity so a retained retry does not double-advance
 - a mandatory expected Simulation cursor for optimistic concurrency
-- a maximum step count per unique request
+- a maximum step count per unique advancing request
 - serialization and typed overlap rather than an implicit unbounded queue
 - a correlated terminal response that preserves the best exact known cursor
 - future chunking or interruptible batches that cancel only between committed ticks
@@ -849,7 +874,9 @@ An advance-and-render operation is a workflow, not a rollback transaction. The
 wrapped offline outcome already reports the new cursor when Simulation commits
 and JPEG later fails. Its retained raw value permits a deliberate encoding retry
 without another advance or render, although ``AgentSessionCoordinator`` itself
-never retries automatically.
+never retries automatically. A current-capture operation has no advance to roll
+back: its typed outcome preserves the selected snapshot, reports the same cursor,
+and shares the same render/JPEG correlation and retry boundaries.
 
 JPEG now reaches the transport-neutral agent result, but there is no MCP Runtime,
 wire response, authenticated server, artifact URI, or persistence owner. JPEG
@@ -1067,14 +1094,15 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | ``POffscreenRenderTarget``, ``OffscreenRenderRequest``, and ``OffscreenRenderOutcome`` | Implemented backend-neutral exact asynchronous boundary requiring one immutable presentation snapshot, explicit viewpoint, and settings, with correlated completion, refusal, failure, and post-submission cancellation outcomes |
 | ``MetalOffscreenRenderRuntime`` | Implemented production raw offscreen Runtime with configurable limits, dedicated one-slot resources, explicit single-flight refusal, strict presentation/model/material/drawable-geometry/capacity preflight, real queue-feedback lifetime, terminal GPU-failure latching, and detached top-left BGRA8-sRGB readback; samples no source and advances no Simulation |
 | ``JPEGArtifactEncoder``, ``JPEGEncodingSettings``, and ``RenderedImageArtifact`` | Implemented stateless CPU JPEG transformation with validated quality, detached encoded data, and exact source request/cursor/viewpoint/render/encoding provenance; selects no execution context and can retry without ticking or rerendering |
-| ``OfflineCaptureConfiguration``, ``OfflineCaptureAssembly``, ``POfflineCaptureTarget``, and ``OfflineCaptureCoordinator`` | Implemented closed serial topology exposing only initial cursor plus one workflow capability; validates completed identity/settings/image size and cancellation request ID, retains typed mismatch values, and immediately awaits non-cancellation-inheriting JPEG work outside its actor while keeping busy backpressure active |
-| ``AgentSessionConfiguration``, ``AgentSessionAssembly``, ``PAgentSessionTarget``, and ``AgentSessionCoordinator`` | Implemented transport-neutral live-process wrapper that privately retains the offline assembly and gives its coordinator only ``POfflineCaptureTarget``; requires stable reflexive expected-cursor payloads, enforces monotonic session-qualified at-most-once admission and step bounds, replays exact retained responses, separates accepted high-water from bounded cache retention and optional next-sequence state, and drains accepted work before close |
+| ``OfflineCaptureConfiguration``, ``OfflineCaptureAssembly``, ``POfflineCaptureTarget``, and ``OfflineCaptureCoordinator`` | Implemented closed serial topology exposing only initial cursor plus one workflow capability; retains exactly the initial or last completed presentation, offers advance-and-capture plus exact cursor-checked current capture through one gate, validates completed identity/settings/image size and cancellation request ID, retains source-specific typed predecessor values, and immediately awaits non-cancellation-inheriting JPEG work outside its actor while keeping busy backpressure active |
+| ``OfflineCurrentCaptureRequest``, ``OfflineCurrentCaptureOutcome``, and ``OfflineCurrentCaptureResult`` | Implemented non-advancing current-presentation request/result vocabulary with mandatory expected cursor, no latest-value sampling, selected-snapshot provenance, and retained raw output on post-render cancellation or JPEG failure |
+| ``AgentCaptureSource``, ``AgentSessionConfiguration``, ``AgentSessionAssembly``, ``PAgentSessionTarget``, and ``AgentSessionCoordinator`` | Implemented transport-neutral live-process wrapper that privately retains the offline assembly and gives its coordinator only ``POfflineCaptureTarget``; unifies `.advance` and `.current` source choices under stable reflexive payload equality, monotonic session-qualified at-most-once admission, exact retained replay, explicit accepted high-water independent of bounded cache retention and optional next-sequence state, source-appropriate step bounds, and drain-before-close lifecycle |
 | ``MetalResourceStore`` | Device-scoped backend owner whose default frame-ring count and compiled target formats no longer depend on `MetalRenderer` |
 | Production offscreen render integration coverage | Drives both the reusable encoder seam and the exact Runtime through caller-owned targets, explicit residency, real queue feedback, completion-gated readback, and no `MTKView` or `CAMetalDrawable` |
-| Production offline assembly integration coverage | Drives sequential captures through only `initialCursor` and ``POfflineCaptureTarget`` across real fixed-step Simulation, Metal offscreen submission/readback, and Image I/O JPEG derivation |
-| Production agent-session integration coverage | Drives unique sequential requests through only the closed agent assembly surface, returns a byte-identical cached JPEG for an identical retry without advancing again, then continues the next sequence from the exact response cursor |
-| Focused offline coordinator coverage | Exercises exact stage ordering, at-most-once advance submission, identity/settings/image-size mismatch, typed cancellation-ID mismatch, JPEG failure, cancellation boundaries, retained predecessor values, and immediate reentrant busy refusal during dependency and JPEG waits |
-| Focused agent-session coordinator coverage | Exercises request mapping and at-most-once forwarding, replay, cached/in-flight conflict, duplicate-in-progress versus unique busy, wrong/gap/cancel/invalid admission, accepted limits, count/encoded-byte/raw-byte/oversize eviction, all cursor-bearing outcomes, accepted cancellation replay, close-and-drain with one or two simultaneous waiters, and maximum-sequence eviction after its successor becomes `nil` |
+| Production offline assembly integration coverage | Drives sequential advance captures through only `initialCursor` and ``POfflineCaptureTarget`` across real fixed-step Simulation, Metal offscreen submission/readback, and Image I/O JPEG derivation |
+| Production agent-session integration coverage | Advances from tick zero to tick one, captures an alternate viewpoint from retained tick one, replays that byte-identical current-capture response without rendering or advancing again, and then advances from tick one to tick two through only the closed agent assembly surface |
+| Focused offline coordinator coverage | Exercises both operation kinds, initial and post-advance retained presentation, at-most-once advance submission, exact current cursor checking, cross-operation shared-gate refusal, identity/settings/image-size and cancellation-ID mismatch, JPEG failure, cancellation boundaries, and source-appropriate retained predecessor values |
+| Focused agent-session coordinator coverage | Exercises mapping and at-most-once forwarding for both ``AgentCaptureSource`` cases, their unified replay/conflict/high-water lane, duplicate-in-progress versus unique busy, wrong/gap/cancel/invalid admission, advance-only step limits, count/encoded-byte/raw-byte/oversize eviction, source-specific cursor derivation, accepted cancellation replay, close-and-drain, and maximum-sequence eviction after its successor becomes `nil` |
 
 The most important current gaps are:
 
@@ -1091,8 +1119,8 @@ The most important current gaps are:
 - ``Engine/update(deltaTime:inputSnapshot:)`` contains unbounded real-time catch-up policy
 - latest presentation publication can skip intermediate ticks; exact advance now returns its final value, while event retention and other exact semantic surfaces remain absent
 - real-time, manual, focused serial offline, and transport-neutral agent-session configuration builders exist; host selection plus actual MCP transport/authentication/DTO composition, network, replay, and alternate-output assemblies remain proposed
-- agent idempotency is in-memory for one live assembly; there is no durable request/result journal, restart recovery, physical or semantic control ingress, structured observation, artifact persistence, reset/load/fork operation, or content identity beyond current render-artifact provenance
-- exact raw Metal offscreen rendering, stateless JPEG derivation, and serial advance-render-encode coordination are implemented, but there is no dedicated Render actor or worker, pooled target policy, HDR-master/quality accumulation path, PNG encoder, image artifact sink, or persistence contract
+- agent idempotency is in-memory for one live assembly; there is no durable request/result journal, restart recovery, physical or semantic control ingress with a gameplay consumer, structured observation, artifact persistence, reset/load/fork operation, or content identity beyond current render-artifact provenance
+- exact raw Metal offscreen rendering, stateless JPEG derivation, and serial advance-or-current/render/encode coordination are implemented, but there is no atomic multi-view job, dedicated Render actor or worker, pooled target policy, HDR-master/quality accumulation path, PNG encoder, image artifact sink, or persistence contract
 - there is no Audio Runtime, immutable listener-description contract, listener resolver, or Audio output-binding implementation; Audio examples in this article are directional
 - ordered Simulation events, input transitions, checkpoints, and journals remain proposed
 - the project currently defaults unannotated code to `MainActor`, while existing Input, Simulation, presentation-source, and Metal boundaries reinforce that placement; migration requires deliberate isolation and `Sendable` work rather than deleting one outer annotation
@@ -1167,28 +1195,32 @@ The remaining higher-quality and delivery work is HDR masters, accumulation and 
 
 ### 9. Add Offline Render-Gated Coordination
 
-Implemented for one bounded serial request at a time. ``OfflineCaptureConfiguration`` constructs a topology with no Input Runtime, cadence, screen, or optional peer bag; ``OfflineCaptureAssembly`` exposes only its initial cursor and ``POfflineCaptureTarget``. ``OfflineCaptureCoordinator`` is the sole effective advance authority, submits each capture's supplied advance request at most once, renders the returned completed snapshot, validates result identity/settings/image extent and cancellation identity, and encodes JPEG.
+Implemented for one bounded serial workflow at a time. ``OfflineCaptureConfiguration`` constructs a topology with no Input Runtime, cadence, screen, or optional peer bag; ``OfflineCaptureAssembly`` exposes only its initial cursor and ``POfflineCaptureTarget``. ``OfflineCaptureCoordinator`` is the sole effective advance authority and retains exactly the initial or most recently advanced completed presentation. `capture(_:)` submits its supplied advance request at most once and retains the returned snapshot immediately; `captureCurrent(_:)` requires that retained snapshot's exact cursor and issues no advance. Both render the selected immutable value, validate result identity/settings/image extent and cancellation identity, and encode JPEG behind one shared gate.
 
-An explicit actor-reentrancy gate returns immediate busy refusal while a request awaits a dependency or the detached JPEG task. Cancellation-ID mismatch preserves the exact advance plus expected/actual request IDs. The wider outcome vocabulary never hides committed progress: every post-advance failure or cancellation retains the exact ``SimulationAdvanceResult``, and post-render cancellation or JPEG failure also retains the raw ``OffscreenRenderResult``. No outcome triggers automatic retry or rollback.
+An explicit actor-reentrancy gate returns immediate busy refusal to either operation while a request awaits a dependency or the detached JPEG task. Cancellation-ID mismatch preserves expected/actual request IDs plus the source-appropriate predecessor. The outcome vocabularies never hide committed progress or invent it: every post-advance failure or cancellation retains the exact ``SimulationAdvanceResult``, every post-selection current failure retains its source snapshot, and post-render cancellation or JPEG failure also retains the raw ``OffscreenRenderResult``. No outcome triggers automatic retry or rollback.
 
-Future work maps authored output timelines to exact cursors, renders several outputs per cursor, adds bounded pipelining or worker isolation, and persists artifacts. PNG, HDR accumulation, and `ArtifactSink` remain outside this slice.
+Future work maps authored output timelines to exact cursors, groups several current outputs into an atomic job when required, adds bounded pipelining or worker isolation, and persists artifacts. PNG, HDR accumulation, and `ArtifactSink` remain outside this slice.
 
 ### 10. Add MCP Coordination
 
 Partially implemented as the transport-neutral ``AgentSessionConfiguration``.
-The current single operation requires an expected cursor and stable complete
-capture payload, bounds steps, serializes unique requests, and returns exact
-image artifacts through session-qualified live-process idempotency. Accepted
+The current capture request requires a stable complete payload and selects
+either bounded advance-and-capture or exact current-cursor capture through
+``AgentCaptureSource``. Both choices require an expected cursor, serialize in one
+session-qualified live-process idempotency lane, and return exact image
+artifacts; only `.advance` has a step count and submits `.none` input. Accepted
 high-water survives bounded result eviction, so an unavailable old response can
-never cause a second advance. The closed assembly exposes no direct Runtime or
-offline capability, and stop-and-drain closes new admission without rolling
-back accepted work.
+never cause a second advance or recapture. The closed assembly exposes no direct
+Runtime or offline capability, and stop-and-drain closes new admission without
+rolling back accepted work.
 
 Actual MCP transport, authentication, wire DTOs, durable restart-safe request
 history, physical input emulation, semantic controls, structured observations,
-artifact persistence, and broader session operations remain future. Add those
-as deliberate capabilities rather than weakening the exact capture boundary or
-turning input into a generic command bag.
+artifact persistence, and broader session operations remain future. In
+particular, visual current capture is not structured observation, and controls
+should wait for a typed gameplay consumer. Add those as deliberate capabilities
+rather than weakening the exact capture boundary or turning input into a generic
+command bag.
 
 ### 11. Add History Only for Concrete Needs
 
@@ -1209,14 +1241,16 @@ Current automated coverage proves the first reusable boundaries:
 - Render consumes a resolved viewpoint rather than raw Input Runtime state
 - a world rebuild produces a new session-qualified cursor
 - realtime, manual, offline, and agent-session builders construct focused assemblies with exactly one exposed effective advance authority per Simulation session
-- the production offline assembly completes sequential captures through only its initial cursor and capture target across real fixed-step Simulation, Metal readback, and JPEG derivation while preserving cursor, request, viewpoint, render, and encoding provenance
-- overlapping offline capture calls receive immediate coordinator-busy refusal even when actor reentrancy occurs while the accepted workflow awaits Simulation, Render, or out-of-actor JPEG work
+- the production offline assembly completes serial advance captures through only its initial cursor and capture target across real fixed-step Simulation, Metal readback, and JPEG derivation while preserving cursor, request, viewpoint, render, and encoding provenance
+- the offline coordinator begins with the exact initial completed presentation and replaces it immediately on every completed advance, before downstream cancellation or output failure can return
+- exact current capture requires the retained cursor, performs no Simulation request or latest-value sampling, and returns artifact/source provenance at the unchanged cursor
+- overlapping offline advance and current capture calls share one gate and receive immediate coordinator-busy refusal even when actor reentrancy occurs while the accepted workflow awaits Simulation, Render, or out-of-actor JPEG work
 - the offline coordinator submits its supplied advance request at most once, renders only its returned final snapshot, and rejects mismatched identity, settings, or raw image size before JPEG encoding
-- post-submission cancellation with the wrong request ID returns a typed mismatch preserving the exact advance and expected/actual IDs
+- post-submission cancellation with the wrong request ID returns a typed mismatch preserving expected/actual IDs plus the exact advance or current source snapshot
 - production JPEG work is immediately awaited outside the coordinator actor, does not inherit caller cancellation, and reports completion once encoding begins
-- every offline outcome after a completed advance preserves its exact ``SimulationAdvanceResult``; post-render cancellation and JPEG failure also preserve the raw result, and no failure retries or rolls back implicitly
-- the production agent assembly exposes only session/starting identity, ``PAgentSessionTarget``, and drain lifecycle; an identical retained retry returns the exact byte-identical JPEG response without advancing, and the next unique sequence continues from that response cursor
-- focused agent-session coverage validates request mapping and at-most-once forwarding, retained replay, cached/in-flight conflicts, duplicate-in-progress versus unique-request busy, non-consuming wrong/gap/cancel/invalid admission, accepted step limits, count/encoded-byte/raw-byte/oversize eviction, every cursor-bearing offline outcome, accepted cancellation replay, close-and-drain with one or two simultaneous waiters, and maximum-sequence eviction after `successor()` returns `nil`
+- every offline outcome after a completed advance preserves its exact ``SimulationAdvanceResult``, including typed advance/request correlation mismatch; every current outcome after expected-cursor validation preserves its exact source snapshot; post-render cancellation and JPEG failure also preserve the raw result, and no failure retries or rolls back implicitly
+- the production agent assembly exposes only session/starting identity, ``PAgentSessionTarget``, and drain lifecycle; one request advances tick zero to tick one, a new current request renders an alternate view at tick one, its identical retry replays the byte-identical JPEG without rendering or advancing, and the next advancing request commits tick two
+- focused agent-session coverage validates both source mappings and their unified at-most-once/replay/conflict/high-water lane, duplicate-in-progress versus unique-request busy, non-consuming wrong/gap/cancel/invalid admission, advance-only step limits, count/encoded-byte/raw-byte/oversize eviction, source-specific cursor outcomes, accepted cancellation replay, close-and-drain, and maximum-sequence eviction after `successor()` returns `nil`
 - multiple assemblies have no global mutable-state contamination
 
 Remaining vertical slices should prove:
@@ -1321,7 +1355,7 @@ The following details should remain open until the first vertical slices provide
 - whether every one-step result directly carries the presentation snapshot or uses an exact cursor-addressed rendezvous
 - the optimized representation of per-tick input/control batches
 - the first typed input-publisher, Input Route, input-channel, route-epoch, cutover, and independent consumer-baseline contracts
-- how long exact snapshots are retained for render retries and remote requests
+- whether any exact-scene history beyond the offline coordinator's implemented one-slot current presentation is needed for past-cursor render retries or remote requests
 - how a future observer-anchor resolver composes with the implemented explicit ``RenderViewpoint`` and snapshot-camera fallback
 - the observer and presentation-anchor identity types, including whether one observer may publish several Game Content-defined anchor roles
 - whether observer-scoped visibility is represented by filtered presentation snapshots, typed visibility facts, or another deliberate publication surface

@@ -36,15 +36,18 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
             catalog: gameContent.renderAssetCatalog,
             limits: renderLimits
         )
+        let initialPresentationSnapshot =
+            simulationRuntime.latestPresentationSnapshot
         let coordinator = OfflineCaptureCoordinator(
             advanceTarget: simulationRuntime,
+            initialPresentationSnapshot: initialPresentationSnapshot,
             renderTarget: renderRuntime
         )
 
         // Only immutable initial identity and the coordinator's narrow workflow
         // leave composition. The Runtime references remain coordinator-owned.
         return OfflineCaptureAssembly(
-            initialCursor: simulationRuntime.currentCursor,
+            initialCursor: initialPresentationSnapshot.cursor,
             coordinator: coordinator
         )
     }

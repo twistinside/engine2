@@ -2,6 +2,8 @@
 ///
 /// The coordinator receives only ``POfflineCaptureTarget``. It never acquires a
 /// second Simulation advance path or reproduces advance/render/encode staging.
+/// Advancing and current-state captures share one identity, admission, replay,
+/// retention, overlap, and drain lane; only advancing work observes step limits.
 /// Accepted request high-water is independent of bounded response retention, so
 /// eviction can make an old result unavailable but can never make it executable.
 actor AgentSessionCoordinator: PAgentSessionTarget {
@@ -122,18 +124,40 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         self.nextExpectedSequence = nextExpectedSequence.successor()
 
         let response: AgentSessionResponse
-        if request.stepCount.rawValue > limits.maximumStepCount.rawValue {
-            response = AgentSessionResponse(
-                requestID: request.id,
-                outcome: .stepLimitExceeded(
-                    requested: request.stepCount,
-                    maximum: limits.maximumStepCount
-                ),
-                knownCursor: knownCursor
-            )
-        } else {
-            let outcome = await captureTarget.capture(
-                request.makeOfflineCaptureRequest()
+        switch request.source {
+        case let .advance(expectedCursor, stepCount):
+            if stepCount.rawValue > limits.maximumStepCount.rawValue {
+                response = AgentSessionResponse(
+                    requestID: request.id,
+                    outcome: .stepLimitExceeded(
+                        requested: stepCount,
+                        maximum: limits.maximumStepCount
+                    ),
+                    knownCursor: knownCursor
+                )
+            } else {
+                let outcome = await captureTarget.capture(
+                    request.makeOfflineCaptureRequest(
+                        expectedCursor: expectedCursor,
+                        stepCount: stepCount
+                    )
+                )
+                knownCursor = Self.knownCursor(
+                    after: outcome,
+                    previous: knownCursor
+                )
+                response = AgentSessionResponse(
+                    requestID: request.id,
+                    outcome: .capture(outcome),
+                    knownCursor: knownCursor
+                )
+            }
+
+        case let .current(expectedCursor):
+            let outcome = await captureTarget.captureCurrent(
+                request.makeOfflineCurrentCaptureRequest(
+                    expectedCursor: expectedCursor
+                )
             )
             knownCursor = Self.knownCursor(
                 after: outcome,
@@ -141,7 +165,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
             )
             response = AgentSessionResponse(
                 requestID: request.id,
-                outcome: .capture(outcome),
+                outcome: .currentCapture(outcome),
                 knownCursor: knownCursor
             )
         }
@@ -240,7 +264,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                 current
             }
 
-        case let .cancelledAfterAdvance(result),
+        case let .advanceResultMismatch(_, _, _, result),
+             let .cancelledAfterAdvance(result),
              let .renderRejected(result, _),
              let .renderFailed(result, _),
              let .renderCancellationRequestIDMismatch(result, _, _),
@@ -252,32 +277,86 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         }
     }
 
+    /// Derives exact cursor knowledge from a non-advancing current capture.
+    private static func knownCursor(
+        after outcome: OfflineCurrentCaptureOutcome,
+        previous: SimulationCursor
+    ) -> SimulationCursor {
+        switch outcome {
+        case let .completed(result):
+            result.sourceSnapshot.cursor
+
+        case .coordinatorBusy,
+             .cancelledBeforeRender:
+            previous
+
+        case let .cursorMismatch(_, current):
+            current
+
+        case let .renderRejected(sourceSnapshot, _),
+             let .renderFailed(sourceSnapshot, _),
+             let .renderCancellationRequestIDMismatch(
+                 sourceSnapshot,
+                 _,
+                 _
+             ),
+             let .renderCancelledAfterSubmission(sourceSnapshot, _),
+             let .renderResultMismatch(sourceSnapshot, _),
+             let .cancelledAfterRender(sourceSnapshot, _),
+             let .jpegEncodingFailed(sourceSnapshot, _, _):
+            sourceSnapshot.cursor
+        }
+    }
+
     /// Counts only retained encoded or raw image payloads by declared policy.
     private static func retainedImageByteCount(
         in outcome: AgentSessionExecutionOutcome
     ) -> Int {
-        guard case let .capture(captureOutcome) = outcome else {
+        switch outcome {
+        case let .capture(captureOutcome):
+            return switch captureOutcome {
+            case let .completed(result):
+                result.artifact.encodedData.count
+
+            case let .renderResultMismatch(_, renderResult),
+                 let .cancelledAfterRender(_, renderResult),
+                 let .jpegEncodingFailed(_, renderResult, _):
+                renderResult.image.bytes.count
+
+            case .coordinatorBusy,
+                 .cancelledBeforeAdvance,
+                 .advanceRejected,
+                 .advanceResultMismatch,
+                 .cancelledAfterAdvance,
+                 .renderRejected,
+                 .renderFailed,
+                 .renderCancellationRequestIDMismatch,
+                 .renderCancelledAfterSubmission:
+                0
+            }
+
+        case let .currentCapture(captureOutcome):
+            return switch captureOutcome {
+            case let .completed(result):
+                result.artifact.encodedData.count
+
+            case let .renderResultMismatch(_, renderResult),
+                 let .cancelledAfterRender(_, renderResult),
+                 let .jpegEncodingFailed(_, renderResult, _):
+                renderResult.image.bytes.count
+
+            case .coordinatorBusy,
+                 .cancelledBeforeRender,
+                 .cursorMismatch,
+                 .renderRejected,
+                 .renderFailed,
+                 .renderCancellationRequestIDMismatch,
+                 .renderCancelledAfterSubmission:
+                0
+            }
+
+        case .stepLimitExceeded:
             return 0
-        }
-
-        return switch captureOutcome {
-        case let .completed(result):
-            result.artifact.encodedData.count
-
-        case let .renderResultMismatch(_, renderResult),
-             let .cancelledAfterRender(_, renderResult),
-             let .jpegEncodingFailed(_, renderResult, _):
-            renderResult.image.bytes.count
-
-        case .coordinatorBusy,
-             .cancelledBeforeAdvance,
-             .advanceRejected,
-             .cancelledAfterAdvance,
-             .renderRejected,
-             .renderFailed,
-             .renderCancellationRequestIDMismatch,
-             .renderCancelledAfterSubmission:
-            0
         }
     }
 }

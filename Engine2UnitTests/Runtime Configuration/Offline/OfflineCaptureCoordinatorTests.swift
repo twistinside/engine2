@@ -19,6 +19,7 @@ struct OfflineCaptureCoordinatorTests {
         )
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -82,6 +83,7 @@ struct OfflineCaptureCoordinatorTests {
         let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -93,6 +95,104 @@ struct OfflineCaptureCoordinatorTests {
         #expect(await renderTarget.requestCount() == 0)
         #expect(probe.recordedEncodingInputs().isEmpty)
         #expect(probe.recordedStages() == [.advance])
+    }
+
+    @Test func mismatchedCompletedRangeBecomesCurrentWithoutRendering() async throws {
+        let fixture = try Self.makeFixture()
+        let returnedFinalCursor = fixture.initialSnapshot.cursor
+            .advanced()
+            .advanced()
+        let returnedFinalSnapshot = SimulationPresentationSnapshot(
+            cursor: returnedFinalCursor,
+            camera: Camera(
+                position: SIMD3<Float>(3, 5, 9),
+                orthographicHeight: 11,
+                nearPlane: 0.25,
+                farPlane: 110
+            ),
+            entityPresentations: []
+        )
+        let mismatchedResult = SimulationAdvanceResult(
+            initialCursor: fixture.initialSnapshot.cursor,
+            finalCursor: returnedFinalCursor,
+            completedStepCount: SimulationCompletedStepCount(rawValue: 2),
+            finalPresentationSnapshot: returnedFinalSnapshot
+        )
+        let currentRequest = Self.currentRequest(
+            for: fixture,
+            expectedCursor: returnedFinalCursor
+        )
+        let currentRenderResult = Self.currentRenderResult(
+            sourceSnapshot: returnedFinalSnapshot,
+            request: currentRequest,
+            image: fixture.renderResult.image
+        )
+        let currentArtifact = Self.currentArtifact(
+            sourceSnapshot: returnedFinalSnapshot,
+            request: currentRequest
+        )
+        let probe = Probe(encodingResults: [.success(currentArtifact)])
+        let advanceTarget = ScriptedAdvanceTarget(
+            scripts: [.immediate(.completed(mismatchedResult))],
+            probe: probe
+        )
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.immediate(.completed(currentRenderResult))],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let advanceOutcome = await coordinator.capture(fixture.request)
+
+        #expect(
+            advanceOutcome == .advanceResultMismatch(
+                coordinatorCursor: fixture.initialSnapshot.cursor,
+                requestedExpectedCursor:
+                    fixture.request.advanceRequest.expectedCursor,
+                requestedStepCount: fixture.request.advanceRequest.stepCount,
+                result: mismatchedResult
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 1)
+        #expect(await renderTarget.requestCount() == 0)
+        #expect(probe.recordedEncodingInputs().isEmpty)
+        #expect(probe.recordedStages() == [.advance])
+
+        let currentOutcome = await coordinator.captureCurrent(currentRequest)
+
+        #expect(
+            currentOutcome == .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: returnedFinalSnapshot,
+                    artifact: currentArtifact
+                )
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 1)
+        #expect(
+            await renderTarget.recordedRequests() == [
+                OffscreenRenderRequest(
+                    id: currentRequest.renderRequestID,
+                    presentationSnapshot: returnedFinalSnapshot,
+                    viewpoint: currentRequest.viewpoint,
+                    settings: currentRequest.renderSettings
+                )
+            ]
+        )
+        #expect(
+            probe.recordedEncodingInputs() == [
+                EncoderInput(
+                    renderResult: currentRenderResult,
+                    settings: currentRequest.jpegSettings
+                )
+            ]
+        )
+        #expect(probe.recordedStages() == [.advance, .render, .encode])
     }
 
     @Test func everyRenderTerminalPreservesOneExactAdvance() async throws {
@@ -167,6 +267,7 @@ struct OfflineCaptureCoordinatorTests {
         )
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -264,6 +365,7 @@ struct OfflineCaptureCoordinatorTests {
             )
             let coordinator = Self.coordinator(
                 advanceTarget: advanceTarget,
+                initialPresentationSnapshot: fixture.initialSnapshot,
                 renderTarget: renderTarget,
                 probe: probe
             )
@@ -290,6 +392,7 @@ struct OfflineCaptureCoordinatorTests {
         let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -318,6 +421,7 @@ struct OfflineCaptureCoordinatorTests {
         let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -350,6 +454,7 @@ struct OfflineCaptureCoordinatorTests {
         )
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -384,6 +489,7 @@ struct OfflineCaptureCoordinatorTests {
         let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -421,6 +527,7 @@ struct OfflineCaptureCoordinatorTests {
         )
         let coordinator = OfflineCaptureCoordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             encodeJPEG: { renderResult, settings in
                 await suspendedEncoder.encode(
@@ -468,6 +575,413 @@ struct OfflineCaptureCoordinatorTests {
         #expect(probe.recordedStages() == [.advance, .render, .encode])
     }
 
+    @Test func capturesInitialCurrentSnapshotWithoutAdvancing() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let renderResult = Self.currentRenderResult(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request,
+            image: fixture.renderResult.image
+        )
+        let artifact = Self.currentArtifact(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request
+        )
+        let probe = Probe(encodingResults: [.success(artifact)])
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.immediate(.completed(renderResult))],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let outcome = await coordinator.captureCurrent(request)
+
+        #expect(
+            outcome == .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: fixture.initialSnapshot,
+                    artifact: artifact
+                )
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(
+            await renderTarget.recordedRequests() == [
+                OffscreenRenderRequest(
+                    id: request.renderRequestID,
+                    presentationSnapshot: fixture.initialSnapshot,
+                    viewpoint: request.viewpoint,
+                    settings: request.renderSettings
+                )
+            ]
+        )
+        #expect(
+            probe.recordedEncodingInputs() == [
+                EncoderInput(
+                    renderResult: renderResult,
+                    settings: request.jpegSettings
+                )
+            ]
+        )
+        #expect(probe.recordedStages() == [.render, .encode])
+    }
+
+    @Test func currentCursorMismatchStopsBeforeRenderAndEncoding() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(
+            for: fixture,
+            expectedCursor: fixture.advanceResult.finalCursor
+        )
+        let probe = Probe()
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let outcome = await coordinator.captureCurrent(request)
+
+        #expect(
+            outcome == .cursorMismatch(
+                expected: fixture.advanceResult.finalCursor,
+                current: fixture.initialSnapshot.cursor
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(await renderTarget.requestCount() == 0)
+        #expect(probe.recordedEncodingInputs().isEmpty)
+        #expect(probe.recordedStages().isEmpty)
+    }
+
+    @Test func cancelledBeforeCurrentRenderDoesNoWork() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let probe = Probe()
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let currentTask = Task {
+            withUnsafeCurrentTask { task in
+                task?.cancel()
+            }
+            return await coordinator.captureCurrent(request)
+        }
+
+        #expect(await currentTask.value == .cancelledBeforeRender)
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(await renderTarget.requestCount() == 0)
+        #expect(probe.recordedStages().isEmpty)
+    }
+
+    @Test func currentRenderCancellationIDMismatchPreservesSnapshot() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let wrongRequestID = OffscreenRenderRequestID(
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000497"
+            )!
+        )
+        let probe = Probe()
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [
+                .immediate(
+                    .cancelledAfterSubmission(requestID: wrongRequestID)
+                )
+            ],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let outcome = await coordinator.captureCurrent(request)
+
+        #expect(
+            outcome == .renderCancellationRequestIDMismatch(
+                sourceSnapshot: fixture.initialSnapshot,
+                expectedRequestID: request.renderRequestID,
+                actualRequestID: wrongRequestID
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(probe.recordedEncodingInputs().isEmpty)
+        #expect(probe.recordedStages() == [.render])
+    }
+
+    @Test func currentRenderResultMismatchPreservesSnapshotAndRawValue() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let mismatch = OffscreenRenderResult(
+            requestID: request.renderRequestID,
+            sourceCursor: fixture.advanceResult.finalCursor,
+            viewpoint: request.viewpoint,
+            settings: request.renderSettings,
+            image: fixture.renderResult.image
+        )
+        let probe = Probe()
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.immediate(.completed(mismatch))],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let outcome = await coordinator.captureCurrent(request)
+
+        #expect(
+            outcome == .renderResultMismatch(
+                sourceSnapshot: fixture.initialSnapshot,
+                renderResult: mismatch
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(probe.recordedEncodingInputs().isEmpty)
+        #expect(probe.recordedStages() == [.render])
+    }
+
+    @Test func completedAdvanceBecomesCurrentBeforeRenderFailure() async throws {
+        let fixture = try Self.makeFixture()
+        let currentRequest = Self.currentRequest(
+            for: fixture,
+            expectedCursor: fixture.advanceResult.finalCursor
+        )
+        let currentRenderResult = Self.currentRenderResult(
+            sourceSnapshot: fixture.advanceResult.finalPresentationSnapshot,
+            request: currentRequest,
+            image: fixture.renderResult.image
+        )
+        let currentArtifact = Self.currentArtifact(
+            sourceSnapshot: fixture.advanceResult.finalPresentationSnapshot,
+            request: currentRequest
+        )
+        let renderFailure = OffscreenRenderFailure(
+            stage: .gpuExecution,
+            backendDescription: "first output failed after exact advance"
+        )
+        let probe = Probe(encodingResults: [.success(currentArtifact)])
+        let advanceTarget = ScriptedAdvanceTarget(
+            scripts: [.immediate(.completed(fixture.advanceResult))],
+            probe: probe
+        )
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [
+                .immediate(.failed(renderFailure)),
+                .immediate(.completed(currentRenderResult))
+            ],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let advanceOutcome = await coordinator.capture(fixture.request)
+        #expect(
+            advanceOutcome == .renderFailed(
+                advanceResult: fixture.advanceResult,
+                failure: renderFailure
+            )
+        )
+
+        let currentOutcome = await coordinator.captureCurrent(currentRequest)
+        #expect(
+            currentOutcome == .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: fixture.advanceResult.finalPresentationSnapshot,
+                    artifact: currentArtifact
+                )
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 1)
+        let renderRequests = await renderTarget.recordedRequests()
+        #expect(renderRequests.count == 2)
+        #expect(
+            renderRequests.last?.presentationSnapshot ==
+            fixture.advanceResult.finalPresentationSnapshot
+        )
+        #expect(probe.recordedStages() == [.advance, .render, .render, .encode])
+    }
+
+    @Test func currentCaptureBlocksAdvanceAcrossTheSharedGate() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let renderResult = Self.currentRenderResult(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request,
+            image: fixture.renderResult.image
+        )
+        let artifact = Self.currentArtifact(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request
+        )
+        let probe = Probe(encodingResults: [.success(artifact)])
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.suspended],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+        let currentTask = Task {
+            await coordinator.captureCurrent(request)
+        }
+
+        await renderTarget.waitForRequestCount(1)
+        let advanceOutcome = await coordinator.capture(fixture.request)
+
+        #expect(advanceOutcome == .coordinatorBusy)
+        #expect(await advanceTarget.requestCount() == 0)
+
+        await renderTarget.resumeNext(with: .completed(renderResult))
+        #expect(
+            await currentTask.value == .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: fixture.initialSnapshot,
+                    artifact: artifact
+                )
+            )
+        )
+        #expect(probe.recordedStages() == [.render, .encode])
+    }
+
+    @Test func advanceCaptureBlocksCurrentAcrossTheSharedGate() async throws {
+        let fixture = try Self.makeFixture()
+        let currentRequest = Self.currentRequest(for: fixture)
+        let probe = Probe()
+        let advanceTarget = ScriptedAdvanceTarget(
+            scripts: [.suspended],
+            probe: probe
+        )
+        let renderTarget = ScriptedRenderTarget(scripts: [], probe: probe)
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+        let advanceTask = Task {
+            await coordinator.capture(fixture.request)
+        }
+
+        await advanceTarget.waitForRequestCount(1)
+        let currentOutcome = await coordinator.captureCurrent(currentRequest)
+
+        #expect(currentOutcome == .coordinatorBusy)
+        #expect(await renderTarget.requestCount() == 0)
+
+        advanceTask.cancel()
+        await advanceTarget.resumeNext(with: .completed(fixture.advanceResult))
+        #expect(
+            await advanceTask.value ==
+            .cancelledAfterAdvance(fixture.advanceResult)
+        )
+    }
+
+    @Test func currentCancellationAfterRawRenderRetainsExactPredecessors() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let renderResult = Self.currentRenderResult(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request,
+            image: fixture.renderResult.image
+        )
+        let probe = Probe()
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.suspended],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+        let currentTask = Task {
+            await coordinator.captureCurrent(request)
+        }
+
+        await renderTarget.waitForRequestCount(1)
+        currentTask.cancel()
+        await renderTarget.resumeNext(with: .completed(renderResult))
+
+        #expect(
+            await currentTask.value == .cancelledAfterRender(
+                sourceSnapshot: fixture.initialSnapshot,
+                renderResult: renderResult
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(probe.recordedEncodingInputs().isEmpty)
+        #expect(probe.recordedStages() == [.render])
+    }
+
+    @Test func currentJPEGFailureRetainsSnapshotAndRawResult() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let renderResult = Self.currentRenderResult(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request,
+            image: fixture.renderResult.image
+        )
+        let failure = JPEGArtifactEncoderError.destinationFinalizationFailed
+        let probe = Probe(encodingResults: [.failure(failure)])
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.immediate(.completed(renderResult))],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        let outcome = await coordinator.captureCurrent(request)
+
+        #expect(
+            outcome == .jpegEncodingFailed(
+                sourceSnapshot: fixture.initialSnapshot,
+                renderResult: renderResult,
+                failure: failure
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(await renderTarget.requestCount() == 1)
+        #expect(probe.recordedStages() == [.render, .encode])
+    }
+
     private static func expectRenderTerminal(
         fixture: Fixture,
         renderOutcome: OffscreenRenderOutcome,
@@ -484,6 +998,7 @@ struct OfflineCaptureCoordinatorTests {
         )
         let coordinator = Self.coordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
             probe: probe
         )
@@ -498,13 +1013,56 @@ struct OfflineCaptureCoordinatorTests {
         #expect(probe.recordedStages() == [.advance, .render])
     }
 
+    private static func currentRequest(
+        for fixture: Fixture,
+        expectedCursor: SimulationCursor? = nil
+    ) -> OfflineCurrentCaptureRequest {
+        OfflineCurrentCaptureRequest(
+            expectedCursor: expectedCursor ?? fixture.initialSnapshot.cursor,
+            viewpoint: fixture.request.viewpoint,
+            renderSettings: fixture.request.renderSettings,
+            jpegSettings: fixture.request.jpegSettings
+        )
+    }
+
+    private static func currentRenderResult(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        request: OfflineCurrentCaptureRequest,
+        image: RenderedBGRA8SRGBImage
+    ) -> OffscreenRenderResult {
+        OffscreenRenderResult(
+            requestID: request.renderRequestID,
+            sourceCursor: sourceSnapshot.cursor,
+            viewpoint: request.viewpoint,
+            settings: request.renderSettings,
+            image: image
+        )
+    }
+
+    private static func currentArtifact(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        request: OfflineCurrentCaptureRequest
+    ) -> RenderedImageArtifact {
+        RenderedImageArtifact(
+            format: .jpeg,
+            encodedData: Data([0xFF, 0xD8, 0x52, 0xFF, 0xD9]),
+            sourceRequestID: request.renderRequestID,
+            sourceCursor: sourceSnapshot.cursor,
+            viewpoint: request.viewpoint,
+            renderSettings: request.renderSettings,
+            jpegSettings: request.jpegSettings
+        )
+    }
+
     private static func coordinator(
         advanceTarget: ScriptedAdvanceTarget,
+        initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: ScriptedRenderTarget,
         probe: Probe
     ) -> OfflineCaptureCoordinator {
         OfflineCaptureCoordinator(
             advanceTarget: advanceTarget,
+            initialPresentationSnapshot: initialPresentationSnapshot,
             renderTarget: renderTarget,
             encodeJPEG: { renderResult, settings in
                 probe.encode(renderResult, settings: settings)
@@ -521,6 +1079,16 @@ struct OfflineCaptureCoordinatorTests {
         let initialCursor = SimulationCursor(
             sessionID: sessionID,
             tick: SimulationTick(rawValue: 10)
+        )
+        let initialSnapshot = SimulationPresentationSnapshot(
+            cursor: initialCursor,
+            camera: Camera(
+                position: SIMD3<Float>(9, 8, 7),
+                orthographicHeight: 12,
+                nearPlane: 0.1,
+                farPlane: 120
+            ),
+            entityPresentations: []
         )
         let finalCursor = SimulationCursor(
             sessionID: sessionID,
@@ -614,6 +1182,7 @@ struct OfflineCaptureCoordinatorTests {
 
         return Fixture(
             request: request,
+            initialSnapshot: initialSnapshot,
             advanceResult: advanceResult,
             renderRequest: renderRequest,
             renderResult: renderResult,
@@ -623,6 +1192,7 @@ struct OfflineCaptureCoordinatorTests {
 
     private struct Fixture: Sendable {
         let request: OfflineCaptureRequest
+        let initialSnapshot: SimulationPresentationSnapshot
         let advanceResult: SimulationAdvanceResult
         let renderRequest: OffscreenRenderRequest
         let renderResult: OffscreenRenderResult
