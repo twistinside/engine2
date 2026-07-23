@@ -17,6 +17,20 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
     /// Simulation refused the exact request without mutating its world.
     case advanceRejected(SimulationAdvanceRejection)
 
+    /// Simulation reported a coherent completion that did not match the
+    /// coordinator's retained starting cursor or the submitted request.
+    ///
+    /// The target may already have committed the returned range. The
+    /// coordinator therefore retains `result.finalPresentationSnapshot` as its
+    /// new current value and exposes the complete correlation failure without
+    /// rendering or pretending that the requested operation completed exactly.
+    case advanceResultMismatch(
+        coordinatorCursor: SimulationCursor,
+        requestedExpectedCursor: SimulationCursor?,
+        requestedStepCount: SimulationStepCount,
+        result: SimulationAdvanceResult
+    )
+
     /// Simulation committed, but cancellation prevented rendering from starting.
     case cancelledAfterAdvance(SimulationAdvanceResult)
 

@@ -16,6 +16,13 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     private let renderTarget: any POffscreenRenderTarget
     private let encodeJPEG: JPEGEncode
 
+    /// Sole exact presentation retained for current-cursor output work.
+    ///
+    /// The value begins at the Simulation Runtime's initial cursor and changes
+    /// only when this coordinator receives a completed exact advance result.
+    /// Retaining one value supports repeated outputs without creating history.
+    private var currentPresentationSnapshot: SimulationPresentationSnapshot
+
     /// True while one request owns every stage of the serial workflow.
     ///
     /// Actor reentrancy permits another caller to enter while a dependency is
@@ -26,10 +33,12 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     /// Creates the production coordinator around the concrete JPEG derivation.
     init(
         advanceTarget: any PSimulationAdvanceTarget,
+        initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: any POffscreenRenderTarget,
         jpegArtifactEncoder: JPEGArtifactEncoder = JPEGArtifactEncoder()
     ) {
         self.advanceTarget = advanceTarget
+        self.currentPresentationSnapshot = initialPresentationSnapshot
         self.renderTarget = renderTarget
         self.encodeJPEG = { renderResult, settings in
             // JPEG derivation can be substantial at the offscreen size limit.
@@ -66,10 +75,12 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     /// Runtime, mutable test hooks, or malformed image values to production.
     init(
         advanceTarget: any PSimulationAdvanceTarget,
+        initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: any POffscreenRenderTarget,
         encodeJPEG: @escaping JPEGEncode
     ) {
         self.advanceTarget = advanceTarget
+        self.currentPresentationSnapshot = initialPresentationSnapshot
         self.renderTarget = renderTarget
         self.encodeJPEG = encodeJPEG
     }
@@ -90,11 +101,38 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             isCapturing = false
         }
 
+        let coordinatorCursorBeforeAdvance =
+            currentPresentationSnapshot.cursor
         let advanceOutcome = await advanceTarget.advance(request.advanceRequest)
         let advanceResult: SimulationAdvanceResult
         switch advanceOutcome {
         case let .completed(result):
             advanceResult = result
+
+            // Advancement is authoritative even if cancellation or an output
+            // stage fails afterward. Publish its completed immutable value to
+            // this coordinator's one-slot current-state cache immediately.
+            currentPresentationSnapshot = result.finalPresentationSnapshot
+
+            // A completed value is internally coherent by construction, but a
+            // conforming target must also correlate it with the coordinator's
+            // retained cursor and the exact command that was submitted. Work
+            // may already be committed, so retain the returned final snapshot
+            // while refusing to render a range that was not the requested one.
+            guard result.initialCursor == coordinatorCursorBeforeAdvance,
+                  request.advanceRequest.expectedCursor == nil
+                    || request.advanceRequest.expectedCursor
+                        == result.initialCursor,
+                  result.completedStepCount.rawValue
+                    == request.advanceRequest.stepCount.rawValue else {
+                return .advanceResultMismatch(
+                    coordinatorCursor: coordinatorCursorBeforeAdvance,
+                    requestedExpectedCursor:
+                        request.advanceRequest.expectedCursor,
+                    requestedStepCount: request.advanceRequest.stepCount,
+                    result: result
+                )
+            }
 
         case let .rejected(rejection):
             return .advanceRejected(rejection)
@@ -106,11 +144,70 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             return .cancelledAfterAdvance(advanceResult)
         }
 
+        return offlineCaptureOutcome(
+            from: await deriveImage(
+                sourceSnapshot: advanceResult.finalPresentationSnapshot,
+                renderRequestID: request.renderRequestID,
+                viewpoint: request.viewpoint,
+                renderSettings: request.renderSettings,
+                jpegSettings: request.jpegSettings
+            ),
+            advanceResult: advanceResult
+        )
+    }
+
+    /// Renders and encodes the retained exact presentation without advancing.
+    func captureCurrent(
+        _ request: OfflineCurrentCaptureRequest
+    ) async -> OfflineCurrentCaptureOutcome {
+        // One gate spans both operation kinds. A current render cannot slip
+        // between an accepted advance and its output, and an advance cannot
+        // replace the selected snapshot while current output work is awaited.
+        guard !isCapturing else {
+            return .coordinatorBusy
+        }
+        guard !Task.isCancelled else {
+            return .cancelledBeforeRender
+        }
+
+        let sourceSnapshot = currentPresentationSnapshot
+        guard request.expectedCursor == sourceSnapshot.cursor else {
+            return .cursorMismatch(
+                expected: request.expectedCursor,
+                current: sourceSnapshot.cursor
+            )
+        }
+
+        isCapturing = true
+        defer {
+            isCapturing = false
+        }
+
+        return offlineCurrentCaptureOutcome(
+            from: await deriveImage(
+                sourceSnapshot: sourceSnapshot,
+                renderRequestID: request.renderRequestID,
+                viewpoint: request.viewpoint,
+                renderSettings: request.renderSettings,
+                jpegSettings: request.jpegSettings
+            ),
+            sourceSnapshot: sourceSnapshot
+        )
+    }
+
+    /// Applies the common exact render, correlation, and JPEG policy.
+    private func deriveImage(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        renderRequestID: OffscreenRenderRequestID,
+        viewpoint: RenderViewpoint,
+        renderSettings: OffscreenRenderSettings,
+        jpegSettings: JPEGEncodingSettings
+    ) async -> OfflineImageDerivationOutcome {
         let renderRequest = OffscreenRenderRequest(
-            id: request.renderRequestID,
-            presentationSnapshot: advanceResult.finalPresentationSnapshot,
-            viewpoint: request.viewpoint,
-            settings: request.renderSettings
+            id: renderRequestID,
+            presentationSnapshot: sourceSnapshot,
+            viewpoint: viewpoint,
+            settings: renderSettings
         )
         let renderOutcome = await renderTarget.render(renderRequest)
 
@@ -120,29 +217,19 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             renderResult = result
 
         case let .rejected(rejection):
-            return .renderRejected(
-                advanceResult: advanceResult,
-                rejection: rejection
-            )
+            return .renderRejected(rejection)
 
         case let .failed(failure):
-            return .renderFailed(
-                advanceResult: advanceResult,
-                failure: failure
-            )
+            return .renderFailed(failure)
 
         case let .cancelledAfterSubmission(requestID):
             guard requestID == renderRequest.id else {
                 return .renderCancellationRequestIDMismatch(
-                    advanceResult: advanceResult,
                     expectedRequestID: renderRequest.id,
                     actualRequestID: requestID
                 )
             }
-            return .renderCancelledAfterSubmission(
-                advanceResult: advanceResult,
-                requestID: requestID
-            )
+            return .renderCancelledAfterSubmission(requestID)
         }
 
         // A completed target must echo every identity-bearing render input and
@@ -150,41 +237,149 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
         // provenance diverges from the exact scene, viewpoint, settings, or
         // request that this coordinator issued.
         guard renderResult.requestID == renderRequest.id,
-              renderResult.sourceCursor == advanceResult.finalCursor,
+              renderResult.sourceCursor == sourceSnapshot.cursor,
               renderResult.viewpoint == renderRequest.viewpoint,
               renderResult.settings == renderRequest.settings,
               renderResult.image.size == renderRequest.settings.size else {
-            return .renderResultMismatch(
-                advanceResult: advanceResult,
-                renderResult: renderResult
-            )
+            return .renderResultMismatch(renderResult)
         }
 
         // The raw immutable value is retained in this outcome so the caller can
         // encode it later without repeating either authoritative predecessor.
         guard !Task.isCancelled else {
-            return .cancelledAfterRender(
-                advanceResult: advanceResult,
-                renderResult: renderResult
-            )
+            return .cancelledAfterRender(renderResult)
         }
 
         // JPEG encoding is stateless and executes outside the coordinator actor
         // so actor-reentrant overlap observes the busy gate. The detached work
         // does not inherit cancellation: once this call begins, completion wins
         // because a successful artifact already exists and must not be hidden.
-        switch await encodeJPEG(renderResult, request.jpegSettings) {
+        switch await encodeJPEG(renderResult, jpegSettings) {
         case let .success(artifact):
-            return .completed(
+            return .completed(artifact)
+
+        case let .failure(failure):
+            return .jpegEncodingFailed(
+                renderResult: renderResult,
+                failure: failure
+            )
+        }
+    }
+
+    /// Restores the existing advance-aware public outcome vocabulary.
+    private func offlineCaptureOutcome(
+        from outcome: OfflineImageDerivationOutcome,
+        advanceResult: SimulationAdvanceResult
+    ) -> OfflineCaptureOutcome {
+        switch outcome {
+        case let .completed(artifact):
+            .completed(
                 OfflineCaptureResult(
                     advanceResult: advanceResult,
                     artifact: artifact
                 )
             )
 
-        case let .failure(failure):
-            return .jpegEncodingFailed(
+        case let .renderRejected(rejection):
+            .renderRejected(
                 advanceResult: advanceResult,
+                rejection: rejection
+            )
+
+        case let .renderFailed(failure):
+            .renderFailed(
+                advanceResult: advanceResult,
+                failure: failure
+            )
+
+        case let .renderCancellationRequestIDMismatch(expected, actual):
+            .renderCancellationRequestIDMismatch(
+                advanceResult: advanceResult,
+                expectedRequestID: expected,
+                actualRequestID: actual
+            )
+
+        case let .renderCancelledAfterSubmission(requestID):
+            .renderCancelledAfterSubmission(
+                advanceResult: advanceResult,
+                requestID: requestID
+            )
+
+        case let .renderResultMismatch(renderResult):
+            .renderResultMismatch(
+                advanceResult: advanceResult,
+                renderResult: renderResult
+            )
+
+        case let .cancelledAfterRender(renderResult):
+            .cancelledAfterRender(
+                advanceResult: advanceResult,
+                renderResult: renderResult
+            )
+
+        case let .jpegEncodingFailed(renderResult, failure):
+            .jpegEncodingFailed(
+                advanceResult: advanceResult,
+                renderResult: renderResult,
+                failure: failure
+            )
+        }
+    }
+
+    /// Adds current-presentation provenance to the common output terminal.
+    private func offlineCurrentCaptureOutcome(
+        from outcome: OfflineImageDerivationOutcome,
+        sourceSnapshot: SimulationPresentationSnapshot
+    ) -> OfflineCurrentCaptureOutcome {
+        switch outcome {
+        case let .completed(artifact):
+            .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: sourceSnapshot,
+                    artifact: artifact
+                )
+            )
+
+        case let .renderRejected(rejection):
+            .renderRejected(
+                sourceSnapshot: sourceSnapshot,
+                rejection: rejection
+            )
+
+        case let .renderFailed(failure):
+            .renderFailed(
+                sourceSnapshot: sourceSnapshot,
+                failure: failure
+            )
+
+        case let .renderCancellationRequestIDMismatch(expected, actual):
+            .renderCancellationRequestIDMismatch(
+                sourceSnapshot: sourceSnapshot,
+                expectedRequestID: expected,
+                actualRequestID: actual
+            )
+
+        case let .renderCancelledAfterSubmission(requestID):
+            .renderCancelledAfterSubmission(
+                sourceSnapshot: sourceSnapshot,
+                requestID: requestID
+            )
+
+        case let .renderResultMismatch(renderResult):
+            .renderResultMismatch(
+                sourceSnapshot: sourceSnapshot,
+                renderResult: renderResult
+            )
+
+        case let .cancelledAfterRender(renderResult):
+            .cancelledAfterRender(
+                sourceSnapshot: sourceSnapshot,
+                renderResult: renderResult
+            )
+
+        case let .jpegEncodingFailed(renderResult, failure):
+            .jpegEncodingFailed(
+                sourceSnapshot: sourceSnapshot,
                 renderResult: renderResult,
                 failure: failure
             )

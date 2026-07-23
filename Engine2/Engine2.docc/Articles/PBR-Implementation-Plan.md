@@ -28,8 +28,9 @@ offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
 PNG pipeline, artifact persistence, pooled targets, or dedicated Render worker.
 A separate stateless CPU ``JPEGArtifactEncoder`` now derives a provenance-rich
 JPEG from the completed raw result, and ``OfflineCaptureConfiguration``
-serially coordinates one exact advance request, render, and encoding workflow
-without changing this PBR/GPU boundary.
+serially coordinates either an exact advance-and-capture or a cursor-checked
+capture of its retained current presentation through the same render and
+encoding workflow, without changing this PBR/GPU boundary.
 
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine

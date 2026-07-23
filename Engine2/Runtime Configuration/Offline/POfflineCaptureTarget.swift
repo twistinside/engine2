@@ -1,8 +1,13 @@
-/// Narrow directed capability for exact advance-render-encode capture work.
+/// Narrow directed capability for exact serial capture work.
 ///
 /// The asynchronous, nonisolated contract lets an App, tool, or future remote
-/// coordinator request one bounded workflow without learning which actor owns
-/// serialization or gaining direct access to Simulation or Render runtimes.
+/// coordinator either advance then capture or recapture the retained current
+/// presentation. Callers do not learn which actor owns serialization and gain
+/// no direct access to Simulation, its latest publication, or Render runtimes.
 nonisolated protocol POfflineCaptureTarget: AnyObject, Sendable {
     func capture(_ request: OfflineCaptureRequest) async -> OfflineCaptureOutcome
+
+    func captureCurrent(
+        _ request: OfflineCurrentCaptureRequest
+    ) async -> OfflineCurrentCaptureOutcome
 }

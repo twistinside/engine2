@@ -103,21 +103,6 @@ struct AgentSessionConfigurationTests {
             jpegSettings: firstJPEGSettings
         )
 
-        // An identical remote retry replays the exact retained terminal value.
-        // Equality includes the artifact Data, and the explicit assertion keeps
-        // the byte-for-byte guarantee visible at this integration boundary.
-        let replayedResponse = try Self.replayedResponse(
-            from: await target.capture(firstRequest)
-        )
-        let replayedResult = try Self.completedCapture(from: replayedResponse)
-
-        #expect(replayedResponse == firstResponse)
-        #expect(
-            replayedResult.artifact.encodedData ==
-            firstResult.artifact.encodedData
-        )
-        #expect(replayedResponse.knownCursor == firstResponse.knownCursor)
-
         let secondSequence = try #require(firstRequestID.sequence.successor())
         let secondRequestID = AgentSessionRequestID(
             sessionID: sessionID,
@@ -137,10 +122,9 @@ struct AgentSessionConfigurationTests {
             exposure: ManualExposure(multiplier: 1.1)
         )
         let secondJPEGSettings = JPEGEncodingSettings(quality: .maximum)
-        let secondRequest = AgentCaptureRequest(
+        let secondRequest = AgentCaptureRequest.current(
             id: secondRequestID,
             expectedCursor: firstResponse.knownCursor,
-            stepCount: .one,
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000005"
@@ -154,35 +138,94 @@ struct AgentSessionConfigurationTests {
         let secondResponse = try Self.executedResponse(
             from: await target.capture(secondRequest)
         )
-        let secondResult = try Self.completedCapture(from: secondResponse)
+        let secondResult = try Self.completedCurrentCapture(
+            from: secondResponse
+        )
 
-        // Sequence one begins exactly where sequence zero ended. If replay had
-        // advanced a second time, this optimistic cursor would be rejected.
+        // Sequence one renders the retained completed value from another
+        // viewpoint without changing the authoritative cursor.
         #expect(secondResponse.requestID == secondRequestID)
         #expect(
-            secondResult.advanceResult.initialCursor ==
+            secondResult.sourceSnapshot.cursor ==
             firstResponse.knownCursor
         )
-        #expect(
-            secondResult.advanceResult.finalCursor ==
-            firstResponse.knownCursor.advanced()
-        )
-        #expect(
-            secondResponse.knownCursor ==
-            secondResult.advanceResult.finalCursor
-        )
-        #expect(secondResponse.knownCursor.tick == SimulationTick(rawValue: 2))
+        #expect(secondResponse.knownCursor == firstResponse.knownCursor)
+        #expect(secondResponse.knownCursor.tick == SimulationTick(rawValue: 1))
         #expect(secondResponse.knownCursor.sessionID == simulationSessionID)
-        #expect(secondResult.advanceResult.completedStepCount.rawValue == 1)
-        #expect(
-            secondResult.advanceResult.finalPresentationSnapshot.cursor ==
-            secondResponse.knownCursor
-        )
         try Self.assertArtifact(
             secondResult.artifact,
             requestID: secondRequest.renderRequestID,
             cursor: secondResponse.knownCursor,
             viewpoint: secondViewpoint,
+            renderSettings: secondRenderSettings,
+            jpegSettings: secondJPEGSettings
+        )
+
+        // An identical current-capture retry replays the byte-identical result
+        // and likewise leaves the cursor at tick one.
+        let replayedResponse = try Self.replayedResponse(
+            from: await target.capture(secondRequest)
+        )
+        let replayedResult = try Self.completedCurrentCapture(
+            from: replayedResponse
+        )
+        #expect(replayedResponse == secondResponse)
+        #expect(
+            replayedResult.artifact.encodedData ==
+            secondResult.artifact.encodedData
+        )
+        #expect(replayedResponse.knownCursor == firstResponse.knownCursor)
+
+        let thirdSequence = try #require(secondSequence.successor())
+        let thirdRequestID = AgentSessionRequestID(
+            sessionID: sessionID,
+            sequence: thirdSequence
+        )
+        let thirdViewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: secondViewpoint.revision.advanced(),
+            camera: Camera.lookingAt(
+                .zero,
+                from: SIMD3<Float>(-0.5, 0.5, 8)
+            )
+        )
+        let thirdRequest = AgentCaptureRequest(
+            id: thirdRequestID,
+            expectedCursor: secondResponse.knownCursor,
+            stepCount: .one,
+            renderRequestID: OffscreenRenderRequestID(
+                rawValue: UUID(
+                    uuidString: "50000000-0000-0000-0000-000000000006"
+                )!
+            ),
+            viewpoint: thirdViewpoint,
+            renderSettings: secondRenderSettings,
+            jpegSettings: secondJPEGSettings
+        )
+        let thirdResponse = try Self.executedResponse(
+            from: await target.capture(thirdRequest)
+        )
+        let thirdResult = try Self.completedCapture(from: thirdResponse)
+
+        // If either current capture had advanced, this expected cursor would
+        // reject. The next true advance begins at tick one and commits tick two.
+        #expect(thirdResponse.requestID == thirdRequestID)
+        #expect(
+            thirdResult.advanceResult.initialCursor ==
+            firstResponse.knownCursor
+        )
+        #expect(
+            thirdResult.advanceResult.finalCursor ==
+            firstResponse.knownCursor.advanced()
+        )
+        #expect(thirdResponse.knownCursor == thirdResult.advanceResult.finalCursor)
+        #expect(thirdResponse.knownCursor.tick == SimulationTick(rawValue: 2))
+        #expect(thirdResult.advanceResult.completedStepCount.rawValue == 1)
+        try Self.assertArtifact(
+            thirdResult.artifact,
+            requestID: thirdRequest.renderRequestID,
+            cursor: thirdResponse.knownCursor,
+            viewpoint: thirdViewpoint,
             renderSettings: secondRenderSettings,
             jpegSettings: secondJPEGSettings
         )
@@ -217,6 +260,22 @@ struct AgentSessionConfigurationTests {
         }
         guard case let .completed(result) = captureOutcome else {
             Issue.record("Expected completed capture, received \(captureOutcome)")
+            throw UnexpectedOutcome()
+        }
+        return result
+    }
+
+    private static func completedCurrentCapture(
+        from response: AgentSessionResponse
+    ) throws -> OfflineCurrentCaptureResult {
+        guard case let .currentCapture(captureOutcome) = response.outcome else {
+            Issue.record(
+                "Expected current capture execution, received \(response.outcome)"
+            )
+            throw UnexpectedOutcome()
+        }
+        guard case let .completed(result) = captureOutcome else {
+            Issue.record("Expected current capture, received \(captureOutcome)")
             throw UnexpectedOutcome()
         }
         return result
