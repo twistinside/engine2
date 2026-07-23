@@ -15,6 +15,7 @@ The current code already reflects the core ownership split:
 - ``MetalOffscreenRenderRuntime`` owns dedicated one-slot Metal resources, request-scoped targets, queue-feedback lifetime, and detached raw readback without owning a source, Simulation advancement, view, drawable, or artifact encoder
 - ``JPEGArtifactEncoder`` owns no mutable resource or Runtime lifecycle; it transforms detached raw results into detached JPEG artifacts while preserving exact provenance
 - ``OfflineCaptureAssembly`` hides its Simulation and Render Runtimes behind one ``POfflineCaptureTarget`` so ``OfflineCaptureCoordinator`` remains the sole effective advance authority
+- ``AgentSessionAssembly`` privately retains the complete offline assembly and exposes only ``PAgentSessionTarget`` plus immutable starting identity and drain lifecycle; its coordinator receives no direct Runtime, advance, or render capability
 - ``RenderFrame`` acts as the current translation boundary into presentation data
 ## Resource Scope Follows Runtime Ownership
 Engine2 should treat `resource` as a storage, cardinality, and lifetime role inside an owning runtime, not as the primary naming vocabulary for every type.
@@ -101,6 +102,15 @@ That display rule belongs to ``MetalRenderer``, not ``MetalFrameEncoder``. The e
 This display-driven rule is not the only presentation configuration. The implemented ``OfflineCaptureCoordinator`` requests one exact Simulation advancement, passes only its returned immutable snapshot plus the request's explicit viewpoint and settings to ``POffscreenRenderTarget``, and validates completed identity, cursor, viewpoint, settings, and raw image size before encoding. A post-submission cancellation must echo the requested ID; a typed mismatch retains the exact advance and expected/actual IDs. The coordinator owns that directed workflow; Render still does not own or mutate Simulation.
 
 ``OfflineCaptureAssembly`` exposes neither Runtime, so another caller cannot bypass serial coordination and become a second advance authority. Every post-advance outcome retains the committed ``SimulationAdvanceResult``; post-render cancellation and JPEG failure retain the raw result as well. Production JPEG encoding is immediately awaited in a detached, non-cancellation-inheriting task outside the coordinator actor while its single-flight gate remains held. This is coordinator-selected execution and explicit value ownership, not a change to the stateless encoder, rollback, automatic retry, or a dedicated worker. A dedicated render actor or worker, pooled targets, HDR master and sample accumulation, PNG encoding, expanded artifact metadata, persistence, and `ArtifactSink` remain proposed. See <doc:Runtime-Configurations-and-Advancement>.
+
+``AgentSessionConfiguration`` reuses that ownership boundary instead of
+reassembling its internals. ``AgentSessionCoordinator`` owns only
+live-process request admission, accepted high-water, bounded retained responses,
+and close/drain state around ``POfflineCaptureTarget``. Retained JPEG or raw
+image `Data` belongs to the agent response cache until replay eviction; the
+separate accepted high-water remains afterward so eviction cannot transfer
+advance authority back to an old request. Durable request/result storage,
+artifact persistence, and an MCP transport remain distinct future owners.
 The intended presentation model is:
 1. simulation updates `World`
 2. Simulation publishes a new immutable simulation presentation snapshot
