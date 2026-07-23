@@ -12,6 +12,7 @@ The current codebase already has:
 - ``POffscreenRenderTarget`` and its request/outcome values as the backend-neutral asynchronous exact-render boundary
 - ``MetalOffscreenRenderRuntime`` as the production view- and drawable-independent Metal implementation with dedicated one-slot resources and explicit single-flight backpressure
 - ``JPEGArtifactEncoder`` as the stateless CPU-only transformation from one completed raw result to a detached, provenance-rich JPEG artifact
+- ``OfflineCaptureConfiguration`` and ``OfflineCaptureCoordinator`` as the closed serial topology that submits one supplied advance request, exact-renders the returned snapshot, validates provenance, and encodes JPEG behind ``POfflineCaptureTarget``
 - ``ScreenViewpointController`` as the App-owned free-orbit controller for the current screen output
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
   command queue, typed state caches, decoded models, and frame-resource ring
@@ -19,7 +20,7 @@ The current codebase already has:
   frame-allocation residency sets
 - typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
   between Game Content descriptions and renderer-owned resources
-The production frame encoder is exercised by both the screen adapter and ``MetalOffscreenRenderRuntime``. The offscreen Runtime accepts an immutable ``OffscreenRenderRequest``, applies configurable allocation/readback limits, submits through real Metal 4 queue feedback, and returns a detached ``RenderedBGRA8SRGBImage`` with exact provenance without an `MTKView` or `CAMetalDrawable`. ``JPEGArtifactEncoder`` can derive a detached JPEG from that completed value without touching Metal or application state. PNG encoding, HDR masters and sample accumulation, pooled targets, persistence or an `ArtifactSink`, a dedicated render actor or worker, an App-owned offline capture configuration, and MCP coordination remain future layers.
+The production frame encoder is exercised by both the screen adapter and ``MetalOffscreenRenderRuntime``. The offscreen Runtime accepts an immutable ``OffscreenRenderRequest``, applies configurable allocation/readback limits, submits through real Metal 4 queue feedback, and returns a detached ``RenderedBGRA8SRGBImage`` with exact provenance without an `MTKView` or `CAMetalDrawable`. ``JPEGArtifactEncoder`` can derive a detached JPEG from that completed value without touching Metal or application state. ``OfflineCaptureConfiguration`` now connects those pieces to exact Simulation advancement in one serial assembly. PNG encoding, HDR masters and sample accumulation, pooled targets, persistence or an `ArtifactSink`, a dedicated render actor or worker, and MCP coordination remain future layers.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
 See <doc:PBR-Implementation-Plan> for the staged path from the current visible
@@ -229,7 +230,17 @@ On success, the Runtime reads the shared destination only after feedback and ret
 
 ``RenderedImageArtifact`` owns detached encoded data and preserves the exact source ``OffscreenRenderRequestID``, ``SimulationCursor``, complete ``RenderViewpoint``, ``OffscreenRenderSettings``, and ``JPEGEncodingSettings``. Encoding quality is a validated finite `0...1` ``JPEGQuality`` rather than an unvalidated scalar.
 
-Because this layer has no mutable state and no Runtime lifecycle, it does not choose an actor, task, queue, or worker. The caller chooses the execution context appropriate to its configuration. An encoding failure leaves the detached ``OffscreenRenderResult`` unchanged, so the caller may retry JPEG encoding—possibly with different settings—without advancing Simulation or rerendering. No PNG encoder, HDR-master or accumulation workflow, persistence contract, `ArtifactSink`, offline capture coordinator, or MCP coordinator is implemented yet.
+Because this layer has no mutable state and no Runtime lifecycle, it does not choose an actor, task, queue, or worker. The caller chooses the execution context appropriate to its configuration. An encoding failure leaves the detached ``OffscreenRenderResult`` unchanged, so the caller may retry JPEG encoding—possibly with different settings—without advancing Simulation or rerendering. The implemented offline coordinator retains that raw result in its JPEG-failure outcome but does not retry automatically. No PNG encoder, HDR-master or accumulation workflow, persistence contract, `ArtifactSink`, dedicated Render worker, or MCP coordinator is implemented yet.
+
+## Serial Offline Capture Owns Workflow, Not Render Semantics
+
+``OfflineCaptureConfiguration`` constructs exactly one authoritative Simulation Runtime, one dedicated ``MetalOffscreenRenderRuntime``, and one ``OfflineCaptureCoordinator``. ``OfflineCaptureAssembly`` publishes only its immutable initial cursor and ``POfflineCaptureTarget``. It exposes no direct Simulation or Render capability, Input Runtime, automatic cadence, screen, or optional peer bag, so the coordinator remains the sole effective advance authority.
+
+For each accepted ``OfflineCaptureRequest``, the coordinator issues its exact advance request once, builds the render request only from `SimulationAdvanceResult.finalPresentationSnapshot`, validates that a completed render echoes the request identity, final cursor, complete viewpoint, and render settings, then encodes JPEG. It never samples latest presentation, retries, rolls back, or advances because a downstream stage failed.
+
+The coordinator actor remains reentrant while awaiting Simulation or Render, so an explicit in-flight gate returns `.coordinatorBusy` immediately to overlap instead of silently queueing it. Cancellation and failure after advancement preserve the complete ``SimulationAdvanceResult``. Cancellation after raw rendering and JPEG failure additionally preserve ``OffscreenRenderResult`` for a deliberate later encoding retry without another render or tick. Persistence and richer output scheduling remain caller/future configuration policy.
+
+Production integration coverage performs sequential captures through only the assembly's initial cursor and capture target, exercising real fixed-step Simulation, Metal offscreen completion/readback, and Image I/O JPEG derivation while preserving exact provenance.
 
 ## Metal 4 Residency Sets
 
@@ -299,3 +310,5 @@ This rendering approach fits the broader engine direction:
 - ``MetalOffscreenRenderRuntime``
 - ``JPEGArtifactEncoder``
 - ``RenderedImageArtifact``
+- ``POfflineCaptureTarget``
+- ``OfflineCaptureCoordinator``

@@ -36,8 +36,9 @@ Current types implement part of this direction:
 - `POffscreenRenderTarget` is the backend-neutral exact asynchronous render capability. Its request carries one immutable Simulation presentation snapshot, one explicit viewpoint, and render settings; its outcome preserves expected refusals, accepted-request failures, post-submission cancellation, or a provenance-rich detached image.
 - `MetalOffscreenRenderRuntime` is the first production offscreen Runtime. It owns dedicated one-slot Metal resources, enforces a single-flight busy gate and configurable size limits, and drives `MetalFrameEncoder` without sampling sources, advancing Simulation, or acquiring a view or drawable.
 - `JPEGArtifactEncoder` is a stateless, nonisolated CPU transformation above the raw Render result. It preserves request, Simulation-cursor, complete-viewpoint, and render-settings provenance in a detached JPEG artifact; a failed encoding can be retried from the same raw result without advancing or rerendering.
+- `OfflineCaptureConfiguration` constructs one deliberately closed serial topology containing Simulation, exact offscreen Render, and `OfflineCaptureCoordinator`. Its assembly exposes only the initial cursor and `POfflineCaptureTarget`; the coordinator is the sole effective advance authority and executes one supplied advance request, exact-render, provenance-validation, then JPEG encoding.
 
-The current screen fan-out is intentionally one concrete connection, not a generalized routing framework. Multi-source input, typed routes and route epochs, multi-window/output bindings, Simulation observer anchors, offline capture coordination, artifact persistence/sinks, PNG and HDR accumulation, and MCP composition remain proposed.
+The current screen fan-out is intentionally one concrete connection, not a generalized routing framework. Multi-source input, typed routes and route epochs, multi-window/output bindings, Simulation observer anchors, artifact persistence/sinks, PNG and HDR accumulation, dedicated Render workers, and MCP composition remain proposed.
 
 Do not rename or wrap existing types solely to match the vocabulary. Introduce a runtime boundary when it creates concrete ownership, lifecycle, cadence, or testing value.
 
@@ -151,6 +152,11 @@ Current example ownership:
   - `ScreenViewpointController` owns an optional free-orbit override for one screen. Before the first meaningful gesture, and after reset, it passes through the exact latest Simulation-published default camera.
 - `Engine2/Runtime Configuration/Manual/*.swift`
   - `ManualConfiguration` and `ManualAssembly` expose caller-driven exact advancement without Input or a polling task.
+- `Engine2/Runtime Configuration/Offline/*.swift`
+  - `OfflineCaptureConfiguration` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, and one `OfflineCaptureCoordinator`. It has no Input Runtime, wall-clock cadence, screen surface, or optional-runtime bag.
+  - `OfflineCaptureAssembly` exposes only `initialCursor` and the narrow `POfflineCaptureTarget`; it does not expose either Runtime or a second advance capability.
+  - `OfflineCaptureCoordinator` is the sole effective advance authority. One accepted capture submits its supplied advance request at most once, renders only the returned completed snapshot with the requested viewpoint/settings, validates the completed render's full provenance, and then encodes JPEG. The advance request may itself contain one or more fixed steps. The coordinator never retries or rolls back implicitly.
+  - The actor's explicit in-flight gate gives a reentrant overlapping caller immediate `.coordinatorBusy` refusal instead of an invisible queue. Every outcome after completed advancement retains the exact `SimulationAdvanceResult`; cancellation after raw rendering and JPEG failure also retain the `OffscreenRenderResult` for caller-selected encoding retry without another advance or render.
 - `Engine2/Input Runtime/**/*.swift`
   - `InputRuntime` is the App-owned lifecycle boundary for platform input collection.
   - `PInputEventSink` is the platform-adapter ingress accepted by the runtime.
@@ -216,10 +222,12 @@ Current example ownership:
   - Fast, deterministic Swift Testing coverage directly exercises individual production types and methods.
   - The unit-test tree mirrors the app/source tree where practical.
   - Render contract, frame, presentation, and CPU-side shader-layout tests mirror their production folders under `Engine2UnitTests/Render Runtime/`.
+  - `OfflineCaptureCoordinatorTests` exercises exact stage ordering, at-most-once advance submission, provenance mismatch rejection, immediate reentrant busy refusal, cancellation boundaries, and retained post-advance/raw-render outcomes through deterministic typed seams.
 - `Engine2RenderTests/`
   - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
   - `MetalFrameEncoderTests` drives the production encoder with caller-owned offscreen textures and explicit residency, queue feedback, and readback without an `MTKView` or `CAMetalDrawable`.
   - `MetalOffscreenRenderRuntimeTests` drives the production exact request/result boundary through real GPU completion and detached readback without a view or drawable.
+  - `OfflineCaptureConfigurationTests` drives sequential production captures through real fixed-step Simulation, Metal submission/readback, and Image I/O JPEG derivation using only the assembly's public cursor and capture capability.
   - Test-only Metal renderers and GPU submission helpers remain private to this target instead of compiling into the unit-test bundle.
   - Render integration tests mirror the Metal backend folders, with shared test-only infrastructure grouped under `Engine2RenderTests/Render Runtime/Metal/Support/`.
 ### Folder Organization
@@ -323,6 +331,7 @@ The DocC runtime and render articles contain proposed architecture, not only imp
 - keep exact offscreen rendering independent of latest-value source sampling and Simulation advancement; the caller must supply the immutable scene, explicit viewpoint, settings, and coordination policy
 - retain every submitted Metal object until real queue feedback; cancellation after commit must not abandon in-flight resources
 - keep artifact encoding above raw Render completion: a stateless encoder transforms detached pixels, preserves provenance, selects no execution context, and can be retried without ticking or rerendering
+- keep offline capture coordination as the only exposed advance path in its assembly; preserve committed advance and raw-render values in downstream failure outcomes rather than hiding progress, retrying, or rolling back
 ### Documentation Can Drift Quickly
 The code has already moved past earlier examples such as `Missile` and `CAcceleration`. When editing docs or contributor guidance, check current source names first and update examples to match durable concepts rather than stale placeholder types.
 ## Guidance for Future Changes
@@ -352,7 +361,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.
 - Systems still run in two ordered lists; the DocC scheduling graph/stage model is proposed, not implemented.
 - `SMovement` and `SRotation` currently combine integration and transform advancement; the future collision/constraint pipeline may need a more explicit phase split.
-- Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, offline capture coordination, PNG output, artifact persistence/sinks, HDR-master and accumulation policy, and MCP composition remain proposed. Exact raw offscreen request/result rendering and stateless JPEG derivation are implemented, but no configuration yet coordinates Simulation advancement, rendering, encoding, and persistence as one workflow.
+- Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, PNG output, artifact persistence/sinks, HDR-master and accumulation policy, a dedicated Render worker, and MCP composition remain proposed. The serial offline configuration now coordinates exact advancement, rendering, provenance validation, and JPEG encoding, but it does not persist artifacts or provide automatic retries, Input, cadence, a screen, or MCP transport/idempotency.
 - Capability accessors are strict live reads with `fatalError`; optional inspection/editor lookup paths do not exist yet.
 - Tests do not yet cover component removal, dense iteration with stale generations, or spawn precondition failures.
 - The legacy `SimulationLoop`, `Engine.update(deltaTime:inputSnapshot:)`, elapsed-time accumulator, and partial-schedule pause path still need focused-test migration and removal.
