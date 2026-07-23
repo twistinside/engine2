@@ -132,6 +132,27 @@ struct OfflineCaptureCoordinatorTests {
         )
     }
 
+    @Test func renderCancellationWithWrongRequestIDReturnsTypedMismatch() async throws {
+        let fixture = try Self.makeFixture()
+        let wrongRequestID = OffscreenRenderRequestID(
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000498"
+            )!
+        )
+
+        try await Self.expectRenderTerminal(
+            fixture: fixture,
+            renderOutcome: .cancelledAfterSubmission(
+                requestID: wrongRequestID
+            ),
+            expected: .renderCancellationRequestIDMismatch(
+                advanceResult: fixture.advanceResult,
+                expectedRequestID: fixture.request.renderRequestID,
+                actualRequestID: wrongRequestID
+            )
+        )
+    }
+
     @Test func jpegFailureRetainsAdvanceAndRawResultWithoutRetry() async throws {
         let fixture = try Self.makeFixture()
         let failure = JPEGArtifactEncoderError.destinationFinalizationFailed
@@ -181,6 +202,14 @@ struct OfflineCaptureCoordinatorTests {
             outputMode: .surface,
             exposure: ManualExposure(multiplier: 0.5)
         )
+        let wrongImageSize = try RenderPixelSize(width: 5, height: 3)
+        let wrongSizedImage = try RenderedBGRA8SRGBImage(
+            size: wrongImageSize,
+            bytes: Data(
+                repeating: 0x5A,
+                count: wrongImageSize.pixelCount * 4
+            )
+        )
         let mismatches = [
             OffscreenRenderResult(
                 requestID: OffscreenRenderRequestID(
@@ -213,6 +242,13 @@ struct OfflineCaptureCoordinatorTests {
                 viewpoint: fixture.renderResult.viewpoint,
                 settings: wrongSettings,
                 image: fixture.renderResult.image
+            ),
+            OffscreenRenderResult(
+                requestID: fixture.renderResult.requestID,
+                sourceCursor: fixture.renderResult.sourceCursor,
+                viewpoint: fixture.renderResult.viewpoint,
+                settings: fixture.renderResult.settings,
+                image: wrongSizedImage
             )
         ]
 
@@ -369,6 +405,67 @@ struct OfflineCaptureCoordinatorTests {
         #expect(firstOutcome == .cancelledAfterAdvance(fixture.advanceResult))
         #expect(await renderTarget.requestCount() == 0)
         #expect(probe.recordedStages() == [.advance])
+    }
+
+    @Test func concurrentSecondRequestReturnsBusyWhileJPEGIsSuspended() async throws {
+        let fixture = try Self.makeFixture()
+        let probe = Probe()
+        let suspendedEncoder = SuspendedEncoder(probe: probe)
+        let advanceTarget = ScriptedAdvanceTarget(
+            scripts: [.immediate(.completed(fixture.advanceResult))],
+            probe: probe
+        )
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.immediate(.completed(fixture.renderResult))],
+            probe: probe
+        )
+        let coordinator = OfflineCaptureCoordinator(
+            advanceTarget: advanceTarget,
+            renderTarget: renderTarget,
+            encodeJPEG: { renderResult, settings in
+                await suspendedEncoder.encode(
+                    renderResult,
+                    settings: settings
+                )
+            }
+        )
+        let firstTask = Task {
+            await coordinator.capture(fixture.request)
+        }
+
+        await suspendedEncoder.waitForCallCount(1)
+
+        // Encoding is still suspended, so this return proves the explicit gate
+        // spans async artifact work instead of releasing at the render boundary.
+        let secondOutcome = await coordinator.capture(fixture.request)
+        #expect(secondOutcome == .coordinatorBusy)
+        #expect(await advanceTarget.requestCount() == 1)
+        #expect(await renderTarget.requestCount() == 1)
+        #expect(await suspendedEncoder.callCount() == 1)
+
+        await suspendedEncoder.resumeNext(with: .success(fixture.artifact))
+        let firstOutcome = await firstTask.value
+
+        #expect(
+            firstOutcome == .completed(
+                OfflineCaptureResult(
+                    advanceResult: fixture.advanceResult,
+                    artifact: fixture.artifact
+                )
+            )
+        )
+        #expect(await advanceTarget.requestCount() == 1)
+        #expect(await renderTarget.requestCount() == 1)
+        #expect(await suspendedEncoder.callCount() == 1)
+        #expect(
+            await suspendedEncoder.recordedInputs() == [
+                EncoderInput(
+                    renderResult: fixture.renderResult,
+                    settings: fixture.request.jpegSettings
+                )
+            ]
+        )
+        #expect(probe.recordedStages() == [.advance, .render, .encode])
     }
 
     private static func expectRenderTerminal(
@@ -772,6 +869,86 @@ struct OfflineCaptureCoordinatorTests {
             var remaining: [CountWaiter] = []
             for waiter in countWaiters {
                 if requests.count >= waiter.count {
+                    waiter.continuation.resume()
+                } else {
+                    remaining.append(waiter)
+                }
+            }
+            countWaiters = remaining
+        }
+    }
+
+    private actor SuspendedEncoder {
+        private struct CountWaiter {
+            let count: Int
+            let continuation: CheckedContinuation<Void, Never>
+        }
+
+        private let probe: Probe
+        private var inputs: [EncoderInput] = []
+        private var suspended: [
+            CheckedContinuation<
+                Result<RenderedImageArtifact, JPEGArtifactEncoderError>,
+                Never
+            >
+        ] = []
+        private var countWaiters: [CountWaiter] = []
+
+        init(probe: Probe) {
+            self.probe = probe
+        }
+
+        func encode(
+            _ renderResult: OffscreenRenderResult,
+            settings: JPEGEncodingSettings
+        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError> {
+            probe.record(.encode)
+            inputs.append(
+                EncoderInput(renderResult: renderResult, settings: settings)
+            )
+            notifyCountWaiters()
+
+            return await withCheckedContinuation { continuation in
+                suspended.append(continuation)
+            }
+        }
+
+        func callCount() -> Int {
+            inputs.count
+        }
+
+        func recordedInputs() -> [EncoderInput] {
+            inputs
+        }
+
+        func waitForCallCount(_ count: Int) async {
+            guard inputs.count < count else {
+                return
+            }
+            await withCheckedContinuation { continuation in
+                countWaiters.append(
+                    CountWaiter(count: count, continuation: continuation)
+                )
+            }
+        }
+
+        func resumeNext(
+            with result: Result<
+                RenderedImageArtifact,
+                JPEGArtifactEncoderError
+            >
+        ) {
+            guard !suspended.isEmpty else {
+                Issue.record("No suspended JPEG encoding was pending.")
+                return
+            }
+            suspended.removeFirst().resume(returning: result)
+        }
+
+        private func notifyCountWaiters() {
+            var remaining: [CountWaiter] = []
+            for waiter in countWaiters {
+                if inputs.count >= waiter.count {
                     waiter.continuation.resume()
                 } else {
                     remaining.append(waiter)

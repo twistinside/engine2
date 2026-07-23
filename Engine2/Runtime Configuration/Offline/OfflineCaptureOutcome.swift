@@ -32,13 +32,23 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
         failure: OffscreenRenderFailure
     )
 
+    /// Render reported post-submission cancellation for a different request.
+    ///
+    /// Treating the backend's actual identity as this capture's identity would
+    /// corrupt correlation, so both values remain explicit for diagnosis.
+    case renderCancellationRequestIDMismatch(
+        advanceResult: SimulationAdvanceResult,
+        expectedRequestID: OffscreenRenderRequestID,
+        actualRequestID: OffscreenRenderRequestID
+    )
+
     /// GPU work completed and released its resources after caller cancellation.
     case renderCancelledAfterSubmission(
         advanceResult: SimulationAdvanceResult,
         requestID: OffscreenRenderRequestID
     )
 
-    /// A target returned a completed value that did not echo the exact request.
+    /// A completed value did not echo the exact request and image extent.
     case renderResultMismatch(
         advanceResult: SimulationAdvanceResult,
         renderResult: OffscreenRenderResult
