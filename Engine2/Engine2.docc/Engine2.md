@@ -15,6 +15,7 @@ The current codebase is intentionally small, but the core direction is already e
 - ``MetalFrameEncoder`` prepares and encodes the reusable Metal frame against caller-owned textures, frame resources, and a command buffer without depending on MetalKit view or drawable ownership.
 - ``POffscreenRenderTarget`` accepts an exact immutable snapshot, explicit viewpoint, and render settings asynchronously. ``MetalOffscreenRenderRuntime`` implements that capability with dedicated one-slot Metal resources and returns detached pixels with exact request, scene, viewpoint, and settings provenance.
 - ``JPEGArtifactEncoder`` transforms a completed raw offscreen result into a detached JPEG artifact on the CPU. The stateless encoder preserves exact source provenance, chooses no execution context, and can be retried without advancing Simulation or rerendering.
+- ``OfflineCaptureConfiguration`` composes one closed serial advance-render-encode topology. Its assembly exposes only the initial cursor and ``POfflineCaptureTarget``, keeping ``OfflineCaptureCoordinator`` as the sole effective advance authority.
 This documentation catalog serves two purposes:
 - document the behavior that already exists in the codebase
 - capture architectural direction that is intentionally not implemented yet
@@ -28,8 +29,9 @@ At the moment, the codebase already includes:
 - a view-independent production ``MetalFrameEncoder`` shared by the thin MetalKit screen adapter, the exact offscreen Runtime, and their render integration coverage
 - a production exact offscreen request/outcome boundary with strict presentation/model/geometry preflight, configurable safety limits, single-flight backpressure, queue-feedback lifetime, cancellation semantics, and tightly packed top-left BGRA8-sRGB readback
 - a stateless JPEG artifact layer with validated quality, detached encoded data, and exact request/cursor/viewpoint/render/encoding provenance
+- a concrete serial offline capture configuration whose typed outcomes preserve committed Simulation progress and, after rendering, the raw result needed for retryable artifact derivation
 
-``SimulationLoop``, ``Engine.update(deltaTime:inputSnapshot:)``, `SInputMapping`, and `SCameraInput` remain in the source tree only as legacy migration paths or focused-test seams; new App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Exact raw offscreen rendering and CPU-side JPEG derivation are implemented; the encoder selects no execution context, so its caller decides where that synchronous work runs. An offline capture configuration, dedicated render actor or worker, pooled targets, high-quality accumulation and HDR-master policy, PNG encoding, artifact persistence/sinks, typed multi-source routing, multi-window bindings, observer anchors, and MCP composition remain proposed.
+``SimulationLoop``, ``Engine.update(deltaTime:inputSnapshot:)``, `SInputMapping`, and `SCameraInput` remain in the source tree only as legacy migration paths or focused-test seams; new App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Exact raw offscreen rendering, CPU-side JPEG derivation, and one serial offline capture assembly are implemented. That assembly has no Input Runtime, automatic cadence, screen, optional-runtime bag, persistence, or implicit retry/rollback. A dedicated render actor or worker, pooled targets, high-quality accumulation and HDR-master policy, PNG encoding, artifact persistence/sinks, typed multi-source routing, multi-window bindings, observer anchors, and MCP transport/idempotency remain proposed.
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
