@@ -4,6 +4,53 @@ import Testing
 @testable import Engine2
 
 struct AgentSessionCoordinatorTests {
+    @Test func sessionIdentitySupportsFreshRawAndCodableRoundTrips() throws {
+        let rawValue = try #require(
+            UUID(uuidString: "50000000-0000-0000-0000-000000000000")
+        )
+        let fixed = AgentSessionID(rawValue: rawValue)
+        let firstFresh = AgentSessionID()
+        let secondFresh = AgentSessionID()
+
+        #expect(firstFresh != secondFresh)
+        #expect(Self.rawRoundTrip(fixed) == fixed)
+
+        let data = try JSONEncoder().encode(fixed)
+        #expect(
+            try JSONDecoder().decode(
+                AgentSessionID.self,
+                from: data
+            ) == fixed
+        )
+    }
+
+    @Test func requestSequencePreservesZeroOrdinaryAndMaximumValues() throws {
+        let sequences = [
+            AgentSessionRequestSequence.first,
+            AgentSessionRequestSequence(rawValue: 42),
+            AgentSessionRequestSequence(rawValue: .max - 1),
+            AgentSessionRequestSequence(rawValue: .max)
+        ]
+
+        for sequence in sequences {
+            #expect(Self.rawRoundTrip(sequence) == sequence)
+            let data = try JSONEncoder().encode(sequence)
+            #expect(
+                try JSONDecoder().decode(
+                    AgentSessionRequestSequence.self,
+                    from: data
+                ) == sequence
+            )
+        }
+
+        #expect(sequences[0].rawValue == 0)
+        #expect(sequences[0].successor()?.rawValue == 1)
+        #expect(sequences[1].successor()?.rawValue == 43)
+        #expect(sequences[2].successor()?.rawValue == .max)
+        #expect(sequences[3].successor() == nil)
+        #expect(sequences.sorted() == sequences)
+    }
+
     @Test func validCommandMapsExactOfflineRequestAndForwardsOnce() async throws {
         let fixture = try Self.makeFixture()
         let request = fixture.request(sequence: 0)
@@ -1118,6 +1165,12 @@ struct AgentSessionCoordinatorTests {
                 return rejection
             }
         }
+    }
+
+    private static func rawRoundTrip<Value>(
+        _ value: Value
+    ) -> Value? where Value: Equatable & RawRepresentable {
+        Value(rawValue: value.rawValue)
     }
 
     private static func makeFixture() throws -> Fixture {

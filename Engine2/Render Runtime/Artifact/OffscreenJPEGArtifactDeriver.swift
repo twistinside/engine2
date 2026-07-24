@@ -7,13 +7,11 @@
 /// stages.
 nonisolated struct OffscreenJPEGArtifactDeriver: Sendable {
     /// Injectable stateless encoding seam used by deterministic workflow tests.
-    typealias JPEGEncode = @Sendable (
+    private let encodeJPEG: @Sendable (
         OffscreenRenderResult,
         JPEGEncodingSettings
     ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
-
     private let renderTarget: any POffscreenRenderTarget
-    private let encodeJPEG: JPEGEncode
 
     /// Creates a production deriver around the concrete JPEG transformation.
     init(
@@ -47,7 +45,10 @@ nonisolated struct OffscreenJPEGArtifactDeriver: Sendable {
     /// Creates a deriver with a deterministic typed encoding implementation.
     init(
         renderTarget: any POffscreenRenderTarget,
-        encodeJPEG: @escaping JPEGEncode
+        encodeJPEG: @escaping @Sendable (
+            OffscreenRenderResult,
+            JPEGEncodingSettings
+        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
     ) {
         self.renderTarget = renderTarget
         self.encodeJPEG = encodeJPEG

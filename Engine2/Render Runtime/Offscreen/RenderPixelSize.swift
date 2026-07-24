@@ -4,6 +4,12 @@
 /// tightly packed BGRA row length, and total BGRA byte count all fit in `Int`.
 /// Callers may therefore use ``pixelCount`` without repeating overflow checks.
 nonisolated struct RenderPixelSize: Equatable, Hashable, Sendable {
+    /// UHD 4K output at 3,840 by 2,160 pixels.
+    static let uhd4K = RenderPixelSize(
+        validatedWidth: 3_840,
+        height: 2_160
+    )
+
     let width: Int
     let height: Int
 
@@ -44,6 +50,13 @@ nonisolated struct RenderPixelSize: Equatable, Hashable, Sendable {
             )
         }
 
+        self.width = width
+        self.height = height
+    }
+
+    /// Constructs a compile-time-known valid preset without making callers
+    /// unwrap an error that cannot occur for the literal dimensions.
+    private init(validatedWidth width: Int, height: Int) {
         self.width = width
         self.height = height
     }

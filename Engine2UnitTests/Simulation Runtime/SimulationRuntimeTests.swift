@@ -10,7 +10,7 @@ struct SimulationRuntimeTests {
 
         let entity = try #require(simulation.world.positionComponents.entities.first)
         #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Float>(3, 4, 5))
-        #expect(simulation.fixedTimeStep == .seconds(1.0 / 60.0))
+        #expect(SimulationRuntime.fixedTimeStep == .seconds(1.0 / 60.0))
         #expect(presentationSource.latestPresentationSnapshot.tick == .zero)
         #expect(
             presentationSource.latestPresentationSnapshot.entityPresentations.first?.position ==

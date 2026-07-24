@@ -174,18 +174,17 @@ final class MetalResourceStore {
 
     /// Resolves one Game Content identity to its retained authored factors.
     ///
-    /// Store construction validates exhaustive coverage, so a missing value
-    /// here would indicate that a future mutation or catalog-loading path
-    /// violated that invariant. Keep the lookup throwing rather than inventing
-    /// a fallback appearance or crashing inside frame encoding.
+    /// Store construction validates exhaustive coverage before retaining this
+    /// immutable dictionary. Frame preparation can therefore use the lookup as
+    /// a total mapping without repeating a recoverable content check per draw.
     func materialDescription(
         for id: MaterialID
-    ) throws -> PBRMaterialDescription {
-        guard let description = materialDescriptions[id] else {
-            throw RenderAssetCatalogError.missingMaterialDescriptions([id])
-        }
-
-        return description
+    ) -> PBRMaterialDescription {
+        // Coverage was proved before `materialDescriptions` was retained and
+        // the dictionary never mutates afterward. A future construction path
+        // that violates that invariant is a programmer error, not a frame-time
+        // fallback opportunity.
+        materialDescriptions[id]!
     }
 
     /// Loads the shader library defined by a closed Render Runtime identity.

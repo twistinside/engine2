@@ -4,8 +4,10 @@
 /// active world, serializes exact advancement, and publishes completed state.
 /// Cadence, input sampling, pause policy, and lifecycle coordination belong to
 /// the App-owned configuration that drives its narrow capabilities.
-@MainActor
 final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentationSource {
+    /// The sole production duration represented by one completed Simulation tick.
+    nonisolated static let fixedTimeStep: Duration = .seconds(1.0 / 60.0)
+
     private(set) var worldBuilder: any PWorldBuilder
 
     private let engine: Engine
@@ -16,9 +18,6 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
 
     /// Latest completed publisher-owned value available to peer runtimes.
     private(set) var latestPresentationSnapshot: SimulationPresentationSnapshot
-
-    /// Deterministic duration represented by every exact completed step.
-    let fixedTimeStep: Duration
 
     var world: World {
         engine.world
@@ -32,28 +31,20 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     init(
         worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
         inputBaseline: InputSnapshot? = nil,
-        sessionID: SimulationSessionID = SimulationSessionID(),
-        fixedTimeStep: Duration = .seconds(1.0 / 60.0)
+        sessionID: SimulationSessionID = SimulationSessionID()
     ) {
-        precondition(
-            fixedTimeStep > .zero,
-            "Simulation requires a positive fixed time step."
-        )
-
         self.worldBuilder = worldBuilder
         self.sessionID = sessionID
-        self.fixedTimeStep = fixedTimeStep
         let world = worldBuilder.buildWorld()
         if let inputBaseline {
             world.input.rebase(to: inputBaseline)
         }
         let engine = Engine(
             world: world,
-            fixedTimeStep: fixedTimeStep
+            fixedTimeStep: Self.fixedTimeStep
         )
         self.engine = engine
-        self.latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
-            from: engine.world,
+        self.latestPresentationSnapshot = engine.world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: sessionID,
                 tick: engine.completedTick
@@ -96,9 +87,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     nonisolated func advance(
         _ request: SimulationAdvanceRequest
     ) async -> SimulationAdvanceOutcome {
-        await MainActor.run {
-            advanceSynchronously(request)
-        }
+        await advanceSynchronously(request)
     }
 
     /// Performs one non-suspending batch inside the Runtime's serialized
@@ -163,8 +152,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     private func publishPresentationSnapshot(
         at tick: SimulationTick
     ) -> SimulationPresentationSnapshot {
-        let snapshot = SimulationPresentationSnapshot.capture(
-            from: engine.world,
+        let snapshot = engine.world.presentationSnapshot(
             at: SimulationCursor(sessionID: sessionID, tick: tick)
         )
         latestPresentationSnapshot = snapshot

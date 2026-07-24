@@ -25,6 +25,35 @@ class World {
     private static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
     private var nextEntityIndex = 0
 
+    /// Captures this World's completed backend-neutral presentation facts.
+    ///
+    /// The authoritative owner performs this projection while the resulting
+    /// ``SimulationPresentationSnapshot`` remains an isolation-independent
+    /// immutable boundary value.
+    func presentationSnapshot(
+        at cursor: SimulationCursor
+    ) -> SimulationPresentationSnapshot {
+        let entityPresentations = zip(
+            renderableComponents.entities,
+            renderableComponents.dense
+        ).map { entity, renderable in
+            EntityPresentationSnapshot(
+                id: entity,
+                position: positionComponents[entity]?.position,
+                rotation: rotationComponents[entity]?.rotation,
+                scale: scaleComponents[entity]?.scale,
+                meshID: renderable.meshID,
+                materialID: renderable.materialID
+            )
+        }
+
+        return SimulationPresentationSnapshot(
+            cursor: cursor,
+            camera: camera,
+            entityPresentations: entityPresentations
+        )
+    }
+
     /// Creates the component rows implied by the entity's advertised capabilities.
     ///
     /// Capability protocols decide which component stores receive rows; the

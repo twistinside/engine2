@@ -4,6 +4,26 @@ import Testing
 @testable import Engine2
 
 struct OffscreenRenderRequestTests {
+    @Test func requestIdentitySupportsFreshRawAndCodableRoundTrips() throws {
+        let rawValue = try #require(
+            UUID(uuidString: "00000000-0000-0000-0000-000000000100")
+        )
+        let fixed = OffscreenRenderRequestID(rawValue: rawValue)
+        let firstFresh = OffscreenRenderRequestID()
+        let secondFresh = OffscreenRenderRequestID()
+
+        #expect(firstFresh != secondFresh)
+        #expect(Self.rawRoundTrip(fixed) == fixed)
+
+        let data = try JSONEncoder().encode(fixed)
+        #expect(
+            try JSONDecoder().decode(
+                OffscreenRenderRequestID.self,
+                from: data
+            ) == fixed
+        )
+    }
+
     @Test func preservesExactIdentitySnapshotViewpointAndSettings() throws {
         let requestID = OffscreenRenderRequestID(
             rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000101")!
@@ -56,5 +76,11 @@ struct OffscreenRenderRequestTests {
             revision: RenderViewpointRevision(rawValue: revision),
             camera: Camera(position: SIMD3<Float>(4, 5, 6))
         )
+    }
+
+    private static func rawRoundTrip<Value>(
+        _ value: Value
+    ) -> Value? where Value: Equatable & RawRepresentable {
+        Value(rawValue: value.rawValue)
     }
 }

@@ -20,18 +20,8 @@ struct InputState {
         var keys = Set<KeyboardKey>()
     }
 
-    /// Higher-level transient commands derived from raw device state.
-    ///
-    /// Mapping systems populate these values for gameplay systems to consume in
-    /// the same fixed step; cleanup resets them before the next step.
-    struct Actions {
-        var cameraOrbitDelta: SIMD2<Float> = .zero
-        var cameraZoomDelta: Float = 0
-    }
-
     var mouse = Mouse()
     var keyboard = Keyboard()
-    var actions = Actions()
     var history: [InputHistoryEntry] = []
     var historyLimit = 60
 
@@ -116,7 +106,6 @@ struct InputState {
     mutating func clearTransientInput() {
         mouse.delta = .zero
         mouse.scrollDelta = .zero
-        actions = Actions()
     }
 
     func currentHistoryTokens() -> [String] {

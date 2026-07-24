@@ -15,9 +15,7 @@ struct OfflineCaptureConfigurationTests {
                 uuidString: "40000000-0000-0000-0000-000000000001"
             )!
         )
-        let assembly = try OfflineCaptureConfiguration(
-            fixedTimeStep: .milliseconds(20)
-        ).makeAssembly(
+        let assembly = try OfflineCaptureConfiguration().makeAssembly(
             gameContent: BasicGameContent(),
             sessionID: sessionID
         )

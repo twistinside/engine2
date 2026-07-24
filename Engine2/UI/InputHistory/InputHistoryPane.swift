@@ -3,14 +3,14 @@ import SwiftUI
 /// Debug overlay that presents the Simulation Runtime's retained input history.
 ///
 /// The timeline refreshes at presentation cadence while the displayed rows
-/// remain simulation-owned facts recorded only at fixed-step boundaries.
-@MainActor
+/// remain simulation-owned facts recorded only at fixed-step boundaries. Its
+/// closure is an App-wired read capability, not access to the concrete Runtime.
 struct InputHistoryPane: View {
-    let simulation: SimulationRuntime
+    let entries: @MainActor () -> [InputHistoryEntry]
 
     var body: some View {
         TimelineView(.animation) { _ in
-            let entries = simulation.world.input.history
+            let entries = entries()
 
             GlassEffectContainer(spacing: 8) {
                 VStack(alignment: .leading, spacing: 10) {

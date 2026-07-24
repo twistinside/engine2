@@ -77,6 +77,7 @@ struct OffscreenRenderOutcomeTests {
         requireSendable(completed)
         requireSendable(cancelledAfter)
         requireSendable(failed)
+        requireError(failure)
     }
 
     private static func result() throws -> OffscreenRenderResult {
@@ -113,4 +114,6 @@ struct OffscreenRenderOutcomeTests {
     }
 
     private func requireSendable(_ value: some Sendable) {}
+
+    private func requireError(_ value: some Error) {}
 }

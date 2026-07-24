@@ -4,7 +4,6 @@ import Testing
 struct RealtimeConfigurationTests {
     @Test @MainActor func makeAssemblyUsesConfigurationAndGameContent() throws {
         let configuration = RealtimeConfiguration(
-            fixedTimeStep: .milliseconds(20),
             pollInterval: .seconds(60),
             catchUpPolicy: RealtimeCatchUpPolicy(
                 maximumStepsPerWake: SimulationStepCount(rawValue: 2),
@@ -20,8 +19,7 @@ struct RealtimeConfigurationTests {
             assembly.simulationRuntime.world.positionComponents.entities.first
         )
 
-        #expect(assembly.simulationRuntime.fixedTimeStep == .milliseconds(20))
-        #expect(assembly.advanceDriver.fixedTimeStep == .milliseconds(20))
+        #expect(assembly.advanceDriver.fixedTimeStep == SimulationRuntime.fixedTimeStep)
         #expect(assembly.advanceDriver.pollInterval == .seconds(60))
         #expect(assembly.advanceDriver.catchUpPolicy == configuration.catchUpPolicy)
         #expect(

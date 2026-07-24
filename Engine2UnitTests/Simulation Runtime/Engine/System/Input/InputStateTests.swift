@@ -229,7 +229,7 @@ struct InputStateTests {
         )
     }
 
-    @Test func cleanupClearsDeltasAndActionsButPreservesHeldState() {
+    @Test func cleanupClearsDeltasButPreservesHeldState() {
         var input = InputState()
         let key = KeyboardKey.make(keyCode: 49, charactersIgnoringModifiers: " ")
 
@@ -244,17 +244,12 @@ struct InputStateTests {
                 pressedKeys: [key]
             )
         )
-        input.actions.cameraOrbitDelta = SIMD2<Float>(1, 0)
-        input.actions.cameraZoomDelta = 1
-
         input.clearTransientInput()
 
         #expect(input.mouse.buttons == [.left])
         #expect(input.keyboard.keys == [key])
         #expect(input.mouse.delta == .zero)
         #expect(input.mouse.scrollDelta == .zero)
-        #expect(input.actions.cameraOrbitDelta == .zero)
-        #expect(input.actions.cameraZoomDelta == 0)
     }
 
     private func snapshot(

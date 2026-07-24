@@ -306,10 +306,141 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(await encodingCalls.count() == 0)
     }
 
-    private static let encodeJPEG:
-        OffscreenJPEGArtifactDeriver.JPEGEncode = { result, settings in
-            .success(Self.artifact(for: result, settings: settings))
+    @Test @MainActor
+    func everyPreEncodingRenderTerminalPreservesTheSelectedSnapshot() async throws {
+        let snapshot = Self.snapshot(tick: 37, cameraX: 1)
+        let viewpoint = RenderViewpoint(
+            id: RenderViewpointID(),
+            revision: RenderViewpointRevision(rawValue: 9),
+            camera: snapshot.camera
+        )
+        let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
+            renderSettings: OffscreenRenderSettings(
+                size: try RenderPixelSize(width: 4, height: 4)
+            )
+        )
+        let rejection = OffscreenRenderRejection.runtimeBusy
+        let failure = OffscreenRenderFailure(
+            stage: .gpuExecution,
+            backendDescription: "scripted GPU failure"
+        )
+        let wrongRequestID = OffscreenRenderRequestID()
+        let terminals: [
+            (
+                render: OffscreenRenderOutcome,
+                expected: RealtimeSnapshotCaptureOutcome
+            )
+        ] = [
+            (
+                .rejected(rejection),
+                .renderRejected(
+                    sourceSnapshot: snapshot,
+                    rejection: rejection
+                )
+            ),
+            (
+                .failed(failure),
+                .renderFailed(
+                    sourceSnapshot: snapshot,
+                    failure: failure
+                )
+            ),
+            (
+                .cancelledAfterSubmission(
+                    requestID: request.renderRequestID
+                ),
+                .renderCancelledAfterSubmission(
+                    sourceSnapshot: snapshot,
+                    requestID: request.renderRequestID
+                )
+            ),
+            (
+                .cancelledAfterSubmission(requestID: wrongRequestID),
+                .renderCancellationRequestIDMismatch(
+                    sourceSnapshot: snapshot,
+                    expectedRequestID: request.renderRequestID,
+                    actualRequestID: wrongRequestID
+                )
+            )
+        ]
+
+        for terminal in terminals {
+            let renderTarget = ControlledRenderTarget()
+            let encodingCalls = EncodingCallCounter()
+            let connection = RealtimeSnapshotCaptureConnection(
+                presentationSource: MutablePresentationSource(snapshot),
+                viewpointSource: MutableViewpointSource(viewpoint),
+                renderTarget: renderTarget,
+                encodeJPEG: { result, settings in
+                    await encodingCalls.record()
+                    return .success(
+                        Self.artifact(for: result, settings: settings)
+                    )
+                }
+            )
+            let capture = Task {
+                await connection.capture(request)
+            }
+
+            let admittedRequest = await renderTarget.waitForFirstRequest()
+            #expect(admittedRequest.id == request.renderRequestID)
+            await renderTarget.complete(terminal.render)
+
+            #expect(await capture.value == terminal.expected)
+            #expect(await encodingCalls.count() == 0)
         }
+    }
+
+    @Test @MainActor
+    func jpegFailurePreservesSelectedSnapshotAndRawResult() async throws {
+        let snapshot = Self.snapshot(tick: 41, cameraX: -1)
+        let viewpoint = RenderViewpoint(
+            id: RenderViewpointID(),
+            revision: .zero,
+            camera: snapshot.camera
+        )
+        let renderTarget = ControlledRenderTarget()
+        let encodingCalls = EncodingCallCounter()
+        let encodingFailure =
+            JPEGArtifactEncoderError.destinationFinalizationFailed
+        let connection = RealtimeSnapshotCaptureConnection(
+            presentationSource: MutablePresentationSource(snapshot),
+            viewpointSource: MutableViewpointSource(viewpoint),
+            renderTarget: renderTarget,
+            encodeJPEG: { _, _ in
+                await encodingCalls.record()
+                return .failure(encodingFailure)
+            }
+        )
+        let request = RealtimeSnapshotCaptureRequest(
+            renderSettings: OffscreenRenderSettings(
+                size: try RenderPixelSize(width: 4, height: 4)
+            )
+        )
+        let capture = Task {
+            await connection.capture(request)
+        }
+        let admittedRequest = await renderTarget.waitForFirstRequest()
+        let renderResult = try Self.renderResult(for: admittedRequest)
+        await renderTarget.complete(.completed(renderResult))
+
+        #expect(
+            await capture.value == .jpegEncodingFailed(
+                sourceSnapshot: snapshot,
+                renderResult: renderResult,
+                failure: encodingFailure
+            )
+        )
+        #expect(await encodingCalls.count() == 1)
+    }
+
+    private nonisolated static func encodeJPEG(
+        _ result: OffscreenRenderResult,
+        settings: JPEGEncodingSettings
+    ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError> {
+        .success(Self.artifact(for: result, settings: settings))
+    }
 
     private static func snapshot(
         sessionID: SimulationSessionID = SimulationSessionID(),

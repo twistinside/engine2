@@ -8,16 +8,17 @@ import UniformTypeIdentifiers
 /// presentation snapshots, while controls change advancement policy or request
 /// a detached offscreen artifact through an App-owned connection.
 struct ContentView: View {
-    let realtimeAssembly: RealtimeAssembly
+    let presentationSource: any PSimulationPresentationSource
+    let viewpointSource: any PRenderViewpointSource
+    let inputSink: any PInputEventSink
+    let isSimulationRunning: @MainActor () -> Bool
+    let inputHistory: @MainActor () -> [InputHistoryEntry]
+    let toggleSimulation: () -> Void
     let debugOptions: AppDebugOptions
     let renderAssetCatalog: RenderAssetCatalog
     let snapshotCaptureViewModel: SnapshotCaptureViewModel
 
     @State private var captureTask: Task<Void, Never>?
-
-    private var simulation: SimulationRuntime {
-        realtimeAssembly.simulationRuntime
-    }
 
     var body: some View {
         @Bindable var captureModel = snapshotCaptureViewModel
@@ -25,15 +26,15 @@ struct ContentView: View {
         ZStack {
             MetalSceneView(
                 renderAssetCatalog: renderAssetCatalog,
-                presentationSource: simulation,
-                viewpointSource: realtimeAssembly.screenViewpointController,
-                inputSink: realtimeAssembly,
+                presentationSource: presentationSource,
+                viewpointSource: viewpointSource,
+                inputSink: inputSink,
                 outputMode: debugOptions.renderOutputMode
             )
                 .ignoresSafeArea()
 
             SimulationControls(
-                isSimulationRunning: realtimeAssembly.isAdvancementActive,
+                isSimulationRunning: isSimulationRunning(),
                 isCapturingSnapshot: captureModel.isCapturing,
                 toggleSimulation: toggleSimulation,
                 captureSnapshot: captureSnapshot
@@ -42,7 +43,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
             if debugOptions.showsInputHistory {
-                InputHistoryPane(simulation: simulation)
+                InputHistoryPane(entries: inputHistory)
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -86,14 +87,6 @@ struct ContentView: View {
             }
         } message: {
             Text(captureModel.failureMessage)
-        }
-    }
-
-    private func toggleSimulation() {
-        if realtimeAssembly.isAdvancementActive {
-            realtimeAssembly.pauseAdvancement()
-        } else {
-            realtimeAssembly.resumeAdvancement()
         }
     }
 

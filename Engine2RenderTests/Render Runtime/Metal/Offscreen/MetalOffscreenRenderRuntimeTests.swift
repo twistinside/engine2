@@ -291,8 +291,7 @@ struct MetalOffscreenRenderRuntimeTests {
     ) {
         let content = BasicGameContent()
         let world = content.worldBuilder.buildWorld()
-        let snapshot = SimulationPresentationSnapshot.capture(
-            from: world,
+        let snapshot = world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: SimulationSessionID(),
                 tick: SimulationTick(rawValue: 7)

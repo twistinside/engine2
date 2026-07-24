@@ -51,24 +51,21 @@ final class FrameResources: @unchecked Sendable {
         availability.signal()
     }
 
-    /// Writes the bounded instance prefix and its already-resolved materials.
+    /// Writes the exact already-bounded and resource-resolved instance set.
     ///
-    /// `materialDescriptions` must preserve the order of `instances` and cover
-    /// every element that fits in this slot. Keeping resolution outside this
-    /// method lets missing authored content fail before mutable GPU state is
-    /// touched, while this method remains responsible only for stable packing.
+    /// Keeping resolution outside this method lets content preparation finish
+    /// before mutable GPU state is touched, while this method remains
+    /// responsible only for stable packing.
     func write(
-        _ instances: [RenderInstance],
-        materialDescriptions: [PBRMaterialDescription],
-        camera: Camera,
+        _ preparedFrame: MetalPreparedFrame,
         drawableSize: CGSize,
         exposure: ManualExposure = .validation
-    ) -> Int {
-        let instanceCount = min(instances.count, Self.maximumInstanceCount)
+    ) {
         precondition(
-            materialDescriptions.count == instanceCount,
-            "Frame resources require exactly one resolved material description for every written instance."
+            preparedFrame.instances.count <= Self.maximumInstanceCount,
+            "Prepared frames must fit the reusable instance buffer."
         )
+        let camera = preparedFrame.renderFrame.camera
         let aspectRatio = Float(
             drawableSize.width / max(drawableSize.height, 1)
         )
@@ -81,13 +78,10 @@ final class FrameResources: @unchecked Sendable {
             capacity: Self.maximumInstanceCount
         )
 
-        for index in 0..<instanceCount {
-            // Material resolution preserves the submitted instance prefix and
-            // happens before this write. Keep those parallel values aligned so
-            // each stable GPU record contains the factors for its exact draw.
+        for (index, instance) in preparedFrame.instances.enumerated() {
             destination[index] = GPUInstance(
-                instances[index],
-                material: materialDescriptions[index],
+                instance.renderInstance,
+                material: instance.materialDescription,
                 viewMatrix: viewMatrix,
                 projectionMatrix: projectionMatrix
             )
@@ -106,8 +100,32 @@ final class FrameResources: @unchecked Sendable {
             of: HDRPresentationParameters(exposure: exposure),
             as: HDRPresentationParameters.self
         )
+    }
 
-        return instanceCount
+    /// Binds one written instance record to both model shader stages.
+    ///
+    /// The vertex table is rebound after the caller selects a mesh address. The
+    /// PBR fragment table is complete when this method binds it because frame
+    /// light state is installed before the draw loop.
+    func bindInstance(
+        at index: Int,
+        modelArgumentTable: any MTL4ArgumentTable,
+        pbrSceneArgumentTable: any MTL4ArgumentTable,
+        to renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        precondition(
+            (0..<Self.maximumInstanceCount).contains(index),
+            "Model instance selection must remain inside the frame buffer."
+        )
+
+        let instanceAddress = instanceBuffer.gpuAddress
+            + UInt64(index * MemoryLayout<GPUInstance>.stride)
+        modelArgumentTable.setAddress(instanceAddress, index: 1)
+        pbrSceneArgumentTable.setAddress(instanceAddress, index: 1)
+        renderEncoder.setArgumentTable(
+            pbrSceneArgumentTable,
+            stages: .fragment
+        )
     }
 
     /// Returns a scene target matching the next drawable's exact pixel size.

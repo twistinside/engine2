@@ -299,8 +299,7 @@ struct SimulationRuntimeAdvanceTests {
     ) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
-            sessionID: sessionID,
-            fixedTimeStep: .seconds(1)
+            sessionID: sessionID
         )
     }
 
@@ -335,7 +334,11 @@ struct SimulationRuntimeAdvanceTests {
             _ = Ball(
                 in: world,
                 position: .zero,
-                velocity: SIMD3<Float>(1, 0, 0)
+                velocity: SIMD3<Float>(
+                    1 / SimulationRuntime.fixedTimeStep.seconds,
+                    0,
+                    0
+                )
             )
             return world
         }

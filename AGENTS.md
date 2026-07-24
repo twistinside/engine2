@@ -26,7 +26,7 @@ Current types implement part of this direction:
 - `SimulationRuntime` owns one authoritative session, `Engine`, and `World`; it accepts exact cursor-qualified advance requests and does not own wall-clock cadence or a live Input source.
 - `RealtimeAdvanceDriver` is an App-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`.
 - `RealtimeConfiguration` composes Input, Simulation, the real-time driver, and one App-owned `ScreenViewpointController`. `ManualConfiguration` composes caller-driven Simulation without Input or an automatic cadence.
-- `SimulationLoop` and `Engine.update(deltaTime:inputSnapshot:)` remain only as an unused legacy path while their focused tests and partial-schedule behavior are retired.
+- `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level configurations cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
 - `InputMetalView` submits host `InputEvent` values to `RealtimeAssembly`. That assembly currently performs a deliberate hard-coded fan-out to `InputRuntime` and its screen viewpoint controller; it does not call the Simulation Runtime or mutate `World`.
 - `ScreenViewpointController` is an ordinary App-owned presentation controller, not a Runtime. It can revise one screen's free-orbit viewpoint while Simulation is paused.
 - `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value. Its camera is the publisher-authored default when an output supplies no override.
@@ -109,7 +109,7 @@ Current example ownership:
 - `Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
   - Simulation-owned construction interface for producing fully bootstrapped worlds.
 - `Engine2/Simulation Runtime/Engine/Infrastructure/Clock/SystemClock.swift`
-  - `SystemClock` provides injectable monotonic elapsed-time sampling to `RealtimeAdvanceDriver` and the legacy `SimulationLoop`, outside exact Simulation execution and system logic.
+  - `SystemClock` provides injectable monotonic elapsed-time sampling to `RealtimeAdvanceDriver`, outside exact Simulation execution and system logic.
 - `Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.
@@ -130,22 +130,17 @@ Current example ownership:
   - Selection-state component used by `PSelectable` entities and selection UI.
 - `Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
   - `InputState` is the authoritative simulation-facing input resource stored on `World`, populated from `InputSnapshot` only at fixed-step boundaries.
-  - `SInputMapping` is a legacy camera-action mapper retained with focused tests pending deletion; it is no longer part of `Engine`'s default schedule.
   - `SInputHistory` records compact input history rows for debug UI.
-  - `SInputCleanup` clears per-tick transient input after always-running input systems have consumed it.
+  - `SInputCleanup` clears per-tick transient input after input systems have consumed it.
 - `Engine2/Simulation Runtime/Engine/System/Position/System/*.swift`
   - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-tick accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
-- `Engine2/Simulation Runtime/Engine/System/SCameraInput.swift`
-  - Legacy Simulation-owned free-orbit implementation retained with focused tests pending deletion; it is no longer part of `Engine`'s default schedule.
 - `Engine2/Simulation Runtime/Engine/*.swift`
-  - `Engine` owns exact fixed-step execution and ordered system orchestration; its elapsed-time accumulator remains only on the unused legacy update path.
-  - `Engine` currently maintains separate always-running and simulation-gated system lists. Its default always-running list now contains history and cleanup only; output viewpoint control is outside Simulation.
+  - `Engine` owns exact fixed-step execution and one complete ordered system schedule.
+  - Input history, cleanup, acceleration intent, movement, and rotation are invariant members of every completed tick; output viewpoint control remains outside Simulation.
 - `Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit input-baseline application, and completed presentation publication above `Engine`.
-- `Engine2/Simulation Runtime/SimulationLoop.swift`
-  - `SimulationLoop` is the unused legacy elapsed-time adapter retained temporarily with its focused tests; new App composition must use `RealtimeAdvanceDriver` and the Runtime-level exact capability.
 - `Engine2/Runtime Configuration/Realtime/*.swift`
   - `RealtimeConfiguration` constructs independently owned Input and Simulation Runtimes, one `RealtimeAdvanceDriver`, and one `ScreenViewpointController`.
   - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, lifecycle-generation protection for coordinated Simulation cutovers, and the current hard-coded screen-event fan-out.
@@ -199,8 +194,8 @@ Current example ownership:
 - `Engine2/Render Runtime/Asset/*.swift`
   - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values.
 - `Engine2/Render Runtime/Frame/*.swift`
-  - `RenderFrame.project(from:viewpoint:)` converts a `SimulationPresentationSnapshot` into private render instances, uses an explicit viewpoint when supplied, otherwise falls back to the snapshot camera, and preserves optional source-cursor and viewpoint attribution.
-  - `RenderFrame.projectExact(from:viewpoint:)` is the strict request path. It rejects a malformed selected camera or any presented entity with missing position, an unusable finite normal-matrix inverse, or a nonfinite model-view transform instead of using the screen path's tolerant omission policy. `MetalOffscreenRenderRuntime` additionally validates the requested-aspect model-view-projection products before GPU packing.
+  - `RenderFrame.init(projecting:viewpoint:)` converts a `SimulationPresentationSnapshot` into private render instances, uses an explicit viewpoint when supplied, otherwise falls back to the snapshot camera, and preserves optional source-cursor and viewpoint attribution.
+  - `RenderFrame.init(exactlyProjecting:viewpoint:)` is the strict request path. It rejects a malformed selected camera or any presented entity with missing position, an unusable finite normal-matrix inverse, or a nonfinite model-view transform instead of using the screen path's tolerant omission policy. `MetalOffscreenRenderRuntime` additionally validates the requested-aspect model-view-projection products before GPU packing.
 - `Engine2/Render Runtime/Viewpoint/*.swift`
   - `RenderViewpoint` carries one output-specific camera, stable `RenderViewpointID`, and monotonic `RenderViewpointRevision` through the Render-owned `PRenderViewpointSource` boundary.
 - `Engine2/Render Runtime/Offscreen/*.swift`
@@ -332,7 +327,7 @@ However, the store does not yet remove or compact dense rows. If a future free l
 Entity objects hold an `unowned` world reference and computed protocol accessors fatal-error when required backing rows are missing. That is acceptable for strict live game objects, but UI inspection or editor tooling may eventually need optional, non-crashing lookup APIs.
 ### Engine Loop Boundaries Are Clear
 `Engine` owns deterministic fixed-step execution and ordered systems. `SimulationRuntime` owns the authoritative session and exact request boundary. `RealtimeAdvanceDriver` owns wall-clock sampling, remainder, input capture, and pause policy, while `RealtimeAssembly` owns coordinated lifecycle and rebuild cutovers. Keep cadence and peer wiring outside Simulation so the exact core remains easy to test and reuse.
-The real-time driver uses a typed per-wake catch-up cap with explicit preserve/discard overflow treatment. The legacy `Engine.update(deltaTime:inputSnapshot:)` path remains unbounded until removal; do not use it as the basis for new real-time policy.
+The real-time driver uses a typed per-wake catch-up cap with explicit preserve/discard overflow treatment. `Engine` contains no elapsed-time accumulator or partial-schedule pause mode; every accepted exact step executes the complete schedule.
 ### Viewpoint Control Is Presentation-Owned
 `World.camera` and the camera in `SimulationPresentationSnapshot` provide Simulation's completed default. `ScreenViewpointController` owns the current screen override, and Render resolves that separate value when it projects a frame. Do not put output-specific orbit or zoom back into the default Simulation schedule merely to redraw while paused.
 
@@ -379,13 +374,11 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 ## Current Gaps / Known TODOs
 - Entity destruction, index reuse, and generation incrementing are not implemented.
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.
-- Systems still run in two ordered lists; the DocC scheduling graph/stage model is proposed, not implemented.
+- Systems run in one ordered list; the richer DocC scheduling graph/stage model is proposed, not implemented.
 - `SMovement` and `SRotation` currently combine integration and transform advancement; the future collision/constraint pipeline may need a more explicit phase split.
 - Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, PNG output, artifact persistence/sinks, HDR-master and accumulation policy, atomic multi-view jobs, and a dedicated Render worker remain proposed. The serial offline configuration coordinates exact advance-or-current scene selection, rendering, provenance validation, and JPEG encoding; the agent configuration adds bounded live-process idempotency above both sources. Neither supplies actual MCP transport/authentication/DTOs, durable restart-safe request history, controls, structured observations, artifact persistence, automatic retry, Input, cadence, or a screen. Visual current capture does not fill the structured-observation gap, and physical or semantic control ingress should wait for an actual gameplay consumer.
 - Capability accessors are strict live reads with `fatalError`; optional inspection/editor lookup paths do not exist yet.
 - Tests do not yet cover component removal, dense iteration with stale generations, or spawn precondition failures.
-- The legacy `SimulationLoop`, `Engine.update(deltaTime:inputSnapshot:)`, elapsed-time accumulator, and partial-schedule pause path still need focused-test migration and removal.
-- Legacy `SInputMapping` and `SCameraInput` source and focused tests remain pending deletion even though the default `Engine` schedule no longer installs them.
 ## Working Assumption for Contributors
 When in doubt, choose the simpler design that preserves:
 - typed game objects at the API boundary

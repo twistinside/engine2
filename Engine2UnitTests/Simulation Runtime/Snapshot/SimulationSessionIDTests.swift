@@ -21,5 +21,20 @@ struct SimulationSessionIDTests {
 
         #expect(sessionID.rawValue == rawValue)
         #expect(decoded == sessionID)
+        requireRawRepresentable(sessionID)
     }
+
+    @Test func rawIdentityPreservesZeroAndMaximumUUIDBitPatterns() throws {
+        let zero = try #require(
+            UUID(uuidString: "00000000-0000-0000-0000-000000000000")
+        )
+        let maximum = try #require(
+            UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")
+        )
+
+        #expect(SimulationSessionID(rawValue: zero).rawValue == zero)
+        #expect(SimulationSessionID(rawValue: maximum).rawValue == maximum)
+    }
+
+    private func requireRawRepresentable(_ value: some RawRepresentable) {}
 }

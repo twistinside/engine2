@@ -2,18 +2,14 @@
 This article captures the intended scheduling direction for Engine2.
 ## Status
 Partially implemented. Parts of this model are not implemented yet.
-The current engine still stores two ordered system lists:
-- an always-running list whose defaults are fixed-tick input history and cleanup
-- a simulation-gated list whose defaults advance gameplay state
-
-That split remains for the unused legacy elapsed-time path. Production real-time advancement uses exact ``Engine/step(inputSnapshot:)`` calls, for which both lists form one complete tick, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. `SInputMapping` and `SCameraInput` remain in the source tree with focused tests pending deletion, but ``Engine`` no longer installs either type in its default schedule. Output-specific orbit and zoom now belong to the App-owned ``ScreenViewpointController`` and can change without a Simulation tick.
+The current engine stores one foundational ordered system list. Production real-time, manual, offline, and agent advancement all reach the same exact ``Engine/step(inputSnapshot:)`` operation, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. The obsolete partial-schedule path, `SInputMapping`, and `SCameraInput` have been removed. Output-specific orbit and zoom belong to the App-owned ``ScreenViewpointController`` and can change without a Simulation tick.
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
 
 A configuration-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Configurations-and-Advancement>.
 
-Platform collection is not a scheduled ECS system. ``InputRuntime`` publishes a latest immutable `InputSnapshot`, and ``Engine`` imports an assigned value into World-owned `InputState` only at the beginning of an actual fixed step. The current default then records fixed-tick input history, performs authoritative Simulation work, and clears transient input as part of the same complete tick. The retained `SInputMapping` and `SCameraInput` types are legacy camera-control code, not evidence that output viewpoint control remains scheduled Simulation work.
+Platform collection is not a scheduled ECS system. ``InputRuntime`` publishes a latest immutable `InputSnapshot`, and ``Engine`` imports an assigned value into World-owned `InputState` only at the beginning of an actual fixed step. The current default then records fixed-tick input history, clears imported transients after their scheduled consumers, and performs authoritative Simulation work as one complete tick. Output viewpoint control is not scheduled Simulation work.
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
 When the clock produces new elapsed time, the engine should treat that as additional backlog, not permission to begin another overlapping world update. If the engine is already stepping systems, newly arrived time should be accumulated and drained later.

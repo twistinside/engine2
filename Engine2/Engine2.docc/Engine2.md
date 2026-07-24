@@ -7,7 +7,7 @@ The current codebase is intentionally small, but the core direction is already e
 - The Simulation Runtime is authoritative for gameplay state and contains the engine, world, and ECS systems.
 - Game Content supplies consumer-defined entities, world construction, presentation descriptions, and assets without becoming a runtime.
 - ``World`` owns authoritative simulation state.
-- ``Engine`` owns exact fixed-step execution and ordered system orchestration; its elapsed-time adapter remains only as a legacy migration path.
+- ``Engine`` owns exact fixed-step execution and one complete ordered system schedule; cadence and pause policy exist only in App-owned drivers.
 - ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
 - ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
 - ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot``. The snapshot camera is a publisher-authored default, not a requirement that every output use one Simulation-mutated view.
@@ -22,18 +22,18 @@ This documentation catalog serves two purposes:
 - capture architectural direction that is intentionally not implemented yet
 At the moment, the codebase already includes:
 - an App-owned Input Runtime whose immutable latest snapshot is captured by ``RealtimeAdvanceDriver`` and assigned to an exact Simulation request
-- a two-list system runner in ``Engine`` whose exact-step path executes the complete schedule; the default schedule no longer installs the legacy `SInputMapping` or `SCameraInput` camera path
+- one complete ordered system schedule in ``Engine`` with input history/cleanup followed by authoritative Simulation work
 - an App-owned real-time driver that translates wall time into cursor-qualified exact requests, plus a clock-free ``ManualConfiguration``
 - an app-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world construction policy, and completed publication
 - a current real-time assembly that explicitly fans screen host events to both ``InputRuntime`` and ``ScreenViewpointController`` while leaving Simulation advancement under the separate driver
-- a presentation-snapshot, explicit-viewpoint, and render-projection path via ``SimulationPresentationSnapshot``, ``RenderViewpoint``, ``RenderFrame.project(from:viewpoint:)``, and ``MetalSceneView``
+- a presentation-snapshot, explicit-viewpoint, and render-projection path via ``SimulationPresentationSnapshot``, ``RenderViewpoint``, `RenderFrame(projecting:viewpoint:)`, and ``MetalSceneView``
 - a view-independent production ``MetalFrameEncoder`` shared by the thin MetalKit screen adapter, the exact offscreen Runtime, and their render integration coverage
 - a production exact offscreen request/outcome boundary with strict presentation/model/geometry preflight, configurable safety limits, single-flight backpressure, queue-feedback lifetime, cancellation semantics, and tightly packed top-left BGRA8-sRGB readback
 - a stateless JPEG artifact layer with validated quality, detached encoded data, and exact request/cursor/viewpoint/render/encoding provenance
 - a concrete serial offline capture configuration whose typed outcomes preserve either committed Simulation progress or the exact retained current presentation and, after rendering, the raw result needed for retryable artifact derivation
 - a transport-neutral agent-session configuration whose closed assembly exposes only starting identity, ``PAgentSessionTarget``, and drain lifecycle; focused coverage validates both capture sources through one admission/idempotency/cache/cursor/cancellation/lifecycle policy, and real integration advances to tick one, captures and replays an alternate view at tick one, then advances to tick two
 
-``SimulationLoop``, ``Engine.update(deltaTime:inputSnapshot:)``, `SInputMapping`, and `SCameraInput` remain in the source tree only as legacy migration paths or focused-test seams; new App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Exact raw offscreen rendering, CPU-side JPEG derivation, serial advance-or-current capture, and the live-process idempotent agent wrapper are implemented. The agent layer has no automatic cadence and preserves the offline coordinator as the only advance authority. Its current-cursor JPEG is visual output, not structured observation. An actual MCP Runtime or transport, authentication, wire DTOs, restart-safe idempotency journal, physical or semantic gameplay controls, structured observations, persistence/sinks, dedicated render worker, pooled targets, atomic multi-view jobs, high-quality accumulation/HDR policy, PNG, typed routing, multi-window bindings, and observer anchors remain proposed. Controls remain future until a typed gameplay consumer exists; advancing agent requests currently assign `.none`.
+The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pause gate, `SInputMapping`, and `SCameraInput` have been removed. New App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Exact raw offscreen rendering, CPU-side JPEG derivation, serial advance-or-current capture, and the live-process idempotent agent wrapper are implemented. The agent layer has no automatic cadence and preserves the offline coordinator as the only advance authority. Its current-cursor JPEG is visual output, not structured observation. An actual MCP Runtime or transport, authentication, wire DTOs, restart-safe idempotency journal, physical or semantic gameplay controls, structured observations, persistence/sinks, dedicated render worker, pooled targets, atomic multi-view jobs, high-quality accumulation/HDR policy, PNG, typed routing, multi-window bindings, and observer anchors remain proposed. Controls remain future until a typed gameplay consumer exists; advancing agent requests currently assign `.none`.
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>

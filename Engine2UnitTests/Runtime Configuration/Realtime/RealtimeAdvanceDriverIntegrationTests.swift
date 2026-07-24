@@ -6,14 +6,13 @@ struct RealtimeAdvanceDriverIntegrationTests {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: IntegrationMovingWorldBuilder(),
-            inputBaseline: inputRuntime.latestInputSnapshot,
-            fixedTimeStep: .milliseconds(100)
+            inputBaseline: inputRuntime.latestInputSnapshot
         )
         let baseInstant = SuspendingClock().now
         let elapsedSource = IntegrationInstantSource(
             samples: [
                 baseInstant,
-                baseInstant.advanced(by: .milliseconds(100))
+                baseInstant.advanced(by: SimulationRuntime.fixedTimeStep)
             ]
         )
         let sleeper = IntegrationControlledSleeper()
@@ -21,8 +20,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
             advanceTarget: simulationRuntime,
             inputSource: inputRuntime,
             initialCursor: simulationRuntime.currentCursor,
-            fixedTimeStep: .milliseconds(100),
-            pollInterval: .milliseconds(100),
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            pollInterval: SimulationRuntime.fixedTimeStep,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -58,7 +57,10 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
 
         #expect(didAdvance)
-        #expect(abs(position.x - 0.1) < 0.0001)
+        #expect(
+            abs(position.x - SimulationRuntime.fixedTimeStep.seconds) <
+            0.0001
+        )
         #expect(simulationRuntime.latestPresentationSnapshot.cursor == simulationRuntime.currentCursor)
         #expect(
             simulationRuntime.latestPresentationSnapshot.entityPresentations.first?.position ==
@@ -113,22 +115,25 @@ private actor IntegrationControlledSleeper {
     }
 
     private var waiters: [Waiter] = []
+    private var countWaiters: [
+        Int: [CheckedContinuation<Void, Never>]
+    ] = [:]
 
     func sleep(until deadline: SuspendingClock.Instant) async throws {
         try await withCheckedThrowingContinuation { continuation in
             waiters.append(Waiter(continuation: continuation))
+            resumeSatisfiedCountWaiters()
         }
     }
 
     func waitForPendingCount(_ count: Int) async {
-        for _ in 0..<10_000 {
-            if waiters.count >= count {
-                return
-            }
-            await Task.yield()
+        guard waiters.count < count else {
+            return
         }
 
-        Issue.record("Timed out waiting for \(count) integration sleeps.")
+        await withCheckedContinuation { continuation in
+            countWaiters[count, default: []].append(continuation)
+        }
     }
 
     func resumeNext() {
@@ -145,6 +150,16 @@ private actor IntegrationControlledSleeper {
         waiters.removeAll()
         for waiter in pendingWaiters {
             waiter.continuation.resume()
+        }
+    }
+
+    private func resumeSatisfiedCountWaiters() {
+        let satisfiedCounts = countWaiters.keys.filter {
+            $0 <= waiters.count
+        }
+        for count in satisfiedCounts {
+            let continuations = countWaiters.removeValue(forKey: count) ?? []
+            continuations.forEach { $0.resume() }
         }
     }
 }

@@ -14,8 +14,7 @@ struct PublishedMaterialValidationScene {
     init() {
         let gameContent = BasicGameContent()
         let world = gameContent.worldBuilder.buildWorld()
-        let snapshot = SimulationPresentationSnapshot.capture(
-            from: world,
+        let snapshot = world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: SimulationSessionID(),
                 tick: .zero
@@ -23,7 +22,7 @@ struct PublishedMaterialValidationScene {
         )
 
         self.catalog = gameContent.renderAssetCatalog
-        self.renderFrame = RenderFrame.project(from: snapshot)
+        self.renderFrame = RenderFrame(projecting: snapshot)
     }
 
     /// Material identities in the exact order published by the builder.

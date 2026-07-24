@@ -5,21 +5,17 @@
 /// gives other configurations a deliberate place to choose a different topology
 /// without adding optional peers or mode switches to the real-time assembly.
 nonisolated struct RealtimeConfiguration: Equatable, Sendable {
-    let fixedTimeStep: Duration
     let pollInterval: Duration?
     let catchUpPolicy: RealtimeCatchUpPolicy
 
     init(
-        fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         pollInterval: Duration? = nil,
         catchUpPolicy: RealtimeCatchUpPolicy = .interactive
     ) {
-        precondition(fixedTimeStep > .zero, "Real-time simulation requires a positive fixed time step.")
         if let pollInterval {
             precondition(pollInterval > .zero, "Real-time polling requires a positive interval.")
         }
 
-        self.fixedTimeStep = fixedTimeStep
         self.pollInterval = pollInterval
         self.catchUpPolicy = catchUpPolicy
     }
@@ -30,14 +26,13 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
-            inputBaseline: inputRuntime.latestInputSnapshot,
-            fixedTimeStep: fixedTimeStep
+            inputBaseline: inputRuntime.latestInputSnapshot
         )
         let advanceDriver = RealtimeAdvanceDriver(
             advanceTarget: simulationRuntime,
             inputSource: inputRuntime,
             initialCursor: simulationRuntime.currentCursor,
-            fixedTimeStep: fixedTimeStep,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: pollInterval,
             catchUpPolicy: catchUpPolicy
         )

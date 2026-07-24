@@ -5,7 +5,7 @@ import Foundation
 /// A Simulation Runtime preserves this value while advancing one world and
 /// replaces it whenever rebuilding, restoring, rewinding, or forking could
 /// make the same tick number describe different authoritative state.
-nonisolated struct SimulationSessionID: Codable, Hashable, Sendable {
+nonisolated struct SimulationSessionID: Codable, Hashable, RawRepresentable, Sendable {
     let rawValue: UUID
 
     /// Creates a fresh identity for a new authoritative Simulation timeline.

@@ -80,7 +80,7 @@ The current code separates simulation publication from render projection:
 1. the Simulation Runtime publishes a completed, backend-neutral `SimulationPresentationSnapshot`
 2. the Render Runtime selects the latest value according to its own cadence
 3. an optional `PRenderViewpointSource` resolves an output-specific ``RenderViewpoint`` against the snapshot camera as its exact default
-4. ``RenderFrame.project(from:viewpoint:)`` projects the scene and selected camera into a private value while preserving Simulation and optional viewpoint attribution
+4. `RenderFrame(projecting:viewpoint:)` projects the scene and selected camera into a private value while preserving Simulation and optional viewpoint attribution
 5. Render resolves abstract identities into its privately owned backend resources
 6. an output-specific caller supplies targets and submission lifetime to ``MetalFrameEncoder``
 
