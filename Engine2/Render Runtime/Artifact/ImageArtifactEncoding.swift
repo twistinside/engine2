@@ -1,0 +1,18 @@
+/// Complete, format-specific policy for one encoded image artifact.
+///
+/// Keeping the format and its associated settings in one closed value prevents
+/// invalid combinations such as requesting PNG while carrying JPEG quality.
+/// Future formats can add their own validated policy without widening every
+/// request into a bag of unrelated optional settings.
+nonisolated enum ImageArtifactEncoding: Equatable, Hashable, Sendable {
+    /// Balanced lossy JPEG policy for machine observation and exchange.
+    static let observationJPEG = ImageArtifactEncoding.jpeg(
+        quality: .observation
+    )
+
+    /// JPEG output using Image I/O's validated normalized quality.
+    case jpeg(quality: JPEGQuality)
+
+    /// Lossless PNG output from the same opaque sRGB source pixels.
+    case png
+}

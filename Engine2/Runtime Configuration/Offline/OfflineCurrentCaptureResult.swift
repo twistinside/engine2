@@ -1,4 +1,4 @@
-/// Completed JPEG artifact derived from the exact current presentation value.
+/// Completed image artifact derived from the exact current presentation value.
 ///
 /// Unlike ``OfflineCaptureResult``, this result records no Simulation advance:
 /// the source snapshot is the already completed value selected by the current-

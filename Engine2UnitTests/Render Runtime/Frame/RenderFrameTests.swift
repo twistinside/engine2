@@ -141,7 +141,7 @@ struct RenderFrameTests {
         )
     }
 
-    @Test func projectionCanApplyDistinctExplicitViewpointsToTheSameSnapshot() {
+    @Test func exactProjectionCanApplyDistinctExplicitViewpointsToTheSameSnapshot() throws {
         let world = World()
         let cursor = Self.cursor(at: SimulationTick(rawValue: 11))
         let entity = EntityID(index: 0, generation: 0)
@@ -166,12 +166,12 @@ struct RenderFrameTests {
             camera: Camera(position: SIMD3<Float>(6, 2, 0))
         )
 
-        let firstFrame = RenderFrame(
-            projecting: snapshot,
+        let firstFrame = try RenderFrame(
+            exactlyProjecting: snapshot,
             viewpoint: firstViewpoint
         )
-        let secondFrame = RenderFrame(
-            projecting: snapshot,
+        let secondFrame = try RenderFrame(
+            exactlyProjecting: snapshot,
             viewpoint: secondViewpoint
         )
 
@@ -277,19 +277,24 @@ struct RenderFrameTests {
             camera: Camera(position: SIMD3<Float>(0, 0, 10))
         )
 
-        let tolerant = RenderFrame(
-            projecting: snapshot,
-            viewpoint: viewpoint
-        )
         let exact = try RenderFrame(
             exactlyProjecting: snapshot,
             viewpoint: viewpoint
         )
 
-        #expect(exact == tolerant)
         #expect(exact.sourceCursor == cursor)
+        #expect(exact.camera == viewpoint.camera)
         #expect(exact.viewpointID == viewpoint.id)
         #expect(exact.viewpointRevision == viewpoint.revision)
+        #expect(
+            exact.instances == [
+                RenderInstance(
+                    meshID: .ball,
+                    materialID: .goldMetal,
+                    worldPosition: SIMD3<Float>(1, 2, 3)
+                )
+            ]
+        )
     }
 
     @Test func exactProjectionIdentifiesAnEntityWithoutPosition() {
@@ -395,37 +400,6 @@ struct RenderFrameTests {
                 viewpoint: viewpoint
             )
         }
-    }
-
-    @Test func invalidExplicitViewpointProducesAnAttributedEmptyFrame() {
-        let world = World()
-        let cursor = Self.cursor(at: SimulationTick(rawValue: 5))
-        let entity = EntityID(index: 0, generation: 0)
-        world.positionComponents.insert(CPosition(position: .zero), for: entity)
-        world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
-            for: entity
-        )
-
-        let snapshot = world.presentationSnapshot(at: cursor)
-        var invalidCamera = Camera()
-        invalidCamera.position = SIMD3<Float>(.infinity, 0, 8)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 4),
-            camera: invalidCamera
-        )
-
-        let frame = RenderFrame(
-            projecting: snapshot,
-            viewpoint: viewpoint
-        )
-
-        #expect(frame.sourceCursor == cursor)
-        #expect(frame.viewpointID == viewpoint.id)
-        #expect(frame.viewpointRevision == viewpoint.revision)
-        #expect(frame.camera == invalidCamera)
-        #expect(frame.instances.isEmpty)
     }
 
     @Test func projectionOmitsFiniteTransformsWhoseCombinationOverflows() {

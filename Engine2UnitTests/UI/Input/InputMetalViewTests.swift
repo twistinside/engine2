@@ -49,6 +49,34 @@ struct InputMetalViewTests {
     }
 
     @MainActor
+    @Test func platformEventsPublishDirectlyThroughInputRuntime() throws {
+        let view = InputMetalView(frame: .zero, device: nil)
+        let inputRuntime = InputRuntime()
+        inputRuntime.start()
+        view.inputSink = inputRuntime
+        let startingRevision = inputRuntime.latestInputSnapshot.revision
+        let keyDown = try #require(
+            makeKeyEvent(type: .keyDown, isRepeat: false)
+        )
+        let keyUp = try #require(
+            makeKeyEvent(type: .keyUp, isRepeat: false)
+        )
+
+        view.keyDown(with: keyDown)
+
+        #expect(inputRuntime.latestInputSnapshot.revision != startingRevision)
+        #expect(
+            inputRuntime.latestInputSnapshot.pressedKeys
+                == [KeyboardKey(keyCode: 13, displayName: "W")]
+        )
+
+        view.keyUp(with: keyUp)
+
+        #expect(inputRuntime.latestInputSnapshot.pressedKeys.isEmpty)
+        inputRuntime.stop()
+    }
+
+    @MainActor
     private func makeKeyEvent(
         type: NSEvent.EventType,
         isRepeat: Bool

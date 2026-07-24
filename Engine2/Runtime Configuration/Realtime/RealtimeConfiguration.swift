@@ -36,13 +36,11 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
             pollInterval: pollInterval,
             catchUpPolicy: catchUpPolicy
         )
-        let screenViewpointController = ScreenViewpointController()
 
         return RealtimeAssembly(
             inputRuntime: inputRuntime,
             simulationRuntime: simulationRuntime,
-            advanceDriver: advanceDriver,
-            screenViewpointController: screenViewpointController
+            advanceDriver: advanceDriver
         )
     }
 }

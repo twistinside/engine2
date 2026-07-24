@@ -6,7 +6,7 @@ import Testing
 import UniformTypeIdentifiers
 @testable import Engine2
 
-struct JPEGArtifactEncoderTests {
+struct ImageIOArtifactEncoderTests {
     @Test func qualityRequiresFiniteClosedUnitIntervalAndHasDeliberateDefaults() throws {
         #expect(try JPEGQuality(0).value == 0)
         #expect(try JPEGQuality(0.375).value == 0.375)
@@ -30,10 +30,13 @@ struct JPEGArtifactEncoderTests {
 
         #expect(JPEGQuality.observation.value == 0.85)
         #expect(JPEGQuality.maximum.value == 1)
-        #expect(JPEGEncodingSettings().quality == .observation)
+        #expect(
+            ImageArtifactEncoding.observationJPEG
+                == .jpeg(quality: .observation)
+        )
     }
 
-    @Test func encodesDecodableJPEGAndPreservesExactProvenance() throws {
+    @Test func encodesDecodableJPEGAndPreservesExactProvenance() async throws {
         let size = try RenderPixelSize(width: 7, height: 5)
         let result = try Self.makeResult(
             image: Self.solidImage(
@@ -43,14 +46,16 @@ struct JPEGArtifactEncoderTests {
                 red: 211
             )
         )
-        let jpegSettings = JPEGEncodingSettings(quality: try JPEGQuality(0.73))
-
-        let artifact = try JPEGArtifactEncoder().encode(
-            result,
-            settings: jpegSettings
+        let encoding = ImageArtifactEncoding.jpeg(
+            quality: try JPEGQuality(0.73)
         )
 
-        #expect(artifact.format == .jpeg)
+        let artifact = try await ImageIOArtifactEncoder().encode(
+            result,
+            as: encoding
+        )
+
+        #expect(artifact.encoding == encoding)
         #expect(!artifact.encodedData.isEmpty)
         #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
         #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
@@ -74,16 +79,16 @@ struct JPEGArtifactEncoderTests {
         #expect(artifact.viewpoint.revision == result.viewpoint.revision)
         #expect(artifact.viewpoint.camera == result.viewpoint.camera)
         #expect(artifact.renderSettings == result.settings)
-        #expect(artifact.jpegSettings == jpegSettings)
+        #expect(artifact.encoding == encoding)
     }
 
-    @Test func preservesTopLeftRowsAndInterpretsSourceBytesAsBGRA() throws {
+    @Test func jpegPreservesTopLeftRowsAndInterpretsBGRA() async throws {
         let size = try RenderPixelSize(width: 128, height: 128)
         let sourceImage = try Self.twoBandImage(size: size)
         let result = try Self.makeResult(image: sourceImage)
-        let artifact = try JPEGArtifactEncoder().encode(
+        let artifact = try await ImageIOArtifactEncoder().encode(
             result,
-            settings: JPEGEncodingSettings(quality: .maximum)
+            as: .jpeg(quality: .maximum)
         )
 
         let source = try #require(
@@ -119,6 +124,82 @@ struct JPEGArtifactEncoderTests {
         #expect(bottomBlue > bottomRed + 120)
         #expect(bottomBlue > bottomGreen + 120)
         #expect(bottomGreen > topGreen + 50)
+    }
+
+    @Test func pngIsLosslessTopLeftBGRAWithExactProvenance() async throws {
+        let size = try RenderPixelSize(width: 8, height: 4)
+        let result = try Self.makeResult(
+            image: Self.twoBandImage(size: size)
+        )
+
+        let artifact = try await ImageIOArtifactEncoder().encode(
+            result,
+            as: .png
+        )
+
+        #expect(
+            Array(artifact.encodedData.prefix(8))
+                == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        )
+        #expect(artifact.encoding == .png)
+        #expect(artifact.sourceRequestID == result.requestID)
+        #expect(artifact.sourceCursor == result.sourceCursor)
+        #expect(artifact.viewpoint == result.viewpoint)
+        #expect(artifact.renderSettings == result.settings)
+
+        let source = try #require(
+            CGImageSourceCreateWithData(artifact.encodedData as CFData, nil)
+        )
+        let typeIdentifier = try #require(CGImageSourceGetType(source))
+        #expect(typeIdentifier as String == UTType.png.identifier)
+        let decodedImage = try #require(
+            CGImageSourceCreateImageAtIndex(source, 0, nil)
+        )
+        #expect(decodedImage.width == size.width)
+        #expect(decodedImage.height == size.height)
+
+        let rgba = try Self.drawTopLeftRGBA(decodedImage)
+        let topOffset = Self.rgbaOffset(
+            x: size.width / 2,
+            y: size.height / 4,
+            width: size.width
+        )
+        let bottomOffset = Self.rgbaOffset(
+            x: size.width / 2,
+            y: size.height * 3 / 4,
+            width: size.width
+        )
+        #expect(Array(rgba[topOffset..<(topOffset + 3)]) == [250, 20, 80])
+        #expect(
+            Array(rgba[bottomOffset..<(bottomOffset + 3)])
+                == [10, 100, 250]
+        )
+    }
+
+    @Test func completionWinsAfterEncodingIsInvokedByCancelledTask() async throws {
+        let size = try RenderPixelSize(width: 1, height: 1)
+        let result = try Self.makeResult(
+            image: Self.solidImage(
+                size: size,
+                blue: 3,
+                green: 5,
+                red: 7
+            )
+        )
+
+        let encoding = Task {
+            withUnsafeCurrentTask { task in
+                task?.cancel()
+            }
+            return try await ImageIOArtifactEncoder().encode(
+                result,
+                as: .png
+            )
+        }
+        let artifact = try await encoding.value
+
+        #expect(artifact.encoding == .png)
+        #expect(artifact.sourceRequestID == result.requestID)
     }
 
     private static func makeResult(

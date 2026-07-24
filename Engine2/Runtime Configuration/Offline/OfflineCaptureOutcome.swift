@@ -5,7 +5,7 @@
 /// cancellation or downstream failure can never obscure authoritative progress
 /// or tempt a caller to repeat the advance silently.
 nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
-    /// Simulation, raw rendering, and JPEG encoding all completed.
+    /// Simulation, raw rendering, and artifact encoding all completed.
     case completed(OfflineCaptureResult)
 
     /// Another request currently owns the coordinator's complete workflow.
@@ -68,7 +68,7 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
         renderResult: OffscreenRenderResult
     )
 
-    /// Raw rendering completed, but cancellation prevented JPEG encoding.
+    /// Raw rendering completed, but cancellation prevented artifact encoding.
     ///
     /// Retaining the raw result permits artifact encoding to be retried without
     /// either rerendering or advancing Simulation again.
@@ -77,13 +77,23 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
         renderResult: OffscreenRenderResult
     )
 
-    /// JPEG derivation failed without changing either completed predecessor.
+    /// Artifact derivation failed without changing either completed predecessor.
     ///
     /// Both immutable inputs remain available for a caller-selected encoding
     /// retry that does not rerender or advance Simulation again.
-    case jpegEncodingFailed(
+    case artifactEncodingFailed(
         advanceResult: SimulationAdvanceResult,
         renderResult: OffscreenRenderResult,
-        failure: JPEGArtifactEncoderError
+        failure: ImageArtifactEncoderError
+    )
+
+    /// The encoder returned empty bytes or mismatched exact provenance.
+    ///
+    /// Both the raw result and invalid artifact are retained for diagnosis;
+    /// callers must not accept the encoded bytes as this request's output.
+    case artifactResultMismatch(
+        advanceResult: SimulationAdvanceResult,
+        renderResult: OffscreenRenderResult,
+        artifact: RenderedImageArtifact
     )
 }

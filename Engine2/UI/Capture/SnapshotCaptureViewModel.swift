@@ -108,7 +108,7 @@ final class SnapshotCaptureViewModel {
                 outputMode: outputMode,
                 exposure: .validation
             ),
-            jpegSettings: JPEGEncodingSettings(quality: .maximum)
+            encoding: .jpeg(quality: .maximum)
         )
         let outcome = await captureTarget.capture(request)
         guard
@@ -209,12 +209,18 @@ final class SnapshotCaptureViewModel {
                     + "the selected snapshot or output settings."
             )
 
+        case .artifactResultMismatch:
+            presentFailure(
+                "The image encoder returned an artifact that did not match "
+                    + "the selected snapshot or output settings."
+            )
+
         case .cancelledAfterRender:
             presentFailure(
                 "Snapshot capture was cancelled before JPEG encoding began."
             )
 
-        case let .jpegEncodingFailed(_, _, failure):
+        case let .artifactEncodingFailed(_, _, failure):
             presentFailure(message(for: failure))
         }
     }
@@ -230,7 +236,7 @@ final class SnapshotCaptureViewModel {
             "Snapshot capture was cancelled before GPU submission."
 
         case .invalidViewpoint:
-            "The current screen viewpoint cannot be rendered offscreen."
+            "The selected Simulation camera cannot be rendered offscreen."
 
         case .invalidPresentation:
             "The selected Simulation snapshot contains invalid presentation data."
@@ -247,7 +253,7 @@ final class SnapshotCaptureViewModel {
     }
 
     private func message(
-        for failure: JPEGArtifactEncoderError
+        for failure: ImageArtifactEncoderError
     ) -> String {
         switch failure {
         case .couldNotCreateSRGBColorSpace:

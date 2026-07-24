@@ -1,16 +1,14 @@
 /// Owns the live Runtime instances and lifecycle ordering for real-time play.
 ///
 /// One Input Runtime publishes latest input, one cadence driver translates wall
-/// time into exact requests, one Simulation Runtime commits those requests, and
-/// one screen controller owns output-specific viewpoint changes. The assembly
-/// explicitly fans host input into the independently owned recipients; none of
-/// those recipients discovers a peer through global state.
+/// time into exact requests, and one Simulation Runtime commits those requests.
+/// The App wires platform input directly to the Input Runtime and screen Render
+/// directly to completed Simulation presentation snapshots.
 @MainActor
-final class RealtimeAssembly: PInputEventSink {
+final class RealtimeAssembly {
     let inputRuntime: InputRuntime
     let simulationRuntime: SimulationRuntime
     let advanceDriver: RealtimeAdvanceDriver
-    let screenViewpointController: ScreenViewpointController
 
     private var lifecycleGeneration: UInt64 = 0
 
@@ -32,13 +30,11 @@ final class RealtimeAssembly: PInputEventSink {
     init(
         inputRuntime: InputRuntime,
         simulationRuntime: SimulationRuntime,
-        advanceDriver: RealtimeAdvanceDriver,
-        screenViewpointController: ScreenViewpointController
+        advanceDriver: RealtimeAdvanceDriver
     ) {
         self.inputRuntime = inputRuntime
         self.simulationRuntime = simulationRuntime
         self.advanceDriver = advanceDriver
-        self.screenViewpointController = screenViewpointController
     }
 
     /// Starts the publisher before the cadence connection.
@@ -99,7 +95,6 @@ final class RealtimeAssembly: PInputEventSink {
 
         let inputBaseline = inputRuntime.latestInputSnapshot
         simulationRuntime.rebuildWorld(inputBaseline: inputBaseline)
-        screenViewpointController.reset()
         advanceDriver.synchronize(
             to: simulationRuntime.currentCursor,
             inputBaseline: inputBaseline
@@ -122,21 +117,4 @@ final class RealtimeAssembly: PInputEventSink {
         return lifecycleGeneration
     }
 
-    /// Routes one platform event to the recipients selected by this assembly.
-    ///
-    /// The Input Runtime retains canonical device state for future Simulation
-    /// requests. The screen controller interprets only output-specific orbit
-    /// and zoom gestures, so it can change presentation while Simulation is
-    /// paused. This concrete fan-out is intentionally not a generic route graph.
-    func receive(_ event: InputEvent) {
-        guard inputRuntime.isRunning else {
-            return
-        }
-
-        inputRuntime.receive(event)
-        screenViewpointController.receive(
-            event,
-            defaultCamera: simulationRuntime.latestPresentationSnapshot.camera
-        )
-    }
 }

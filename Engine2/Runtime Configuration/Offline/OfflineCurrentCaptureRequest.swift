@@ -9,20 +9,20 @@ nonisolated struct OfflineCurrentCaptureRequest: Equatable, Sendable {
     let renderRequestID: OffscreenRenderRequestID
     let viewpoint: RenderViewpoint
     let renderSettings: OffscreenRenderSettings
-    let jpegSettings: JPEGEncodingSettings
+    let encoding: ImageArtifactEncoding
 
-    /// Creates one current-state render and JPEG derivation request.
+    /// Creates one current-state render and artifact derivation request.
     init(
         expectedCursor: SimulationCursor,
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings = JPEGEncodingSettings()
+        encoding: ImageArtifactEncoding = .observationJPEG
     ) {
         self.expectedCursor = expectedCursor
         self.renderRequestID = renderRequestID
         self.viewpoint = viewpoint
         self.renderSettings = renderSettings
-        self.jpegSettings = jpegSettings
+        self.encoding = encoding
     }
 }

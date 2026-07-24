@@ -82,7 +82,7 @@ struct RealtimeAssemblyTests {
         await assembly.stop()
     }
 
-    @Test @MainActor func pausedInputChangesViewpointWithoutAdvancingSimulation() async {
+    @Test @MainActor func pausedInputPublishesWithoutBypassingSimulation() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60)
         ).makeAssembly(gameContent: BasicGameContent())
@@ -94,31 +94,48 @@ struct RealtimeAssemblyTests {
 
         let presentation = assembly.simulationRuntime.latestPresentationSnapshot
         let cursor = assembly.simulationRuntime.currentCursor
-        let initialViewpoint = assembly.screenViewpointController.resolveViewpoint(
-            defaultCamera: presentation.camera
-        )
+        let inputRevision = assembly.inputRuntime.latestInputSnapshot.revision
+        let hostSink: any PInputEventSink = assembly.inputRuntime
+        let heldKey = KeyboardKey(keyCode: 13, displayName: "W")
 
-        assembly.receive(
+        hostSink.receive(
             .mouseDragged(
                 delta: SIMD2<Float>(50, 0),
                 position: SIMD2<Float>(10, 20)
             )
         )
-        assembly.receive(.scroll(delta: SIMD2<Float>(0, 25)))
-
-        let changedViewpoint = assembly.screenViewpointController.resolveViewpoint(
-            defaultCamera: presentation.camera
-        )
+        hostSink.receive(.scroll(delta: SIMD2<Float>(0, 25)))
+        hostSink.receive(.keyDown(heldKey))
 
         #expect(assembly.simulationRuntime.currentCursor == cursor)
         #expect(assembly.simulationRuntime.latestPresentationSnapshot == presentation)
-        #expect(changedViewpoint.id == initialViewpoint.id)
-        #expect(changedViewpoint.revision > initialViewpoint.revision)
-        #expect(changedViewpoint.camera != initialViewpoint.camera)
+        #expect(
+            assembly.inputRuntime.latestInputSnapshot.revision != inputRevision
+        )
+        #expect(
+            assembly.inputRuntime.latestInputSnapshot.pressedKeys == [heldKey]
+        )
         #expect(
             assembly.inputRuntime.latestInputSnapshot.pointerMotionTotal ==
             SIMD2<Float>(50, 0)
         )
+        #expect(
+            assembly.inputRuntime.latestInputSnapshot.scrollTotal
+                == SIMD2<Float>(0, 25)
+        )
+
+        let pausedFrame = RenderFrame(
+            projecting: assembly.simulationRuntime.latestPresentationSnapshot
+        )
+        assembly.resumeAdvancement()
+        let resumedFrame = RenderFrame(
+            projecting: assembly.simulationRuntime.latestPresentationSnapshot
+        )
+
+        #expect(resumedFrame == pausedFrame)
+        #expect(resumedFrame.camera == presentation.camera)
+        #expect(resumedFrame.viewpointID == nil)
+        #expect(resumedFrame.viewpointRevision == nil)
 
         await assembly.stop()
     }

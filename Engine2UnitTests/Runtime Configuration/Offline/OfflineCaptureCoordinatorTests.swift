@@ -63,7 +63,7 @@ struct OfflineCaptureCoordinatorTests {
             probe.recordedEncodingInputs() == [
                 EncoderInput(
                     renderResult: fixture.renderResult,
-                    settings: fixture.request.jpegSettings
+                    encoding: fixture.request.encoding
                 )
             ]
         )
@@ -188,7 +188,7 @@ struct OfflineCaptureCoordinatorTests {
             probe.recordedEncodingInputs() == [
                 EncoderInput(
                     renderResult: currentRenderResult,
-                    settings: currentRequest.jpegSettings
+                    encoding: currentRequest.encoding
                 )
             ]
         )
@@ -253,9 +253,9 @@ struct OfflineCaptureCoordinatorTests {
         )
     }
 
-    @Test func jpegFailureRetainsAdvanceAndRawResultWithoutRetry() async throws {
+    @Test func artifactFailureRetainsAdvanceAndRawResultWithoutRetry() async throws {
         let fixture = try Self.makeFixture()
-        let failure = JPEGArtifactEncoderError.destinationFinalizationFailed
+        let failure = ImageArtifactEncoderError.destinationFinalizationFailed
         let probe = Probe(encodingResults: [.failure(failure)])
         let advanceTarget = ScriptedAdvanceTarget(
             scripts: [.immediate(.completed(fixture.advanceResult))],
@@ -275,7 +275,7 @@ struct OfflineCaptureCoordinatorTests {
         let outcome = await coordinator.capture(fixture.request)
 
         #expect(
-            outcome == .jpegEncodingFailed(
+            outcome == .artifactEncodingFailed(
                 advanceResult: fixture.advanceResult,
                 renderResult: fixture.renderResult,
                 failure: failure
@@ -285,6 +285,76 @@ struct OfflineCaptureCoordinatorTests {
         #expect(await renderTarget.requestCount() == 1)
         #expect(probe.recordedEncodingInputs().count == 1)
         #expect(probe.recordedStages() == [.advance, .render, .encode])
+    }
+
+    @Test func everyArtifactProvenanceMismatchRetainsExactPredecessors() async throws {
+        let fixture = try Self.makeFixture()
+        let wrongViewpoint = RenderViewpoint(
+            id: fixture.artifact.viewpoint.id,
+            revision: fixture.artifact.viewpoint.revision.advanced(),
+            camera: fixture.artifact.viewpoint.camera
+        )
+        let wrongRenderSettings = OffscreenRenderSettings(
+            size: fixture.artifact.renderSettings.size,
+            outputMode: .surface,
+            exposure: fixture.artifact.renderSettings.exposure
+        )
+        let mismatchedArtifacts = [
+            Self.artifact(
+                from: fixture.artifact,
+                sourceRequestID: OffscreenRenderRequestID()
+            ),
+            Self.artifact(
+                from: fixture.artifact,
+                sourceCursor: fixture.artifact.sourceCursor.advanced()
+            ),
+            Self.artifact(
+                from: fixture.artifact,
+                viewpoint: wrongViewpoint
+            ),
+            Self.artifact(
+                from: fixture.artifact,
+                renderSettings: wrongRenderSettings
+            ),
+            Self.artifact(
+                from: fixture.artifact,
+                encoding: .png
+            ),
+            Self.artifact(
+                from: fixture.artifact,
+                encodedData: Data()
+            )
+        ]
+
+        for artifact in mismatchedArtifacts {
+            let probe = Probe(encodingResults: [.success(artifact)])
+            let advanceTarget = ScriptedAdvanceTarget(
+                scripts: [.immediate(.completed(fixture.advanceResult))],
+                probe: probe
+            )
+            let renderTarget = ScriptedRenderTarget(
+                scripts: [.immediate(.completed(fixture.renderResult))],
+                probe: probe
+            )
+            let coordinator = Self.coordinator(
+                advanceTarget: advanceTarget,
+                initialPresentationSnapshot: fixture.initialSnapshot,
+                renderTarget: renderTarget,
+                probe: probe
+            )
+
+            #expect(
+                await coordinator.capture(fixture.request)
+                    == .artifactResultMismatch(
+                        advanceResult: fixture.advanceResult,
+                        renderResult: fixture.renderResult,
+                        artifact: artifact
+                    )
+            )
+            #expect(await advanceTarget.requestCount() == 1)
+            #expect(await renderTarget.requestCount() == 1)
+            #expect(probe.recordedEncodingInputs().count == 1)
+        }
     }
 
     @Test func provenanceMismatchNeverReachesEncoder() async throws {
@@ -513,7 +583,7 @@ struct OfflineCaptureCoordinatorTests {
         #expect(probe.recordedStages() == [.advance])
     }
 
-    @Test func concurrentSecondRequestReturnsBusyWhileJPEGIsSuspended() async throws {
+    @Test func concurrentSecondRequestReturnsBusyWhileEncodingIsSuspended() async throws {
         let fixture = try Self.makeFixture()
         let probe = Probe()
         let suspendedEncoder = SuspendedEncoder(probe: probe)
@@ -529,12 +599,7 @@ struct OfflineCaptureCoordinatorTests {
             advanceTarget: advanceTarget,
             initialPresentationSnapshot: fixture.initialSnapshot,
             renderTarget: renderTarget,
-            encodeJPEG: { renderResult, settings in
-                await suspendedEncoder.encode(
-                    renderResult,
-                    settings: settings
-                )
-            }
+            artifactEncoder: suspendedEncoder
         )
         let firstTask = Task {
             await coordinator.capture(fixture.request)
@@ -550,6 +615,9 @@ struct OfflineCaptureCoordinatorTests {
         #expect(await renderTarget.requestCount() == 1)
         #expect(await suspendedEncoder.callCount() == 1)
 
+        // Once the encoder is invoked, its terminal wins even if the original
+        // capture task is cancelled while CPU work remains suspended.
+        firstTask.cancel()
         await suspendedEncoder.resumeNext(with: .success(fixture.artifact))
         let firstOutcome = await firstTask.value
 
@@ -568,7 +636,7 @@ struct OfflineCaptureCoordinatorTests {
             await suspendedEncoder.recordedInputs() == [
                 EncoderInput(
                     renderResult: fixture.renderResult,
-                    settings: fixture.request.jpegSettings
+                    encoding: fixture.request.encoding
                 )
             ]
         )
@@ -625,7 +693,7 @@ struct OfflineCaptureCoordinatorTests {
             probe.recordedEncodingInputs() == [
                 EncoderInput(
                     renderResult: renderResult,
-                    settings: request.jpegSettings
+                    encoding: request.encoding
                 )
             ]
         )
@@ -946,7 +1014,7 @@ struct OfflineCaptureCoordinatorTests {
         #expect(probe.recordedStages() == [.render])
     }
 
-    @Test func currentJPEGFailureRetainsSnapshotAndRawResult() async throws {
+    @Test func currentArtifactFailureRetainsSnapshotAndRawResult() async throws {
         let fixture = try Self.makeFixture()
         let request = Self.currentRequest(for: fixture)
         let renderResult = Self.currentRenderResult(
@@ -954,7 +1022,7 @@ struct OfflineCaptureCoordinatorTests {
             request: request,
             image: fixture.renderResult.image
         )
-        let failure = JPEGArtifactEncoderError.destinationFinalizationFailed
+        let failure = ImageArtifactEncoderError.destinationFinalizationFailed
         let probe = Probe(encodingResults: [.failure(failure)])
         let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
         let renderTarget = ScriptedRenderTarget(
@@ -971,11 +1039,54 @@ struct OfflineCaptureCoordinatorTests {
         let outcome = await coordinator.captureCurrent(request)
 
         #expect(
-            outcome == .jpegEncodingFailed(
+            outcome == .artifactEncodingFailed(
                 sourceSnapshot: fixture.initialSnapshot,
                 renderResult: renderResult,
                 failure: failure
             )
+        )
+        #expect(await advanceTarget.requestCount() == 0)
+        #expect(await renderTarget.requestCount() == 1)
+        #expect(probe.recordedStages() == [.render, .encode])
+    }
+
+    @Test func currentArtifactMismatchRetainsSnapshotRawAndEncodedValues() async throws {
+        let fixture = try Self.makeFixture()
+        let request = Self.currentRequest(for: fixture)
+        let renderResult = Self.currentRenderResult(
+            sourceSnapshot: fixture.initialSnapshot,
+            request: request,
+            image: fixture.renderResult.image
+        )
+        let mismatchedArtifact = Self.artifact(
+            from: Self.currentArtifact(
+                sourceSnapshot: fixture.initialSnapshot,
+                request: request
+            ),
+            encoding: .png
+        )
+        let probe = Probe(
+            encodingResults: [.success(mismatchedArtifact)]
+        )
+        let advanceTarget = ScriptedAdvanceTarget(scripts: [], probe: probe)
+        let renderTarget = ScriptedRenderTarget(
+            scripts: [.immediate(.completed(renderResult))],
+            probe: probe
+        )
+        let coordinator = Self.coordinator(
+            advanceTarget: advanceTarget,
+            initialPresentationSnapshot: fixture.initialSnapshot,
+            renderTarget: renderTarget,
+            probe: probe
+        )
+
+        #expect(
+            await coordinator.captureCurrent(request)
+                == .artifactResultMismatch(
+                    sourceSnapshot: fixture.initialSnapshot,
+                    renderResult: renderResult,
+                    artifact: mismatchedArtifact
+                )
         )
         #expect(await advanceTarget.requestCount() == 0)
         #expect(await renderTarget.requestCount() == 1)
@@ -1021,7 +1132,7 @@ struct OfflineCaptureCoordinatorTests {
             expectedCursor: expectedCursor ?? fixture.initialSnapshot.cursor,
             viewpoint: fixture.request.viewpoint,
             renderSettings: fixture.request.renderSettings,
-            jpegSettings: fixture.request.jpegSettings
+            encoding: fixture.request.encoding
         )
     }
 
@@ -1044,13 +1155,31 @@ struct OfflineCaptureCoordinatorTests {
         request: OfflineCurrentCaptureRequest
     ) -> RenderedImageArtifact {
         RenderedImageArtifact(
-            format: .jpeg,
+            encoding: request.encoding,
             encodedData: Data([0xFF, 0xD8, 0x52, 0xFF, 0xD9]),
             sourceRequestID: request.renderRequestID,
             sourceCursor: sourceSnapshot.cursor,
             viewpoint: request.viewpoint,
-            renderSettings: request.renderSettings,
-            jpegSettings: request.jpegSettings
+            renderSettings: request.renderSettings
+        )
+    }
+
+    private static func artifact(
+        from source: RenderedImageArtifact,
+        encodedData: Data? = nil,
+        sourceRequestID: OffscreenRenderRequestID? = nil,
+        sourceCursor: SimulationCursor? = nil,
+        viewpoint: RenderViewpoint? = nil,
+        renderSettings: OffscreenRenderSettings? = nil,
+        encoding: ImageArtifactEncoding? = nil
+    ) -> RenderedImageArtifact {
+        RenderedImageArtifact(
+            encoding: encoding ?? source.encoding,
+            encodedData: encodedData ?? source.encodedData,
+            sourceRequestID: sourceRequestID ?? source.sourceRequestID,
+            sourceCursor: sourceCursor ?? source.sourceCursor,
+            viewpoint: viewpoint ?? source.viewpoint,
+            renderSettings: renderSettings ?? source.renderSettings
         )
     }
 
@@ -1064,9 +1193,7 @@ struct OfflineCaptureCoordinatorTests {
             advanceTarget: advanceTarget,
             initialPresentationSnapshot: initialPresentationSnapshot,
             renderTarget: renderTarget,
-            encodeJPEG: { renderResult, settings in
-                probe.encode(renderResult, settings: settings)
-            }
+            artifactEncoder: probe
         )
     }
 
@@ -1134,7 +1261,7 @@ struct OfflineCaptureCoordinatorTests {
             outputMode: .viewSpaceNormals,
             exposure: ManualExposure(multiplier: 1.25)
         )
-        let jpegSettings = JPEGEncodingSettings(
+        let encoding = ImageArtifactEncoding.jpeg(
             quality: try JPEGQuality(0.76)
         )
         let renderRequestID = OffscreenRenderRequestID(
@@ -1151,7 +1278,7 @@ struct OfflineCaptureCoordinatorTests {
             renderRequestID: renderRequestID,
             viewpoint: viewpoint,
             renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            encoding: encoding
         )
         let renderRequest = OffscreenRenderRequest(
             id: renderRequestID,
@@ -1171,13 +1298,12 @@ struct OfflineCaptureCoordinatorTests {
             image: image
         )
         let artifact = RenderedImageArtifact(
-            format: .jpeg,
+            encoding: encoding,
             encodedData: Data([0xFF, 0xD8, 0x41, 0xFF, 0xD9]),
             sourceRequestID: renderRequestID,
             sourceCursor: finalCursor,
             viewpoint: viewpoint,
-            renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            renderSettings: renderSettings
         )
 
         return Fixture(
@@ -1207,20 +1333,23 @@ struct OfflineCaptureCoordinatorTests {
 
     private struct EncoderInput: Equatable, Sendable {
         let renderResult: OffscreenRenderResult
-        let settings: JPEGEncodingSettings
+        let encoding: ImageArtifactEncoding
     }
 
-    nonisolated private final class Probe: @unchecked Sendable {
+    nonisolated private final class Probe:
+        PImageArtifactEncoder,
+        @unchecked Sendable
+    {
         private let lock = NSLock()
         private var stages: [Stage] = []
         private var encodingInputs: [EncoderInput] = []
         private var encodingResults: [
-            Result<RenderedImageArtifact, JPEGArtifactEncoderError>
+            Result<RenderedImageArtifact, ImageArtifactEncoderError>
         ]
 
         init(
             encodingResults: [
-                Result<RenderedImageArtifact, JPEGArtifactEncoderError>
+                Result<RenderedImageArtifact, ImageArtifactEncoderError>
             ] = []
         ) {
             self.encodingResults = encodingResults
@@ -1234,23 +1363,31 @@ struct OfflineCaptureCoordinatorTests {
 
         func encode(
             _ renderResult: OffscreenRenderResult,
-            settings: JPEGEncodingSettings
-        ) -> Result<RenderedImageArtifact, JPEGArtifactEncoderError> {
-            lock.lock()
-            stages.append(.encode)
-            encodingInputs.append(
-                EncoderInput(renderResult: renderResult, settings: settings)
-            )
-            let result = encodingResults.isEmpty
-                ? nil
-                : encodingResults.removeFirst()
-            lock.unlock()
+            as encoding: ImageArtifactEncoding
+        ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
+            let result = lock.withLock {
+                stages.append(.encode)
+                encodingInputs.append(
+                    EncoderInput(
+                        renderResult: renderResult,
+                        encoding: encoding
+                    )
+                )
+                return encodingResults.isEmpty
+                    ? nil
+                    : encodingResults.removeFirst()
+            }
 
             guard let result else {
-                Issue.record("JPEG encoder was invoked unexpectedly.")
-                return .failure(.couldNotCreateImage)
+                Issue.record("Artifact encoder was invoked unexpectedly.")
+                throw .couldNotCreateImage
             }
-            return result
+            switch result {
+            case let .success(artifact):
+                return artifact
+            case let .failure(failure):
+                throw failure
+            }
         }
 
         func recordedStages() -> [Stage] {
@@ -1448,7 +1585,7 @@ struct OfflineCaptureCoordinatorTests {
         }
     }
 
-    private actor SuspendedEncoder {
+    private actor SuspendedEncoder: PImageArtifactEncoder {
         private struct CountWaiter {
             let count: Int
             let continuation: CheckedContinuation<Void, Never>
@@ -1458,7 +1595,7 @@ struct OfflineCaptureCoordinatorTests {
         private var inputs: [EncoderInput] = []
         private var suspended: [
             CheckedContinuation<
-                Result<RenderedImageArtifact, JPEGArtifactEncoderError>,
+                Result<RenderedImageArtifact, ImageArtifactEncoderError>,
                 Never
             >
         ] = []
@@ -1470,16 +1607,22 @@ struct OfflineCaptureCoordinatorTests {
 
         func encode(
             _ renderResult: OffscreenRenderResult,
-            settings: JPEGEncodingSettings
-        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError> {
+            as encoding: ImageArtifactEncoding
+        ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
             probe.record(.encode)
             inputs.append(
-                EncoderInput(renderResult: renderResult, settings: settings)
+                EncoderInput(renderResult: renderResult, encoding: encoding)
             )
             notifyCountWaiters()
 
-            return await withCheckedContinuation { continuation in
+            let result = await withCheckedContinuation { continuation in
                 suspended.append(continuation)
+            }
+            switch result {
+            case let .success(artifact):
+                return artifact
+            case let .failure(failure):
+                throw failure
             }
         }
 
@@ -1505,11 +1648,11 @@ struct OfflineCaptureCoordinatorTests {
         func resumeNext(
             with result: Result<
                 RenderedImageArtifact,
-                JPEGArtifactEncoderError
+                ImageArtifactEncoderError
             >
         ) {
             guard !suspended.isEmpty else {
-                Issue.record("No suspended JPEG encoding was pending.")
+                Issue.record("No suspended artifact encoding was pending.")
                 return
             }
             suspended.removeFirst().resume(returning: result)

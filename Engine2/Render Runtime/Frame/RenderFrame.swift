@@ -12,7 +12,7 @@ struct RenderFrame: Equatable {
 
     /// Exact Simulation publication projected into this frame, when present.
     let sourceCursor: SimulationCursor?
-    /// Explicit Render-owned viewpoint used for projection, when one overrides the snapshot camera.
+    /// Explicit Render-owned viewpoint used for exact request projection.
     let viewpointID: RenderViewpointID?
     /// Revision of the explicit Render-owned viewpoint used for projection.
     let viewpointRevision: RenderViewpointRevision?
@@ -24,12 +24,13 @@ struct RenderFrame: Equatable {
         sourceCursor?.tick
     }
 
-    /// Projects publisher-owned presentation facts into private render data.
-    init(
-        projecting snapshot: SimulationPresentationSnapshot,
-        viewpoint: RenderViewpoint? = nil
-    ) {
-        let camera = viewpoint?.camera ?? snapshot.camera
+    /// Projects publisher-owned presentation facts for the live screen.
+    ///
+    /// The Simulation publication is the complete authority for both scene and
+    /// camera state on this path. Output-selected viewpoints are accepted only
+    /// by the exact request initializer used for deliberate offscreen work.
+    init(projecting snapshot: SimulationPresentationSnapshot) {
+        let camera = snapshot.camera
 
         // An invalid camera would poison every model-view transform. Preserve
         // the selected camera value and its provenance for inspection, but
@@ -38,8 +39,8 @@ struct RenderFrame: Equatable {
         guard camera.supportsViewTransform else {
             self.init(
                 sourceCursor: snapshot.cursor,
-                viewpointID: viewpoint?.id,
-                viewpointRevision: viewpoint?.revision,
+                viewpointID: nil,
+                viewpointRevision: nil,
                 camera: camera,
                 instances: []
             )
@@ -56,8 +57,8 @@ struct RenderFrame: Equatable {
 
         self.init(
             sourceCursor: snapshot.cursor,
-            viewpointID: viewpoint?.id,
-            viewpointRevision: viewpoint?.revision,
+            viewpointID: nil,
+            viewpointRevision: nil,
             camera: camera,
             instances: instances
         )

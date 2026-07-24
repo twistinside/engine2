@@ -6,7 +6,7 @@
 /// when available. No case advances Simulation, samples a latest-value source,
 /// or retries work.
 nonisolated enum OfflineCurrentCaptureOutcome: Equatable, Sendable {
-    /// Raw rendering and JPEG encoding completed without advancing Simulation.
+    /// Raw rendering and artifact encoding completed without advancing Simulation.
     case completed(OfflineCurrentCaptureResult)
 
     /// Another advance or current-state workflow owns the serial coordinator.
@@ -52,16 +52,23 @@ nonisolated enum OfflineCurrentCaptureOutcome: Equatable, Sendable {
         renderResult: OffscreenRenderResult
     )
 
-    /// Raw rendering completed, but cancellation prevented JPEG encoding.
+    /// Raw rendering completed, but cancellation prevented artifact encoding.
     case cancelledAfterRender(
         sourceSnapshot: SimulationPresentationSnapshot,
         renderResult: OffscreenRenderResult
     )
 
-    /// JPEG derivation failed without changing either completed predecessor.
-    case jpegEncodingFailed(
+    /// Artifact derivation failed without changing either completed predecessor.
+    case artifactEncodingFailed(
         sourceSnapshot: SimulationPresentationSnapshot,
         renderResult: OffscreenRenderResult,
-        failure: JPEGArtifactEncoderError
+        failure: ImageArtifactEncoderError
+    )
+
+    /// The encoder returned empty bytes or attribution for another operation.
+    case artifactResultMismatch(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        renderResult: OffscreenRenderResult,
+        artifact: RenderedImageArtifact
     )
 }

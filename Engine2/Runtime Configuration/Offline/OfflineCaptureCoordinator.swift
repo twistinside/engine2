@@ -1,13 +1,14 @@
 /// Sole effective advance authority in one offline capture assembly.
 ///
 /// The coordinator serializes an exact Simulation request, an exact raw render
-/// of the returned immutable snapshot, and awaited CPU-side JPEG derivation. It
-/// keeps the CPU transform off its actor while retaining the single-flight gate.
-/// It does not sample latest-value sources, expose its dependencies, retry
-/// implicitly, or treat downstream failure as permission to advance again.
+/// of the returned immutable snapshot, and awaited CPU-side artifact derivation.
+/// It retains the single-flight gate while the encoder owns its execution
+/// context. The coordinator does not sample latest-value sources, expose its
+/// dependencies, retry implicitly, or treat downstream failure as permission
+/// to advance again.
 actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     private let advanceTarget: any PSimulationAdvanceTarget
-    private let imageDeriver: OffscreenJPEGArtifactDeriver
+    private let imageDeriver: OffscreenImageArtifactDeriver
 
     /// Sole exact presentation retained for current-cursor output work.
     ///
@@ -23,40 +24,18 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     /// backpressure instead of an invisible actor mailbox queue.
     private var isCapturing = false
 
-    /// Creates the production coordinator around the concrete JPEG derivation.
+    /// Creates a coordinator from independently owned workflow capabilities.
     init(
         advanceTarget: any PSimulationAdvanceTarget,
         initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: any POffscreenRenderTarget,
-        jpegArtifactEncoder: JPEGArtifactEncoder = JPEGArtifactEncoder()
+        artifactEncoder: any PImageArtifactEncoder = ImageIOArtifactEncoder()
     ) {
         self.advanceTarget = advanceTarget
         self.currentPresentationSnapshot = initialPresentationSnapshot
-        self.imageDeriver = OffscreenJPEGArtifactDeriver(
+        self.imageDeriver = OffscreenImageArtifactDeriver(
             renderTarget: renderTarget,
-            jpegArtifactEncoder: jpegArtifactEncoder
-        )
-    }
-
-    /// Creates a coordinator with a deterministic typed encoding implementation.
-    ///
-    /// Production composition uses the concrete-encoder initializer above. This
-    /// seam makes rare Image I/O failures testable without adding an encoder
-    /// Runtime, mutable test hooks, or malformed image values to production.
-    init(
-        advanceTarget: any PSimulationAdvanceTarget,
-        initialPresentationSnapshot: SimulationPresentationSnapshot,
-        renderTarget: any POffscreenRenderTarget,
-        encodeJPEG: @escaping @Sendable (
-            OffscreenRenderResult,
-            JPEGEncodingSettings
-        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
-    ) {
-        self.advanceTarget = advanceTarget
-        self.currentPresentationSnapshot = initialPresentationSnapshot
-        self.imageDeriver = OffscreenJPEGArtifactDeriver(
-            renderTarget: renderTarget,
-            encodeJPEG: encodeJPEG
+            artifactEncoder: artifactEncoder
         )
     }
 
@@ -125,7 +104,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
                 renderRequestID: request.renderRequestID,
                 viewpoint: request.viewpoint,
                 renderSettings: request.renderSettings,
-                jpegSettings: request.jpegSettings
+                encoding: request.encoding
             ),
             advanceResult: advanceResult
         )
@@ -164,7 +143,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
                 renderRequestID: request.renderRequestID,
                 viewpoint: request.viewpoint,
                 renderSettings: request.renderSettings,
-                jpegSettings: request.jpegSettings
+                encoding: request.encoding
             ),
             sourceSnapshot: sourceSnapshot
         )
@@ -172,7 +151,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
 
     /// Restores the existing advance-aware public outcome vocabulary.
     private func offlineCaptureOutcome(
-        from outcome: OffscreenJPEGArtifactOutcome,
+        from outcome: OffscreenImageArtifactOutcome,
         advanceResult: SimulationAdvanceResult
     ) -> OfflineCaptureOutcome {
         switch outcome {
@@ -221,18 +200,25 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
                 renderResult: renderResult
             )
 
-        case let .jpegEncodingFailed(renderResult, failure):
-            .jpegEncodingFailed(
+        case let .artifactEncodingFailed(renderResult, failure):
+            .artifactEncodingFailed(
                 advanceResult: advanceResult,
                 renderResult: renderResult,
                 failure: failure
+            )
+
+        case let .artifactResultMismatch(renderResult, artifact):
+            .artifactResultMismatch(
+                advanceResult: advanceResult,
+                renderResult: renderResult,
+                artifact: artifact
             )
         }
     }
 
     /// Adds current-presentation provenance to the common output terminal.
     private func offlineCurrentCaptureOutcome(
-        from outcome: OffscreenJPEGArtifactOutcome,
+        from outcome: OffscreenImageArtifactOutcome,
         sourceSnapshot: SimulationPresentationSnapshot
     ) -> OfflineCurrentCaptureOutcome {
         switch outcome {
@@ -281,11 +267,18 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
                 renderResult: renderResult
             )
 
-        case let .jpegEncodingFailed(renderResult, failure):
-            .jpegEncodingFailed(
+        case let .artifactEncodingFailed(renderResult, failure):
+            .artifactEncodingFailed(
                 sourceSnapshot: sourceSnapshot,
                 renderResult: renderResult,
                 failure: failure
+            )
+
+        case let .artifactResultMismatch(renderResult, artifact):
+            .artifactResultMismatch(
+                sourceSnapshot: sourceSnapshot,
+                renderResult: renderResult,
+                artifact: artifact
             )
         }
     }
