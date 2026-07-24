@@ -18,10 +18,11 @@ struct RealtimeSnapshotCaptureIntegrationTests {
         let renderRuntime = try MetalOffscreenRenderRuntime(
             catalog: gameContent.renderAssetCatalog
         )
+        let viewpointID = RenderViewpointID()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: assembly.simulationRuntime,
-            viewpointSource: assembly.screenViewpointController,
-            renderTarget: renderRuntime
+            renderTarget: renderRuntime,
+            viewpointID: viewpointID
         )
         let renderSettings = OffscreenRenderSettings(
             size: try RenderPixelSize(width: 96, height: 64),
@@ -31,7 +32,7 @@ struct RealtimeSnapshotCaptureIntegrationTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: renderSettings,
-            jpegSettings: JPEGEncodingSettings(quality: .maximum)
+            encoding: .png
         )
 
         let outcome = await connection.capture(request)
@@ -45,18 +46,24 @@ struct RealtimeSnapshotCaptureIntegrationTests {
         #expect(artifact.sourceCursor == sourceCursor)
         #expect(artifact.sourceRequestID == request.renderRequestID)
         #expect(artifact.renderSettings == renderSettings)
+        #expect(artifact.encoding == .png)
         #expect(
-            artifact.viewpoint
-                == assembly.screenViewpointController.resolveViewpoint(
-                    defaultCamera: sourceSnapshot.camera
-                )
+            Array(artifact.encodedData.prefix(8))
+                == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        )
+        #expect(
+            artifact.viewpoint == RenderViewpoint(
+                id: viewpointID,
+                revision: .zero,
+                camera: sourceSnapshot.camera
+            )
         )
 
         let imageSource = try #require(
             CGImageSourceCreateWithData(artifact.encodedData as CFData, nil)
         )
         let typeIdentifier = try #require(CGImageSourceGetType(imageSource))
-        #expect(typeIdentifier as String == UTType.jpeg.identifier)
+        #expect(typeIdentifier as String == UTType.png.identifier)
 
         let image = try #require(
             CGImageSourceCreateImageAtIndex(imageSource, 0, nil)

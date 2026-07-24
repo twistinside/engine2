@@ -13,10 +13,11 @@ nonisolated struct JPEGArtifactDocument: FileDocument, Equatable, Sendable {
 
     /// Creates an export document from a completed artifact.
     init(artifact: RenderedImageArtifact) {
-        precondition(
-            artifact.format == .jpeg,
-            "JPEGArtifactDocument requires a JPEG artifact."
-        )
+        guard case .jpeg = artifact.encoding else {
+            preconditionFailure(
+                "JPEGArtifactDocument requires a JPEG artifact."
+            )
+        }
         self.encodedData = artifact.encodedData
     }
 

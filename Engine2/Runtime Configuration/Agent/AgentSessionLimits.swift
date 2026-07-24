@@ -1,8 +1,9 @@
 /// Bounded-work and live-process replay-retention policy for an agent session.
 ///
-/// The byte budget counts only retained encoded artifact data or detached raw
-/// image data. Swift object overhead and retained Simulation snapshots are not
-/// exactly measurable and are deliberately outside this named bound.
+/// The byte budget counts retained encoded artifact data and detached raw image
+/// data. A diagnostic outcome retaining both counts both payloads. Swift object
+/// overhead and retained Simulation snapshots are not exactly measurable and
+/// are deliberately outside this named bound.
 nonisolated struct AgentSessionLimits: Equatable, Sendable {
     /// Conservative policy for interactive tool and agent use.
     static let conservativeDefault = AgentSessionLimits()

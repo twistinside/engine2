@@ -1,57 +1,24 @@
-/// Applies exact offscreen rendering, result correlation, and JPEG derivation.
+/// Applies exact offscreen rendering, correlation, and artifact derivation.
 ///
 /// This stateless connection accepts an immutable Simulation snapshot and
 /// output-specific viewpoint by value. It never samples application state,
 /// advances Simulation, or owns a cadence. Callers retain authority over source
 /// selection and any single-flight policy that must span adjacent workflow
 /// stages.
-nonisolated struct OffscreenJPEGArtifactDeriver: Sendable {
-    /// Injectable stateless encoding seam used by deterministic workflow tests.
-    private let encodeJPEG: @Sendable (
-        OffscreenRenderResult,
-        JPEGEncodingSettings
-    ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
+nonisolated struct OffscreenImageArtifactDeriver: Sendable {
+    private let artifactEncoder: any PImageArtifactEncoder
     private let renderTarget: any POffscreenRenderTarget
 
-    /// Creates a production deriver around the concrete JPEG transformation.
+    /// Creates a deriver from independently owned Render and encoding capabilities.
+    ///
+    /// Initialization only wires dependencies. Rendering, CPU scheduling, and
+    /// all fallible work begin in ``derive(sourceSnapshot:renderRequestID:viewpoint:renderSettings:encoding:)``.
     init(
         renderTarget: any POffscreenRenderTarget,
-        jpegArtifactEncoder: JPEGArtifactEncoder = JPEGArtifactEncoder()
+        artifactEncoder: any PImageArtifactEncoder
     ) {
         self.renderTarget = renderTarget
-        self.encodeJPEG = { renderResult, settings in
-            // JPEG derivation can be substantial at the offscreen size limit.
-            // The detached task deliberately does not inherit cancellation:
-            // once encoding starts, its completed value wins and is reported.
-            await Task.detached {
-                do {
-                    return .success(
-                        try jpegArtifactEncoder.encode(
-                            renderResult,
-                            settings: settings
-                        )
-                    )
-                } catch let failure as JPEGArtifactEncoderError {
-                    return .failure(failure)
-                } catch {
-                    preconditionFailure(
-                        "JPEGArtifactEncoder threw an undocumented error: \(error)"
-                    )
-                }
-            }.value
-        }
-    }
-
-    /// Creates a deriver with a deterministic typed encoding implementation.
-    init(
-        renderTarget: any POffscreenRenderTarget,
-        encodeJPEG: @escaping @Sendable (
-            OffscreenRenderResult,
-            JPEGEncodingSettings
-        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
-    ) {
-        self.renderTarget = renderTarget
-        self.encodeJPEG = encodeJPEG
+        self.artifactEncoder = artifactEncoder
     }
 
     /// Renders and derives one artifact while enforcing complete provenance.
@@ -60,8 +27,8 @@ nonisolated struct OffscreenJPEGArtifactDeriver: Sendable {
         renderRequestID: OffscreenRenderRequestID,
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings
-    ) async -> OffscreenJPEGArtifactOutcome {
+        encoding: ImageArtifactEncoding
+    ) async -> OffscreenImageArtifactOutcome {
         let renderRequest = OffscreenRenderRequest(
             id: renderRequestID,
             presentationSnapshot: sourceSnapshot,
@@ -105,14 +72,27 @@ nonisolated struct OffscreenJPEGArtifactDeriver: Sendable {
             return .cancelledAfterRender(renderResult)
         }
 
-        switch await encodeJPEG(renderResult, jpegSettings) {
-        case let .success(artifact):
+        do {
+            let artifact = try await artifactEncoder.encode(
+                renderResult,
+                as: encoding
+            )
+            guard !artifact.encodedData.isEmpty,
+                  artifact.sourceRequestID == renderResult.requestID,
+                  artifact.sourceCursor == renderResult.sourceCursor,
+                  artifact.viewpoint == renderResult.viewpoint,
+                  artifact.renderSettings == renderResult.settings,
+                  artifact.encoding == encoding else {
+                return .artifactResultMismatch(
+                    renderResult: renderResult,
+                    artifact: artifact
+                )
+            }
             return .completed(artifact)
-
-        case let .failure(failure):
-            return .jpegEncodingFailed(
+        } catch {
+            return .artifactEncodingFailed(
                 renderResult: renderResult,
-                failure: failure
+                failure: error
             )
         }
     }

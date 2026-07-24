@@ -14,10 +14,15 @@ nonisolated enum RealtimeSnapshotCaptureOutcome: Equatable, Sendable {
         artifact: RenderedImageArtifact
     )
     case connectionBusy
-    case jpegEncodingFailed(
+    case artifactEncodingFailed(
         sourceSnapshot: SimulationPresentationSnapshot,
         renderResult: OffscreenRenderResult,
-        failure: JPEGArtifactEncoderError
+        failure: ImageArtifactEncoderError
+    )
+    case artifactResultMismatch(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        renderResult: OffscreenRenderResult,
+        artifact: RenderedImageArtifact
     )
     case renderCancellationRequestIDMismatch(
         sourceSnapshot: SimulationPresentationSnapshot,

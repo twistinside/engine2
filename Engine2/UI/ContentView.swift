@@ -9,7 +9,6 @@ import UniformTypeIdentifiers
 /// a detached offscreen artifact through an App-owned connection.
 struct ContentView: View {
     let presentationSource: any PSimulationPresentationSource
-    let viewpointSource: any PRenderViewpointSource
     let inputSink: any PInputEventSink
     let isSimulationRunning: @MainActor () -> Bool
     let inputHistory: @MainActor () -> [InputHistoryEntry]
@@ -27,7 +26,6 @@ struct ContentView: View {
             MetalSceneView(
                 renderAssetCatalog: renderAssetCatalog,
                 presentationSource: presentationSource,
-                viewpointSource: viewpointSource,
                 inputSink: inputSink,
                 outputMode: debugOptions.renderOutputMode
             )

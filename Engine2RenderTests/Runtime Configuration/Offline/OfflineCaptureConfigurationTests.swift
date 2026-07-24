@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 struct OfflineCaptureConfigurationTests {
     @MainActor
     @Test
-    func composesExactSimulationMetalAndJPEGWorkAcrossSequentialCaptures() async throws {
+    func composesSimulationMetalAndImageArtifactsAcrossCaptures() async throws {
         let sessionID = SimulationSessionID(
             rawValue: UUID(
                 uuidString: "40000000-0000-0000-0000-000000000001"
@@ -39,7 +39,7 @@ struct OfflineCaptureConfigurationTests {
             outputMode: .surface,
             exposure: .validation
         )
-        let firstJPEGSettings = JPEGEncodingSettings(
+        let firstEncoding = ImageArtifactEncoding.jpeg(
             quality: try JPEGQuality(0.72)
         )
         let firstRequest = OfflineCaptureRequest(
@@ -54,12 +54,12 @@ struct OfflineCaptureConfigurationTests {
             ),
             viewpoint: firstViewpoint,
             renderSettings: firstRenderSettings,
-            jpegSettings: firstJPEGSettings
+            encoding: firstEncoding
         )
 
         // The public assembly boundary performs real fixed-step Simulation,
-        // real Metal offscreen submission/readback, then real Image I/O JPEG
-        // derivation without exposing any of its concrete Runtime references.
+        // real Metal offscreen submission/readback, then real Image I/O
+        // derivation without exposing any concrete Runtime references.
         let firstResult = try completedResult(
             from: await captureTarget.capture(firstRequest)
         )
@@ -84,7 +84,7 @@ struct OfflineCaptureConfigurationTests {
             cursor: firstResult.advanceResult.finalCursor,
             viewpoint: firstViewpoint,
             renderSettings: firstRenderSettings,
-            jpegSettings: firstJPEGSettings
+            encoding: firstEncoding
         )
 
         let secondViewpoint = RenderViewpoint(
@@ -100,7 +100,7 @@ struct OfflineCaptureConfigurationTests {
             outputMode: .viewSpaceNormals,
             exposure: ManualExposure(multiplier: 1.25)
         )
-        let secondJPEGSettings = JPEGEncodingSettings(quality: .maximum)
+        let secondEncoding = ImageArtifactEncoding.png
         let secondRequest = OfflineCaptureRequest(
             advanceRequest: SimulationAdvanceRequest(
                 expectedCursor: firstResult.advanceResult.finalCursor,
@@ -113,7 +113,7 @@ struct OfflineCaptureConfigurationTests {
             ),
             viewpoint: secondViewpoint,
             renderSettings: secondRenderSettings,
-            jpegSettings: secondJPEGSettings
+            encoding: secondEncoding
         )
 
         let secondResult = try completedResult(
@@ -146,7 +146,7 @@ struct OfflineCaptureConfigurationTests {
             cursor: secondResult.advanceResult.finalCursor,
             viewpoint: secondViewpoint,
             renderSettings: secondRenderSettings,
-            jpegSettings: secondJPEGSettings
+            encoding: secondEncoding
         )
 
         #expect(
@@ -183,9 +183,8 @@ struct OfflineCaptureConfigurationTests {
         cursor: SimulationCursor,
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings
+        encoding: ImageArtifactEncoding
     ) throws {
-        #expect(artifact.format == .jpeg)
         #expect(!artifact.encodedData.isEmpty)
         #expect(artifact.sourceRequestID == requestID)
         #expect(artifact.sourceCursor == cursor)
@@ -194,13 +193,26 @@ struct OfflineCaptureConfigurationTests {
         #expect(artifact.viewpoint.revision == viewpoint.revision)
         #expect(artifact.viewpoint.camera == viewpoint.camera)
         #expect(artifact.renderSettings == renderSettings)
-        #expect(artifact.jpegSettings == jpegSettings)
+        #expect(artifact.encoding == encoding)
 
+        let expectedType: UTType
+        switch encoding {
+        case .jpeg:
+            expectedType = .jpeg
+            #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
+            #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
+        case .png:
+            expectedType = .png
+            #expect(
+                Array(artifact.encodedData.prefix(8))
+                    == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+            )
+        }
         let source = try #require(
             CGImageSourceCreateWithData(artifact.encodedData as CFData, nil)
         )
         let typeIdentifier = try #require(CGImageSourceGetType(source))
-        #expect(typeIdentifier as String == UTType.jpeg.identifier)
+        #expect(typeIdentifier as String == expectedType.identifier)
 
         let decodedImage = try #require(
             CGImageSourceCreateImageAtIndex(source, 0, nil)

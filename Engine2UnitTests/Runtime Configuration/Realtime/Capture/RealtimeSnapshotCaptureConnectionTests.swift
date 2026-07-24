@@ -5,34 +5,21 @@ import Testing
 
 struct RealtimeSnapshotCaptureConnectionTests {
     @Test @MainActor
-    func selectsSnapshotAndViewpointTogetherBeforeRenderingSuspends() async throws {
+    func locksSelectedSnapshotCameraBeforeRenderingSuspends() async throws {
         let initialSnapshot = Self.snapshot(tick: 3, cameraX: 0)
         let laterSnapshot = Self.snapshot(
             sessionID: initialSnapshot.cursor.sessionID,
             tick: 4,
             cameraX: 2
         )
-        let selectedViewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 7),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(1, 0.5, 8)
-            )
-        )
-        let laterViewpoint = RenderViewpoint(
-            id: selectedViewpoint.id,
-            revision: selectedViewpoint.revision.advanced(),
-            camera: laterSnapshot.camera
-        )
+        let viewpointID = RenderViewpointID()
         let presentationSource = MutablePresentationSource(initialSnapshot)
-        let viewpointSource = MutableViewpointSource(selectedViewpoint)
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
-            viewpointSource: viewpointSource,
             renderTarget: renderTarget,
-            encodeJPEG: Self.encodeJPEG
+            viewpointID: viewpointID,
+            artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
@@ -40,7 +27,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
                 size: try RenderPixelSize(width: 8, height: 6),
                 outputMode: .viewSpaceNormals
             ),
-            jpegSettings: JPEGEncodingSettings(quality: .maximum)
+            encoding: .jpeg(quality: .maximum)
         )
 
         let capture = Task {
@@ -48,22 +35,26 @@ struct RealtimeSnapshotCaptureConnectionTests {
         }
         let renderRequest = await renderTarget.waitForFirstRequest()
 
-        // Mutate both live sources while GPU work is suspended. The request and
-        // completed outcome must continue to carry the values selected together.
+        // Mutate the live source while GPU work is suspended. The request and
+        // completed outcome must continue to carry the selected value.
         presentationSource.snapshot = laterSnapshot
-        viewpointSource.viewpoint = laterViewpoint
 
         let renderResult = try Self.renderResult(for: renderRequest)
         await renderTarget.complete(.completed(renderResult))
         let outcome = await capture.value
         let artifact = Self.artifact(
             for: renderResult,
-            settings: request.jpegSettings
+            encoding: request.encoding
         )
 
         #expect(renderRequest.presentationSnapshot == initialSnapshot)
-        #expect(renderRequest.viewpoint == selectedViewpoint)
-        #expect(viewpointSource.resolvedDefaultCameras == [initialSnapshot.camera])
+        #expect(
+            renderRequest.viewpoint == RenderViewpoint(
+                id: viewpointID,
+                revision: .zero,
+                camera: initialSnapshot.camera
+            )
+        )
         #expect(
             outcome == .completed(
                 sourceSnapshot: initialSnapshot,
@@ -73,21 +64,96 @@ struct RealtimeSnapshotCaptureConnectionTests {
     }
 
     @Test @MainActor
-    func overlappingCaptureReturnsBusyWithoutSamplingAgain() async throws {
-        let snapshot = Self.snapshot(tick: 1, cameraX: 0)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: snapshot.camera
+    func sequentialCapturesKeepOneIdentityAndFollowSimulationPublications() async throws {
+        let firstSnapshot = Self.snapshot(tick: 43, cameraX: -2)
+        let secondSnapshot = Self.snapshot(
+            sessionID: firstSnapshot.cursor.sessionID,
+            tick: 44,
+            cameraX: 3
         )
-        let presentationSource = MutablePresentationSource(snapshot)
-        let viewpointSource = MutableViewpointSource(viewpoint)
+        let viewpointID = RenderViewpointID()
+        let presentationSource = MutablePresentationSource(firstSnapshot)
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
-            viewpointSource: viewpointSource,
             renderTarget: renderTarget,
-            encodeJPEG: Self.encodeJPEG
+            viewpointID: viewpointID,
+            artifactEncoder: CorrelatedArtifactEncoder()
+        )
+        let firstRequest = RealtimeSnapshotCaptureRequest(
+            renderSettings: OffscreenRenderSettings(
+                size: try RenderPixelSize(width: 4, height: 4)
+            )
+        )
+        let secondRequest = RealtimeSnapshotCaptureRequest(
+            renderSettings: OffscreenRenderSettings(
+                size: try RenderPixelSize(width: 8, height: 6)
+            ),
+            encoding: .png
+        )
+
+        let firstCapture = Task {
+            await connection.capture(firstRequest)
+        }
+        let firstRenderRequest = await renderTarget.waitForRequest(at: 0)
+        let firstRenderResult = try Self.renderResult(for: firstRenderRequest)
+        await renderTarget.complete(.completed(firstRenderResult))
+        guard case let .completed(firstSelectedSnapshot, firstArtifact) =
+            await firstCapture.value
+        else {
+            Issue.record("Expected first capture to complete")
+            return
+        }
+
+        presentationSource.snapshot = secondSnapshot
+
+        let secondCapture = Task {
+            await connection.capture(secondRequest)
+        }
+        let secondRenderRequest = await renderTarget.waitForRequest(at: 1)
+        let secondRenderResult = try Self.renderResult(for: secondRenderRequest)
+        await renderTarget.complete(.completed(secondRenderResult))
+        guard case let .completed(secondSelectedSnapshot, secondArtifact) =
+            await secondCapture.value
+        else {
+            Issue.record("Expected second capture to complete")
+            return
+        }
+
+        #expect(firstSelectedSnapshot == firstSnapshot)
+        #expect(secondSelectedSnapshot == secondSnapshot)
+        #expect(firstRenderRequest.presentationSnapshot == firstSnapshot)
+        #expect(secondRenderRequest.presentationSnapshot == secondSnapshot)
+        #expect(
+            firstArtifact.viewpoint == RenderViewpoint(
+                id: viewpointID,
+                revision: .zero,
+                camera: firstSnapshot.camera
+            )
+        )
+        #expect(
+            secondArtifact.viewpoint == RenderViewpoint(
+                id: viewpointID,
+                revision: .zero,
+                camera: secondSnapshot.camera
+            )
+        )
+        #expect(firstArtifact.sourceCursor == firstSnapshot.cursor)
+        #expect(secondArtifact.sourceCursor == secondSnapshot.cursor)
+        #expect(firstArtifact.encoding == firstRequest.encoding)
+        #expect(secondArtifact.encoding == secondRequest.encoding)
+        #expect(presentationSource.sampleCount == 2)
+    }
+
+    @Test @MainActor
+    func overlappingCaptureReturnsBusyWithoutSamplingAgain() async throws {
+        let snapshot = Self.snapshot(tick: 1, cameraX: 0)
+        let presentationSource = MutablePresentationSource(snapshot)
+        let renderTarget = ControlledRenderTarget()
+        let connection = RealtimeSnapshotCaptureConnection(
+            presentationSource: presentationSource,
+            renderTarget: renderTarget,
+            artifactEncoder: CorrelatedArtifactEncoder()
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -108,7 +174,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let overlap = await connection.capture(secondRequest)
 
         #expect(overlap == .connectionBusy)
-        #expect(viewpointSource.resolvedDefaultCameras.count == 1)
+        #expect(presentationSource.sampleCount == 1)
         #expect(await renderTarget.requestCount() == 1)
 
         let result = try Self.renderResult(for: admittedRequest)
@@ -117,24 +183,15 @@ struct RealtimeSnapshotCaptureConnectionTests {
     }
 
     @Test @MainActor
-    func overlapDuringJPEGEncodingReturnsBusyWithoutResampling() async throws {
+    func overlapDuringArtifactEncodingReturnsBusyWithoutResampling() async throws {
         let snapshot = Self.snapshot(tick: 11, cameraX: 0)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: snapshot.camera
-        )
         let presentationSource = MutablePresentationSource(snapshot)
-        let viewpointSource = MutableViewpointSource(viewpoint)
         let renderTarget = ControlledRenderTarget()
-        let encoder = SuspendedJPEGEncoder()
+        let encoder = SuspendedArtifactEncoder()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
-            viewpointSource: viewpointSource,
             renderTarget: renderTarget,
-            encodeJPEG: { result, settings in
-                await encoder.encode(result, settings: settings)
-            }
+            artifactEncoder: encoder
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -159,12 +216,11 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
         #expect(overlap == .connectionBusy)
         #expect(presentationSource.sampleCount == 1)
-        #expect(viewpointSource.resolvedDefaultCameras.count == 1)
         #expect(await renderTarget.requestCount() == 1)
 
         let artifact = Self.artifact(
             for: renderResult,
-            settings: firstRequest.jpegSettings
+            encoding: firstRequest.encoding
         )
         await encoder.complete(.success(artifact))
         #expect(
@@ -179,19 +235,12 @@ struct RealtimeSnapshotCaptureConnectionTests {
     @Test @MainActor
     func preCancelledCaptureDoesNotSampleSourcesOrRender() async throws {
         let snapshot = Self.snapshot(tick: 17, cameraX: 0)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: snapshot.camera
-        )
         let presentationSource = MutablePresentationSource(snapshot)
-        let viewpointSource = MutableViewpointSource(viewpoint)
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
-            viewpointSource: viewpointSource,
             renderTarget: renderTarget,
-            encodeJPEG: Self.encodeJPEG
+            artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -209,24 +258,17 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
         #expect(outcome == .cancelledBeforeRender)
         #expect(presentationSource.sampleCount == 0)
-        #expect(viewpointSource.resolvedDefaultCameras.isEmpty)
         #expect(await renderTarget.requestCount() == 0)
     }
 
     @Test @MainActor
     func cancellationAfterRawRenderRetainsExactSnapshotAndResult() async throws {
         let snapshot = Self.snapshot(tick: 23, cameraX: 0)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: snapshot.camera
-        )
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
-            viewpointSource: MutableViewpointSource(viewpoint),
             renderTarget: renderTarget,
-            encodeJPEG: Self.encodeJPEG
+            artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -252,25 +294,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
     }
 
     @Test @MainActor
-    func mismatchedRenderProvenancePreventsJPEGEncoding() async throws {
+    func mismatchedRenderProvenancePreventsArtifactEncoding() async throws {
         let snapshot = Self.snapshot(tick: 31, cameraX: 0)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: snapshot.camera
-        )
         let renderTarget = ControlledRenderTarget()
-        let encodingCalls = EncodingCallCounter()
+        let encoder = CountingArtifactEncoder()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
-            viewpointSource: MutableViewpointSource(viewpoint),
             renderTarget: renderTarget,
-            encodeJPEG: { result, settings in
-                await encodingCalls.record()
-                return .success(
-                    Self.artifact(for: result, settings: settings)
-                )
-            }
+            artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -303,17 +334,12 @@ struct RealtimeSnapshotCaptureConnectionTests {
                     renderResult: mismatchedResult
                 )
         )
-        #expect(await encodingCalls.count() == 0)
+        #expect(await encoder.count() == 0)
     }
 
     @Test @MainActor
     func everyPreEncodingRenderTerminalPreservesTheSelectedSnapshot() async throws {
         let snapshot = Self.snapshot(tick: 37, cameraX: 1)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 9),
-            camera: snapshot.camera
-        )
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
@@ -367,17 +393,11 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
         for terminal in terminals {
             let renderTarget = ControlledRenderTarget()
-            let encodingCalls = EncodingCallCounter()
+            let encoder = CountingArtifactEncoder()
             let connection = RealtimeSnapshotCaptureConnection(
                 presentationSource: MutablePresentationSource(snapshot),
-                viewpointSource: MutableViewpointSource(viewpoint),
                 renderTarget: renderTarget,
-                encodeJPEG: { result, settings in
-                    await encodingCalls.record()
-                    return .success(
-                        Self.artifact(for: result, settings: settings)
-                    )
-                }
+                artifactEncoder: encoder
             )
             let capture = Task {
                 await connection.capture(request)
@@ -388,30 +408,21 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await renderTarget.complete(terminal.render)
 
             #expect(await capture.value == terminal.expected)
-            #expect(await encodingCalls.count() == 0)
+            #expect(await encoder.count() == 0)
         }
     }
 
     @Test @MainActor
-    func jpegFailurePreservesSelectedSnapshotAndRawResult() async throws {
+    func artifactFailurePreservesSelectedSnapshotAndRawResult() async throws {
         let snapshot = Self.snapshot(tick: 41, cameraX: -1)
-        let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: snapshot.camera
-        )
         let renderTarget = ControlledRenderTarget()
-        let encodingCalls = EncodingCallCounter()
         let encodingFailure =
-            JPEGArtifactEncoderError.destinationFinalizationFailed
+            ImageArtifactEncoderError.destinationFinalizationFailed
+        let encoder = CountingArtifactEncoder(failure: encodingFailure)
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
-            viewpointSource: MutableViewpointSource(viewpoint),
             renderTarget: renderTarget,
-            encodeJPEG: { _, _ in
-                await encodingCalls.record()
-                return .failure(encodingFailure)
-            }
+            artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -426,20 +437,51 @@ struct RealtimeSnapshotCaptureConnectionTests {
         await renderTarget.complete(.completed(renderResult))
 
         #expect(
-            await capture.value == .jpegEncodingFailed(
+            await capture.value == .artifactEncodingFailed(
                 sourceSnapshot: snapshot,
                 renderResult: renderResult,
                 failure: encodingFailure
             )
         )
-        #expect(await encodingCalls.count() == 1)
+        #expect(await encoder.count() == 1)
     }
 
-    private nonisolated static func encodeJPEG(
-        _ result: OffscreenRenderResult,
-        settings: JPEGEncodingSettings
-    ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError> {
-        .success(Self.artifact(for: result, settings: settings))
+    @Test @MainActor
+    func mismatchedArtifactProvenanceRetainsRawAndEncodedValues() async throws {
+        let snapshot = Self.snapshot(tick: 47, cameraX: 1)
+        let renderTarget = ControlledRenderTarget()
+        let encoder = CountingArtifactEncoder(mismatchesEncoding: true)
+        let connection = RealtimeSnapshotCaptureConnection(
+            presentationSource: MutablePresentationSource(snapshot),
+            renderTarget: renderTarget,
+            artifactEncoder: encoder
+        )
+        let request = RealtimeSnapshotCaptureRequest(
+            renderSettings: OffscreenRenderSettings(
+                size: try RenderPixelSize(width: 4, height: 4)
+            ),
+            encoding: .png
+        )
+
+        let capture = Task {
+            await connection.capture(request)
+        }
+        let admittedRequest = await renderTarget.waitForFirstRequest()
+        let renderResult = try Self.renderResult(for: admittedRequest)
+        await renderTarget.complete(.completed(renderResult))
+        let mismatchedArtifact = Self.artifact(
+            for: renderResult,
+            encoding: .observationJPEG
+        )
+
+        #expect(
+            await capture.value == .artifactResultMismatch(
+                sourceSnapshot: snapshot,
+                renderResult: renderResult,
+                artifact: mismatchedArtifact
+            )
+        )
+        #expect(await encoder.count() == 1)
     }
 
     private static func snapshot(
@@ -478,18 +520,23 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
     }
 
-    private nonisolated static func artifact(
+    fileprivate nonisolated static func artifact(
         for result: OffscreenRenderResult,
-        settings: JPEGEncodingSettings
+        encoding: ImageArtifactEncoding
     ) -> RenderedImageArtifact {
-        RenderedImageArtifact(
-            format: .jpeg,
-            encodedData: Data([0xFF, 0xD8, 0xFF, 0xD9]),
+        let encodedData = switch encoding {
+        case .jpeg:
+            Data([0xFF, 0xD8, 0xFF, 0xD9])
+        case .png:
+            Data([0x89, 0x50, 0x4E, 0x47])
+        }
+        return RenderedImageArtifact(
+            encoding: encoding,
+            encodedData: encodedData,
             sourceRequestID: result.requestID,
             sourceCursor: result.sourceCursor,
             viewpoint: result.viewpoint,
-            renderSettings: result.settings,
-            jpegSettings: settings
+            renderSettings: result.settings
         )
     }
 }
@@ -509,45 +556,37 @@ private final class MutablePresentationSource: PSimulationPresentationSource {
     }
 }
 
-@MainActor
-private final class MutableViewpointSource: PRenderViewpointSource {
-    var viewpoint: RenderViewpoint
-    private(set) var resolvedDefaultCameras: [Camera] = []
-
-    init(_ viewpoint: RenderViewpoint) {
-        self.viewpoint = viewpoint
-    }
-
-    func resolveViewpoint(defaultCamera: Camera) -> RenderViewpoint {
-        resolvedDefaultCameras.append(defaultCamera)
-        return viewpoint
-    }
-}
-
 private actor ControlledRenderTarget: POffscreenRenderTarget {
     private var requests: [OffscreenRenderRequest] = []
     private var continuation: CheckedContinuation<OffscreenRenderOutcome, Never>?
-    private var firstRequestWaiters: [
-        CheckedContinuation<OffscreenRenderRequest, Never>
-    ] = []
+    private var requestWaiters: [
+        Int: [CheckedContinuation<OffscreenRenderRequest, Never>]
+    ] = [:]
 
     func render(
         _ request: OffscreenRenderRequest
     ) async -> OffscreenRenderOutcome {
+        let requestIndex = requests.count
         requests.append(request)
-        firstRequestWaiters.forEach { $0.resume(returning: request) }
-        firstRequestWaiters.removeAll()
+        requestWaiters.removeValue(forKey: requestIndex)?.forEach {
+            $0.resume(returning: request)
+        }
         return await withCheckedContinuation { continuation in
             self.continuation = continuation
         }
     }
 
     func waitForFirstRequest() async -> OffscreenRenderRequest {
-        if let request = requests.first {
-            return request
+        await waitForRequest(at: 0)
+    }
+
+    func waitForRequest(at index: Int) async -> OffscreenRenderRequest {
+        precondition(index >= 0)
+        if requests.indices.contains(index) {
+            return requests[index]
         }
         return await withCheckedContinuation { continuation in
-            firstRequestWaiters.append(continuation)
+            requestWaiters[index, default: []].append(continuation)
         }
     }
 
@@ -561,9 +600,21 @@ private actor ControlledRenderTarget: POffscreenRenderTarget {
     }
 }
 
-private actor SuspendedJPEGEncoder {
+private struct CorrelatedArtifactEncoder: PImageArtifactEncoder {
+    func encode(
+        _ result: OffscreenRenderResult,
+        as encoding: ImageArtifactEncoding
+    ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
+        RealtimeSnapshotCaptureConnectionTests.artifact(
+            for: result,
+            encoding: encoding
+        )
+    }
+}
+
+private actor SuspendedArtifactEncoder: PImageArtifactEncoder {
     private var continuation: CheckedContinuation<
-        Result<RenderedImageArtifact, JPEGArtifactEncoderError>,
+        Result<RenderedImageArtifact, ImageArtifactEncoderError>,
         Never
     >?
     private var requestWaiters: [CheckedContinuation<Void, Never>] = []
@@ -571,13 +622,19 @@ private actor SuspendedJPEGEncoder {
 
     func encode(
         _ result: OffscreenRenderResult,
-        settings: JPEGEncodingSettings
-    ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError> {
+        as encoding: ImageArtifactEncoding
+    ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
         didReceiveRequest = true
         requestWaiters.forEach { $0.resume() }
         requestWaiters.removeAll()
-        return await withCheckedContinuation { continuation in
+        let result = await withCheckedContinuation { continuation in
             self.continuation = continuation
+        }
+        switch result {
+        case let .success(artifact):
+            return artifact
+        case let .failure(failure):
+            throw failure
         }
     }
 
@@ -593,7 +650,7 @@ private actor SuspendedJPEGEncoder {
     func complete(
         _ result: Result<
             RenderedImageArtifact,
-            JPEGArtifactEncoderError
+            ImageArtifactEncoderError
         >
     ) {
         continuation?.resume(returning: result)
@@ -601,11 +658,42 @@ private actor SuspendedJPEGEncoder {
     }
 }
 
-private actor EncodingCallCounter {
+private actor CountingArtifactEncoder: PImageArtifactEncoder {
+    private let failure: ImageArtifactEncoderError?
+    private let mismatchesEncoding: Bool
     private var callCount = 0
 
-    func record() {
+    init(
+        failure: ImageArtifactEncoderError? = nil,
+        mismatchesEncoding: Bool = false
+    ) {
+        self.failure = failure
+        self.mismatchesEncoding = mismatchesEncoding
+    }
+
+    func encode(
+        _ result: OffscreenRenderResult,
+        as encoding: ImageArtifactEncoding
+    ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
         callCount += 1
+        if let failure {
+            throw failure
+        }
+        let resultEncoding: ImageArtifactEncoding
+        if mismatchesEncoding {
+            resultEncoding = switch encoding {
+            case .jpeg:
+                .png
+            case .png:
+                .observationJPEG
+            }
+        } else {
+            resultEncoding = encoding
+        }
+        return RealtimeSnapshotCaptureConnectionTests.artifact(
+            for: result,
+            encoding: resultEncoding
+        )
     }
 
     func count() -> Int {

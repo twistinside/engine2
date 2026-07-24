@@ -68,7 +68,7 @@ struct RuntimeCompositionScenarioTests {
                 ),
                 viewpoint: viewpoint,
                 renderSettings: settings,
-                jpegSettings: JPEGEncodingSettings(quality: .maximum)
+                encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
             )
         )
         guard case let .completed(firstResult) = firstOutcome else {
@@ -84,7 +84,7 @@ struct RuntimeCompositionScenarioTests {
                 ),
                 viewpoint: viewpoint,
                 renderSettings: settings,
-                jpegSettings: JPEGEncodingSettings(quality: .maximum)
+                encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
             )
         )
         guard case let .completed(secondResult) = secondOutcome else {
@@ -97,7 +97,7 @@ struct RuntimeCompositionScenarioTests {
                 expectedCursor: secondResult.advanceResult.finalCursor,
                 viewpoint: viewpoint,
                 renderSettings: settings,
-                jpegSettings: JPEGEncodingSettings(quality: .maximum)
+                encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
             )
         )
         guard case let .completed(currentResult) = currentOutcome else {
@@ -206,7 +206,10 @@ struct RuntimeCompositionScenarioTests {
         _ artifact: RenderedImageArtifact,
         size: RenderPixelSize
     ) throws {
-        #expect(artifact.format == .jpeg)
+        guard case .jpeg = artifact.encoding else {
+            Issue.record("Expected the scenario artifact to use JPEG.")
+            return
+        }
         #expect(artifact.encodedData.isEmpty == false)
 
         let source = try #require(

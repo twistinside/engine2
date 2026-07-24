@@ -28,13 +28,10 @@ struct RealtimeConfigurationTests {
         )
         #expect(assembly.inputRuntime.isRunning == false)
         #expect(assembly.advanceDriver.isRunning == false)
-
-        let defaultCamera = assembly.simulationRuntime.latestPresentationSnapshot.camera
-        let viewpoint = assembly.screenViewpointController.resolveViewpoint(
-            defaultCamera: defaultCamera
+        #expect(
+            assembly.simulationRuntime.latestPresentationSnapshot.camera
+                == assembly.simulationRuntime.world.camera
         )
-        #expect(viewpoint.camera == defaultCamera)
-        #expect(viewpoint.revision == .zero)
     }
 
     @Test @MainActor func assembliesOwnIsolatedRuntimeInstances() {
@@ -50,7 +47,6 @@ struct RealtimeConfigurationTests {
         #expect(first.inputRuntime !== second.inputRuntime)
         #expect(first.simulationRuntime !== second.simulationRuntime)
         #expect(first.advanceDriver !== second.advanceDriver)
-        #expect(first.screenViewpointController !== second.screenViewpointController)
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
     }
 }

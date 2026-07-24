@@ -30,7 +30,6 @@ struct Engine2App: App {
             )
             let captureConnection = RealtimeSnapshotCaptureConnection(
                 presentationSource: realtimeAssembly.simulationRuntime,
-                viewpointSource: realtimeAssembly.screenViewpointController,
                 renderTarget: offscreenRenderRuntime
             )
             snapshotCaptureViewModel = SnapshotCaptureViewModel(
@@ -54,8 +53,7 @@ struct Engine2App: App {
         Window("Engine2", id: "main") {
             ContentView(
                 presentationSource: realtimeAssembly.simulationRuntime,
-                viewpointSource: realtimeAssembly.screenViewpointController,
-                inputSink: realtimeAssembly,
+                inputSink: realtimeAssembly.inputRuntime,
                 isSimulationRunning: {
                     realtimeAssembly.isAdvancementActive
                 },

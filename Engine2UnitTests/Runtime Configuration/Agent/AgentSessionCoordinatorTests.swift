@@ -85,7 +85,7 @@ struct AgentSessionCoordinatorTests {
         #expect(forwarded.renderRequestID == request.renderRequestID)
         #expect(forwarded.viewpoint == request.viewpoint)
         #expect(forwarded.renderSettings == request.renderSettings)
-        #expect(forwarded.jpegSettings == request.jpegSettings)
+        #expect(forwarded.encoding == request.encoding)
     }
 
     @Test func currentCommandMapsExactRequestWithoutAdvancing() async throws {
@@ -117,7 +117,7 @@ struct AgentSessionCoordinatorTests {
         #expect(forwarded.renderRequestID == request.renderRequestID)
         #expect(forwarded.viewpoint == request.viewpoint)
         #expect(forwarded.renderSettings == request.renderSettings)
-        #expect(forwarded.jpegSettings == request.jpegSettings)
+        #expect(forwarded.encoding == request.encoding)
         #expect(await target.requestCount() == 1)
     }
 
@@ -146,7 +146,7 @@ struct AgentSessionCoordinatorTests {
             renderRequestID: request.renderRequestID,
             viewpoint: request.viewpoint,
             renderSettings: request.renderSettings,
-            jpegSettings: request.jpegSettings
+            encoding: request.encoding
         )
         #expect(
             await coordinator.capture(changedSource) == .rejected(
@@ -169,7 +169,7 @@ struct AgentSessionCoordinatorTests {
             renderRequestID: currentRequest.renderRequestID,
             viewpoint: currentRequest.viewpoint,
             renderSettings: currentRequest.renderSettings,
-            jpegSettings: currentRequest.jpegSettings
+            encoding: currentRequest.encoding
         )
         let target = ScriptedCaptureTarget(scripts: [.currentSuspended])
         let coordinator = Self.coordinator(fixture: fixture, target: target)
@@ -246,7 +246,7 @@ struct AgentSessionCoordinatorTests {
             maximumRetainedImageBytes: 3
         )
         #expect(rawResult.image.bytes.count > limits.maximumRetainedImageBytes)
-        let failure = OfflineCurrentCaptureOutcome.jpegEncodingFailed(
+        let failure = OfflineCurrentCaptureOutcome.artifactEncodingFailed(
             sourceSnapshot: sourceSnapshot,
             renderResult: rawResult,
             failure: .destinationFinalizationFailed
@@ -297,6 +297,56 @@ struct AgentSessionCoordinatorTests {
         #expect(await target.requestCount() == 1)
     }
 
+    @Test func currentArtifactMismatchRefreshesCursorAndCountsBothPayloads() async throws {
+        let fixture = try Self.makeFixture()
+        let request = fixture.currentRequest(sequence: 0)
+        let sourceSnapshot = fixture.snapshot(at: fixture.initialCursor)
+        let rawResult = try fixture.rawRenderResult(
+            request: request,
+            cursor: sourceSnapshot.cursor
+        )
+        let artifact = fixture.artifact(
+            request: request,
+            cursor: sourceSnapshot.cursor,
+            encodedBytes: Data(repeating: 0x50, count: 8),
+            encoding: .png
+        )
+        #expect(rawResult.image.bytes.count == 16)
+        #expect(artifact.encodedData.count == 8)
+        let outcome = OfflineCurrentCaptureOutcome.artifactResultMismatch(
+            sourceSnapshot: sourceSnapshot,
+            renderResult: rawResult,
+            artifact: artifact
+        )
+        let target = ScriptedCaptureTarget(
+            scripts: [.currentImmediate(outcome)]
+        )
+        let coordinator = Self.coordinator(
+            fixture: fixture,
+            target: target,
+            limits: AgentSessionLimits(
+                maximumStepCount: .one,
+                maximumRetainedResultCount: 4,
+                maximumRetainedImageBytes: 23
+            )
+        )
+
+        let response = try Self.executedResponse(
+            from: await coordinator.capture(request)
+        )
+        #expect(response.knownCursor == sourceSnapshot.cursor)
+        #expect(response.outcome == .currentCapture(outcome))
+        #expect(
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: sourceSnapshot.cursor
+                )
+            )
+        )
+        #expect(await target.requestCount() == 1)
+    }
+
     @Test func completedDuplicateReplaysExactBytesWithoutForwardingAgain() async throws {
         let fixture = try Self.makeFixture()
         let request = fixture.request(sequence: 0)
@@ -330,6 +380,10 @@ struct AgentSessionCoordinatorTests {
             of: request,
             to: SimulationStepCount(rawValue: 2)
         )
+        let changedEncoding = Self.changingEncoding(
+            of: request,
+            to: .png
+        )
 
         let cachedTarget = ScriptedCaptureTarget(
             scripts: [.immediate(.coordinatorBusy)]
@@ -350,6 +404,14 @@ struct AgentSessionCoordinatorTests {
                 )
             )
         )
+        #expect(
+            await cachedCoordinator.capture(changedEncoding) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .requestConflict(request.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
+        )
         #expect(await cachedTarget.requestCount() == 1)
 
         let inFlightTarget = ScriptedCaptureTarget(scripts: [.suspended])
@@ -364,6 +426,14 @@ struct AgentSessionCoordinatorTests {
 
         #expect(
             await inFlightCoordinator.capture(changed) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .requestConflict(request.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
+        )
+        #expect(
+            await inFlightCoordinator.capture(changedEncoding) == .rejected(
                 AgentSessionRequestRejection(
                     reason: .requestConflict(request.id),
                     knownCursor: fixture.initialCursor
@@ -485,7 +555,7 @@ struct AgentSessionCoordinatorTests {
             renderRequestID: validRequest.renderRequestID,
             viewpoint: invalidViewpoint,
             renderSettings: validRequest.renderSettings,
-            jpegSettings: validRequest.jpegSettings
+            encoding: validRequest.encoding
         )
         let target = ScriptedCaptureTarget(
             scripts: [
@@ -770,7 +840,7 @@ struct AgentSessionCoordinatorTests {
         let target = ScriptedCaptureTarget(
             scripts: [
                 .immediate(
-                    .jpegEncodingFailed(
+                    .artifactEncodingFailed(
                         advanceResult: advance,
                         renderResult: rawResult,
                         failure: .destinationFinalizationFailed
@@ -798,6 +868,59 @@ struct AgentSessionCoordinatorTests {
         #expect(await target.requestCount() == 1)
     }
 
+    @Test func artifactMismatchBudgetCountsRawAndEncodedPayloads() async throws {
+        let fixture = try Self.makeFixture()
+        let request = fixture.request(sequence: 0)
+        let advance = fixture.advanceResult(
+            from: fixture.initialCursor,
+            by: try Self.advanceStepCount(of: request)
+        )
+        let rawResult = try fixture.rawRenderResult(
+            request: request,
+            cursor: advance.finalCursor
+        )
+        let artifact = fixture.artifact(
+            request: request,
+            cursor: advance.finalCursor,
+            encodedBytes: Data(repeating: 0x50, count: 8),
+            encoding: .png
+        )
+        #expect(rawResult.image.bytes.count == 16)
+        #expect(artifact.encodedData.count == 8)
+        let mismatch = OfflineCaptureOutcome.artifactResultMismatch(
+            advanceResult: advance,
+            renderResult: rawResult,
+            artifact: artifact
+        )
+        let target = ScriptedCaptureTarget(
+            scripts: [.immediate(mismatch)]
+        )
+        let coordinator = Self.coordinator(
+            fixture: fixture,
+            target: target,
+            limits: AgentSessionLimits(
+                maximumStepCount: SimulationStepCount(rawValue: 4),
+                maximumRetainedResultCount: 4,
+                maximumRetainedImageBytes: 23
+            )
+        )
+
+        let response = try Self.executedResponse(
+            from: await coordinator.capture(request)
+        )
+        #expect(response.knownCursor == advance.finalCursor)
+        #expect(response.outcome == .capture(mismatch))
+        #expect(
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: advance.finalCursor
+                )
+            )
+        )
+        #expect(await target.requestCount() == 1)
+    }
+
     @Test func everyPostAdvanceOutcomeAndCursorMismatchUpdateKnownCursor() async throws {
         let fixture = try Self.makeFixture()
         let request = fixture.request(sequence: 0)
@@ -814,6 +937,12 @@ struct AgentSessionCoordinatorTests {
             request: request,
             advanceResult: advance,
             encodedBytes: Data([0xFF, 0xD8, 0xFF, 0xD9])
+        )
+        let mismatchedArtifact = fixture.artifact(
+            request: request,
+            cursor: advance.finalCursor,
+            encodedBytes: Data([0x89, 0x50, 0x4E, 0x47]),
+            encoding: .png
         )
         let wrongRenderRequestID = OffscreenRenderRequestID()
         let postAdvanceOutcomes: [OfflineCaptureOutcome] = [
@@ -853,10 +982,15 @@ struct AgentSessionCoordinatorTests {
                 advanceResult: advance,
                 renderResult: rawResult
             ),
-            .jpegEncodingFailed(
+            .artifactEncodingFailed(
                 advanceResult: advance,
                 renderResult: rawResult,
                 failure: .destinationFinalizationFailed
+            ),
+            .artifactResultMismatch(
+                advanceResult: advance,
+                renderResult: rawResult,
+                artifact: mismatchedArtifact
             )
         ]
 
@@ -1101,7 +1235,21 @@ struct AgentSessionCoordinatorTests {
             renderRequestID: request.renderRequestID,
             viewpoint: request.viewpoint,
             renderSettings: request.renderSettings,
-            jpegSettings: request.jpegSettings
+            encoding: request.encoding
+        )
+    }
+
+    private static func changingEncoding(
+        of request: AgentCaptureRequest,
+        to encoding: ImageArtifactEncoding
+    ) -> AgentCaptureRequest {
+        AgentCaptureRequest(
+            id: request.id,
+            source: request.source,
+            renderRequestID: request.renderRequestID,
+            viewpoint: request.viewpoint,
+            renderSettings: request.renderSettings,
+            encoding: encoding
         )
     }
 
@@ -1202,7 +1350,7 @@ struct AgentSessionCoordinatorTests {
             outputMode: .surface,
             exposure: .validation
         )
-        let jpegSettings = JPEGEncodingSettings(
+        let encoding = ImageArtifactEncoding.jpeg(
             quality: try JPEGQuality(0.8)
         )
 
@@ -1211,7 +1359,7 @@ struct AgentSessionCoordinatorTests {
             initialCursor: initialCursor,
             viewpoint: viewpoint,
             renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            encoding: encoding
         )
     }
 
@@ -1220,7 +1368,7 @@ struct AgentSessionCoordinatorTests {
         let initialCursor: SimulationCursor
         let viewpoint: RenderViewpoint
         let renderSettings: OffscreenRenderSettings
-        let jpegSettings: JPEGEncodingSettings
+        let encoding: ImageArtifactEncoding
 
         func request(
             sessionID: AgentSessionID? = nil,
@@ -1238,7 +1386,7 @@ struct AgentSessionCoordinatorTests {
                 renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: renderSettings,
-                jpegSettings: jpegSettings
+                encoding: encoding
             )
         }
 
@@ -1257,7 +1405,7 @@ struct AgentSessionCoordinatorTests {
                 renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint ?? self.viewpoint,
                 renderSettings: renderSettings,
-                jpegSettings: jpegSettings
+                encoding: encoding
             )
         }
 
@@ -1301,14 +1449,10 @@ struct AgentSessionCoordinatorTests {
             advanceResult: SimulationAdvanceResult,
             encodedBytes: Data
         ) -> OfflineCaptureOutcome {
-            let artifact = RenderedImageArtifact(
-                format: .jpeg,
-                encodedData: encodedBytes,
-                sourceRequestID: request.renderRequestID,
-                sourceCursor: advanceResult.finalCursor,
-                viewpoint: request.viewpoint,
-                renderSettings: request.renderSettings,
-                jpegSettings: request.jpegSettings
+            let artifact = artifact(
+                request: request,
+                cursor: advanceResult.finalCursor,
+                encodedBytes: encodedBytes
             )
             return .completed(
                 OfflineCaptureResult(
@@ -1323,20 +1467,32 @@ struct AgentSessionCoordinatorTests {
             sourceSnapshot: SimulationPresentationSnapshot,
             encodedBytes: Data
         ) -> OfflineCurrentCaptureOutcome {
-            let artifact = RenderedImageArtifact(
-                format: .jpeg,
-                encodedData: encodedBytes,
-                sourceRequestID: request.renderRequestID,
-                sourceCursor: sourceSnapshot.cursor,
-                viewpoint: request.viewpoint,
-                renderSettings: request.renderSettings,
-                jpegSettings: request.jpegSettings
+            let artifact = artifact(
+                request: request,
+                cursor: sourceSnapshot.cursor,
+                encodedBytes: encodedBytes
             )
             return .completed(
                 OfflineCurrentCaptureResult(
                     sourceSnapshot: sourceSnapshot,
                     artifact: artifact
                 )
+            )
+        }
+
+        func artifact(
+            request: AgentCaptureRequest,
+            cursor: SimulationCursor,
+            encodedBytes: Data,
+            encoding: ImageArtifactEncoding? = nil
+        ) -> RenderedImageArtifact {
+            RenderedImageArtifact(
+                encoding: encoding ?? request.encoding,
+                encodedData: encodedBytes,
+                sourceRequestID: request.renderRequestID,
+                sourceCursor: cursor,
+                viewpoint: request.viewpoint,
+                renderSettings: request.renderSettings
             )
         }
 

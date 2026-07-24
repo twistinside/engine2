@@ -38,7 +38,7 @@ struct SnapshotCaptureViewModelTests {
         let request = try #require(target.requests.first)
         #expect(request.renderSettings.size == size)
         #expect(request.renderSettings.outputMode == .viewSpaceNormals)
-        #expect(request.jpegSettings.quality == .maximum)
+        #expect(request.encoding == .jpeg(quality: .maximum))
 
         model.exportCancelled()
         #expect(model.exportDocument == nil)
@@ -228,7 +228,7 @@ struct SnapshotCaptureViewModelTests {
                     sourceSnapshot: snapshot,
                     rejection: .invalidViewpoint
                 ),
-                "The current screen viewpoint cannot be rendered offscreen."
+                "The selected Simulation camera cannot be rendered offscreen."
             ),
             (
                 .renderRejected(
@@ -296,6 +296,15 @@ struct SnapshotCaptureViewModelTests {
                     + "the selected snapshot or output settings."
             ),
             (
+                .artifactResultMismatch(
+                    sourceSnapshot: snapshot,
+                    renderResult: rawResult,
+                    artifact: artifact
+                ),
+                "The image encoder returned an artifact that did not match "
+                    + "the selected snapshot or output settings."
+            ),
+            (
                 .cancelledAfterRender(
                     sourceSnapshot: snapshot,
                     renderResult: rawResult
@@ -303,7 +312,7 @@ struct SnapshotCaptureViewModelTests {
                 "Snapshot capture was cancelled before JPEG encoding began."
             ),
             (
-                .jpegEncodingFailed(
+                .artifactEncodingFailed(
                     sourceSnapshot: snapshot,
                     renderResult: rawResult,
                     failure: .couldNotCreateSRGBColorSpace
@@ -312,7 +321,7 @@ struct SnapshotCaptureViewModelTests {
                     + "export."
             ),
             (
-                .jpegEncodingFailed(
+                .artifactEncodingFailed(
                     sourceSnapshot: snapshot,
                     renderResult: rawResult,
                     failure: .couldNotCreateDataProvider
@@ -320,7 +329,7 @@ struct SnapshotCaptureViewModelTests {
                 "The rendered pixels could not be opened for JPEG export."
             ),
             (
-                .jpegEncodingFailed(
+                .artifactEncodingFailed(
                     sourceSnapshot: snapshot,
                     renderResult: rawResult,
                     failure: .couldNotCreateImage
@@ -329,7 +338,7 @@ struct SnapshotCaptureViewModelTests {
                     + "image."
             ),
             (
-                .jpegEncodingFailed(
+                .artifactEncodingFailed(
                     sourceSnapshot: snapshot,
                     renderResult: rawResult,
                     failure: .couldNotCreateDestination
@@ -337,7 +346,7 @@ struct SnapshotCaptureViewModelTests {
                 "The system could not create an in-memory JPEG destination."
             ),
             (
-                .jpegEncodingFailed(
+                .artifactEncodingFailed(
                     sourceSnapshot: snapshot,
                     renderResult: rawResult,
                     failure: .destinationFinalizationFailed
@@ -399,7 +408,7 @@ struct SnapshotCaptureViewModelTests {
             entityPresentations: []
         )
         let artifact = RenderedImageArtifact(
-            format: .jpeg,
+            encoding: .jpeg(quality: .maximum),
             encodedData: Data([0xFF, 0xD8, 0xFF, 0xD9]),
             sourceRequestID: OffscreenRenderRequestID(),
             sourceCursor: snapshot.cursor,
@@ -408,8 +417,7 @@ struct SnapshotCaptureViewModelTests {
                 revision: .zero,
                 camera: snapshot.camera
             ),
-            renderSettings: OffscreenRenderSettings(size: size),
-            jpegSettings: JPEGEncodingSettings(quality: .maximum)
+            renderSettings: OffscreenRenderSettings(size: size)
         )
         return (snapshot, artifact)
     }

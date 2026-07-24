@@ -33,12 +33,6 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// The App owns the source's lifetime; Render does not retain its peer runtime.
     weak var presentationSource: (any PSimulationPresentationSource)?
 
-    /// Read-only output-specific viewpoint selected by the App assembly.
-    ///
-    /// The source resolves against Simulation's published camera as a default;
-    /// Render never interprets raw input or mutates authoritative camera state.
-    weak var viewpointSource: (any PRenderViewpointSource)?
-
     /// Selects the visible output without changing geometry, transforms, depth,
     /// or draw submission. Debug tooling can switch this value at render cadence.
     var outputMode: RenderOutputMode
@@ -57,7 +51,6 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     init(
         resources: MetalResourceStore,
         presentationSource: any PSimulationPresentationSource,
-        viewpointSource: (any PRenderViewpointSource)? = nil,
         outputMode: RenderOutputMode = .surface
     ) throws {
         precondition(
@@ -68,7 +61,6 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         self.resources = resources
         self.frameEncoder = try MetalFrameEncoder(resources: resources)
         self.presentationSource = presentationSource
-        self.viewpointSource = viewpointSource
         self.outputMode = outputMode
 
         super.init()
@@ -125,12 +117,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         let renderFrame: RenderFrame
         if let presentationSource {
             let snapshot = presentationSource.latestPresentationSnapshot
-            let viewpoint = viewpointSource?.resolveViewpoint(
-                defaultCamera: snapshot.camera
-            )
             renderFrame = RenderFrame(
-                projecting: snapshot,
-                viewpoint: viewpoint
+                projecting: snapshot
             )
         } else {
             renderFrame = .empty

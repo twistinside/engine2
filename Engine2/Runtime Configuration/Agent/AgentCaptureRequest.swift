@@ -2,7 +2,8 @@
 ///
 /// The caller must supply the expected authoritative cursor and preserve the
 /// entire value across retries. A changed source operation, render identity,
-/// viewpoint, or settings at the same request ID is a conflict, not a command.
+/// viewpoint, render settings, or artifact encoding at the same request ID is
+/// a conflict, not a command.
 /// Physical and semantic input remain absent until typed source/route ownership
 /// exists; advancing requests continue to use `.none` input assignment.
 nonisolated struct AgentCaptureRequest: Equatable, Sendable {
@@ -11,7 +12,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
     let renderRequestID: OffscreenRenderRequestID
     let viewpoint: RenderViewpoint
     let renderSettings: OffscreenRenderSettings
-    let jpegSettings: JPEGEncodingSettings
+    let encoding: ImageArtifactEncoding
 
     /// Creates an advance-then-capture request compatible with the first API.
     init(
@@ -21,7 +22,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings = JPEGEncodingSettings()
+        encoding: ImageArtifactEncoding = .observationJPEG
     ) {
         self.init(
             id: id,
@@ -32,7 +33,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
             renderRequestID: renderRequestID,
             viewpoint: viewpoint,
             renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            encoding: encoding
         )
     }
 
@@ -43,14 +44,14 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings = JPEGEncodingSettings()
+        encoding: ImageArtifactEncoding = .observationJPEG
     ) {
         self.id = id
         self.source = source
         self.renderRequestID = renderRequestID
         self.viewpoint = viewpoint
         self.renderSettings = renderSettings
-        self.jpegSettings = jpegSettings
+        self.encoding = encoding
     }
 
     /// Creates a capture of an already completed cursor without advancing it.
@@ -60,7 +61,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings = JPEGEncodingSettings()
+        encoding: ImageArtifactEncoding = .observationJPEG
     ) -> AgentCaptureRequest {
         AgentCaptureRequest(
             id: id,
@@ -68,7 +69,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
             renderRequestID: renderRequestID,
             viewpoint: viewpoint,
             renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            encoding: encoding
         )
     }
 
@@ -86,7 +87,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
             renderRequestID: renderRequestID,
             viewpoint: viewpoint,
             renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            encoding: encoding
         )
     }
 
@@ -99,7 +100,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
             renderRequestID: renderRequestID,
             viewpoint: viewpoint,
             renderSettings: renderSettings,
-            jpegSettings: jpegSettings
+            encoding: encoding
         )
     }
 }

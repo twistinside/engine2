@@ -58,7 +58,7 @@ struct AgentSessionConfigurationTests {
             outputMode: .surface,
             exposure: .validation
         )
-        let firstJPEGSettings = JPEGEncodingSettings(
+        let firstEncoding = ImageArtifactEncoding.jpeg(
             quality: try JPEGQuality(0.72)
         )
         let firstRequest = AgentCaptureRequest(
@@ -72,7 +72,7 @@ struct AgentSessionConfigurationTests {
             ),
             viewpoint: firstViewpoint,
             renderSettings: firstRenderSettings,
-            jpegSettings: firstJPEGSettings
+            encoding: firstEncoding
         )
 
         let firstResponse = try Self.executedResponse(
@@ -98,7 +98,7 @@ struct AgentSessionConfigurationTests {
             cursor: firstResponse.knownCursor,
             viewpoint: firstViewpoint,
             renderSettings: firstRenderSettings,
-            jpegSettings: firstJPEGSettings
+            encoding: firstEncoding
         )
 
         let secondSequence = try #require(firstRequestID.sequence.successor())
@@ -119,7 +119,7 @@ struct AgentSessionConfigurationTests {
             outputMode: .viewSpaceNormals,
             exposure: ManualExposure(multiplier: 1.1)
         )
-        let secondJPEGSettings = JPEGEncodingSettings(quality: .maximum)
+        let secondEncoding = ImageArtifactEncoding.png
         let secondRequest = AgentCaptureRequest.current(
             id: secondRequestID,
             expectedCursor: firstResponse.knownCursor,
@@ -130,7 +130,7 @@ struct AgentSessionConfigurationTests {
             ),
             viewpoint: secondViewpoint,
             renderSettings: secondRenderSettings,
-            jpegSettings: secondJPEGSettings
+            encoding: secondEncoding
         )
 
         let secondResponse = try Self.executedResponse(
@@ -156,7 +156,7 @@ struct AgentSessionConfigurationTests {
             cursor: secondResponse.knownCursor,
             viewpoint: secondViewpoint,
             renderSettings: secondRenderSettings,
-            jpegSettings: secondJPEGSettings
+            encoding: secondEncoding
         )
 
         // An identical current-capture retry replays the byte-identical result
@@ -198,7 +198,7 @@ struct AgentSessionConfigurationTests {
             ),
             viewpoint: thirdViewpoint,
             renderSettings: secondRenderSettings,
-            jpegSettings: secondJPEGSettings
+            encoding: secondEncoding
         )
         let thirdResponse = try Self.executedResponse(
             from: await target.capture(thirdRequest)
@@ -225,7 +225,7 @@ struct AgentSessionConfigurationTests {
             cursor: thirdResponse.knownCursor,
             viewpoint: thirdViewpoint,
             renderSettings: secondRenderSettings,
-            jpegSettings: secondJPEGSettings
+            encoding: secondEncoding
         )
     }
 
@@ -285,23 +285,33 @@ struct AgentSessionConfigurationTests {
         cursor: SimulationCursor,
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        jpegSettings: JPEGEncodingSettings
+        encoding: ImageArtifactEncoding
     ) throws {
-        #expect(artifact.format == .jpeg)
         #expect(!artifact.encodedData.isEmpty)
-        #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
-        #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
         #expect(artifact.sourceRequestID == requestID)
         #expect(artifact.sourceCursor == cursor)
         #expect(artifact.viewpoint == viewpoint)
         #expect(artifact.renderSettings == renderSettings)
-        #expect(artifact.jpegSettings == jpegSettings)
+        #expect(artifact.encoding == encoding)
 
+        let expectedType: UTType
+        switch encoding {
+        case .jpeg:
+            expectedType = .jpeg
+            #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
+            #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
+        case .png:
+            expectedType = .png
+            #expect(
+                Array(artifact.encodedData.prefix(8))
+                    == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+            )
+        }
         let source = try #require(
             CGImageSourceCreateWithData(artifact.encodedData as CFData, nil)
         )
         let typeIdentifier = try #require(CGImageSourceGetType(source))
-        #expect(typeIdentifier as String == UTType.jpeg.identifier)
+        #expect(typeIdentifier as String == expectedType.identifier)
 
         let decodedImage = try #require(
             CGImageSourceCreateImageAtIndex(source, 0, nil)

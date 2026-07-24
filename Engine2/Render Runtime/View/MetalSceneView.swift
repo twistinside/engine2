@@ -5,15 +5,13 @@ import SwiftUI
 /// SwiftUI bridge that hosts the Render Runtime's MetalKit view and renderer.
 ///
 /// The bridge wires a read-only simulation presentation source to a
-/// coordinator-owned `MetalRenderer`, resolves a separately owned viewpoint,
-/// and connects an input sink to the platform view. Rendering therefore samples
-/// completed values instead of reading live `World` state or directly calling
-/// the Simulation Runtime.
+/// coordinator-owned `MetalRenderer` and connects an input sink to the platform
+/// view. Rendering therefore samples completed values instead of reading live
+/// `World` state or directly calling the Simulation Runtime.
 @MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
     var presentationSource: any PSimulationPresentationSource
-    var viewpointSource: any PRenderViewpointSource
     var inputSink: any PInputEventSink
     var outputMode: RenderOutputMode
 
@@ -21,7 +19,6 @@ struct MetalSceneView: NSViewRepresentable {
         Coordinator(
             renderAssetCatalog: renderAssetCatalog,
             presentationSource: presentationSource,
-            viewpointSource: viewpointSource,
             outputMode: outputMode
         )
     }
@@ -46,7 +43,6 @@ struct MetalSceneView: NSViewRepresentable {
 
     func updateNSView(_ nsView: InputMetalView, context: Context) {
         context.coordinator.renderer?.presentationSource = presentationSource
-        context.coordinator.renderer?.viewpointSource = viewpointSource
         context.coordinator.renderer?.outputMode = outputMode
         nsView.inputSink = inputSink
     }
@@ -81,7 +77,6 @@ struct MetalSceneView: NSViewRepresentable {
         init(
             renderAssetCatalog: RenderAssetCatalog,
             presentationSource: any PSimulationPresentationSource,
-            viewpointSource: (any PRenderViewpointSource)? = nil,
             outputMode: RenderOutputMode
         ) {
             self.renderer = nil
@@ -97,7 +92,6 @@ struct MetalSceneView: NSViewRepresentable {
                 renderer = try MetalRenderer(
                     resources: resources,
                     presentationSource: presentationSource,
-                    viewpointSource: viewpointSource,
                     outputMode: outputMode
                 )
             } catch {

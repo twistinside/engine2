@@ -1,51 +1,33 @@
 /// Connects the live real-time presentation to a dedicated offscreen output.
 ///
 /// This App-owned connection is not a Runtime. It samples one completed
-/// Simulation publication and resolves the screen viewpoint against that same
-/// snapshot in one Main Actor turn, then carries both immutable values through
-/// exact offscreen rendering and JPEG derivation. It neither pauses nor advances
-/// Simulation.
+/// Simulation publication and locks the exact render viewpoint to that
+/// publication's camera, then carries both immutable values through exact
+/// offscreen rendering and artifact derivation. It neither pauses nor advances
+/// Simulation, and it owns no independently mutable camera state.
 @MainActor
 final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
     private let presentationSource: any PSimulationPresentationSource
-    private let viewpointSource: any PRenderViewpointSource
-    private let imageDeriver: OffscreenJPEGArtifactDeriver
+    private let viewpointID: RenderViewpointID
+    private let imageDeriver: OffscreenImageArtifactDeriver
     private var isCapturing = false
 
     /// Creates a production connection around one dedicated Render Runtime.
     init(
         presentationSource: any PSimulationPresentationSource,
-        viewpointSource: any PRenderViewpointSource,
         renderTarget: any POffscreenRenderTarget,
-        jpegArtifactEncoder: JPEGArtifactEncoder = JPEGArtifactEncoder()
+        viewpointID: RenderViewpointID = RenderViewpointID(),
+        artifactEncoder: any PImageArtifactEncoder = ImageIOArtifactEncoder()
     ) {
         self.presentationSource = presentationSource
-        self.viewpointSource = viewpointSource
-        self.imageDeriver = OffscreenJPEGArtifactDeriver(
+        self.viewpointID = viewpointID
+        self.imageDeriver = OffscreenImageArtifactDeriver(
             renderTarget: renderTarget,
-            jpegArtifactEncoder: jpegArtifactEncoder
+            artifactEncoder: artifactEncoder
         )
     }
 
-    /// Creates a connection with a deterministic typed encoding implementation.
-    init(
-        presentationSource: any PSimulationPresentationSource,
-        viewpointSource: any PRenderViewpointSource,
-        renderTarget: any POffscreenRenderTarget,
-        encodeJPEG: @escaping @Sendable (
-            OffscreenRenderResult,
-            JPEGEncodingSettings
-        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
-    ) {
-        self.presentationSource = presentationSource
-        self.viewpointSource = viewpointSource
-        self.imageDeriver = OffscreenJPEGArtifactDeriver(
-            renderTarget: renderTarget,
-            encodeJPEG: encodeJPEG
-        )
-    }
-
-    /// Selects one exact live value and derives its detached JPEG artifact.
+    /// Selects one exact live value and derives its detached image artifact.
     func capture(
         _ request: RealtimeSnapshotCaptureRequest
     ) async -> RealtimeSnapshotCaptureOutcome {
@@ -56,12 +38,14 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
             return .cancelledBeforeRender
         }
 
-        // These two synchronous reads form the selection boundary. Resolving
-        // against this exact snapshot camera avoids mixing a later Simulation
-        // publication with an earlier output override.
+        // The selected snapshot is the sole camera authority. Revision zero is
+        // stable because this connection owns no output-specific camera state;
+        // camera changes are attributed by the selected Simulation cursor.
         let sourceSnapshot = presentationSource.latestPresentationSnapshot
-        let viewpoint = viewpointSource.resolveViewpoint(
-            defaultCamera: sourceSnapshot.camera
+        let viewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: .zero,
+            camera: sourceSnapshot.camera
         )
 
         isCapturing = true
@@ -74,7 +58,7 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
             renderRequestID: request.renderRequestID,
             viewpoint: viewpoint,
             renderSettings: request.renderSettings,
-            jpegSettings: request.jpegSettings
+            encoding: request.encoding
         )
         return outcome(
             from: derivation,
@@ -84,7 +68,7 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
 
     /// Adds the selected live publication to the shared derivation terminal.
     private func outcome(
-        from derivation: OffscreenJPEGArtifactOutcome,
+        from derivation: OffscreenImageArtifactOutcome,
         sourceSnapshot: SimulationPresentationSnapshot
     ) -> RealtimeSnapshotCaptureOutcome {
         switch derivation {
@@ -131,11 +115,18 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
                 renderResult: renderResult
             )
 
-        case let .jpegEncodingFailed(renderResult, failure):
-            .jpegEncodingFailed(
+        case let .artifactEncodingFailed(renderResult, failure):
+            .artifactEncodingFailed(
                 sourceSnapshot: sourceSnapshot,
                 renderResult: renderResult,
                 failure: failure
+            )
+
+        case let .artifactResultMismatch(renderResult, artifact):
+            .artifactResultMismatch(
+                sourceSnapshot: sourceSnapshot,
+                renderResult: renderResult,
+                artifact: artifact
             )
         }
     }

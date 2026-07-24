@@ -272,7 +272,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
              let .renderCancelledAfterSubmission(result, _),
              let .renderResultMismatch(result, _),
              let .cancelledAfterRender(result, _),
-             let .jpegEncodingFailed(result, _, _):
+             let .artifactEncodingFailed(result, _, _),
+             let .artifactResultMismatch(result, _, _):
             result.finalCursor
         }
     }
@@ -303,7 +304,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
              let .renderCancelledAfterSubmission(sourceSnapshot, _),
              let .renderResultMismatch(sourceSnapshot, _),
              let .cancelledAfterRender(sourceSnapshot, _),
-             let .jpegEncodingFailed(sourceSnapshot, _, _):
+             let .artifactEncodingFailed(sourceSnapshot, _, _),
+             let .artifactResultMismatch(sourceSnapshot, _, _):
             sourceSnapshot.cursor
         }
     }
@@ -320,8 +322,18 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
             case let .renderResultMismatch(_, renderResult),
                  let .cancelledAfterRender(_, renderResult),
-                 let .jpegEncodingFailed(_, renderResult, _):
+                 let .artifactEncodingFailed(_, renderResult, _):
                 renderResult.image.bytes.count
+
+            case let .artifactResultMismatch(
+                _,
+                renderResult,
+                artifact
+            ):
+                combinedImageByteCount(
+                    renderResult.image.bytes.count,
+                    artifact.encodedData.count
+                )
 
             case .coordinatorBusy,
                  .cancelledBeforeAdvance,
@@ -342,8 +354,18 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
             case let .renderResultMismatch(_, renderResult),
                  let .cancelledAfterRender(_, renderResult),
-                 let .jpegEncodingFailed(_, renderResult, _):
+                 let .artifactEncodingFailed(_, renderResult, _):
                 renderResult.image.bytes.count
+
+            case let .artifactResultMismatch(
+                _,
+                renderResult,
+                artifact
+            ):
+                combinedImageByteCount(
+                    renderResult.image.bytes.count,
+                    artifact.encodedData.count
+                )
 
             case .coordinatorBusy,
                  .cancelledBeforeRender,
@@ -358,5 +380,14 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         case .stepLimitExceeded:
             return 0
         }
+    }
+
+    /// Adds two retained payload sizes without allowing integer wraparound.
+    private static func combinedImageByteCount(
+        _ first: Int,
+        _ second: Int
+    ) -> Int {
+        let (sum, overflowed) = first.addingReportingOverflow(second)
+        return overflowed ? .max : sum
     }
 }

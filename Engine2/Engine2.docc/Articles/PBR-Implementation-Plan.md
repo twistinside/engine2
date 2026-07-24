@@ -25,9 +25,10 @@ through a production exact async request/outcome boundary with dedicated
 one-slot resources, explicit residency and queue-feedback lifetime, and raw
 BGRA8-sRGB readback with no view or drawable. This establishes the production
 offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
-PNG pipeline, artifact persistence, pooled targets, or dedicated Render worker.
-A separate stateless CPU ``JPEGArtifactEncoder`` now derives a provenance-rich
-JPEG from the completed raw result, and ``OfflineCaptureConfiguration``
+artifact persistence, pooled targets, or dedicated Render worker. A separate
+asynchronous ``PImageArtifactEncoder`` boundary, implemented by the stateless
+CPU ``ImageIOArtifactEncoder``, now derives provenance-rich JPEG or PNG
+artifacts from the completed raw result, and ``OfflineCaptureConfiguration``
 serially coordinates either an exact advance-and-capture or a cursor-checked
 capture of its retained current presentation through the same render and
 encoding workflow, without changing this PBR/GPU boundary.
@@ -502,7 +503,7 @@ sphere baseline:
 - physically calibrated radiometric or photometric lights and camera exposure
 - pre-exposure, automatic exposure, and a final tone-mapping look
 - offline HDR-master formats, quality accumulation, temporal sampling, pooled
-  targets, PNG artifact encoding, and artifact persistence
+  targets, additional artifact formats, and artifact persistence
 - reversed-Z, `Double` or sector-local world positions, and render-origin policy
 - atmosphere, clouds, rings, and transparency
 
