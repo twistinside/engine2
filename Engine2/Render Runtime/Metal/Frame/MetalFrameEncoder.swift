@@ -1,4 +1,3 @@
-import CoreGraphics
 import Metal
 import MetalKit
 
@@ -44,85 +43,43 @@ final class MetalFrameEncoder {
         self.hdrFramePass = try MetalHDRFramePass(resources: resources)
     }
 
-    /// Resolves every authored material in the exact writable instance prefix.
+    /// Resolves every authored resource in the exact writable instance prefix.
     ///
     /// This method performs no mutable GPU work. A missing material therefore
-    /// fails the frame before allocator reset, buffer writes, or command encoding.
-    func prepare(_ renderFrame: RenderFrame) throws -> MetalPreparedFrame {
-        let materialDescriptions = try renderFrame.instances
-            .prefix(FrameResources.maximumInstanceCount)
-            .map { instance in
-                try resources.materialDescription(for: instance.materialID)
-            }
-
-        return MetalPreparedFrame(
-            renderFrame: renderFrame,
-            materialDescriptions: materialDescriptions
-        )
+    /// cannot first appear after allocator reset, buffer writes, or command
+    /// encoding: the store proved complete material coverage at construction.
+    func prepare(_ renderFrame: RenderFrame) -> MetalPreparedFrame {
+        MetalPreparedFrame(renderFrame: renderFrame, resources: resources)
     }
 
     /// Writes one prepared frame and records its HDR scene and presentation work.
     ///
-    /// All three targets must describe the same positive pixel dimensions. The
-    /// caller owns an active Metal 4 command buffer and the supplied frame slot;
-    /// this method neither begins nor ends either lifetime.
+    /// The validated inputs carry matching targets and one caller-owned frame
+    /// slot. The caller owns the active Metal 4 command buffer; this method
+    /// neither begins nor ends that lifetime.
     func encode(
         _ prepared: MetalPreparedFrame,
-        frameResources: FrameResources,
-        sceneColorTexture: any MTLTexture,
-        depthTexture: any MTLTexture,
-        destinationTexture: any MTLTexture,
-        clearColor: MTLClearColor,
-        outputMode: RenderOutputMode,
-        exposure: ManualExposure = .validation,
+        inputs: MetalFrameEncodingInputs,
         into commandBuffer: any MTL4CommandBuffer
     ) throws {
-        precondition(
-            sceneColorTexture.width > 0
-                && sceneColorTexture.height > 0
-                && depthTexture.width > 0
-                && depthTexture.height > 0
-                && destinationTexture.width > 0
-                && destinationTexture.height > 0,
-            "Metal frame encoding requires positive target dimensions."
-        )
-        precondition(
-            sceneColorTexture.width == depthTexture.width
-                && sceneColorTexture.height == depthTexture.height
-                && sceneColorTexture.width == destinationTexture.width
-                && sceneColorTexture.height == destinationTexture.height,
-            "Metal frame encoding requires matching target dimensions."
-        )
-        precondition(
-            sceneColorTexture.pixelFormat == Self.sceneColorPixelFormat
-                && depthTexture.pixelFormat == Self.depthPixelFormat
-                && destinationTexture.pixelFormat == Self.destinationColorPixelFormat,
-            "Metal frame encoding requires targets matching its compiled pipeline formats."
-        )
-
-        let renderFrame = prepared.renderFrame
-        let instanceCount = frameResources.write(
-            renderFrame.instances,
-            materialDescriptions: prepared.materialDescriptions,
-            camera: renderFrame.camera,
-            drawableSize: CGSize(
-                width: destinationTexture.width,
-                height: destinationTexture.height
-            ),
-            exposure: exposure
+        let frameResources = inputs.frameResources
+        frameResources.write(
+            prepared,
+            drawableSize: inputs.drawableSize,
+            exposure: inputs.exposure
         )
 
         try hdrFramePass.encode(
-            sceneColorTexture: sceneColorTexture,
-            depthTexture: depthTexture,
-            destinationTexture: destinationTexture,
-            clearColor: clearColor,
+            sceneColorTexture: inputs.sceneColorTexture,
+            depthTexture: inputs.depthTexture,
+            destinationTexture: inputs.destinationTexture,
+            clearColor: inputs.clearColor,
             presentationParametersBuffer: frameResources.hdrPresentationParametersBuffer,
-            outputMode: outputMode,
+            outputMode: inputs.outputMode,
             into: commandBuffer
         ) { sceneEncoder in
             sceneEncoder.setRenderPipelineState(
-                renderPipelineState(for: outputMode)
+                renderPipelineState(for: inputs.outputMode)
             )
             sceneEncoder.setDepthStencilState(depthStencilState)
 
@@ -133,8 +90,7 @@ final class MetalFrameEncoder {
                 index: 2
             )
             draw(
-                renderFrame.instances,
-                instanceCount: instanceCount,
+                prepared,
                 frame: frameResources,
                 with: sceneEncoder
             )
@@ -154,28 +110,25 @@ final class MetalFrameEncoder {
         }
     }
 
-    /// Emits ordered model draws for the prefix packed into this frame slot.
+    /// Emits ordered model draws for the exact set packed into this frame slot.
     private func draw(
-        _ instances: [RenderInstance],
-        instanceCount: Int,
+        _ prepared: MetalPreparedFrame,
         frame: FrameResources,
         with renderEncoder: any MTL4RenderCommandEncoder
     ) {
-        guard instanceCount > 0 else {
-            return
-        }
+        for (instanceIndex, instance) in prepared.instances.enumerated() {
+            // Missing model content makes only this live-screen instance
+            // unrenderable. Exact offscreen work proves model coverage before
+            // preparing the frame and cannot reach this branch.
+            guard let model = instance.model else {
+                continue
+            }
 
-        Self.forEachRenderableModel(
-            in: instances,
-            instanceCount: instanceCount,
-            resources: resources
-        ) { instanceIndex, model in
-            Self.selectModelInstance(
+            frame.bindInstance(
                 at: instanceIndex,
-                in: frame,
                 modelArgumentTable: modelArgumentTable,
                 pbrSceneArgumentTable: pbrSceneArgumentTable,
-                with: renderEncoder
+                to: renderEncoder
             )
 
             for mesh in model.meshes {
@@ -208,64 +161,5 @@ final class MetalFrameEncoder {
                 }
             }
         }
-    }
-
-    /// Visits the exact bounded, model-resolved prefix used by visible draws.
-    ///
-    /// This internal CPU-side seam owns draw order and missing-model filtering,
-    /// allowing integration tests to verify production iteration directly.
-    static func forEachRenderableModel(
-        in instances: [RenderInstance],
-        instanceCount: Int,
-        resources: MetalResourceStore,
-        _ visit: (_ instanceIndex: Int, _ model: USDRenderModel) -> Void
-    ) {
-        precondition(
-            instanceCount >= 0
-                && instanceCount <= instances.count
-                && instanceCount <= FrameResources.maximumInstanceCount,
-            "Visible model iteration must stay inside the written instance prefix."
-        )
-
-        for instanceIndex in 0..<instanceCount {
-            // Missing model content makes only this instance unrenderable.
-            // Material coverage has already passed the frame's terminal
-            // preflight and never falls back here.
-            guard let model = resources.model(
-                for: instances[instanceIndex].meshID
-            ) else {
-                continue
-            }
-
-            visit(instanceIndex, model)
-        }
-    }
-
-    /// Selects one stable per-frame instance for both model shader stages.
-    ///
-    /// The vertex table is rebound after its mesh address is selected. The PBR
-    /// fragment table is complete when this helper binds it because frame light
-    /// state is installed before entering the draw loop.
-    static func selectModelInstance(
-        at instanceIndex: Int,
-        in frame: FrameResources,
-        modelArgumentTable: any MTL4ArgumentTable,
-        pbrSceneArgumentTable: any MTL4ArgumentTable,
-        with renderEncoder: any MTL4RenderCommandEncoder
-    ) {
-        precondition(
-            instanceIndex >= 0
-                && instanceIndex < FrameResources.maximumInstanceCount,
-            "Model instance selection must remain inside the frame buffer."
-        )
-
-        let instanceAddress = frame.instanceBuffer.gpuAddress
-            + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride)
-        modelArgumentTable.setAddress(instanceAddress, index: 1)
-        pbrSceneArgumentTable.setAddress(instanceAddress, index: 1)
-        renderEncoder.setArgumentTable(
-            pbrSceneArgumentTable,
-            stages: .fragment
-        )
     }
 }

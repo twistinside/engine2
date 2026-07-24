@@ -94,8 +94,8 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         // model, material, or mutable-GPU-resource preflight begins.
         let renderFrame: RenderFrame
         do {
-            renderFrame = try RenderFrame.projectExact(
-                from: request.presentationSnapshot,
+            renderFrame = try RenderFrame(
+                exactlyProjecting: request.presentationSnapshot,
                 viewpoint: request.viewpoint
             )
         } catch let projectionError as RenderFrameProjectionError {
@@ -189,12 +189,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
 
         // Resolve all authored content before acquiring the mutable frame slot,
         // resetting its allocator, or creating request-scoped GPU targets.
-        let preparedFrame: MetalPreparedFrame
-        do {
-            preparedFrame = try frameEncoder.prepare(renderFrame)
-        } catch {
-            return failure(at: .preparation, causedBy: error)
-        }
+        let preparedFrame = frameEncoder.prepare(renderFrame)
 
         guard !Task.isCancelled else {
             return .rejected(.cancelledBeforeSubmission)
@@ -261,13 +256,20 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         do {
             try frameEncoder.encode(
                 preparedFrame,
-                frameResources: frame,
-                sceneColorTexture: sceneTarget.texture,
-                depthTexture: targets.depthTexture,
-                destinationTexture: targets.destinationTexture,
-                clearColor: MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1),
-                outputMode: request.settings.outputMode,
-                exposure: request.settings.exposure,
+                inputs: MetalFrameEncodingInputs(
+                    frameResources: frame,
+                    sceneColorTexture: sceneTarget.texture,
+                    depthTexture: targets.depthTexture,
+                    destinationTexture: targets.destinationTexture,
+                    clearColor: MTLClearColor(
+                        red: 0,
+                        green: 0,
+                        blue: 0,
+                        alpha: 1
+                    ),
+                    outputMode: request.settings.outputMode,
+                    exposure: request.settings.exposure
+                ),
                 into: commandBuffer
             )
         } catch {

@@ -5,19 +5,12 @@
 /// and one coordinator that alone receives their directed capabilities. There
 /// is no Input Runtime, wall-clock cadence, screen surface, or optional peer.
 nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
-    let fixedTimeStep: Duration
     let renderLimits: OffscreenRenderLimits
 
-    /// Creates offline Simulation timing and allocation/readback policy.
+    /// Creates offline allocation and readback policy.
     init(
-        fixedTimeStep: Duration = .seconds(1.0 / 60.0),
         renderLimits: OffscreenRenderLimits = .conservativeDefault
     ) {
-        precondition(
-            fixedTimeStep > .zero,
-            "Offline Simulation requires a positive fixed time step."
-        )
-        self.fixedTimeStep = fixedTimeStep
         self.renderLimits = renderLimits
     }
 
@@ -29,8 +22,7 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
     ) throws -> OfflineCaptureAssembly {
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
-            sessionID: sessionID,
-            fixedTimeStep: fixedTimeStep
+            sessionID: sessionID
         )
         let renderRuntime = try MetalOffscreenRenderRuntime(
             catalog: gameContent.renderAssetCatalog,

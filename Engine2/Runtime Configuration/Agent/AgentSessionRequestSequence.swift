@@ -3,7 +3,13 @@
 /// A sequence is separate from bounded replay retention. Once accepted, an old
 /// position can never become executable again merely because its result bytes
 /// were evicted.
-nonisolated struct AgentSessionRequestSequence: Codable, Comparable, Hashable, Sendable {
+nonisolated struct AgentSessionRequestSequence:
+    Codable,
+    Comparable,
+    Hashable,
+    RawRepresentable,
+    Sendable
+{
     /// First request position accepted by a newly constructed session.
     static let first = AgentSessionRequestSequence(rawValue: 0)
 

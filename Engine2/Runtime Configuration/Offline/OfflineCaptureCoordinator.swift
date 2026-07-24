@@ -6,9 +6,6 @@
 /// It does not sample latest-value sources, expose its dependencies, retry
 /// implicitly, or treat downstream failure as permission to advance again.
 actor OfflineCaptureCoordinator: POfflineCaptureTarget {
-    /// Injectable stateless encoding seam used by deterministic coordinator tests.
-    typealias JPEGEncode = OffscreenJPEGArtifactDeriver.JPEGEncode
-
     private let advanceTarget: any PSimulationAdvanceTarget
     private let imageDeriver: OffscreenJPEGArtifactDeriver
 
@@ -50,7 +47,10 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
         advanceTarget: any PSimulationAdvanceTarget,
         initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: any POffscreenRenderTarget,
-        encodeJPEG: @escaping JPEGEncode
+        encodeJPEG: @escaping @Sendable (
+            OffscreenRenderResult,
+            JPEGEncodingSettings
+        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
     ) {
         self.advanceTarget = advanceTarget
         self.currentPresentationSnapshot = initialPresentationSnapshot

@@ -4,19 +4,20 @@
 /// before rendering began. Later Simulation ticks or a subsequent session
 /// rebuild cannot alter the source carried by this outcome.
 nonisolated enum RealtimeSnapshotCaptureOutcome: Equatable, Sendable {
+    case cancelledAfterRender(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        renderResult: OffscreenRenderResult
+    )
+    case cancelledBeforeRender
     case completed(
         sourceSnapshot: SimulationPresentationSnapshot,
         artifact: RenderedImageArtifact
     )
     case connectionBusy
-    case cancelledBeforeRender
-    case renderRejected(
+    case jpegEncodingFailed(
         sourceSnapshot: SimulationPresentationSnapshot,
-        rejection: OffscreenRenderRejection
-    )
-    case renderFailed(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        failure: OffscreenRenderFailure
+        renderResult: OffscreenRenderResult,
+        failure: JPEGArtifactEncoderError
     )
     case renderCancellationRequestIDMismatch(
         sourceSnapshot: SimulationPresentationSnapshot,
@@ -27,17 +28,16 @@ nonisolated enum RealtimeSnapshotCaptureOutcome: Equatable, Sendable {
         sourceSnapshot: SimulationPresentationSnapshot,
         requestID: OffscreenRenderRequestID
     )
+    case renderFailed(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        failure: OffscreenRenderFailure
+    )
+    case renderRejected(
+        sourceSnapshot: SimulationPresentationSnapshot,
+        rejection: OffscreenRenderRejection
+    )
     case renderResultMismatch(
         sourceSnapshot: SimulationPresentationSnapshot,
         renderResult: OffscreenRenderResult
-    )
-    case cancelledAfterRender(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        renderResult: OffscreenRenderResult
-    )
-    case jpegEncodingFailed(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        renderResult: OffscreenRenderResult,
-        failure: JPEGArtifactEncoderError
     )
 }

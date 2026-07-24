@@ -30,11 +30,13 @@ struct BasicWorldBuilderTests {
     @Test func materialSphereSceneRemainsQuiescentAcrossFixedSteps() {
         let initialWorld = BasicWorldBuilder().buildWorld()
         let sessionID = SimulationSessionID()
-        let initialSnapshot = SimulationPresentationSnapshot.capture(
-            from: initialWorld,
+        let initialSnapshot = initialWorld.presentationSnapshot(
             at: SimulationCursor(sessionID: sessionID, tick: .zero)
         )
-        let engine = Engine(world: initialWorld)
+        let engine = Engine(
+            world: initialWorld,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep
+        )
 
         // Exercise the actual invariant schedule long enough for any unintended
         // velocity, persistent acceleration, impulse, or angular drift to show.
@@ -42,8 +44,7 @@ struct BasicWorldBuilderTests {
             engine.step()
         }
 
-        let laterSnapshot = SimulationPresentationSnapshot.capture(
-            from: engine.world,
+        let laterSnapshot = engine.world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: sessionID,
                 tick: engine.completedTick

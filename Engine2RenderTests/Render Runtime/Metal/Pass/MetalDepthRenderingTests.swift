@@ -153,15 +153,34 @@ private func renderCenterPixel(
     ]
     let frame = try #require(resources.frames.first)
     frame.commandAllocator.reset()
-    let instanceCount = frame.write(
-        instances,
-        materialDescriptions: try instances.map {
-            try resources.materialDescription(for: $0.materialID)
-        },
-        camera: camera,
+    let preparedFrame = MetalPreparedFrame(
+        renderFrame: RenderFrame(
+            projecting: SimulationPresentationSnapshot(
+                cursor: SimulationCursor(
+                    sessionID: SimulationSessionID(),
+                    tick: .zero
+                ),
+                camera: camera,
+                entityPresentations: instances.enumerated().map {
+                    index, instance in
+                    EntityPresentationSnapshot(
+                        id: EntityID(index: index, generation: 0),
+                        position: instance.transform.position,
+                        rotation: instance.transform.rotation,
+                        scale: instance.transform.scale,
+                        meshID: instance.meshID,
+                        materialID: instance.materialID
+                    )
+                }
+            )
+        ),
+        resources: resources
+    )
+    frame.write(
+        preparedFrame,
         drawableSize: CGSize(width: textureSize, height: textureSize)
     )
-    #expect(instanceCount == instances.count)
+    #expect(preparedFrame.instances.count == instances.count)
 
     let renderPass = MTL4RenderPassDescriptor()
     renderPass.colorAttachments[0].texture = colorTexture

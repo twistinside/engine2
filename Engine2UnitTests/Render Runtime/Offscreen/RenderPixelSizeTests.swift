@@ -5,9 +5,26 @@ struct RenderPixelSizeTests {
     @Test func acceptsPositiveRepresentableDimensions() throws {
         let size = try RenderPixelSize(width: 3_840, height: 2_160)
 
+        #expect(size == .uhd4K)
         #expect(size.width == 3_840)
         #expect(size.height == 2_160)
         #expect(size.pixelCount == 8_294_400)
+    }
+
+    @Test func acceptsSmallestAndLargestRepresentableBGRAGrids() throws {
+        let smallest = try RenderPixelSize(width: 1, height: 1)
+        let largestWidth = try RenderPixelSize(
+            width: Int.max / 4,
+            height: 1
+        )
+        let largestHeight = try RenderPixelSize(
+            width: 1,
+            height: Int.max / 4
+        )
+
+        #expect(smallest.pixelCount == 1)
+        #expect(largestWidth.pixelCount == Int.max / 4)
+        #expect(largestHeight.pixelCount == Int.max / 4)
     }
 
     @Test func rejectsZeroAndNegativeWidths() {

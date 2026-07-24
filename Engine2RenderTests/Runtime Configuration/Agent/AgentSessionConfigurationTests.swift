@@ -20,9 +20,7 @@ struct AgentSessionConfigurationTests {
                 uuidString: "50000000-0000-0000-0000-000000000002"
             )!
         )
-        let assembly = try AgentSessionConfiguration(
-            fixedTimeStep: .milliseconds(20)
-        ).makeAssembly(
+        let assembly = try AgentSessionConfiguration().makeAssembly(
             gameContent: BasicGameContent(),
             agentSessionID: agentSessionID,
             simulationSessionID: simulationSessionID

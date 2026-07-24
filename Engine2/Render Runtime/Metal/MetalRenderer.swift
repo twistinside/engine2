@@ -74,11 +74,9 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         super.init()
     }
 
-    /// Applies the attachment formats that must agree with the cached pipelines.
-    ///
-    /// The frame encoder owns the shared format contract; this adapter applies
-    /// it to MetalKit and adds the display's sRGB color-space declaration.
-    static func configureRenderTargets(on view: MTKView) {
+    /// Configures renderer-owned attachment policy and registers MetalKit-owned
+    /// drawable resources for explicit Metal 4 queue residency.
+    func configure(_ view: MTKView) {
         view.colorPixelFormat = MetalFrameEncoder.destinationColorPixelFormat
         view.depthStencilPixelFormat = MetalFrameEncoder.depthPixelFormat
         view.clearDepth = MetalFrameEncoder.clearDepth
@@ -87,12 +85,6 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // presentation color space and using an `_srgb` drawable makes the
         // drawable perform the one and only linear-to-sRGB transfer.
         view.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
-    }
-
-    /// Configures renderer-owned attachment policy and registers MetalKit-owned
-    /// drawable resources for explicit Metal 4 queue residency.
-    func configure(_ view: MTKView) {
-        Self.configureRenderTargets(on: view)
         resources.residency.registerExternalResources(for: view)
     }
 
@@ -136,22 +128,15 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
             let viewpoint = viewpointSource?.resolveViewpoint(
                 defaultCamera: snapshot.camera
             )
-            renderFrame = RenderFrame.project(
-                from: snapshot,
+            renderFrame = RenderFrame(
+                projecting: snapshot,
                 viewpoint: viewpoint
             )
         } else {
             renderFrame = .empty
         }
 
-        let preparedFrame: MetalPreparedFrame
-        do {
-            preparedFrame = try frameEncoder.prepare(renderFrame)
-        } catch {
-            renderErrorState.record(error)
-            frame.markAvailable()
-            return
-        }
+        let preparedFrame = frameEncoder.prepare(renderFrame)
 
         // The commit feedback handler marks the frame available only after the
         // GPU finishes the previous workload that used this allocator, so it is
@@ -216,12 +201,15 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         do {
             try frameEncoder.encode(
                 preparedFrame,
-                frameResources: frame,
-                sceneColorTexture: sceneTarget.texture,
-                depthTexture: depthTexture,
-                destinationTexture: drawable.texture,
-                clearColor: viewRenderPassDescriptor.colorAttachments[0].clearColor,
-                outputMode: outputMode,
+                inputs: MetalFrameEncodingInputs(
+                    frameResources: frame,
+                    sceneColorTexture: sceneTarget.texture,
+                    depthTexture: depthTexture,
+                    destinationTexture: drawable.texture,
+                    clearColor: viewRenderPassDescriptor
+                        .colorAttachments[0].clearColor,
+                    outputMode: outputMode
+                ),
                 into: commandBuffer
             )
         } catch {

@@ -3,7 +3,13 @@
 /// The revision advances when that output changes or clears its own override.
 /// When the output follows a Simulation-authored default, the Simulation cursor
 /// attributes changes to that camera while this output revision may stay fixed.
-nonisolated struct RenderViewpointRevision: Codable, Hashable, Comparable, Sendable {
+nonisolated struct RenderViewpointRevision:
+    Codable,
+    Comparable,
+    Hashable,
+    RawRepresentable,
+    Sendable
+{
     static let zero = RenderViewpointRevision(rawValue: 0)
 
     let rawValue: UInt64

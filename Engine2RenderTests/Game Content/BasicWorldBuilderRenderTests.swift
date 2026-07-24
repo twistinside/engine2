@@ -11,11 +11,8 @@ struct BasicWorldBuilderRenderTests {
             sessionID: SimulationSessionID(),
             tick: tick
         )
-        let snapshot = SimulationPresentationSnapshot.capture(
-            from: world,
-            at: cursor
-        )
-        let frame = RenderFrame.project(from: snapshot)
+        let snapshot = world.presentationSnapshot(at: cursor)
+        let frame = RenderFrame(projecting: snapshot)
 
         #expect(snapshot.tick == tick)
         #expect(snapshot.cursor == cursor)

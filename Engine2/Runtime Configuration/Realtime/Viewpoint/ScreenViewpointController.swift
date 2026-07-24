@@ -89,9 +89,9 @@ final class ScreenViewpointController: PRenderViewpointSource {
 
     /// Applies one presentation-routed host event to the free-orbit viewpoint.
     ///
-    /// Horizontal drag and vertical scroll intentionally match the current
-    /// `SCameraInput` mapping. Other controls, zero movement, non-finite input,
-    /// and movement already stopped by a radius clamp leave the revision alone.
+    /// Horizontal drag orbits and vertical scroll changes radius. Other
+    /// controls, zero movement, non-finite input, and movement already stopped
+    /// by a radius clamp leave the revision alone.
     func receive(_ event: InputEvent, defaultCamera: Camera) {
         switch event {
         case let .mouseDragged(delta, _):

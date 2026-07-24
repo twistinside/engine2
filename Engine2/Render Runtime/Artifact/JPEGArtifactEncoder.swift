@@ -56,6 +56,10 @@ nonisolated struct JPEGArtifactEncoder: Sendable {
             throw JPEGArtifactEncoderError.couldNotCreateImage
         }
 
+        // Image I/O requires mutable CFData as its incremental byte sink.
+        // NSMutableData is the Foundation storage that bridges directly to
+        // CFMutableData here and then exposes a stable byte count for the one
+        // final immutable copy; there is no Swift-native Image I/O destination.
         let destinationData = NSMutableData()
         guard let destination = CGImageDestinationCreateWithData(
             destinationData as CFMutableData,

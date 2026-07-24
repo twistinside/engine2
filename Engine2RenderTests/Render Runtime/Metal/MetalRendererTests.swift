@@ -96,27 +96,33 @@ struct MetalRendererTests {
             renderAssetCatalog: scene.catalog,
             frameCount: 1
         )
-        let instances = scene.renderFrame.instances
+        let encoder = try MetalFrameEncoder(resources: resources)
+        let prepared = encoder.prepare(scene.renderFrame)
         var visitedIndices: [Int] = []
         var visitedMaterialIDs: [MaterialID] = []
         var decodedMeshCounts: [Int] = []
 
-        // Call the same ordered lookup seam as `MetalFrameEncoder.encode`.
-        // Together with the GPU binding proof, this closes the join between the
-        // real projected frame, its shared MeshID, and all six visible draws.
-        MetalFrameEncoder.forEachRenderableModel(
-            in: instances,
-            instanceCount: instances.count,
-            resources: resources
-        ) { instanceIndex, model in
+        // Inspect the exact immutable join consumed by production encoding.
+        // Together with the GPU binding proof, this closes the path between the
+        // projected frame, its shared MeshID, and all six visible draws without
+        // maintaining a separate static iteration seam just for tests.
+        for (instanceIndex, instance) in prepared.instances.enumerated() {
+            guard let model = instance.model else {
+                continue
+            }
+
             visitedIndices.append(instanceIndex)
-            visitedMaterialIDs.append(instances[instanceIndex].materialID)
+            visitedMaterialIDs.append(instance.renderInstance.materialID)
             decodedMeshCounts.append(model.meshes.count)
         }
 
-        #expect(instances.count == 6)
-        #expect(instances.allSatisfy { $0.meshID == .ball })
-        #expect(visitedIndices == Array(instances.indices))
+        #expect(prepared.instances.count == 6)
+        #expect(
+            prepared.instances.allSatisfy {
+                $0.renderInstance.meshID == .ball
+            }
+        )
+        #expect(visitedIndices == Array(prepared.instances.indices))
         #expect(visitedMaterialIDs == scene.materialIDs)
         #expect(decodedMeshCounts.allSatisfy { $0 > 0 })
     }
@@ -125,8 +131,16 @@ struct MetalRendererTests {
     @Test func renderTargetConfigurationSeparatesHDRSceneFromSRGBPresentation() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let view = MTKView(frame: .zero, device: device)
+        let resources = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: .materialOnlyTestCatalog
+        )
+        let renderer = try MetalRenderer(
+            resources: resources,
+            presentationSource: SimulationRuntime()
+        )
 
-        MetalRenderer.configureRenderTargets(on: view)
+        renderer.configure(view)
 
         // Scene radiance remains linear half-float until the second phase.
         // Only that presentation phase targets the display's sRGB drawable.
@@ -313,7 +327,7 @@ struct MetalRendererTests {
     }
 
     @MainActor
-    @Test func frameResourcesClampInstancesToBufferCapacity() throws {
+    @Test func frameResourcesWriteZeroAndMaximumPreparedInstances() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
@@ -321,27 +335,56 @@ struct MetalRendererTests {
             frameCount: 1
         )
         let frame = try #require(resources.frames.first)
-        let instances = (0..<(FrameResources.maximumInstanceCount + 10)).map {
-            RenderInstance(
-                meshID: .ball,
-                materialID: .warmDielectric,
-                worldPosition: SIMD3<Float>(Float($0), 0, 0)
+        let encoder = try MetalFrameEncoder(resources: resources)
+        let empty = encoder.prepare(Self.makeRenderFrame(instanceCount: 0))
+        let maximum = encoder.prepare(
+            Self.makeRenderFrame(
+                instanceCount: FrameResources.maximumInstanceCount
             )
-        }
+        )
 
-        let writtenCount = frame.write(
-            instances,
-            materialDescriptions: Array(
-                repeating: try resources.materialDescription(
-                    for: .warmDielectric
-                ),
-                count: FrameResources.maximumInstanceCount
-            ),
-            camera: Camera(),
+        frame.write(
+            empty,
+            drawableSize: CGSize(width: 1_920, height: 1_080)
+        )
+        frame.write(
+            maximum,
             drawableSize: CGSize(width: 1_920, height: 1_080)
         )
 
-        #expect(writtenCount == FrameResources.maximumInstanceCount)
+        #expect(empty.instances.isEmpty)
+        #expect(maximum.instances.count == FrameResources.maximumInstanceCount)
+        let writtenInstances = frame.instanceBuffer.contents().bindMemory(
+            to: GPUInstance.self,
+            capacity: FrameResources.maximumInstanceCount
+        )
+        let last = writtenInstances[FrameResources.maximumInstanceCount - 1]
+        #expect(
+            last.modelViewMatrix.columns.3.x
+                == Float(FrameResources.maximumInstanceCount - 1)
+        )
+    }
+
+    private static func makeRenderFrame(instanceCount: Int) -> RenderFrame {
+        RenderFrame(
+            projecting: SimulationPresentationSnapshot(
+                cursor: SimulationCursor(
+                    sessionID: SimulationSessionID(),
+                    tick: .zero
+                ),
+                camera: Camera(),
+                entityPresentations: (0..<instanceCount).map { index in
+                    EntityPresentationSnapshot(
+                        id: EntityID(index: index, generation: 0),
+                        position: SIMD3<Float>(Float(index), 0, 0),
+                        rotation: nil,
+                        scale: nil,
+                        meshID: .ball,
+                        materialID: .warmDielectric
+                    )
+                }
+            )
+        )
     }
 
     @MainActor

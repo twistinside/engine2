@@ -114,7 +114,7 @@ struct MetalResourceStoreTests {
         for materialID in MaterialID.allCases {
             let expected = try #require(catalog.materials[materialID])
             #expect(
-                try store.materialDescription(for: materialID)
+                store.materialDescription(for: materialID)
                     == expected
             )
         }

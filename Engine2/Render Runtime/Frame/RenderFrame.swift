@@ -25,10 +25,10 @@ struct RenderFrame: Equatable {
     }
 
     /// Projects publisher-owned presentation facts into private render data.
-    static func project(
-        from snapshot: SimulationPresentationSnapshot,
+    init(
+        projecting snapshot: SimulationPresentationSnapshot,
         viewpoint: RenderViewpoint? = nil
-    ) -> RenderFrame {
+    ) {
         let camera = viewpoint?.camera ?? snapshot.camera
 
         // An invalid camera would poison every model-view transform. Preserve
@@ -36,13 +36,14 @@ struct RenderFrame: Equatable {
         // produce a safe empty frame rather than sending NaN positions or
         // normals to the GPU.
         guard camera.supportsViewTransform else {
-            return RenderFrame(
+            self.init(
                 sourceCursor: snapshot.cursor,
                 viewpointID: viewpoint?.id,
                 viewpointRevision: viewpoint?.revision,
                 camera: camera,
                 instances: []
             )
+            return
         }
 
         let viewMatrix = camera.viewMatrix
@@ -50,10 +51,10 @@ struct RenderFrame: Equatable {
             // Screen presentation is intentionally tolerant. Reuse the exact
             // per-entity validator, then omit only the malformed instance so a
             // later good snapshot can continue presenting.
-            try? projectInstance(entity, viewMatrix: viewMatrix)
+            try? Self.projectInstance(entity, viewMatrix: viewMatrix)
         }
 
-        return RenderFrame(
+        self.init(
             sourceCursor: snapshot.cursor,
             viewpointID: viewpoint?.id,
             viewpointRevision: viewpoint?.revision,
@@ -67,26 +68,41 @@ struct RenderFrame: Equatable {
     /// Unlike the screen-oriented tolerant projection, this exact boundary
     /// never converts malformed input into an empty or partial success. The
     /// first invalid entity is reported with its authoritative `EntityID`.
-    static func projectExact(
-        from snapshot: SimulationPresentationSnapshot,
+    init(
+        exactlyProjecting snapshot: SimulationPresentationSnapshot,
         viewpoint: RenderViewpoint
-    ) throws -> RenderFrame {
+    ) throws {
         guard viewpoint.camera.supportsViewTransform else {
             throw RenderFrameProjectionError.invalidSelectedCamera
         }
 
         let viewMatrix = viewpoint.camera.viewMatrix
         let instances = try snapshot.entityPresentations.map { entity in
-            try projectInstance(entity, viewMatrix: viewMatrix)
+            try Self.projectInstance(entity, viewMatrix: viewMatrix)
         }
 
-        return RenderFrame(
+        self.init(
             sourceCursor: snapshot.cursor,
             viewpointID: viewpoint.id,
             viewpointRevision: viewpoint.revision,
             camera: viewpoint.camera,
             instances: instances
         )
+    }
+
+    /// Stores an already projected frame without changing its attribution.
+    private init(
+        sourceCursor: SimulationCursor?,
+        viewpointID: RenderViewpointID?,
+        viewpointRevision: RenderViewpointRevision?,
+        camera: Camera,
+        instances: [RenderInstance]
+    ) {
+        self.sourceCursor = sourceCursor
+        self.viewpointID = viewpointID
+        self.viewpointRevision = viewpointRevision
+        self.camera = camera
+        self.instances = instances
     }
 
     /// Validates and projects one entity for both tolerant and exact callers.
@@ -168,45 +184,5 @@ struct RenderFrame: Equatable {
         }
 
         return instance
-    }
-}
-
-/// Render-owned projection of one entity's abstract presentation state.
-///
-/// Mesh and material identities remain backend-neutral here. Later Render
-/// stages privately resolve them without exposing descriptions or GPU resources
-/// to the Simulation-owned source snapshot.
-struct RenderInstance: Equatable {
-    /// Default world-space size for renderable entities that do not advertise scale yet.
-    static let defaultScale = SIMD3<Float>(repeating: 0.5)
-
-    let meshID: MeshID
-    let materialID: MaterialID
-    let transform: Transform
-
-    init(
-        meshID: MeshID,
-        materialID: MaterialID,
-        transform: Transform
-    ) {
-        self.meshID = meshID
-        self.materialID = materialID
-        self.transform = transform
-    }
-
-    init(
-        meshID: MeshID,
-        materialID: MaterialID,
-        worldPosition: SIMD3<Float>,
-        rotation: simd_quatf = Transform.identityRotation,
-        scale: SIMD3<Float> = defaultScale
-    ) {
-        self.meshID = meshID
-        self.materialID = materialID
-        self.transform = Transform(
-            position: worldPosition,
-            rotation: rotation,
-            scale: scale
-        )
     }
 }

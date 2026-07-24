@@ -40,8 +40,7 @@ struct SimulationPresentationSnapshotTests {
             for: nonRenderableEntity
         )
 
-        let snapshot = SimulationPresentationSnapshot.capture(
-            from: world,
+        let snapshot = world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: sessionID,
                 tick: SimulationTick(rawValue: 12)
@@ -59,8 +58,7 @@ struct SimulationPresentationSnapshotTests {
         ) { renderable in
             renderable.materialID = .goldMetal
         }
-        let laterSnapshot = SimulationPresentationSnapshot.capture(
-            from: world,
+        let laterSnapshot = world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: sessionID,
                 tick: SimulationTick(rawValue: 13)

@@ -10,10 +10,10 @@ import SwiftUI
 struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var debugOptions = AppDebugOptions()
-    @State private var realtimeAssembly: RealtimeAssembly
     @State private var snapshotCaptureViewModel: SnapshotCaptureViewModel
     @State private var lifecycleRequestID: UInt64 = 0
     private let gameContent: BasicGameContent
+    private let realtimeAssembly: RealtimeAssembly
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
@@ -44,9 +44,7 @@ struct Engine2App: App {
         }
 
         self.gameContent = gameContent
-        _realtimeAssembly = State(
-            initialValue: realtimeAssembly
-        )
+        self.realtimeAssembly = realtimeAssembly
         _snapshotCaptureViewModel = State(
             initialValue: snapshotCaptureViewModel
         )
@@ -55,7 +53,22 @@ struct Engine2App: App {
     var body: some Scene {
         Window("Engine2", id: "main") {
             ContentView(
-                realtimeAssembly: realtimeAssembly,
+                presentationSource: realtimeAssembly.simulationRuntime,
+                viewpointSource: realtimeAssembly.screenViewpointController,
+                inputSink: realtimeAssembly,
+                isSimulationRunning: {
+                    realtimeAssembly.isAdvancementActive
+                },
+                inputHistory: {
+                    realtimeAssembly.simulationRuntime.world.input.history
+                },
+                toggleSimulation: {
+                    if realtimeAssembly.isAdvancementActive {
+                        realtimeAssembly.pauseAdvancement()
+                    } else {
+                        realtimeAssembly.resumeAdvancement()
+                    }
+                },
                 debugOptions: debugOptions,
                 renderAssetCatalog: gameContent.renderAssetCatalog,
                 snapshotCaptureViewModel: snapshotCaptureViewModel
@@ -89,8 +102,11 @@ struct Engine2App: App {
                     return
                 }
 
-                // Keep the highest-level engine driver tied to app activity
-                // rather than any individual view's lifecycle.
+                // On macOS, an active scene need not be frontmost and should
+                // continue normal work. An inactive scene receives no events
+                // and should pause; a background scene is no longer visible.
+                // Keep that policy at the App boundary rather than tying
+                // Runtime lifecycle to an individual view's appearance.
                 switch newPhase {
                 case .active:
                     realtimeAssembly.start()

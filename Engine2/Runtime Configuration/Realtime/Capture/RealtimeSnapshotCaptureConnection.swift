@@ -32,7 +32,10 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
         presentationSource: any PSimulationPresentationSource,
         viewpointSource: any PRenderViewpointSource,
         renderTarget: any POffscreenRenderTarget,
-        encodeJPEG: @escaping OffscreenJPEGArtifactDeriver.JPEGEncode
+        encodeJPEG: @escaping @Sendable (
+            OffscreenRenderResult,
+            JPEGEncodingSettings
+        ) async -> Result<RenderedImageArtifact, JPEGArtifactEncoderError>
     ) {
         self.presentationSource = presentationSource
         self.viewpointSource = viewpointSource

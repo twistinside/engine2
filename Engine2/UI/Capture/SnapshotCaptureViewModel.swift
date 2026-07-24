@@ -10,12 +10,7 @@ import Observation
 @Observable
 final class SnapshotCaptureViewModel {
     /// Deliberate 4K output that stays within the conservative Render limits.
-    static let defaultRenderSize: RenderPixelSize = {
-        guard let size = try? RenderPixelSize(width: 3_840, height: 2_160) else {
-            preconditionFailure("The fixed 4K snapshot dimensions are invalid.")
-        }
-        return size
-    }()
+    static let defaultRenderSize = RenderPixelSize.uhd4K
 
     private(set) var isCapturing = false
     var isExporterPresented = false

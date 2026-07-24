@@ -7,10 +7,12 @@ The engine, world, and ECS systems described here are the internal architecture 
 At the moment, its exact path:
 - imports an immutable input assignment only when the first requested fixed step begins
 - advances simulation in fixed-size steps
-- runs always-running systems in a stable call order
-- runs simulation systems in a second stable call order
+- runs one complete foundational system schedule in stable call order
 
-``Engine.update(deltaTime:inputSnapshot:)`` still contains the old elapsed-time accumulator and simulation-gated schedule for focused migration coverage. It is not used by the configured application path; wall-time accumulation and pause policy now belong to ``RealtimeAdvanceDriver``.
+``Engine`` has no elapsed-time accumulator or simulation-gated partial
+schedule. Wall-time accumulation and pause policy belong to
+``RealtimeAdvanceDriver``; a completed tick always means the complete schedule
+ran once.
 This keeps timing and scheduling logic out of ``World``.
 ### Simulation Runtime and World Builders
 ``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, and publication of committed results.
@@ -49,18 +51,17 @@ The current portable simulation primitive is an exact Runtime-level request:
 4. ``Engine`` executes the complete ordered schedule exactly as many times as requested.
 5. ``SimulationRuntime`` publishes the final completed presentation snapshot and returns initial/final cursors with the completed step count.
 
-This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over what one tick means. In ``RealtimeConfiguration``, ``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and conversion into exact batches. ``ManualConfiguration`` proves the same Simulation Runtime can progress without a wall clock or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before one draw.
+This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over what one tick means. ``SimulationRuntime/fixedTimeStep`` is the single production 1/60-second definition; configurations cannot substitute another duration. In ``RealtimeConfiguration``, ``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and conversion into exact batches. ``ManualConfiguration`` proves the same Simulation Runtime can progress without a wall clock or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before one draw.
 
-The old ``SimulationLoop`` and elapsed-time ``Engine.update(deltaTime:inputSnapshot:)`` path are retained only while their focused coverage and remaining behavior are migrated. New configurations must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling ``Engine.step(inputSnapshot:)`` directly.
+``Engine`` now exposes only exact complete-step execution. New configurations must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling ``Engine.step(inputSnapshot:)`` directly.
 ## Current Limits
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
 - entity ID reservation is monotonic only; destruction, generation incrementing, and index reuse have not been added yet
 - world/entity translation at spawn time covers the current capability protocols, but lifecycle and reseeding semantics are still intentionally small
-- systems currently run in two ordered lists: always-running input/tool systems and simulation-gated systems
+- systems currently run in one foundational ordered schedule; dependency-derived stages and safe parallelism remain future work
 - the real-time driver's catch-up cap and overflow treatment are static configuration policy; production telemetry and adaptive overload handling remain future work
 - broader advance-authority arbitration and cursor-mismatch recovery remain App/configuration policy beyond the driver's initial fail-closed behavior
-- the legacy ``SimulationLoop``, elapsed-time accumulator, and partial-schedule pause path still await migration and removal
-- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained history, replay storage, and offscreen rendering remain future work
+- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained history, and replay storage remain future work
 ## Topics
 ### Core Symbols
 - ``Engine``

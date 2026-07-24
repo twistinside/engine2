@@ -938,22 +938,25 @@ private actor ControlledSleeper {
     }
 
     private var waiters: [Waiter] = []
+    private var countWaiters: [
+        Int: [CheckedContinuation<Void, Never>]
+    ] = [:]
 
     func sleep(until deadline: SuspendingClock.Instant) async throws {
         try await withCheckedThrowingContinuation { continuation in
             waiters.append(Waiter(continuation: continuation))
+            resumeSatisfiedCountWaiters()
         }
     }
 
     func waitForPendingCount(_ count: Int) async {
-        for _ in 0..<10_000 {
-            if waiters.count >= count {
-                return
-            }
-            await Task.yield()
+        guard waiters.count < count else {
+            return
         }
 
-        Issue.record("Timed out waiting for \(count) controlled sleeps.")
+        await withCheckedContinuation { continuation in
+            countWaiters[count, default: []].append(continuation)
+        }
     }
 
     func resumeNext() {
@@ -970,6 +973,16 @@ private actor ControlledSleeper {
         waiters.removeAll()
         for waiter in pendingWaiters {
             waiter.continuation.resume()
+        }
+    }
+
+    private func resumeSatisfiedCountWaiters() {
+        let satisfiedCounts = countWaiters.keys.filter {
+            $0 <= waiters.count
+        }
+        for count in satisfiedCounts {
+            let continuations = countWaiters.removeValue(forKey: count) ?? []
+            continuations.forEach { $0.resume() }
         }
     }
 }
@@ -1044,6 +1057,9 @@ private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
 
     private var requests: [SimulationAdvanceRequest] = []
     private var pendingAdvances: [PendingAdvance] = []
+    private var countWaiters: [
+        Int: [CheckedContinuation<Void, Never>]
+    ] = [:]
 
     func advance(
         _ request: SimulationAdvanceRequest
@@ -1052,18 +1068,18 @@ private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
 
         return await withCheckedContinuation { continuation in
             pendingAdvances.append(PendingAdvance(continuation: continuation))
+            resumeSatisfiedCountWaiters()
         }
     }
 
     func waitForRequestCount(_ count: Int) async {
-        for _ in 0..<10_000 {
-            if requests.count >= count {
-                return
-            }
-            await Task.yield()
+        guard requests.count < count else {
+            return
         }
 
-        Issue.record("Timed out waiting for \(count) suspended advances.")
+        await withCheckedContinuation { continuation in
+            countWaiters[count, default: []].append(continuation)
+        }
     }
 
     func resumeNext(with outcome: SimulationAdvanceOutcome) {
@@ -1077,6 +1093,16 @@ private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
 
     func recordedRequests() -> [SimulationAdvanceRequest] {
         requests
+    }
+
+    private func resumeSatisfiedCountWaiters() {
+        let satisfiedCounts = countWaiters.keys.filter {
+            $0 <= requests.count
+        }
+        for count in satisfiedCounts {
+            let continuations = countWaiters.removeValue(forKey: count) ?? []
+            continuations.forEach { $0.resume() }
+        }
     }
 }
 
