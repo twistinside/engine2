@@ -11,6 +11,7 @@ struct Engine2App: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var debugOptions = AppDebugOptions()
     @State private var realtimeAssembly: RealtimeAssembly
+    @State private var snapshotCaptureViewModel: SnapshotCaptureViewModel
     @State private var lifecycleRequestID: UInt64 = 0
     private let gameContent: BasicGameContent
 
@@ -18,20 +19,46 @@ struct Engine2App: App {
 
     init() {
         let gameContent = BasicGameContent()
+        let realtimeAssembly = RealtimeConfiguration().makeAssembly(
+            gameContent: gameContent
+        )
+        let snapshotCaptureViewModel: SnapshotCaptureViewModel
+
+        do {
+            let offscreenRenderRuntime = try MetalOffscreenRenderRuntime(
+                catalog: gameContent.renderAssetCatalog
+            )
+            let captureConnection = RealtimeSnapshotCaptureConnection(
+                presentationSource: realtimeAssembly.simulationRuntime,
+                viewpointSource: realtimeAssembly.screenViewpointController,
+                renderTarget: offscreenRenderRuntime
+            )
+            snapshotCaptureViewModel = SnapshotCaptureViewModel(
+                captureTarget: captureConnection
+            )
+        } catch {
+            snapshotCaptureViewModel = SnapshotCaptureViewModel(
+                unavailableReason:
+                    "The offline Metal renderer could not start. \(error)"
+            )
+        }
+
         self.gameContent = gameContent
         _realtimeAssembly = State(
-            initialValue: RealtimeConfiguration().makeAssembly(
-                gameContent: gameContent
-            )
+            initialValue: realtimeAssembly
+        )
+        _snapshotCaptureViewModel = State(
+            initialValue: snapshotCaptureViewModel
         )
     }
 
     var body: some Scene {
-        WindowGroup {
+        Window("Engine2", id: "main") {
             ContentView(
                 realtimeAssembly: realtimeAssembly,
                 debugOptions: debugOptions,
-                renderAssetCatalog: gameContent.renderAssetCatalog
+                renderAssetCatalog: gameContent.renderAssetCatalog,
+                snapshotCaptureViewModel: snapshotCaptureViewModel
             )
         }
         .commands {
