@@ -24,6 +24,7 @@ struct SimulationTickTests {
             SimulationTick(rawValue: .max - 1),
             SimulationTick(rawValue: .max)
         ])
+        requireRawRepresentable(SimulationTick.zero)
     }
 
     @Test func codableRoundTripPreservesLargeTickIdentity() throws {
@@ -35,4 +36,11 @@ struct SimulationTickTests {
         #expect(decoded == tick)
         #expect(decoded.advanced() == SimulationTick(rawValue: .max))
     }
+
+    @Test func tickIsSafeToTransferAsAnImmutableBoundaryValue() {
+        requireSendable(SimulationTick(rawValue: 8))
+    }
+
+    private func requireSendable(_ value: some Sendable) {}
+    private func requireRawRepresentable(_ value: some RawRepresentable) {}
 }

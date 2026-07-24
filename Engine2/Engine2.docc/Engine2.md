@@ -1,5 +1,5 @@
 # ``Engine2``
-Engine2 is a small ECS-first engine experiment with typed entity facades, per-type component stores, and a fixed-step simulation loop.
+Engine2 is a small ECS-first engine experiment with typed entity facades, per-type component stores, and an exact fixed-step simulation core.
 ## Overview
 The current codebase is intentionally small, but the core direction is already established:
 - The App owns independent top-level runtimes connected through explicit typed snapshot and event publications.
@@ -7,19 +7,33 @@ The current codebase is intentionally small, but the core direction is already e
 - The Simulation Runtime is authoritative for gameplay state and contains the engine, world, and ECS systems.
 - Game Content supplies consumer-defined entities, world construction, presentation descriptions, and assets without becoming a runtime.
 - ``World`` owns authoritative simulation state.
-- ``Engine`` owns fixed-step orchestration and system execution.
+- ``Engine`` owns exact fixed-step execution and one complete ordered system schedule; cadence and pause policy exist only in App-owned drivers.
 - ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
 - ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
-- ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot`` and Render derives its private ``RenderFrame`` projection without reading live ``World`` state.
+- ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot``. The snapshot camera is a publisher-authored default, not a requirement that every output use one Simulation-mutated view.
+- The App-owned ``ScreenViewpointController`` can change one screen's presentation while Simulation is paused. Render combines its immutable ``RenderViewpoint`` with the exact Simulation snapshot and records both Simulation-cursor and optional viewpoint attribution in ``RenderFrame``.
+- ``MetalFrameEncoder`` prepares and encodes the reusable Metal frame against caller-owned textures, frame resources, and a command buffer without depending on MetalKit view or drawable ownership.
+- ``POffscreenRenderTarget`` accepts an exact immutable snapshot, explicit viewpoint, and render settings asynchronously. ``MetalOffscreenRenderRuntime`` implements that capability with dedicated one-slot Metal resources and returns detached pixels with exact request, scene, viewpoint, and settings provenance.
+- ``JPEGArtifactEncoder`` transforms a completed raw offscreen result into a detached JPEG artifact on the CPU. The stateless encoder preserves exact source provenance, chooses no execution context, and can be retried without advancing Simulation or rerendering.
+- ``OfflineCaptureConfiguration`` composes one closed serial exact-scene/render/encode topology. Its assembly exposes only the initial cursor and ``POfflineCaptureTarget``, keeping ``OfflineCaptureCoordinator`` as the sole effective advance authority. The coordinator retains exactly the initial or last completed presentation and supports at-most-once advance capture plus mandatory-cursor current capture through one gate. It validates completed image extent and cancellation identity, then immediately awaits non-cancellation-inheriting JPEG work outside its actor while preserving busy backpressure.
+- ``AgentSessionConfiguration`` constructs an assembly that privately wraps the closed offline assembly behind ``PAgentSessionTarget``. ``AgentCaptureSource`` chooses bounded `.advance` or non-advancing `.current`, and the live-process coordinator places both complete payloads in one session-qualified monotonic at-most-once, exact-replay, typed-overlap, and drain-before-close lane without gaining a second advance or render capability.
 This documentation catalog serves two purposes:
 - document the behavior that already exists in the codebase
 - capture architectural direction that is intentionally not implemented yet
 At the moment, the codebase already includes:
-- an App-owned Input Runtime whose immutable latest snapshot is sampled by Simulation and ingested only at fixed-step boundaries
-- a two-list system runner in ``Engine`` for always-running input/tool systems and simulation-gated systems
-- a main-actor ``SimulationLoop`` that polls wall time and advances the fixed-step engine
-- an app-facing ``SimulationRuntime`` that owns simulation lifecycle and world construction policy
-- a presentation-snapshot publication and render projection path via ``SimulationPresentationSnapshot``, ``RenderFrame.project(from:)``, and ``MetalSceneView``
+- an App-owned Input Runtime whose immutable latest snapshot is captured by ``RealtimeAdvanceDriver`` and assigned to an exact Simulation request
+- one complete ordered system schedule in ``Engine`` with input history/cleanup followed by authoritative Simulation work
+- an App-owned real-time driver that translates wall time into cursor-qualified exact requests, plus a clock-free ``ManualConfiguration``
+- an app-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world construction policy, and completed publication
+- a current real-time assembly that explicitly fans screen host events to both ``InputRuntime`` and ``ScreenViewpointController`` while leaving Simulation advancement under the separate driver
+- a presentation-snapshot, explicit-viewpoint, and render-projection path via ``SimulationPresentationSnapshot``, ``RenderViewpoint``, `RenderFrame(projecting:viewpoint:)`, and ``MetalSceneView``
+- a view-independent production ``MetalFrameEncoder`` shared by the thin MetalKit screen adapter, the exact offscreen Runtime, and their render integration coverage
+- a production exact offscreen request/outcome boundary with strict presentation/model/geometry preflight, configurable safety limits, single-flight backpressure, queue-feedback lifetime, cancellation semantics, and tightly packed top-left BGRA8-sRGB readback
+- a stateless JPEG artifact layer with validated quality, detached encoded data, and exact request/cursor/viewpoint/render/encoding provenance
+- a concrete serial offline capture configuration whose typed outcomes preserve either committed Simulation progress or the exact retained current presentation and, after rendering, the raw result needed for retryable artifact derivation
+- a transport-neutral agent-session configuration whose closed assembly exposes only starting identity, ``PAgentSessionTarget``, and drain lifecycle; focused coverage validates both capture sources through one admission/idempotency/cache/cursor/cancellation/lifecycle policy, and real integration advances to tick one, captures and replays an alternate view at tick one, then advances to tick two
+
+The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pause gate, `SInputMapping`, and `SCameraInput` have been removed. New App composition advances through the Runtime-level exact capability and owns screen viewpoint control outside Simulation. Exact raw offscreen rendering, CPU-side JPEG derivation, serial advance-or-current capture, and the live-process idempotent agent wrapper are implemented. The agent layer has no automatic cadence and preserves the offline coordinator as the only advance authority. Its current-cursor JPEG is visual output, not structured observation. An actual MCP Runtime or transport, authentication, wire DTOs, restart-safe idempotency journal, physical or semantic gameplay controls, structured observations, persistence/sinks, dedicated render worker, pooled targets, atomic multi-view jobs, high-quality accumulation/HDR policy, PNG, typed routing, multi-window bindings, and observer anchors remain proposed. Controls remain future until a typed gameplay consumer exists; advancing agent requests currently assign `.none`.
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>

@@ -227,18 +227,36 @@ final class MetalHDRPipelineTestRenderer {
                 transform: Transform()
             )
         }
-        let materialDescriptions = try materialIDs.map {
-            try resources.materialDescription(for: $0)
-        }
-        let instanceCount = frame.write(
-            instances,
-            materialDescriptions: materialDescriptions,
-            camera: Self.camera,
+        let preparedFrame = MetalPreparedFrame(
+            renderFrame: RenderFrame(
+                projecting: SimulationPresentationSnapshot(
+                    cursor: SimulationCursor(
+                        sessionID: SimulationSessionID(),
+                        tick: .zero
+                    ),
+                    camera: Self.camera,
+                    entityPresentations: instances.enumerated().map {
+                        index, instance in
+                        EntityPresentationSnapshot(
+                            id: EntityID(index: index, generation: 0),
+                            position: instance.transform.position,
+                            rotation: instance.transform.rotation,
+                            scale: instance.transform.scale,
+                            meshID: instance.meshID,
+                            materialID: instance.materialID
+                        )
+                    }
+                )
+            ),
+            resources: resources
+        )
+        frame.write(
+            preparedFrame,
             drawableSize: CGSize(width: Self.width, height: Self.height),
             exposure: exposure
         )
         precondition(
-            instanceCount == materialIDs.count,
+            preparedFrame.instances.count == materialIDs.count,
             "The HDR pipeline proof must write every requested material draw."
         )
 
@@ -275,16 +293,15 @@ final class MetalHDRPipelineTestRenderer {
                 index: 2
             )
 
-            for instanceIndex in 0..<instanceCount {
+            for instanceIndex in preparedFrame.instances.indices {
                 // Exercise the production binding primitive so the GPU proof
                 // fails if visible rendering regresses its instance stride,
                 // fragment buffer index, or per-draw fragment-table bind.
-                MetalRenderer.selectModelInstance(
+                frame.bindInstance(
                     at: instanceIndex,
-                    in: frame,
                     modelArgumentTable: modelArgumentTable,
                     pbrSceneArgumentTable: pbrSceneArgumentTable,
-                    with: sceneEncoder
+                    to: sceneEncoder
                 )
                 sceneEncoder.setArgumentTable(
                     modelArgumentTable,
@@ -368,7 +385,7 @@ final class MetalHDRPipelineTestRenderer {
             descriptor.vertexFunctionDescriptor = vertexFunction
             descriptor.fragmentFunctionDescriptor = fragmentFunction
             descriptor.rasterSampleCount = 1
-            descriptor.colorAttachments[0].pixelFormat = MetalRenderer.sceneColorPixelFormat
+            descriptor.colorAttachments[0].pixelFormat = MetalFrameEncoder.sceneColorPixelFormat
 
             pipelines[output] = try resources.compiler.makeRenderPipelineState(
                 descriptor: descriptor
@@ -483,7 +500,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private func makeSceneTexture() throws -> any MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.sceneColorPixelFormat,
+            pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
             width: Self.width,
             height: Self.height,
             mipmapped: false
@@ -501,7 +518,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private func makeDepthTexture() throws -> any MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.depthPixelFormat,
+            pixelFormat: MetalFrameEncoder.depthPixelFormat,
             width: Self.width,
             height: Self.height,
             mipmapped: false
@@ -516,7 +533,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private func makePresentedTexture() throws -> any MTLTexture {
         let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-            pixelFormat: MetalRenderer.colorPixelFormat,
+            pixelFormat: MetalFrameEncoder.destinationColorPixelFormat,
             width: Self.width,
             height: Self.height,
             mipmapped: false

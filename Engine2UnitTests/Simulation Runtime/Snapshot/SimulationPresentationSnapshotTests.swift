@@ -5,6 +5,7 @@ import simd
 struct SimulationPresentationSnapshotTests {
     @Test func captureProducesStableDetachedPresentationState() throws {
         let world = World()
+        let sessionID = SimulationSessionID()
         let renderableEntity = EntityID(index: 4, generation: 0)
         let nonRenderableEntity = EntityID(index: 1, generation: 2)
         let expectedRotation = simd_quatf(
@@ -39,9 +40,11 @@ struct SimulationPresentationSnapshotTests {
             for: nonRenderableEntity
         )
 
-        let snapshot = SimulationPresentationSnapshot.capture(
-            from: world,
-            at: SimulationTick(rawValue: 12)
+        let snapshot = world.presentationSnapshot(
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: SimulationTick(rawValue: 12)
+            )
         )
 
         // Mutating authoritative state after publication must not mutate the
@@ -55,12 +58,15 @@ struct SimulationPresentationSnapshotTests {
         ) { renderable in
             renderable.materialID = .goldMetal
         }
-        let laterSnapshot = SimulationPresentationSnapshot.capture(
-            from: world,
-            at: SimulationTick(rawValue: 13)
+        let laterSnapshot = world.presentationSnapshot(
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: SimulationTick(rawValue: 13)
+            )
         )
 
         #expect(didUpdateMaterial)
+        #expect(snapshot.cursor.sessionID == sessionID)
         #expect(snapshot.tick == SimulationTick(rawValue: 12))
         #expect(snapshot.camera.position == SIMD3<Float>(1, 2, 8))
         #expect(snapshot.entityPresentations.map(\.id) == [renderableEntity])
@@ -76,5 +82,8 @@ struct SimulationPresentationSnapshotTests {
         // snapshot above remains a detached point-in-time value.
         let laterEntity = try #require(laterSnapshot.entityPresentations.first)
         #expect(laterEntity.materialID == .goldMetal)
+        requireSendable(snapshot)
     }
+
+    private func requireSendable(_ value: some Sendable) {}
 }

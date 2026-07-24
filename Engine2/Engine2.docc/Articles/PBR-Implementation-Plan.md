@@ -19,6 +19,19 @@ remains a fixed Render-owned validation input. A deterministic six-sphere scene
 exercises the ordinary Game Content-to-Simulation-to-Render path; semantic
 lighting is not yet a Simulation or snapshot concept.
 
+The production PBR/HDR encoding path now lives in view-independent
+``MetalFrameEncoder``. ``MetalOffscreenRenderRuntime`` now drives that encoder
+through a production exact async request/outcome boundary with dedicated
+one-slot resources, explicit residency and queue-feedback lifetime, and raw
+BGRA8-sRGB readback with no view or drawable. This establishes the production
+offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
+PNG pipeline, artifact persistence, pooled targets, or dedicated Render worker.
+A separate stateless CPU ``JPEGArtifactEncoder`` now derives a provenance-rich
+JPEG from the completed raw result, and ``OfflineCaptureConfiguration``
+serially coordinates either an exact advance-and-capture or a cursor-checked
+capture of its retained current presentation through the same render and
+encoding workflow, without changing this PBR/GPU boundary.
+
 The plan deliberately stops short of specifying the eventual renderer in full.
 Each milestone introduces one observable capability and must leave the engine
 working without code from the next milestone.
@@ -102,6 +115,7 @@ Render owns:
 - the fixed directional-light validation input
 - depth and HDR targets
 - Metal pipelines, argument tables, synchronization, and residency
+- exact offscreen target, submission, cancellation, and raw-readback policy
 - the eventual Forward+ light-assignment data
 
 No Metal object, tile index, GPU address, or renderer capacity enters ECS or a
@@ -332,13 +346,20 @@ system:
   `MaterialID`. They contain no factors, compact GPU indices, buffers, or Metal
   objects. Snapshot capture copies the identity by value, so a later ECS change
   cannot alter an already published presentation.
-- `MetalResourceStore` retains the validated CPU descriptions. `MetalRenderer`
-  waits for a frame slot, samples the newest completed presentation, and
-  resolves the bounded submitted prefix before resetting, writing, or encoding
-  mutable GPU state. The slot then packs base color plus metallic and roughness
-  into each draw's existing `GPUInstance`. The 208-byte record remains stable
-  through the frame-ring completion rule; no separate material allocation or
-  residency set exists.
+- `MetalResourceStore` retains the validated CPU descriptions. ``MetalRenderer``
+  waits for a screen frame slot and samples the newest completed presentation;
+  ``MetalFrameEncoder`` resolves the bounded submitted prefix before the caller
+  resets, writes, or encodes mutable GPU state. The encoder then packs base
+  color plus metallic and roughness into each draw's existing `GPUInstance`.
+  The 208-byte record remains stable through the caller's frame-completion rule;
+  no separate material allocation or residency set exists.
+- Exact ``MetalOffscreenRenderRuntime`` requests additionally use strict frame
+  projection, prove complete model and drawable indexed-geometry coverage, and
+  reject more than 256 projected instances before allocator reset or target
+  mutation. Unlike the live screen, an offline request never silently omits a
+  malformed presented entity, missing model, unusable vertex slice, empty mesh
+  or submesh, or invalid index slice, and never truncates the encoder's bounded
+  prefix into a misleading partial image.
 - `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
   directional light is transformed into view space once per frame, while the
   fragment stage reads the current draw's material from its instance record.
@@ -480,6 +501,8 @@ sphere baseline:
 - semantic light components, snapshot publication, and local-light types
 - physically calibrated radiometric or photometric lights and camera exposure
 - pre-exposure, automatic exposure, and a final tone-mapping look
+- offline HDR-master formats, quality accumulation, temporal sampling, pooled
+  targets, PNG artifact encoding, and artifact persistence
 - reversed-Z, `Double` or sector-local world positions, and render-origin policy
 - atmosphere, clouds, rings, and transparency
 

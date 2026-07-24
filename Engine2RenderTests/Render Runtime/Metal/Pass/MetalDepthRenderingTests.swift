@@ -81,7 +81,7 @@ private func renderCenterPixel(
 ) throws -> SIMD4<Float> {
     let textureSize = 8
     let colorTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-        pixelFormat: MetalRenderer.sceneColorPixelFormat,
+        pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
         width: textureSize,
         height: textureSize,
         mipmapped: false
@@ -90,7 +90,7 @@ private func renderCenterPixel(
     colorTextureDescriptor.usage = [.renderTarget, .shaderRead]
 
     let depthTextureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
-        pixelFormat: MetalRenderer.depthPixelFormat,
+        pixelFormat: MetalFrameEncoder.depthPixelFormat,
         width: textureSize,
         height: textureSize,
         mipmapped: false
@@ -153,15 +153,34 @@ private func renderCenterPixel(
     ]
     let frame = try #require(resources.frames.first)
     frame.commandAllocator.reset()
-    let instanceCount = frame.write(
-        instances,
-        materialDescriptions: try instances.map {
-            try resources.materialDescription(for: $0.materialID)
-        },
-        camera: camera,
+    let preparedFrame = MetalPreparedFrame(
+        renderFrame: RenderFrame(
+            projecting: SimulationPresentationSnapshot(
+                cursor: SimulationCursor(
+                    sessionID: SimulationSessionID(),
+                    tick: .zero
+                ),
+                camera: camera,
+                entityPresentations: instances.enumerated().map {
+                    index, instance in
+                    EntityPresentationSnapshot(
+                        id: EntityID(index: index, generation: 0),
+                        position: instance.transform.position,
+                        rotation: instance.transform.rotation,
+                        scale: instance.transform.scale,
+                        meshID: instance.meshID,
+                        materialID: instance.materialID
+                    )
+                }
+            )
+        ),
+        resources: resources
+    )
+    frame.write(
+        preparedFrame,
         drawableSize: CGSize(width: textureSize, height: textureSize)
     )
-    #expect(instanceCount == instances.count)
+    #expect(preparedFrame.instances.count == instances.count)
 
     let renderPass = MTL4RenderPassDescriptor()
     renderPass.colorAttachments[0].texture = colorTexture
@@ -176,7 +195,7 @@ private func renderCenterPixel(
     renderPass.depthAttachment.texture = depthTexture
     renderPass.depthAttachment.loadAction = .clear
     renderPass.depthAttachment.storeAction = .dontCare
-    renderPass.depthAttachment.clearDepth = MetalRenderer.clearDepth
+    renderPass.depthAttachment.clearDepth = MetalFrameEncoder.clearDepth
 
     let commandBuffer = try #require(resources.device.makeCommandBuffer())
     commandBuffer.beginCommandBuffer(allocator: frame.commandAllocator)

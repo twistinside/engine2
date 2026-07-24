@@ -2,7 +2,7 @@
 ///
 /// A new session starts whenever the runtime is restarted. Sequence numbers
 /// order publications within that session.
-struct InputRevision: Equatable, Comparable, Sendable {
+nonisolated struct InputRevision: Equatable, Comparable, Sendable {
     let session: UInt64
     let sequence: UInt64
 

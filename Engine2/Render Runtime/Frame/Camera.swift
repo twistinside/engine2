@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 /// Abstract render camera state owned by the engine, not by a specific backend.
-struct Camera {
+nonisolated struct Camera: Sendable {
     /// Backend-neutral projection parameters used to construct a clip-space matrix.
     ///
     /// Associated values are expressed in world units and radians. Both
@@ -10,7 +10,7 @@ struct Camera {
     /// the camera's local forward axis, which points down view-space `-Z`.
     /// Camera initialization validates the dimensions and clipping-plane
     /// ordering so render backends can consume a well-formed projection.
-    enum Projection: Equatable {
+    nonisolated enum Projection: Equatable, Sendable {
         case orthographic(height: Float, near: Float, far: Float)
         case perspective(verticalFieldOfView: Float, near: Float, far: Float)
     }
@@ -193,63 +193,10 @@ struct Camera {
     }
 }
 
-extension Camera: Equatable {
+nonisolated extension Camera: Equatable {
     static func == (lhs: Camera, rhs: Camera) -> Bool {
         lhs.position == rhs.position &&
         lhs.rotation.vector == rhs.rotation.vector &&
         lhs.projection == rhs.projection
-    }
-}
-
-private extension simd_float4x4 {
-    static func orthographic(
-        left: Float,
-        right: Float,
-        bottom: Float,
-        top: Float,
-        near: Float,
-        far: Float
-    ) -> simd_float4x4 {
-        let width = right - left
-        let height = top - bottom
-        let depth = far - near
-
-        return simd_float4x4(
-            columns: (
-                SIMD4<Float>(2 / width, 0, 0, 0),
-                SIMD4<Float>(0, 2 / height, 0, 0),
-                // Camera-forward points have negative view-space Z. Negating
-                // that coordinate makes orthographic near/far values use the
-                // same positive-distance meaning as perspective projection.
-                SIMD4<Float>(0, 0, -1 / depth, 0),
-                SIMD4<Float>(
-                    -(right + left) / width,
-                    -(top + bottom) / height,
-                    -near / depth,
-                    1
-                )
-            )
-        )
-    }
-
-    static func perspective(
-        verticalFieldOfView: Float,
-        aspectRatio: Float,
-        near: Float,
-        far: Float
-    ) -> simd_float4x4 {
-        let yScale = 1 / tanf(verticalFieldOfView / 2)
-        let xScale = yScale / aspectRatio
-        let zScale = far / (near - far)
-        let zTranslation = near * far / (near - far)
-
-        return simd_float4x4(
-            columns: (
-                SIMD4<Float>(xScale, 0, 0, 0),
-                SIMD4<Float>(0, yScale, 0, 0),
-                SIMD4<Float>(0, 0, zScale, -1),
-                SIMD4<Float>(0, 0, zTranslation, 0)
-            )
-        )
     }
 }

@@ -7,6 +7,9 @@ import Metal
 /// retains the corresponding device objects for exactly one `MTLDevice`.
 @MainActor
 final class MetalResourceStore {
+    /// Default number of reusable allocator/buffer slots for live rendering.
+    static let defaultFrameCount = 3
+
     /// The root of every resource in this store. A different device requires a
     /// different store because Metal objects cannot move between devices.
     let device: any MTLDevice
@@ -56,7 +59,7 @@ final class MetalResourceStore {
     /// containing the renderer's required built-in resources.
     convenience init(
         renderAssetCatalog: RenderAssetCatalog,
-        frameCount: Int = MetalRenderer.maximumFramesInFlight
+        frameCount: Int = defaultFrameCount
     ) throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw MetalResourceStoreError.missingDevice
@@ -73,7 +76,7 @@ final class MetalResourceStore {
     init(
         device: any MTLDevice,
         renderAssetCatalog: RenderAssetCatalog,
-        frameCount: Int = MetalRenderer.maximumFramesInFlight
+        frameCount: Int = defaultFrameCount
     ) throws {
         guard frameCount > 0 else {
             throw MetalResourceStoreError.invalidFrameCount(frameCount)
@@ -171,18 +174,17 @@ final class MetalResourceStore {
 
     /// Resolves one Game Content identity to its retained authored factors.
     ///
-    /// Store construction validates exhaustive coverage, so a missing value
-    /// here would indicate that a future mutation or catalog-loading path
-    /// violated that invariant. Keep the lookup throwing rather than inventing
-    /// a fallback appearance or crashing inside frame encoding.
+    /// Store construction validates exhaustive coverage before retaining this
+    /// immutable dictionary. Frame preparation can therefore use the lookup as
+    /// a total mapping without repeating a recoverable content check per draw.
     func materialDescription(
         for id: MaterialID
-    ) throws -> PBRMaterialDescription {
-        guard let description = materialDescriptions[id] else {
-            throw RenderAssetCatalogError.missingMaterialDescriptions([id])
-        }
-
-        return description
+    ) -> PBRMaterialDescription {
+        // Coverage was proved before `materialDescriptions` was retained and
+        // the dictionary never mutates afterward. A future construction path
+        // that violates that invariant is a programmer error, not a frame-time
+        // fallback opportunity.
+        materialDescriptions[id]!
     }
 
     /// Loads the shader library defined by a closed Render Runtime identity.
@@ -227,25 +229,25 @@ final class MetalResourceStore {
             vertexFunctionName = "modelVertex"
             fragmentFunctionName = "modelPBRFragment"
             pipelineLabel = "USD Model PBR Pipeline"
-            colorPixelFormat = MetalRenderer.sceneColorPixelFormat
+            colorPixelFormat = MetalFrameEncoder.sceneColorPixelFormat
 
         case .modelNormalDiagnostic:
             vertexFunctionName = "modelVertex"
             fragmentFunctionName = "modelNormalDiagnosticFragment"
             pipelineLabel = "USD Model Normal Diagnostic Pipeline"
-            colorPixelFormat = MetalRenderer.sceneColorPixelFormat
+            colorPixelFormat = MetalFrameEncoder.sceneColorPixelFormat
 
         case .hdrToneMappedPresentation:
             vertexFunctionName = "hdrPresentationVertex"
             fragmentFunctionName = "hdrToneMappedPresentationFragment"
             pipelineLabel = "HDR Tone-Mapped Presentation Pipeline"
-            colorPixelFormat = MetalRenderer.colorPixelFormat
+            colorPixelFormat = MetalFrameEncoder.destinationColorPixelFormat
 
         case .linearPresentation:
             vertexFunctionName = "hdrPresentationVertex"
             fragmentFunctionName = "linearPresentationFragment"
             pipelineLabel = "Linear Diagnostic Presentation Pipeline"
-            colorPixelFormat = MetalRenderer.colorPixelFormat
+            colorPixelFormat = MetalFrameEncoder.destinationColorPixelFormat
         }
 
         let library = try shaderLibrary(for: .engine)

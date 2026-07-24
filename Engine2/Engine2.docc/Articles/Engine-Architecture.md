@@ -1,21 +1,24 @@
 # Engine Architecture
 Engine2 is organized around a small set of responsibilities that are meant to stay separate as the engine grows.
-The engine, world, and ECS systems described here are the internal architecture of the authoritative ``SimulationRuntime``. See <doc:Runtime-Architecture> for the top-level application model and runtime-boundary vocabulary, and <doc:Runtime-Configurations-and-Advancement> for the proposed separation between Simulation-owned tick execution and configuration-selected advance authority.
+The engine, world, and ECS systems described here are the internal architecture of the authoritative ``SimulationRuntime``. See <doc:Runtime-Architecture> for the top-level application model and runtime-boundary vocabulary, and <doc:Runtime-Configurations-and-Advancement> for the implemented exact-advance boundary and the broader proposed configuration model.
 ## Current Simulation Roles
 ### Engine
-``Engine`` owns time accumulation and simulation orchestration.
-At the moment, it:
-- accumulates incoming frame time
-- imports the latest immutable input snapshot only when a fixed step begins
+``Engine`` owns exact fixed-step execution and ordered system orchestration.
+At the moment, its exact path:
+- imports an immutable input assignment only when the first requested fixed step begins
 - advances simulation in fixed-size steps
-- runs always-running systems in a stable call order
-- runs simulation systems in a second stable call order only when simulation is enabled
+- runs one complete foundational system schedule in stable call order
+
+``Engine`` has no elapsed-time accumulator or simulation-gated partial
+schedule. Wall-time accumulation and pause policy belong to
+``RealtimeAdvanceDriver``; a completed tick always means the complete schedule
+ran once.
 This keeps timing and scheduling logic out of ``World``.
 ### Simulation Runtime and World Builders
-``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap and lifecycle policy.
-It accepts a ``PWorldBuilder`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. In the current real-time implementation it also owns ``SimulationLoop``, which polls wall time, samples the latest `InputSnapshot` through `PInputSnapshotSource`, and advances the engine in response to host lifecycle events.
+``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, and publication of committed results.
+It accepts a ``PWorldBuilder`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. Its narrow ``PSimulationAdvanceTarget`` capability validates an optional expected ``SimulationCursor``, applies the request's immutable input assignment, executes the requested number of complete steps, and returns a correlated result.
 
-That loop ownership is a current coupling rather than the intended universal boundary. The proposed configuration model makes exact advancement a narrow Simulation Runtime operation, then lets an App-owned real-time driver, offline coordinator, MCP coordinator, network policy, replay, or test decide when to request it. Simulation still owns the fixed-step definition, complete system schedule, tick identity, and publication of committed results.
+Cadence is deliberately outside that boundary. The App-owned ``RealtimeAdvanceDriver`` polls wall time and samples `PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. Future offline, MCP, network, and replay coordinators can use the same exact capability. Simulation retains the fixed-step definition, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
 ``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
 The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes that contract. Consumer-defined builders, entity types, components, and presentation descriptions belong to Game Content. The App supplies that content while constructing the Simulation Runtime; the runtime does not discover content through global registries. See <doc:Game-Content-Architecture>.
 ### World
@@ -40,24 +43,25 @@ This keeps `World` authoritative without making it the owner of Metal or other b
 They are not the simulation source of truth. Authoritative gameplay state lives in the world's component stores.
 
 ## Fixed-Step Simulation
-The current simulation model is a fixed-step loop:
-1. Real frame time is added to the engine's accumulator.
-2. When enough time exists for a fixed step, the engine imports the sampled `InputSnapshot` into World-owned `InputState`.
-3. The engine executes as many fixed simulation ticks as fit inside that accumulated time.
-4. Each tick runs the registered systems against the current world state.
-This model keeps systems working in terms of simulation time rather than render-frame timing.
-At the application boundary, host code decides when the session should run or pause. ``SimulationRuntime`` owns ``SimulationLoop``, which samples real time and the read-only latest input source before feeding both to ``Engine``. If the accumulated delta produces no fixed step, the engine does not consume the input snapshot. During catch-up, transient input derived from one sampled revision is introduced once rather than replayed for every step. That outer loop stays above `Engine` so the engine remains reusable in tests, tools, and future host applications with different lifecycle needs. Drawing is expected to run on its own presentation cadence. A draw can occur with no new simulation tick, and several simulation ticks can happen before one draw.
+The current portable simulation primitive is an exact Runtime-level request:
 
-This describes today's real-time configuration. The proposed portable primitive is an exact Runtime-level step request whose completion updates Simulation-owned snapshots and events according to each lane's declared semantics. Real-time elapsed-time remainder, catch-up limits, overload behavior, and input sampling then move into the real-time advance driver. Exact-step configurations do not need to fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling ``Engine/step(inputSnapshot:)`` directly.
+1. A caller supplies an optional expected ``SimulationCursor``, a positive step count, and one immutable input assignment.
+2. ``SimulationRuntime`` validates the expected cursor inside its serialized mutation domain.
+3. A rebase assignment establishes held input without replaying older transient totals, an ingest assignment is consumed only at the first requested tick boundary, and rebase-then-ingest atomically preserves input published after a captured transition baseline.
+4. ``Engine`` executes the complete ordered schedule exactly as many times as requested.
+5. ``SimulationRuntime`` publishes the final completed presentation snapshot and returns initial/final cursors with the completed step count.
+
+This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over what one tick means. ``SimulationRuntime/fixedTimeStep`` is the single production 1/60-second definition; configurations cannot substitute another duration. In ``RealtimeConfiguration``, ``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and conversion into exact batches. ``ManualConfiguration`` proves the same Simulation Runtime can progress without a wall clock or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before one draw.
+
+``Engine`` now exposes only exact complete-step execution. New configurations must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling ``Engine.step(inputSnapshot:)`` directly.
 ## Current Limits
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
 - entity ID reservation is monotonic only; destruction, generation incrementing, and index reuse have not been added yet
 - world/entity translation at spawn time covers the current capability protocols, but lifecycle and reseeding semantics are still intentionally small
-- systems currently run in two ordered lists: always-running input/tool systems and simulation-gated systems
-- overload protection for the fixed-step loop has not been added yet
-- Simulation does not yet expose a Runtime-level, serially executed exact-advance request/result boundary independent of ``SimulationLoop``
-- simulation session identity does not yet qualify resettable tick values
-- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained history, replay storage, and offscreen rendering remain future work
+- systems currently run in one foundational ordered schedule; dependency-derived stages and safe parallelism remain future work
+- the real-time driver's catch-up cap and overflow treatment are static configuration policy; production telemetry and adaptive overload handling remain future work
+- broader advance-authority arbitration and cursor-mismatch recovery remain App/configuration policy beyond the driver's initial fail-closed behavior
+- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained history, and replay storage remain future work
 ## Topics
 ### Core Symbols
 - ``Engine``

@@ -4,7 +4,7 @@
 /// value so a stale handle cannot resolve a newer entity that eventually reuses
 /// the same slot. Index reuse is intentionally deferred until destruction and
 /// dense-store compaction preserve this generation invariant.
-struct EntityID: Hashable {
+nonisolated struct EntityID: Hashable, Sendable {
     let index: Int
     let generation: Int
 }

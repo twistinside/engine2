@@ -1,91 +1,67 @@
-import Observation
-
-/// App-facing lifecycle boundary for the simulation runtime.
+/// App-facing authoritative boundary for one Simulation session.
 ///
 /// `SimulationRuntime` owns the policy for constructing and replacing the
-/// active world. `Engine` remains the deterministic inner mechanism and owns
-/// the invariant system schedule.
-@MainActor
-@Observable
-final class SimulationRuntime: PSimulationPresentationSource {
-    /// Minimal session state intended for SwiftUI and other presentation code.
-    struct State {
-        var fixedTimeStep: Duration
-        var isLoopRunning = false
-        var isRunning = false
-    }
+/// active world, serializes exact advancement, and publishes completed state.
+/// Cadence, input sampling, pause policy, and lifecycle coordination belong to
+/// the App-owned configuration that drives its narrow capabilities.
+final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentationSource {
+    /// The sole production duration represented by one completed Simulation tick.
+    nonisolated static let fixedTimeStep: Duration = .seconds(1.0 / 60.0)
 
-    @ObservationIgnored
     private(set) var worldBuilder: any PWorldBuilder
 
-    @ObservationIgnored
-    let engine: Engine
+    private let engine: Engine
 
-    @ObservationIgnored
-    private let simulationLoop: SimulationLoop
-
-    @ObservationIgnored
-    private weak var inputSource: (any PInputSnapshotSource)?
+    /// Identity of the uninterrupted authoritative timeline currently owned by
+    /// this Runtime. Rebuilding the World begins a new session at tick zero.
+    private(set) var sessionID: SimulationSessionID
 
     /// Latest completed publisher-owned value available to peer runtimes.
-    @ObservationIgnored
     private(set) var latestPresentationSnapshot: SimulationPresentationSnapshot
-
-    private(set) var state: State
 
     var world: World {
         engine.world
     }
 
+    /// Exact committed position of the currently owned authoritative timeline.
+    var currentCursor: SimulationCursor {
+        SimulationCursor(sessionID: sessionID, tick: engine.completedTick)
+    }
+
     init(
         worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
-        inputSource: (any PInputSnapshotSource)? = nil,
-        fixedTimeStep: Duration = .seconds(1.0 / 60.0),
-        pollInterval: Duration? = nil,
-        clockFactory: @escaping SimulationLoop.ClockFactory = { SystemClock() },
-        sleeper: @escaping SimulationLoop.Sleeper = { deadline in
-            try await SuspendingClock().sleep(until: deadline)
-        }
+        inputBaseline: InputSnapshot? = nil,
+        sessionID: SimulationSessionID = SimulationSessionID()
     ) {
         self.worldBuilder = worldBuilder
-        self.inputSource = inputSource
+        self.sessionID = sessionID
         let world = worldBuilder.buildWorld()
-        if let inputSnapshot = inputSource?.latestInputSnapshot {
-            world.input.rebase(to: inputSnapshot)
+        if let inputBaseline {
+            world.input.rebase(to: inputBaseline)
         }
         let engine = Engine(
             world: world,
-            fixedTimeStep: fixedTimeStep
+            fixedTimeStep: Self.fixedTimeStep
         )
         self.engine = engine
-        engine.isSimulationRunning = false
-        self.latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
-            from: engine.world,
-            at: engine.completedTick
+        self.latestPresentationSnapshot = engine.world.presentationSnapshot(
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: engine.completedTick
+            )
         )
-        self.state = State(fixedTimeStep: fixedTimeStep)
-
-        let simulationLoop = SimulationLoop(
-            engine: engine,
-            inputSource: inputSource,
-            pollInterval: pollInterval,
-            clockFactory: clockFactory,
-            sleeper: sleeper
-        )
-        self.simulationLoop = simulationLoop
-        simulationLoop.runningStateDidChange = { [weak self] isRunning in
-            self?.state.isLoopRunning = isRunning
-        }
-        simulationLoop.fixedStepsDidComplete = { [weak self] completedTick in
-            self?.publishPresentationSnapshot(at: completedTick)
-        }
     }
 
-    /// Rebuilds the active world from the current builder and swaps it into the engine.
-    func rebuildWorld() {
+    /// Rebuilds the active world and starts a distinct authoritative session.
+    ///
+    /// A configuration with an input connection supplies its latest
+    /// publication as a baseline. That restores held state without replaying
+    /// cumulative transient motion from the preceding world.
+    func rebuildWorld(inputBaseline: InputSnapshot? = nil) {
+        sessionID = SimulationSessionID()
         engine.replaceWorld(
             with: worldBuilder.buildWorld(),
-            inputBaseline: inputSource?.latestInputSnapshot
+            inputBaseline: inputBaseline
         )
         publishPresentationSnapshot(at: engine.completedTick)
     }
@@ -93,44 +69,93 @@ final class SimulationRuntime: PSimulationPresentationSource {
     /// Replaces the current builder, optionally rebuilding the world immediately.
     func replaceWorldBuilder(
         _ worldBuilder: any PWorldBuilder,
-        rebuildWorldImmediately: Bool = true
+        rebuildWorldImmediately: Bool = true,
+        inputBaseline: InputSnapshot? = nil
     ) {
         self.worldBuilder = worldBuilder
         if rebuildWorldImmediately {
-            rebuildWorld()
+            rebuildWorld(inputBaseline: inputBaseline)
         }
     }
 
-    /// Starts the session's polling loop if it is not already active.
-    func start() {
-        resumeSimulation()
-        simulationLoop.start()
+    /// Advances the Runtime by an exact number of complete fixed steps.
+    ///
+    /// Input is accepted only through the immutable assignment carried by the
+    /// request and is applied once at the first requested tick boundary. The
+    /// owning assembly is responsible for granting at most one caller effective
+    /// advance authority at a time.
+    nonisolated func advance(
+        _ request: SimulationAdvanceRequest
+    ) async -> SimulationAdvanceOutcome {
+        await advanceSynchronously(request)
     }
 
-    /// Stops the session's polling loop if it is active.
-    func stop() {
-        pauseSimulation()
-        simulationLoop.stop()
-    }
+    /// Performs one non-suspending batch inside the Runtime's serialized
+    /// mutation domain. The nonisolated protocol witness above only transports
+    /// the immutable request and result across that boundary.
+    private func advanceSynchronously(
+        _ request: SimulationAdvanceRequest
+    ) -> SimulationAdvanceOutcome {
+        let initialCursor = currentCursor
 
-    /// Enables simulation systems while leaving the app-owned loop running.
-    func resumeSimulation() {
-        engine.isSimulationRunning = true
-        state.isRunning = true
-        simulationLoop.start()
-    }
+        if let expectedCursor = request.expectedCursor,
+           expectedCursor != initialCursor {
+            return .rejected(
+                .cursorMismatch(
+                    expected: expectedCursor,
+                    current: initialCursor
+                )
+            )
+        }
 
-    /// Disables simulation systems while always-running input/tool systems continue.
-    func pauseSimulation() {
-        engine.isSimulationRunning = false
-        state.isRunning = false
+        let firstStepInput: InputSnapshot?
+        switch request.inputAssignment {
+        case .none:
+            firstStepInput = nil
+
+        case let .ingest(snapshot):
+            firstStepInput = snapshot
+
+        case let .rebase(snapshot):
+            engine.world.input.rebase(to: snapshot)
+            firstStepInput = nil
+
+        case let .rebaseThenIngest(baseline, snapshot):
+            // Install the route-transition baseline inside the same serialized
+            // mutation boundary as the first step. The step then derives only
+            // input published after that captured baseline.
+            engine.world.input.rebase(to: baseline)
+            firstStepInput = snapshot
+        }
+
+        for stepIndex in 0..<request.stepCount.rawValue {
+            engine.step(
+                inputSnapshot: stepIndex == 0 ? firstStepInput : nil
+            )
+        }
+
+        let finalSnapshot = publishPresentationSnapshot(at: engine.completedTick)
+        let result = SimulationAdvanceResult(
+            initialCursor: initialCursor,
+            finalCursor: currentCursor,
+            completedStepCount: SimulationCompletedStepCount(
+                rawValue: request.stepCount.rawValue
+            ),
+            finalPresentationSnapshot: finalSnapshot
+        )
+
+        return .completed(result)
     }
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.
-    private func publishPresentationSnapshot(at tick: SimulationTick) {
-        latestPresentationSnapshot = SimulationPresentationSnapshot.capture(
-            from: engine.world,
-            at: tick
+    @discardableResult
+    private func publishPresentationSnapshot(
+        at tick: SimulationTick
+    ) -> SimulationPresentationSnapshot {
+        let snapshot = engine.world.presentationSnapshot(
+            at: SimulationCursor(sessionID: sessionID, tick: tick)
         )
+        latestPresentationSnapshot = snapshot
+        return snapshot
     }
 }

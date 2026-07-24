@@ -3,10 +3,14 @@
 /// A tick identifies simulation progress without carrying wall-clock or render
 /// cadence assumptions. Tick zero describes a newly constructed world before
 /// its first fixed step has completed.
-struct SimulationTick: Codable, Comparable, Hashable {
+nonisolated struct SimulationTick: Codable, Comparable, Hashable, RawRepresentable, Sendable {
     static let zero = SimulationTick(rawValue: 0)
 
     let rawValue: UInt64
+
+    init(rawValue: UInt64) {
+        self.rawValue = rawValue
+    }
 
     static func < (lhs: SimulationTick, rhs: SimulationTick) -> Bool {
         lhs.rawValue < rhs.rawValue

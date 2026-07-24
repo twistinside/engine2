@@ -11,6 +11,8 @@ struct MetalResourceStoreTests {
             renderAssetCatalog: .materialOnlyTestCatalog
         )
 
+        #expect(store.frames.count == MetalResourceStore.defaultFrameCount)
+
         let library = try store.shaderLibrary(for: .engine)
         let pbrPipeline = try store.renderPipelineState(for: .modelPBR)
         let normalPipeline = try store.renderPipelineState(
@@ -112,7 +114,7 @@ struct MetalResourceStoreTests {
         for materialID in MaterialID.allCases {
             let expected = try #require(catalog.materials[materialID])
             #expect(
-                try store.materialDescription(for: materialID)
+                store.materialDescription(for: materialID)
                     == expected
             )
         }
