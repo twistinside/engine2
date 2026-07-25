@@ -20,8 +20,18 @@ struct InputState {
         var keys = Set<KeyboardKey>()
     }
 
+    /// Higher-level transient commands derived from raw device state.
+    ///
+    /// Mapping systems populate these values for Simulation systems to consume
+    /// in the same completed tick. Cleanup resets them with the raw transients.
+    struct Actions {
+        var cameraOrbitYawDelta: Float = 0
+        var cameraZoomDelta: Float = 0
+    }
+
     var mouse = Mouse()
     var keyboard = Keyboard()
+    var actions = Actions()
     var history: [InputHistoryEntry] = []
     var historyLimit = 60
 
@@ -106,6 +116,7 @@ struct InputState {
     mutating func clearTransientInput() {
         mouse.delta = .zero
         mouse.scrollDelta = .zero
+        actions = Actions()
     }
 
     func currentHistoryTokens() -> [String] {
@@ -131,11 +142,12 @@ struct InputState {
     }
 
     private static func format(signed value: Float) -> String {
-        let rounded = Int(value.rounded())
-        if rounded >= 0 {
-            return "+\(rounded)"
-        } else {
-            return "\(rounded)"
+        let rounded = value.rounded()
+        guard let integer = Int(exactly: rounded) else {
+            let text = String(value)
+            return value.sign == .minus ? text : "+\(text)"
         }
+
+        return integer >= 0 ? "+\(integer)" : "\(integer)"
     }
 }

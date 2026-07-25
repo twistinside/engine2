@@ -229,6 +229,22 @@ struct InputStateTests {
         )
     }
 
+    @Test func historyFormattingHandlesNonfiniteAndVeryLargeDeltas() {
+        var input = InputState()
+        input.mouse.delta = SIMD2<Float>(.nan, .infinity)
+        input.mouse.scrollDelta = SIMD2<Float>(
+            0,
+            -.greatestFiniteMagnitude
+        )
+
+        #expect(
+            input.currentHistoryTokens() == [
+                "Mouse dx:+nan dy:+inf",
+                "Wheel:-\(Float.greatestFiniteMagnitude)"
+            ]
+        )
+    }
+
     @Test func cleanupClearsDeltasButPreservesHeldState() {
         var input = InputState()
         let key = KeyboardKey.make(keyCode: 49, charactersIgnoringModifiers: " ")
@@ -244,12 +260,16 @@ struct InputStateTests {
                 pressedKeys: [key]
             )
         )
+        input.actions.cameraOrbitYawDelta = 1
+        input.actions.cameraZoomDelta = -2
         input.clearTransientInput()
 
         #expect(input.mouse.buttons == [.left])
         #expect(input.keyboard.keys == [key])
         #expect(input.mouse.delta == .zero)
         #expect(input.mouse.scrollDelta == .zero)
+        #expect(input.actions.cameraOrbitYawDelta == 0)
+        #expect(input.actions.cameraZoomDelta == 0)
     }
 
     private func snapshot(

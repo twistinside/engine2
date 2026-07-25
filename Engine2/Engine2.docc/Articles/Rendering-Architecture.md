@@ -78,7 +78,7 @@ Simulation systems update `World`, the Simulation Runtime publishes an immutable
 ## Simulation Truth Stays in ECS
 Rendering should not become a second gameplay state model.
 The authoritative simulation state should remain in ECS component stores. Render code should consume a completed `SimulationPresentationSnapshot`, not read or mutate gameplay state directly through entity objects during drawing.
-`World` may still contain abstract presentation state such as mesh handles, material handles, visibility, Simulation-authoritative camera settings, and render style. Its published camera is the exact camera used by the current real-time screen. Exact offscreen, offline, and agent requests may instead carry an explicit output-specific viewpoint. Future interactive free-orbit or photo-mode control would likewise be presentation-owned, but no such controller exists in the current real-time topology. `World` should not contain backend-specific Metal objects.
+`World` may still contain abstract presentation state such as mesh handles, material handles, visibility, Simulation-authoritative camera settings, and render style. Its published camera is the exact camera used by the current real-time screen. The current real-time orbit control is Simulation-owned through ``SInputMapping`` and ``SCameraInput``, so it changes only on a complete tick. Exact offscreen, offline, and agent requests may instead carry an explicit output-specific viewpoint. Future photo, editor, replay, spectator, or multi-window configurations may deliberately own interactive output viewpoints, but those are separate modes rather than a pause-time bypass. `World` should not contain backend-specific Metal objects.
 
 The current `CRenderable` component demonstrates that distinction. It stores a
 `MeshID` and `MaterialID`, while `BasicGameContent` maps `MeshID.ball` to the
@@ -294,8 +294,10 @@ only the agent assembly's exposed boundary. Transport, authentication,
 structured observation, controls, durable request history, and artifact
 persistence remain outside Rendering and outside the implemented agent session.
 The current image artifact is a visual observation only; it is not a semantic inspection
-contract. Physical and semantic controls remain future because no current
-gameplay system consumes them.
+contract. Agent/MCP physical-control emulation and externally submitted
+semantic controls remain future; the current Agent Session submits `.none`
+input. That missing agent-facing boundary is separate from the focused
+real-time pointer/scroll-to-camera consumer.
 
 ## Metal 4 Residency Sets
 

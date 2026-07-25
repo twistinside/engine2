@@ -10,7 +10,7 @@ The first configuration and advancement slice is now implemented. ``SimulationSe
 
 The App-owned ``RealtimeAdvanceDriver`` is now integrated into ``RealtimeConfiguration`` and ``RealtimeAssembly``. It owns wall-clock sampling, elapsed remainder, pause policy, immutable input capture, exact requests, a typed per-wake catch-up cap with explicit overflow treatment, and an async stop-and-drain boundary while Simulation owns execution. The driver captures transition baselines at activation, resume, and synchronization, then carries the baseline plus the later request-time publication through atomic `.rebaseThenIngest`. Assembly lifecycle generations prevent stale asynchronous stop or rebuild completion from applying an older App decision, and polling reacquires the driver weakly between sleeps so an abandoned assembly is not retained by its cadence task. Focused coverage plus scenario-level composition coverage exercise exact mutation, post-activation input, cursor advancement, completed publication, and a clock-driven Simulation with neither Input nor Render peers.
 
-The first screen-camera boundary is also implemented. The App connects `InputMetalView` directly to ``InputRuntime``; host input has no side channel into Render or a presentation controller. `MetalRenderer` samples one exact latest ``SimulationPresentationSnapshot``, and `RenderFrame(projecting:)` always uses that publication's camera. Ordinary pause therefore freezes both authoritative scene state and the screen camera while Input may continue publishing for a later Simulation tick. Exact offscreen workflows remain deliberately different: every request carries an explicit ``RenderViewpoint`` by value. The obsolete Simulation camera mapping/control systems, legacy wall-clock loop, elapsed-time accumulator, partial-schedule pause path, and screen-only viewpoint override have been removed.
+The first screen-camera boundary is also implemented. The App connects `InputMetalView` directly to ``InputRuntime``; host input has no side channel into Render or a presentation controller. On an accepted tick, ``SInputMapping`` converts imported pointer/scroll transients into semantic orbit/zoom commands and ``SCameraInput`` applies them to the current authoritative camera before cleanup. `MetalRenderer` samples one exact latest ``SimulationPresentationSnapshot``, and `RenderFrame(projecting:)` always uses that publication's camera. Ordinary pause therefore freezes both authoritative scene state and the screen camera while Input may continue publishing; resume captures a new baseline so paused transients are discarded rather than replayed. Exact offscreen workflows remain deliberately different: every request carries an explicit ``RenderViewpoint`` by value. The legacy wall-clock loop, elapsed-time accumulator, partial-schedule pause path, and screen-only viewpoint override have been removed.
 
 The first view-independent Metal encoding seam is implemented as ``MetalFrameEncoder``. It prepares and records a frame into caller-owned textures, `FrameResources`, and an already-begun Metal 4 command buffer without source sampling, MetalKit/view/drawable access, frame-slot arbitration, queue submission, presentation, or caller error policy. ``MetalRenderer`` is now the thin screen adapter that owns those MetalKit-specific decisions. A real integration test uses the production encoder with caller-owned offscreen targets, explicit residency and feedback, and readback without a view or drawable.
 
@@ -341,8 +341,10 @@ the Simulation cursor. The remaining input work maps as follows:
 
 | Current or retained work | Implemented or target disposition |
 | --- | --- |
+| ``SInputMapping`` | Maps finite raw pointer and scroll transients into semantic camera commands at the start of a complete tick. |
+| ``SCameraInput`` | Derives orbit state from the current authoritative camera and applies mapped commands before transient cleanup. |
 | ``SInputHistory`` | Simulation-consumed history runs on complete ticks; host or device diagnostics belong to Input Runtime or App tooling. |
-| ``SInputCleanup`` | Transient cleanup becomes an invariant final stage before every complete tick commits. |
+| ``SInputCleanup`` | Raw and mapped transient cleanup is the invariant final input stage, after input consumers and before the remaining Simulation systems. |
 | Metrics and tracing | Observe requests, completed publications, and results without requiring a partial ECS mutation pass. |
 
 Ordinary frozen pause means the absence of advance requests and no cursor change. A future game-specific **soft pause** can remain authoritative game state processed by the complete schedule—for example, movement may stop while network/session rules, scripted world state, or explicitly pause-exempt entities continue. Menu UI and other presentation can progress independently without making a partial Simulation tick. Soft pause is not implemented by suppressing an arbitrary engine system list.
@@ -1089,7 +1091,7 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | ``ManualConfiguration`` and ``ManualAssembly`` | Implemented caller-driven topology with no Input Runtime or automatic cadence; scenario coverage executes 10,000 exact ticks and checks authoritative ECS and presentation results |
 | ``RealtimeConfiguration``, ``RealtimeAssembly``, and ``RealtimeAdvanceDriver`` | Implemented real-time topology with App-owned polling, weak between-wake retention, pause policy, captured transition baselines, atomic rebase-then-ingest, bounded per-wake catch-up and overflow treatment, exact advancement, and coordinated lifecycle; broader authority recovery and typed routing remain |
 | ``InputRuntime`` | Implemented single-channel physical-input authority with narrow ingress and latest-snapshot capabilities; multi-source and multi-seat fan-in still need source/channel identity, source-local state, and configured merge policy |
-| ``InputState`` | Existing Simulation-local consumer cursor and cumulative baseline; evidence that importing a snapshot need not consume it for another recipient |
+| ``InputState`` | Existing Simulation-local consumer cursor, cumulative baseline, held state, raw transients, mapped camera actions, history, and cleanup boundary; evidence that importing a snapshot need not consume it for another recipient |
 | `World.camera` and ``SimulationPresentationSnapshot.camera`` | Implemented Simulation-authored screen-camera authority; the live screen has no override and remains locked to the latest completed publication |
 | ``RenderViewpoint``, ``RenderViewpointID``, and ``RenderViewpointRevision`` | Implemented immutable explicit camera value and attribution for exact offscreen requests; no live screen viewpoint source exists |
 | ``SimulationPresentationSnapshot`` | Immutable, `Sendable` publisher-owned presentation surface labeled with its exact ``SimulationCursor``; its camera is authoritative for live screen projection |
@@ -1168,9 +1170,9 @@ and binding contract should extend to future Audio without making an Audio
 implementation a prerequisite.
 
 Production ordinary pause already stops issuing exact Simulation requests; the
-Engine has no `isSimulationRunning` gate, split schedule, camera-control
-system, or elapsed-time path. Simulation-facing input import, cleanup, and
-publication remain invariant parts of complete exact ticks; genuinely
+Engine has no `isSimulationRunning` gate, split schedule, or elapsed-time path.
+Input mapping and camera control are invariant members of complete exact ticks,
+along with Simulation-facing input import, cleanup, and publication. Genuinely
 authoritative camera rigs remain ordinary members of that complete schedule.
 
 ### 5. Prove a Manual Configuration

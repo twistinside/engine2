@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Testing
 @testable import Engine2
 
@@ -77,6 +78,46 @@ struct InputMetalViewTests {
     }
 
     @MainActor
+    @Test func dragAndScrollPublishTheirExactDeltasThroughInputRuntime() throws {
+        let view = InputMetalView(frame: .zero, device: nil)
+        let inputRuntime = InputRuntime()
+        inputRuntime.start()
+        defer { inputRuntime.stop() }
+        view.inputSink = inputRuntime
+
+        let dragEvent = try makeLeftDragEvent(
+            location: CGPoint(x: 30, y: 40),
+            deltaX: 7,
+            deltaY: -9
+        )
+        view.mouseDragged(with: dragEvent)
+
+        #expect(
+            inputRuntime.latestInputSnapshot.pointerPosition
+                == SIMD2<Float>(30, 40)
+        )
+        #expect(
+            inputRuntime.latestInputSnapshot.pointerMotionTotal
+                == SIMD2<Float>(7, -9)
+        )
+
+        let scrollEvent = try makePixelScrollEvent(
+            horizontal: 5,
+            vertical: -7
+        )
+        #expect(scrollEvent.hasPreciseScrollingDeltas)
+        #expect(scrollEvent.scrollingDeltaX == 5)
+        #expect(scrollEvent.scrollingDeltaY == -7)
+
+        view.scrollWheel(with: scrollEvent)
+
+        #expect(
+            inputRuntime.latestInputSnapshot.scrollTotal
+                == SIMD2<Float>(5, -7)
+        )
+    }
+
+    @MainActor
     private func makeKeyEvent(
         type: NSEvent.EventType,
         isRepeat: Bool
@@ -93,5 +134,48 @@ struct InputMetalViewTests {
             isARepeat: isRepeat,
             keyCode: 13
         )
+    }
+
+    @MainActor
+    private func makeLeftDragEvent(
+        location: CGPoint,
+        deltaX: Int64,
+        deltaY: Int64
+    ) throws -> NSEvent {
+        let baseEvent = try #require(
+            NSEvent.mouseEvent(
+                with: .leftMouseDragged,
+                location: location,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                eventNumber: 1,
+                clickCount: 1,
+                pressure: 1
+            )
+        )
+        let cgEvent = try #require(baseEvent.cgEvent)
+        cgEvent.setIntegerValueField(.mouseEventDeltaX, value: deltaX)
+        cgEvent.setIntegerValueField(.mouseEventDeltaY, value: deltaY)
+        return try #require(NSEvent(cgEvent: cgEvent))
+    }
+
+    @MainActor
+    private func makePixelScrollEvent(
+        horizontal: Int32,
+        vertical: Int32
+    ) throws -> NSEvent {
+        let cgEvent = try #require(
+            CGEvent(
+                scrollWheelEvent2Source: nil,
+                units: .pixel,
+                wheelCount: 2,
+                wheel1: vertical,
+                wheel2: horizontal,
+                wheel3: 0
+            )
+        )
+        return try #require(NSEvent(cgEvent: cgEvent))
     }
 }

@@ -125,6 +125,7 @@ struct SimulationRuntimeAdvanceTests {
 
     @Test @MainActor func batchIngestsTransientInputOnlyOnItsFirstTick() async throws {
         let simulation = makeSimulation()
+        let initialCamera = simulation.world.camera
         let request = SimulationAdvanceRequest(
             stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .ingest(
@@ -136,7 +137,7 @@ struct SimulationRuntimeAdvanceTests {
             )
         )
 
-        _ = try completedResult(from: await simulation.advance(request))
+        let result = try completedResult(from: await simulation.advance(request))
 
         #expect(simulation.world.input.history.count == 2)
         #expect(simulation.world.input.history[0].tokens == ["W"])
@@ -144,10 +145,28 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.input.history[1].tokens == ["Mouse dx:+5 dy:+0", "W"])
         #expect(simulation.world.input.history[1].frameCount == 1)
         #expect(simulation.world.input.mouse.delta == .zero)
+        let expectedCamera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(
+                sinf(0.05) * 8,
+                0,
+                cosf(0.05) * 8
+            )
+        )
+        #expect(simd_distance(simulation.world.camera.position, expectedCamera.position) < 0.0001)
+        #expect(
+            simd_distance(
+                simulation.world.camera.rotation.vector,
+                expectedCamera.rotation.vector
+            ) < 0.0001
+        )
+        #expect(simulation.world.camera != initialCamera)
+        #expect(result.finalPresentationSnapshot.camera == simulation.world.camera)
     }
 
     @Test @MainActor func rebaseCarriesHeldStateWithoutHistoricalTransients() async throws {
         let simulation = makeSimulation()
+        let initialCamera = simulation.world.camera
         let request = SimulationAdvanceRequest(
             stepCount: SimulationStepCount(rawValue: 2),
             inputAssignment: .rebase(
@@ -165,10 +184,12 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.input.history[0].tokens == ["W"])
         #expect(simulation.world.input.history[0].frameCount == 2)
         #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.camera == initialCamera)
     }
 
     @Test @MainActor func transitionRebasesThenIngestsOnlyPostBaselineInput() async throws {
         let simulation = makeSimulation()
+        let initialCamera = simulation.world.camera
         let baseline = inputSnapshot(
             revision: InputRevision(session: 7, sequence: 4),
             pointerMotion: SIMD2<Float>(12, -4),
@@ -187,7 +208,7 @@ struct SimulationRuntimeAdvanceTests {
             )
         )
 
-        _ = try completedResult(from: await simulation.advance(request))
+        let result = try completedResult(from: await simulation.advance(request))
 
         #expect(simulation.world.input.history.count == 2)
         #expect(simulation.world.input.history[0].tokens == ["D"])
@@ -202,6 +223,23 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.input.keyboard.keys == subsequentSnapshot.pressedKeys)
         #expect(simulation.world.input.mouse.position == subsequentSnapshot.pointerPosition)
         #expect(simulation.world.input.mouse.delta == .zero)
+        let expectedCamera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(
+                sinf(0.05) * 8,
+                0,
+                cosf(0.05) * 8
+            )
+        )
+        #expect(simd_distance(simulation.world.camera.position, expectedCamera.position) < 0.0001)
+        #expect(
+            simd_distance(
+                simulation.world.camera.rotation.vector,
+                expectedCamera.rotation.vector
+            ) < 0.0001
+        )
+        #expect(simulation.world.camera != initialCamera)
+        #expect(result.finalPresentationSnapshot.camera == simulation.world.camera)
     }
 
     @Test @MainActor func cursorMismatchRejectsTransitionWithoutChangingInput() async {

@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Engine2
 
@@ -7,7 +8,7 @@ struct EngineTests {
         #expect(SimulationRuntime.fixedTimeStep.seconds.isFinite)
     }
 
-    @Test func defaultScheduleRecordsInputWithoutMutatingTheSimulationCamera() {
+    @Test func defaultScheduleAppliesCameraInputBeforeTransientCleanup() {
         let world = World()
         let initialCamera = world.camera
         let engine = Engine(
@@ -25,13 +26,64 @@ struct EngineTests {
 
         engine.step(inputSnapshot: snapshot)
 
-        #expect(world.camera == initialCamera)
+        let cameraAfterInput = world.camera
+        let expectedRadius: Float = 6.8
+        #expect(cameraAfterInput != initialCamera)
+        #expect(
+            cameraAfterInput.position.isApproximately(
+                SIMD3<Float>(
+                    sinf(0.4) * expectedRadius,
+                    0,
+                    cosf(0.4) * expectedRadius
+                )
+            )
+        )
+        #expect(cameraAfterInput.projection == initialCamera.projection)
         #expect(world.input.history.first?.tokens == [
             "Mouse dx:+40 dy:+0",
             "Wheel:+30"
         ])
         #expect(world.input.mouse.delta == .zero)
         #expect(world.input.mouse.scrollDelta == .zero)
+        #expect(world.input.actions.cameraOrbitYawDelta == 0)
+        #expect(world.input.actions.cameraZoomDelta == 0)
+
+        engine.step()
+
+        #expect(world.camera == cameraAfterInput)
+        #expect(world.input.history.count == 1)
+        #expect(engine.completedTick == SimulationTick(rawValue: 2))
+    }
+
+    @Test func malformedRawInputCannotPoisonCameraOrCrashHistory() {
+        let world = World()
+        let initialCamera = world.camera
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep
+        )
+        let snapshot = InputSnapshot(
+            revision: InputRevision(session: 1, sequence: 1),
+            pointerPosition: .zero,
+            pointerMotionTotal: SIMD2<Float>(.nan, .infinity),
+            scrollTotal: SIMD2<Float>(0, -.infinity),
+            pressedMouseButtons: [],
+            pressedKeys: []
+        )
+
+        engine.step(inputSnapshot: snapshot)
+
+        #expect(world.camera == initialCamera)
+        #expect(
+            world.input.history.first?.tokens == [
+                "Mouse dx:+nan dy:+inf",
+                "Wheel:-inf"
+            ]
+        )
+        #expect(world.input.mouse.delta == .zero)
+        #expect(world.input.mouse.scrollDelta == .zero)
+        #expect(world.input.actions.cameraOrbitYawDelta == 0)
+        #expect(world.input.actions.cameraZoomDelta == 0)
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
@@ -135,6 +187,59 @@ struct EngineTests {
         #expect(replacement.input.mouse.scrollDelta == .zero)
     }
 
+    @Test func cameraControlDerivesFromAReplacementWorldCamera() {
+        let initialWorld = World()
+        let engine = Engine(
+            world: initialWorld,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep
+        )
+        engine.step(
+            inputSnapshot: InputSnapshot(
+                revision: InputRevision(session: 1, sequence: 1),
+                pointerPosition: .zero,
+                pointerMotionTotal: SIMD2<Float>(100, 0),
+                scrollTotal: .zero,
+                pressedMouseButtons: [],
+                pressedKeys: []
+            )
+        )
+
+        let replacement = World()
+        let replacementProjection = Camera.Projection.orthographic(
+            height: 12,
+            near: 0.5,
+            far: 200
+        )
+        replacement.camera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(0, 3, 12),
+            projection: replacementProjection
+        )
+        engine.replaceWorld(with: replacement)
+
+        engine.step(
+            inputSnapshot: InputSnapshot(
+                revision: InputRevision(session: 2, sequence: 1),
+                pointerPosition: .zero,
+                pointerMotionTotal: SIMD2<Float>(10, 0),
+                scrollTotal: .zero,
+                pressedMouseButtons: [],
+                pressedKeys: []
+            )
+        )
+
+        #expect(
+            replacement.camera.position.isApproximately(
+                SIMD3<Float>(
+                    sinf(0.1) * 12,
+                    3,
+                    cosf(0.1) * 12
+                )
+            )
+        )
+        #expect(replacement.camera.projection == replacementProjection)
+    }
+
     @Test func appendedSystemsRunAfterTheFoundationalSchedule() {
         let recorder = ExecutionRecorder()
         let engine = Engine(
@@ -148,6 +253,17 @@ struct EngineTests {
         engine.step()
 
         #expect(recorder.entries == ["foundation", "extension"])
+    }
+}
+
+private extension SIMD3 where Scalar == Float {
+    func isApproximately(
+        _ other: SIMD3<Float>,
+        tolerance: Float = 0.0001
+    ) -> Bool {
+        abs(x - other.x) <= tolerance
+            && abs(y - other.y) <= tolerance
+            && abs(z - other.z) <= tolerance
     }
 }
 
