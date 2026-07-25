@@ -35,7 +35,8 @@ meaning. Do not add a named preset merely because the initializer is long.
 
 A Swift convenience initializer is a class-only initialization path. It must
 delegate to another initializer on the same class and ultimately reach a
-designated initializer.
+designated initializer. It is not a synonym for a static factory method or any
+initializer that happens to be shorter.
 
 It is appropriate when callers must still provide identity, ownership, or
 connection values while the class supplies ordinary state that each instance
@@ -54,7 +55,8 @@ final class Ball {
         self.position = position
     }
 
-    /// Spawns this Ball at the neutral origin.
+    /// Spawns this Ball at the neutral origin. Position belongs only to this
+    /// Ball, so choosing the origin does not establish policy for other entities.
     convenience init(in world: World) {
         self.init(
             in: world,
@@ -66,14 +68,49 @@ final class Ball {
 
 The owning `World` remains required. The omitted position is local to this Ball
 and has a natural neutral value, so it does not establish policy for other
-objects.
+objects. The convenience initializer delegates instead of duplicating setup,
+and its documentation explains why the omitted value is safe.
 
 A commonly used backing store or handler can fit the same pattern only when
 each object may independently own or select another implementation. If the
 store or handler must be shared consistently, keep it explicitly injected.
 
+Structures and enumerations do not have convenience initializers. They may
+define additional initializers and delegate with `self.init`, but those remain
+ordinary initializers. Do not imitate class convenience-initializer syntax with
+a static factory.
+
 Do not use a convenience initializer to hide sensitivity, tick duration, or
-another value that should remain consistent across instances.
+another value that should remain consistent across instances:
+
+```swift
+final class CameraInputController {
+    let mapper: DefaultInputDirectiveMapper
+
+    init(mapper: DefaultInputDirectiveMapper) {
+        self.mapper = mapper
+    }
+
+    // Avoid: this silently lets one controller select application-wide policy.
+    convenience init() {
+        self.init(
+            mapper: DefaultInputDirectiveMapper(
+                pointerOrbitSensitivity: 0.01,
+                scrollZoomSensitivity: 0.04
+            )
+        )
+    }
+}
+```
+
+Orbit and zoom sensitivities will normally need to agree throughout the
+application. Omitting them from a call site makes inconsistent construction
+easy, regardless of whether the omission uses default arguments or a real
+convenience initializer.
+
+The Swift Book's `RecipeIngredient` example follows the same shape: callers
+still provide the ingredient's name, while a convenience initializer supplies
+the common per-instance quantity.
 
 See
 [Designated and Convenience Initializers in Action](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/initialization/#Designated-and-Convenience-Initializers-in-Action)
@@ -162,9 +199,53 @@ mechanism.
 
 ## Use a Static Function for a Genuine Process
 
-A static factory function is appropriate when the operation has semantics that
-a value or initializer cannot honestly express, such as loading, decoding,
-caching, asynchronous work, or choosing a concrete implementation.
+Do not wrap a straightforward synchronous initializer in a static factory
+merely to hide arguments, provide defaults, or make construction look more
+descriptive.
+
+```swift
+extension DefaultInputDirectiveMapper {
+    /// Test-only camera binding with fixed values chosen for deterministic
+    /// fixture setup. Production composition must inject shared configuration.
+    static func testFixture() -> Self {
+        Self(
+            pointerOrbitSensitivity: 0.01,
+            scrollZoomSensitivity: 0.04
+        )
+    }
+}
+```
+
+This is an ordinary type method that returns a newly initialized value, not a
+Swift convenience initializer. The wrapper is harmful because it:
+
+- disguises behavior-affecting initializer arguments;
+- introduces another construction API without adding construction semantics;
+- makes call sites look intentionally configured when they actually select
+  hidden values;
+- encourages ad hoc factories for previews, tests, and production;
+- uses a method where Swift's initializer syntax already expresses the work.
+
+Prefer explicit construction:
+
+```swift
+let mapper = DefaultInputDirectiveMapper(
+    pointerOrbitSensitivity: 0.01,
+    scrollZoomSensitivity: 0.04
+)
+```
+
+Keep fixture construction in the fixture setup so the selected values remain
+visible. If several tests share the same setup, centralize the configuration
+data or the complete fixture at the appropriate test-suite boundary instead of
+adding a production type method that conceals policy.
+
+A static factory is appropriate only when it communicates semantics that an
+initializer or value cannot honestly express, such as loading, decoding,
+returning a cached instance, asynchronous work, choosing a concrete
+implementation behind an abstract result, or performing another distinct
+construction process. Document that reason; do not use a factory as an
+initializer alias.
 
 ```swift
 let catalog = try RenderAssetCatalog.load(
@@ -183,9 +264,14 @@ Use `static let everything` for that case.
 
 ## Keep Default Arguments Exceptional
 
+Default argument values should be rare. Make the caller provide values that
+affect simulation, timing, physics, input response, limits, persistence, or
+other application behavior.
+
 A default argument makes a choice when the caller says nothing. Use one only
 when omission is independently safe, incidental to the type's meaning, and
-strongly justified in the declaration's documentation.
+strongly justified in the declaration's documentation. Do not add one merely
+to shorten call sites or preserve source compatibility.
 
 Do not use a default argument to select a distinguished value:
 
@@ -222,6 +308,11 @@ struct DefaultInputDirectiveMapper {
 }
 ```
 
+The defaults make construction convenient, but they also make it easy for one
+call site to forget the shared configuration. Sensitivity affects observable
+Simulation behavior, so every production construction path should receive the
+same deliberately selected values.
+
 Require the composition root to provide coordinated values:
 
 ```swift
@@ -244,14 +335,16 @@ let mapper = DefaultInputDirectiveMapper(
 )
 ```
 
-Missing configuration is now a compile-time error instead of a silent
-behavioral difference. Keep values such as these explicit:
+This makes the dependency visible and requires the composition root to select
+the policy. Missing configuration becomes a compile-time error instead of a
+silent behavioral difference. Keep values such as these explicit:
 
 - fixed tick duration;
 - movement, rotation, or camera sensitivity;
 - physics constants and tolerances;
 - retry, timeout, and buffering limits;
 - retention and resource budgets;
+- persistence and storage policy;
 - encoding or quality policy.
 
 A convenience initializer is not an exemption from configuration consistency.
