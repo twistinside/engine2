@@ -1,35 +1,17 @@
 #include <metal_stdlib>
+#include "GPUInstance.h"
+#include "ModelVertex.h"
+#include "ModelVertexOut.metalh"
 #include "PBRDirectLighting.metalh"
-#include "PBRSceneParameters.metalh"
+#include "PBRSceneParameters.h"
 using namespace metal;
 
-/// Interleaved vertex layout supplied by the decoded model mesh buffer.
-struct ModelVertex {
-    float3 position;
-    float3 color;
-    float3 normal;
-};
-
-/// Per-draw transform and authored-material layout mirrored by `GPUInstance`.
-struct ModelInstance {
-    float4x4 modelViewProjectionMatrix;
-    float4x4 modelViewMatrix;
-    float3x3 normalMatrix;
-    float4 baseColorMetallic;
-    float4 perceptualRoughnessPadding;
-};
-
-/// Values interpolated from the model vertex stage into the fragment stage.
-struct VertexOut {
-    float4 position [[position]];
-    float3 viewPosition;
-    float3 viewNormal;
-};
-
-vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
-                             constant ModelVertex *vertices [[buffer(0)]],
-                             constant ModelInstance *instance [[buffer(1)]]) {
-    VertexOut out;
+vertex ModelVertexOut modelVertex(
+    uint vertexID [[vertex_id]],
+    constant ModelVertex *vertices [[buffer(0)]],
+    constant GPUInstance *instance [[buffer(1)]]
+) {
+    ModelVertexOut out;
 
     float4 localPosition = float4(vertices[vertexID].position, 1.0);
     out.position = instance->modelViewProjectionMatrix * localPosition;
@@ -47,8 +29,8 @@ vertex VertexOut modelVertex(uint vertexID [[vertex_id]],
 /// frame light, and shared BRDF as `modelPBRFragment`. Only the returned field
 /// changes, so the validation harness does not create a parallel render path.
 static inline PBRDirectLightingResult modelEvaluateDirectLighting(
-    VertexOut in,
-    constant ModelInstance *instance,
+    ModelVertexOut in,
+    constant GPUInstance *instance,
     constant PBRSceneParameters &parameters
 ) {
     float3 incidentRadiance = parameters.lightColorIntensity.rgb
@@ -65,8 +47,8 @@ static inline PBRDirectLightingResult modelEvaluateDirectLighting(
 }
 
 fragment float4 modelPBRFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
+    ModelVertexOut in [[stage_in]],
+    constant GPUInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     PBRDirectLightingResult result = modelEvaluateDirectLighting(
@@ -84,8 +66,8 @@ fragment float4 modelPBRFragment(
 /// offscreen tests use them to inspect the exact authored inputs and BRDF
 /// contributions flowing through the production model binding.
 fragment float4 modelPBRBaseColorDiagnosticFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
+    ModelVertexOut in [[stage_in]],
+    constant GPUInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     PBRDirectLightingResult result = modelEvaluateDirectLighting(
@@ -97,8 +79,8 @@ fragment float4 modelPBRBaseColorDiagnosticFragment(
 }
 
 fragment float4 modelPBRMetallicDiagnosticFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
+    ModelVertexOut in [[stage_in]],
+    constant GPUInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     PBRDirectLightingResult result = modelEvaluateDirectLighting(
@@ -110,8 +92,8 @@ fragment float4 modelPBRMetallicDiagnosticFragment(
 }
 
 fragment float4 modelPBRRoughnessDiagnosticFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
+    ModelVertexOut in [[stage_in]],
+    constant GPUInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     PBRDirectLightingResult result = modelEvaluateDirectLighting(
@@ -123,8 +105,8 @@ fragment float4 modelPBRRoughnessDiagnosticFragment(
 }
 
 fragment float4 modelPBRDiffuseDiagnosticFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
+    ModelVertexOut in [[stage_in]],
+    constant GPUInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     PBRDirectLightingResult result = modelEvaluateDirectLighting(
@@ -136,8 +118,8 @@ fragment float4 modelPBRDiffuseDiagnosticFragment(
 }
 
 fragment float4 modelPBRSpecularDiagnosticFragment(
-    VertexOut in [[stage_in]],
-    constant ModelInstance *instance [[buffer(1)]],
+    ModelVertexOut in [[stage_in]],
+    constant GPUInstance *instance [[buffer(1)]],
     constant PBRSceneParameters &parameters [[buffer(2)]]
 ) {
     PBRDirectLightingResult result = modelEvaluateDirectLighting(
@@ -148,7 +130,7 @@ fragment float4 modelPBRSpecularDiagnosticFragment(
     return float4(result.specularContribution, 1.0f);
 }
 
-fragment half4 modelNormalDiagnosticFragment(VertexOut in [[stage_in]]) {
+fragment half4 modelNormalDiagnosticFragment(ModelVertexOut in [[stage_in]]) {
     // Perspective-correct interpolation does not preserve unit length. Restore
     // it per fragment, then remap the signed view-space direction to displayable
     // 0...1 RGB for inspection.

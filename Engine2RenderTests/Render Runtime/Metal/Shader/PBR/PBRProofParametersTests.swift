@@ -2,8 +2,9 @@ import simd
 import Testing
 
 struct PBRProofParametersTests {
-    @Test func layoutMatchesFourMetalFloat4Lanes() {
+    @Test func sharedLayoutContainsFourFloat4Lanes() {
         #expect(MemoryLayout<PBRProofParameters>.alignment == 16)
+        #expect(MemoryLayout<PBRProofParameters>.size == 64)
         #expect(MemoryLayout<PBRProofParameters>.stride == 64)
         #expect(
             MemoryLayout<PBRProofParameters>.offset(

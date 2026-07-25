@@ -1,6 +1,6 @@
 #include <metal_stdlib>
 #include "PBRDirectLighting.metalh"
-#include "PBRProofParameters.metalh"
+#include "PBRProofParameters.h"
 #include "PBRProofVertexOut.metalh"
 
 using namespace metal;

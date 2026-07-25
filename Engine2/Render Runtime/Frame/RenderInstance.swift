@@ -53,7 +53,7 @@ struct RenderInstance: Equatable {
         // Extremely small but individually representable scales can still
         // collapse the combined linear transform, while an ill-conditioned
         // inverse can overflow. Validate the exact normal-matrix operation
-        // before `GPUInstance` performs it under a precondition.
+        // before retaining its result for GPU packing.
         let linearModelView = simd_float3x3(
             columns: (
                 SIMD3<Float>(

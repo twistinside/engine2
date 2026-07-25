@@ -1,5 +1,5 @@
 #include <metal_stdlib>
-#include "HDRPresentationParameters.metalh"
+#include "HDRPresentationParameters.h"
 #include "HDRPresentationVertexOut.metalh"
 
 using namespace metal;

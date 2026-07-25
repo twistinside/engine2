@@ -9,11 +9,13 @@ struct GPUInstanceTests {
         perceptualRoughness: 0.5
     )
 
-    @Test func layoutMatchesMetalTransformsAndTwoMaterialLanes() {
+    @Test func sharedLayoutContainsTransformsAndTwoMaterialLanes() {
         // MSL float4x4 is 64 bytes, float3x3 is three 16-byte columns, and the
         // material uses two explicit float4 lanes. Locking every offset protects
-        // per-draw address arithmetic and the independent Swift/Metal layouts.
+        // buffer allocation and per-draw address arithmetic even though Swift
+        // and Metal now compile one declaration.
         #expect(MemoryLayout<GPUInstance>.alignment == 16)
+        #expect(MemoryLayout<GPUInstance>.size == 208)
         #expect(MemoryLayout<GPUInstance>.stride == 208)
         #expect(
             MemoryLayout<GPUInstance>.offset(of: \.modelViewProjectionMatrix) == 0

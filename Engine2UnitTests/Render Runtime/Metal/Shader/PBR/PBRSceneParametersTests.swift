@@ -3,9 +3,10 @@ import Testing
 @testable import Engine2
 
 struct PBRSceneParametersTests {
-    @Test func layoutMatchesTwoMetalFloat4LightLanes() {
+    @Test func sharedLayoutContainsTwoFloat4LightLanes() {
         // Authored material factors moved to GPUInstance. These two scene-
-        // constant lanes now carry only the fixed directional-light input.
+        // constant lanes carry only the fixed directional-light input. Keep
+        // checking the imported layout so buffer allocation remains explicit.
         #expect(MemoryLayout<PBRSceneParameters>.alignment == 16)
         #expect(MemoryLayout<PBRSceneParameters>.size == 32)
         #expect(MemoryLayout<PBRSceneParameters>.stride == 32)

@@ -112,35 +112,46 @@ struct USDRenderModel {
 
     /// Defines the one interleaved vertex layout shared by Model I/O and Metal.
     ///
-    /// `SIMD3<Float>` has a 16-byte stride on both sides of this boundary, so
-    /// explicit offsets keep the Swift descriptor aligned with `ModelVertex` in
-    /// `ModelShaders.metal`. Vertex color remains in the existing decoded layout,
-    /// but the explicit authored-material path does not consume it. The
-    /// packaged sphere authors smooth outward normals alongside its explicit
-    /// polygonal geometry. This descriptor preserves those normals without
-    /// introducing an engine-wide runtime generation policy.
+    /// The imported `ModelVertex` declaration supplies offsets and stride, so
+    /// this descriptor and the model shader compile one raw layout. Vertex color
+    /// remains in the decoded record, but the explicit authored-material path
+    /// does not consume it. The packaged sphere authors smooth outward normals
+    /// alongside its explicit polygonal geometry. This descriptor preserves
+    /// those normals without introducing an engine-wide generation policy.
     static func makeVertexDescriptor() -> MDLVertexDescriptor {
+        guard
+            let positionOffset = MemoryLayout<ModelVertex>.offset(
+                of: \.position
+            ),
+            let colorOffset = MemoryLayout<ModelVertex>.offset(of: \.color),
+            let normalOffset = MemoryLayout<ModelVertex>.offset(of: \.normal)
+        else {
+            preconditionFailure(
+                "The imported model-vertex record must have a fixed layout."
+            )
+        }
+
         let vertexDescriptor = MDLVertexDescriptor()
         vertexDescriptor.attributes[0] = MDLVertexAttribute(
             name: MDLVertexAttributePosition,
             format: .float3,
-            offset: 0,
+            offset: positionOffset,
             bufferIndex: 0
         )
         vertexDescriptor.attributes[1] = MDLVertexAttribute(
             name: MDLVertexAttributeColor,
             format: .float3,
-            offset: MemoryLayout<SIMD3<Float>>.stride,
+            offset: colorOffset,
             bufferIndex: 0
         )
         vertexDescriptor.attributes[2] = MDLVertexAttribute(
             name: MDLVertexAttributeNormal,
             format: .float3,
-            offset: MemoryLayout<SIMD3<Float>>.stride * 2,
+            offset: normalOffset,
             bufferIndex: 0
         )
         vertexDescriptor.layouts[0] = MDLVertexBufferLayout(
-            stride: MemoryLayout<SIMD3<Float>>.stride * 3
+            stride: MemoryLayout<ModelVertex>.stride
         )
 
         return vertexDescriptor
