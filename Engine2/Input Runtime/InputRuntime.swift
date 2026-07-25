@@ -42,7 +42,11 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
         publishSnapshot()
     }
 
-    /// Incorporates one host event and publishes the resulting immutable state.
+    /// Incorporates one valid host event and publishes the resulting immutable state.
+    ///
+    /// Nonfinite coordinates or deltas, and deltas that would overflow a
+    /// cumulative publication total, are ignored atomically so one malformed
+    /// event cannot poison every later snapshot in the session.
     func receive(_ event: InputEvent) {
         guard isRunning else {
             return
@@ -50,19 +54,36 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         switch event {
         case let .mouseButtonDown(button, position):
+            guard Self.isFinite(position) else {
+                return
+            }
             pointerPosition = position
             pressedMouseButtons.insert(button)
 
         case let .mouseButtonUp(button, position):
+            guard Self.isFinite(position) else {
+                return
+            }
             pointerPosition = position
             pressedMouseButtons.remove(button)
 
         case let .mouseDragged(delta, position):
+            let nextPointerMotionTotal = pointerMotionTotal + delta
+            guard Self.isFinite(delta),
+                  Self.isFinite(position),
+                  Self.isFinite(nextPointerMotionTotal) else {
+                return
+            }
             pointerPosition = position
-            pointerMotionTotal += delta
+            pointerMotionTotal = nextPointerMotionTotal
 
         case let .scroll(delta):
-            scrollTotal += delta
+            let nextScrollTotal = scrollTotal + delta
+            guard Self.isFinite(delta),
+                  Self.isFinite(nextScrollTotal) else {
+                return
+            }
+            scrollTotal = nextScrollTotal
 
         case let .keyDown(key):
             pressedKeys.insert(key)
@@ -73,6 +94,10 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         revision = revision.advanced()
         publishSnapshot()
+    }
+
+    private static func isFinite(_ value: SIMD2<Float>) -> Bool {
+        value.x.isFinite && value.y.isFinite
     }
 
     private func publishSnapshot() {

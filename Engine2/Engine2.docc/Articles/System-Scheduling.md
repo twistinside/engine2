@@ -2,14 +2,14 @@
 This article captures the intended scheduling direction for Engine2.
 ## Status
 Partially implemented. Parts of this model are not implemented yet.
-The current engine stores one foundational ordered system list. Production real-time, manual, offline, and agent advancement all reach the same exact ``Engine/step(inputSnapshot:)`` operation, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. The obsolete partial-schedule path, `SInputMapping`, `SCameraInput`, and independent real-time screen-camera path have been removed. The live screen uses `SimulationPresentationSnapshot.camera` exactly, so its camera can change only through completed Simulation work. Deliberate exact offscreen, offline, and agent requests may still carry a separate ``RenderViewpoint`` as output policy.
+The current engine stores one foundational ordered system list. Production real-time, manual, offline, and agent advancement all reach the same exact ``Engine/step(inputSnapshot:)`` operation, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. The obsolete partial-schedule and independent real-time screen-camera paths have been removed. ``SInputMapping`` and ``SCameraInput`` instead run inside the complete schedule before transient cleanup, so the live screen's exact `SimulationPresentationSnapshot.camera` can change only through completed Simulation work. Deliberate exact offscreen, offline, and agent requests may still carry a separate ``RenderViewpoint`` as output policy.
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
 
 A configuration-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Configurations-and-Advancement>.
 
-Platform collection is not a scheduled ECS system. `InputMetalView` submits host events directly to ``InputRuntime``, which publishes a latest immutable `InputSnapshot`; ``Engine`` imports an assigned value into World-owned `InputState` only at the beginning of an actual fixed step. The current default then records fixed-tick input history, clears imported transients after their scheduled consumers, and performs authoritative Simulation work as one complete tick. A future input-driven live camera would be ordinary scheduled Simulation work. Selecting an explicit viewpoint for a deliberate exact output request is separate output policy, not a scheduler phase.
+Platform collection is not a scheduled ECS system. `InputMetalView` submits host events directly to ``InputRuntime``, which publishes a latest immutable `InputSnapshot`; ``Engine`` imports an assigned value into World-owned `InputState` only at the beginning of an actual fixed step. The current default maps raw pointer/scroll transients into semantic camera commands, applies them to the authoritative camera, records fixed-tick input history, clears raw and mapped transients, and performs the remaining authoritative work as one complete tick. Selecting an explicit viewpoint for a deliberate exact output request is separate output policy, not a scheduler phase.
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
 When the clock produces new elapsed time, the engine should treat that as additional backlog, not permission to begin another overlapping world update. If the engine is already stepping systems, newly arrived time should be accumulated and drained later.
@@ -49,7 +49,7 @@ It is useful to think in coarse simulation phases, then let the dependency graph
 The exact phase list is expected to evolve with the engine.
 Only the export side of presentation belongs in the simulation schedule. Actual rendering and Metal submission should happen after export, from the frozen presentation data, rather than as a world-mutating system.
 
-There is no independent viewpoint controller in the real-time screen schedule. A gameplay-authoritative camera rig, sensor, or future input-driven live camera remains ordinary complete-tick Simulation work and becomes visible only through a completed presentation snapshot. Exact request-carried viewpoints remain outside the scheduler because they select an output from already completed Simulation state.
+There is no independent viewpoint controller in the real-time screen schedule. The implemented input-driven orbit camera is ordinary complete-tick Simulation work and becomes visible only through a completed presentation snapshot. Future gameplay-authoritative camera rigs or sensors belong at the same authority boundary. Exact request-carried viewpoints remain outside the scheduler because they select an output from already completed Simulation state.
 ## Cadence
 Some systems should not need to run every simulation tick.
 Examples include:
@@ -77,4 +77,6 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 - ``Engine``
 - ``World``
 - ``PSystem``
+- ``SInputMapping``
+- ``SCameraInput``
 - ``SMovement``

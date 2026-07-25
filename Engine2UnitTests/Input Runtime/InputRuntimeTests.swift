@@ -214,4 +214,73 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot.revision.sequence == initial.revision.sequence + 2)
         #expect(runtime.latestInputSnapshot != initial)
     }
+
+    @MainActor
+    @Test func invalidAndOverflowingPointerValuesAreIgnoredAtomically() {
+        let runtime = InputRuntime()
+        runtime.start()
+        let initial = runtime.latestInputSnapshot
+
+        runtime.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(.nan, 1),
+                position: .zero
+            )
+        )
+        runtime.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(1, 1),
+                position: SIMD2<Float>(.infinity, 0)
+            )
+        )
+        runtime.receive(
+            .mouseButtonDown(
+                .left,
+                position: SIMD2<Float>(0, -.infinity)
+            )
+        )
+        runtime.receive(.scroll(delta: SIMD2<Float>(0, .infinity)))
+
+        #expect(runtime.latestInputSnapshot == initial)
+
+        runtime.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(.greatestFiniteMagnitude, 0),
+                position: SIMD2<Float>(2, 3)
+            )
+        )
+        let largestFinitePointerPublication = runtime.latestInputSnapshot
+        runtime.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(.greatestFiniteMagnitude, 0),
+                position: SIMD2<Float>(4, 5)
+            )
+        )
+
+        #expect(
+            runtime.latestInputSnapshot ==
+            largestFinitePointerPublication
+        )
+        #expect(
+            runtime.latestInputSnapshot.pointerPosition ==
+            SIMD2<Float>(2, 3)
+        )
+
+        runtime.receive(
+            .scroll(
+                delta: SIMD2<Float>(0, .greatestFiniteMagnitude)
+            )
+        )
+        let largestFiniteScrollPublication = runtime.latestInputSnapshot
+        runtime.receive(
+            .scroll(
+                delta: SIMD2<Float>(0, .greatestFiniteMagnitude)
+            )
+        )
+
+        #expect(
+            runtime.latestInputSnapshot ==
+            largestFiniteScrollPublication
+        )
+    }
 }

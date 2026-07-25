@@ -18,6 +18,8 @@ final class Engine {
         world: World = World(),
         fixedTimeStep: Duration,
         systems: [any PSystem] = [
+            SInputMapping(),
+            SCameraInput(),
             SInputHistory(),
             SInputCleanup(),
             SAccelerationIntent(),

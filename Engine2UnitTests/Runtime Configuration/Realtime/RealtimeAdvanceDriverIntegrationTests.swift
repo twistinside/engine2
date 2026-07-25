@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Engine2
 
@@ -8,6 +9,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
             worldBuilder: IntegrationMovingWorldBuilder(),
             inputBaseline: inputRuntime.latestInputSnapshot
         )
+        let initialCamera = simulationRuntime.world.camera
         let baseInstant = SuspendingClock().now
         let elapsedSource = IntegrationInstantSource(
             samples: [
@@ -66,7 +68,133 @@ struct RealtimeAdvanceDriverIntegrationTests {
             simulationRuntime.latestPresentationSnapshot.entityPresentations.first?.position ==
             position
         )
+        #expect(simulationRuntime.world.camera != initialCamera)
+        #expect(
+            simulationRuntime.latestPresentationSnapshot.camera ==
+            simulationRuntime.world.camera
+        )
+        #expect(
+            RenderFrame(
+                projecting: simulationRuntime.latestPresentationSnapshot
+            ).camera == simulationRuntime.world.camera
+        )
         #expect(simulationRuntime.world.input.history.first?.tokens == ["Mouse dx:+5 dy:+0"])
+    }
+
+    @Test @MainActor
+    func pausedCameraInputIsDiscardedAndFreshInputCommitsAfterResume() async {
+        let inputRuntime = InputRuntime()
+        let simulationRuntime = SimulationRuntime(
+            inputBaseline: inputRuntime.latestInputSnapshot
+        )
+        let initialCamera = simulationRuntime.world.camera
+        let baseInstant = SuspendingClock().now
+        let firstInstant = baseInstant.advanced(
+            by: SimulationRuntime.fixedTimeStep
+        )
+        let secondInstant = firstInstant.advanced(
+            by: SimulationRuntime.fixedTimeStep
+        )
+        let thirdInstant = secondInstant.advanced(
+            by: SimulationRuntime.fixedTimeStep
+        )
+        let elapsedSource = IntegrationInstantSource(
+            samples: [
+                baseInstant,
+                firstInstant,
+                secondInstant,
+                thirdInstant
+            ]
+        )
+        let sleeper = IntegrationControlledSleeper()
+        let driver = RealtimeAdvanceDriver(
+            advanceTarget: simulationRuntime,
+            inputSource: inputRuntime,
+            initialCursor: simulationRuntime.currentCursor,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            pollInterval: SimulationRuntime.fixedTimeStep,
+            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
+            scheduleTimeSource: { baseInstant },
+            sleeper: sleeper.sleep(until:)
+        )
+
+        inputRuntime.start()
+        driver.start()
+        await sleeper.waitForPendingCount(1)
+
+        driver.pauseAdvancement()
+        inputRuntime.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(50, 0),
+                position: SIMD2<Float>(10, 20)
+            )
+        )
+        inputRuntime.receive(.scroll(delta: SIMD2<Float>(0, 25)))
+
+        #expect(simulationRuntime.currentCursor.tick == .zero)
+        #expect(simulationRuntime.world.camera == initialCamera)
+        #expect(
+            simulationRuntime.latestPresentationSnapshot.camera ==
+            initialCamera
+        )
+
+        driver.resumeAdvancement()
+        await sleeper.resumeNext()
+        await sleeper.waitForPendingCount(1)
+        await sleeper.resumeNext()
+
+        let baselineTickCompleted = await eventually {
+            simulationRuntime.currentCursor.tick == SimulationTick(rawValue: 1)
+        }
+        guard baselineTickCompleted else {
+            await driver.stopAndDrain()
+            await sleeper.resumeAll()
+            inputRuntime.stop()
+            Issue.record("The resume-baseline tick never completed.")
+            return
+        }
+        #expect(simulationRuntime.world.camera == initialCamera)
+        #expect(
+            simulationRuntime.latestPresentationSnapshot.camera ==
+            initialCamera
+        )
+
+        await sleeper.waitForPendingCount(1)
+        inputRuntime.receive(
+            .mouseDragged(
+                delta: SIMD2<Float>(10, 0),
+                position: SIMD2<Float>(20, 20)
+            )
+        )
+        #expect(simulationRuntime.world.camera == initialCamera)
+
+        await sleeper.resumeNext()
+        let activeTickCompleted = await eventually {
+            simulationRuntime.currentCursor.tick == SimulationTick(rawValue: 2)
+        }
+
+        await driver.stopAndDrain()
+        await sleeper.resumeAll()
+        inputRuntime.stop()
+
+        #expect(activeTickCompleted)
+        #expect(
+            simulationRuntime.world.camera.position.isApproximately(
+                SIMD3<Float>(
+                    sinf(0.1) * 8,
+                    0,
+                    cosf(0.1) * 8
+                )
+            )
+        )
+        #expect(
+            simulationRuntime.latestPresentationSnapshot.camera ==
+            simulationRuntime.world.camera
+        )
+        #expect(
+            simulationRuntime.world.input.history.first?.tokens ==
+            ["Mouse dx:+10 dy:+0"]
+        )
     }
 
     @MainActor
@@ -79,6 +207,17 @@ struct RealtimeAdvanceDriverIntegrationTests {
         }
 
         return false
+    }
+}
+
+private extension SIMD3 where Scalar == Float {
+    func isApproximately(
+        _ other: SIMD3<Float>,
+        tolerance: Float = 0.0001
+    ) -> Bool {
+        abs(x - other.x) <= tolerance
+            && abs(y - other.y) <= tolerance
+            && abs(z - other.z) <= tolerance
     }
 }
 
