@@ -178,6 +178,99 @@ For example, gameplay code can refer to a mesh ID, material ID, visibility flag,
 This keeps Metal-specific ownership and lifetime concerns inside the render layer.
 The identities, presentation descriptions, and source assets that differentiate a particular game belong to Game Content. The Render Runtime receives the relevant catalogs during App construction and privately resolves them into backend resources. See <doc:Game-Content-Architecture>.
 
+## Shared CPU/GPU Layout Headers
+
+Raw records that cross the Swift/Metal ABI use focused C-compatible headers as
+their single field declaration. Swift imports these headers through
+`Engine2-Bridging-Header.h`, while Metal Shading Language includes the same
+record header directly. The umbrella bridging header is only an import manifest;
+it does not contain layouts itself.
+
+The current shared production records are:
+
+- `ModelVertex`, the Model I/O-to-shader interleaved vertex record
+- `GPUInstance`, the per-draw transform and authored-material transport record
+- `PBRSceneParameters`, the frame's directional-light transport record
+- `HDRPresentationParameters`, the presentation pass's exposure record
+
+The isolated render proof similarly shares `PBRProofParameters` between its
+shader and the Render integration-test target through a test-specific bridging
+header. It remains a provisional test contract rather than production ABI.
+
+Sharing a declaration prevents a Swift struct and an MSL struct from drifting,
+but it does not turn the wire record into a semantic API. Swift types such as
+`PBRMaterialDescription`, Game Content identities such as `MaterialID`, and
+validation policy remain ordinary Swift values. ``RenderInstance`` owns
+transform projection and validation, while focused Swift extensions pack its
+retained values and other validated semantic inputs into imported transport
+records such as `GPUInstance`.
+
+Each shared header should declare one coherent raw record and use only
+exact-width scalar integers, `float`, and the SIMD vocabulary accepted by both
+compilers. Prefer explicit matrix and four-component vector lanes when the ABI
+needs their alignment. Use explicit padding fields when needed, and initialize
+that padding deterministically. In particular, `simd_float3` values and the
+columns of `simd_float3x3` occupy 16-byte lanes; they are not packed 12-byte
+values. Replacing one with `MTLPackedFloat3` or another packed representation is
+an ABI change that requires coordinated descriptor, layout-test, and offscreen
+test updates. Avoid size-dependent or ownership-bearing fields such as:
+
+- Swift `Bool` or `Int`, C `bool`, `int`, `long`, or `size_t`
+- references, optionals, strings, and collections
+- ECS entities, Game Content values, or renderer resource objects
+- raw `MTLBuffer`, texture, sampler, or pipeline objects
+
+Closed buffer, texture, sampler, and attribute index constants may also be
+shared when both compilers consume them, but they should remain focused on one
+binding contract rather than accumulating into a universal shader-types header.
+
+Shader-only implementation stays in `.metalh` files. BRDF helpers, stage
+outputs, and intermediate calculation records that Swift never reads gain
+nothing from a C interoperability boundary. Conversely, a record written by
+Swift and interpreted by a shader should not acquire an independent `.metalh`
+declaration.
+
+Apple's
+[structured-data guidance](https://developer.apple.com/documentation/realitykit/passing-structured-data-to-a-metal-compute-function)
+uses the same focused C-header, bridging-header, and direct Metal-include
+pattern. If these layouts later move from the app into a Swift package, follow
+the C-module boundary described in
+[TN3133](https://developer.apple.com/documentation/technotes/tn3133-packaging-a-renderer)
+instead of exporting the app's bridging header as a package API. A framework
+should likewise expose the C declarations through its Clang module or umbrella
+header rather than exporting an app bridging header.
+
+A shared source declaration is also distinct from shared mutable storage.
+`FrameResources` owns the CPU-written `MTLStorageModeShared` buffers and writes
+the imported records into a frame slot only when that slot is no longer in
+flight. The resource store retains those buffers, and the residency manager
+makes their allocations resident. The screen's `MetalInFlightSubmission` and
+the exact path's `MetalOffscreenSubmission` each retain their complete submitted
+resource graph until queue feedback arrives. Both feedback paths call
+`markAvailable()` to release the frame slot's availability semaphore; the
+offscreen path also resumes its awaiting exact request only after that release.
+This reuse gate, rather than object lifetime or residency alone, prevents the
+CPU from overwriting bytes still consumed by the GPU. The header defines byte
+meaning; frame ownership, residency, and synchronization still define when
+those bytes are safe to access. See Apple's
+[resource fundamentals](https://developer.apple.com/documentation/metal/resource-fundamentals)
+for the underlying Metal resource model.
+
+The offscreen destination texture is another use of
+`MTLStorageModeShared`, but it is not a structured C-record ABI.
+``MetalOffscreenRenderRuntime`` invokes the target's readback operation only
+after successful queue feedback, then detaches the bytes into
+`RenderedBGRA8SRGBImage`. That boundary is governed by pixel format, dimensions,
+row pitch, image origin, and transfer function rather than by a shared C
+declaration. Sharing a storage mode must not be confused with sharing a
+source-level layout.
+
+Continue testing alignment, size, stride, every field offset, buffer lengths,
+per-instance address selection, and representative offscreen shader consumption.
+A common header removes duplicate declarations, but these tests still protect
+the allocation, addressing, binding, initialization, and consumption contracts
+around that declaration.
+
 ## Device-Scoped Metal Resources
 
 `MetalResourceStore` is the current device-scoped root for backend resources.

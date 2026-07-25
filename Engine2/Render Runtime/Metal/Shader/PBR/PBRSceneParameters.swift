@@ -1,20 +1,14 @@
 import simd
 
-/// Renderer-owned directional-light input for the authored-material baseline.
-///
-/// This 32-byte layout mirrors `PBRSceneParameters.metalh`. Material factors
-/// vary per draw in `GPUInstance`; this record contains only the fixed scene
-/// light that is shared by those draws. Its direction uses the shared BRDF
-/// convention: surface-to-light in view space.
-struct PBRSceneParameters {
+extension PBRSceneParameters {
     static let validationDirectionToLightWorld = SIMD3<Float>(0, 0, 1)
     static let validationLightColor = SIMD3<Float>(1, 0.5, 0.25)
     static let validationLightIntensity: Float = 8
 
-    var directionToLightPadding: SIMD4<Float>
-    var lightColorIntensity: SIMD4<Float>
-
-    /// Resolves the fixed validation input for one completed camera value.
+    /// Resolves the fixed validation light into the shared raw GPU record.
+    ///
+    /// The light direction follows the direct-light BRDF convention:
+    /// surface-to-light in view space.
     init(camera: Camera) {
         precondition(camera.supportsViewTransform, "PBR scene parameters require a finite camera transform.")
 
@@ -45,6 +39,7 @@ struct PBRSceneParameters {
             worldToViewRotation * Self.validationDirectionToLightWorld
         )
 
+        self.init()
         self.directionToLightPadding = SIMD4<Float>(
             directionToLightView.x,
             directionToLightView.y,

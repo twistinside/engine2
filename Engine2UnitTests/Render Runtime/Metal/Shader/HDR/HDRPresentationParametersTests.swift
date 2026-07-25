@@ -2,10 +2,9 @@ import Testing
 @testable import Engine2
 
 struct HDRPresentationParametersTests {
-    @Test func layoutMatchesOneMetalFloat4Lane() {
-        // The presentation argument buffer is mirrored by one Metal `float4`.
-        // Assert alignment as well as stride and offset so future field edits
-        // cannot silently move the exposure multiplier across the GPU boundary.
+    @Test func sharedLayoutContainsOneFloat4Lane() {
+        // Assert alignment as well as stride and offset so buffer allocation
+        // and the exposure lane remain deliberate as this shared record grows.
         #expect(MemoryLayout<HDRPresentationParameters>.alignment == 16)
         #expect(MemoryLayout<HDRPresentationParameters>.size == 16)
         #expect(MemoryLayout<HDRPresentationParameters>.stride == 16)

@@ -1,0 +1,13 @@
+#ifndef MODEL_VERTEX_OUT_METALH
+#define MODEL_VERTEX_OUT_METALH
+
+#include <metal_stdlib>
+
+/// Values interpolated from the model vertex stage into the fragment stage.
+struct ModelVertexOut {
+    metal::float4 position [[position]];
+    metal::float3 viewPosition;
+    metal::float3 viewNormal;
+};
+
+#endif

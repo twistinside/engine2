@@ -370,6 +370,10 @@ system:
 - `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
   directional light is transformed into view space once per frame, while the
   fragment stage reads the current draw's material from its instance record.
+- The production CPU/GPU transport records now come from focused C-compatible
+  headers shared by Swift and Metal. See <doc:Rendering-Architecture> for the
+  ABI, semantic construction, frame-lifetime, and validation policy around
+  those records.
 - The model shader does not consume the decoded vertex display color or any
   embedded USD material. The explicit authored description is the sole surface
   authority even though the transitional vertex lane remains in the decoded
