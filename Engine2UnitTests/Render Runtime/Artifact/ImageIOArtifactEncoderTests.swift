@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct ImageIOArtifactEncoderTests {
-    @Test func qualityRequiresFiniteClosedUnitIntervalAndHasDeliberateDefaults() throws {
+    @Test func qualityRequiresFiniteClosedUnitIntervalAndProvidesValidatedPresets() throws {
         #expect(try JPEGQuality(0).value == 0)
         #expect(try JPEGQuality(0.375).value == 0.375)
         #expect(try JPEGQuality(1).value == 1)
@@ -30,13 +30,12 @@ struct ImageIOArtifactEncoderTests {
 
         #expect(JPEGQuality.observation.value == 0.85)
         #expect(JPEGQuality.maximum.value == 1)
-        #expect(
-            ImageArtifactEncoding.observationJPEG
-                == .jpeg(quality: .observation)
-        )
     }
 
-    @Test func encodesDecodableJPEGAndPreservesExactProvenance() async throws {
+    @Test(arguments: [0.0, 0.73])
+    func encodesDecodableJPEGAndPreservesExactProvenance(
+        _ qualityValue: Double
+    ) async throws {
         let size = try RenderPixelSize(width: 7, height: 5)
         let result = try Self.makeResult(
             image: Self.solidImage(
@@ -47,7 +46,7 @@ struct ImageIOArtifactEncoderTests {
             )
         )
         let encoding = ImageArtifactEncoding.jpeg(
-            quality: try JPEGQuality(0.73)
+            quality: try JPEGQuality(qualityValue)
         )
 
         let artifact = try await ImageIOArtifactEncoder().encode(

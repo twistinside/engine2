@@ -22,7 +22,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding = .observationJPEG
+        encoding: ImageArtifactEncoding
     ) {
         self.init(
             id: id,
@@ -44,7 +44,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding = .observationJPEG
+        encoding: ImageArtifactEncoding
     ) {
         self.id = id
         self.source = source
@@ -61,7 +61,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding = .observationJPEG
+        encoding: ImageArtifactEncoding
     ) -> AgentCaptureRequest {
         AgentCaptureRequest(
             id: id,

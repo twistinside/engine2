@@ -12,7 +12,7 @@ nonisolated struct RealtimeSnapshotCaptureRequest: Equatable, Sendable {
     init(
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding = .observationJPEG
+        encoding: ImageArtifactEncoding
     ) {
         self.renderRequestID = renderRequestID
         self.renderSettings = renderSettings

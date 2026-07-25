@@ -83,7 +83,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
@@ -158,12 +159,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 6, height: 6)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
 
         let firstCapture = Task {
@@ -196,12 +199,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 6, height: 6)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
 
         let firstCapture = Task {
@@ -245,7 +250,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
 
         let capture = Task {
@@ -273,7 +279,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
 
         let capture = Task {
@@ -306,7 +313,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
 
         let capture = Task {
@@ -344,7 +352,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
         let rejection = OffscreenRenderRejection.runtimeBusy
         let failure = OffscreenRenderFailure(
@@ -427,7 +436,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
-            )
+            ),
+            encoding: .jpeg(quality: .observation)
         )
         let capture = Task {
             await connection.capture(request)
@@ -471,7 +481,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         await renderTarget.complete(.completed(renderResult))
         let mismatchedArtifact = Self.artifact(
             for: renderResult,
-            encoding: .observationJPEG
+            encoding: .jpeg(quality: .observation)
         )
 
         #expect(
@@ -685,7 +695,7 @@ private actor CountingArtifactEncoder: PImageArtifactEncoder {
             case .jpeg:
                 .png
             case .png:
-                .observationJPEG
+                .jpeg(quality: .observation)
             }
         } else {
             resultEncoding = encoding
