@@ -16,43 +16,25 @@ import UniformTypeIdentifiers
 /// because the offscreen render contract guarantees opacity. No row flip or
 /// second transfer-function application belongs in this layer.
 ///
-/// The asynchronous protocol operation immediately awaits detached CPU work.
-/// Caller cancellation is checked by the workflow before this operation; once
-/// encoding begins, the completed artifact or typed failure wins.
+/// The asynchronous protocol operation runs on the concurrent executor rather
+/// than the caller's actor. Caller cancellation is checked by the workflow
+/// before this operation; once encoding begins, the completed artifact or
+/// typed failure wins.
 nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
-    /// Creates a stateless artifact encoder.
-    init() {}
-
     /// Encodes a completed raw render while preserving all render provenance.
     ///
     /// A failure leaves the source result unchanged and has no runtime-side
     /// effect, so callers may retry this transform independently of rendering.
+    @concurrent
     func encode(
         _ result: OffscreenRenderResult,
         as encoding: ImageArtifactEncoding
     ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
-        let outcome = await Task.detached {
-            Self.encodeSynchronously(result, as: encoding)
-        }.value
-
-        switch outcome {
-        case let .success(artifact):
-            return artifact
-        case let .failure(failure):
-            throw failure
-        }
-    }
-
-    /// Performs one CPU transform without selecting or sampling application state.
-    private static func encodeSynchronously(
-        _ result: OffscreenRenderResult,
-        as encoding: ImageArtifactEncoding
-    ) -> Result<RenderedImageArtifact, ImageArtifactEncoderError> {
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
-            return .failure(.couldNotCreateSRGBColorSpace)
+            throw .couldNotCreateSRGBColorSpace
         }
         guard let provider = CGDataProvider(data: result.image.bytes as CFData) else {
-            return .failure(.couldNotCreateDataProvider)
+            throw .couldNotCreateDataProvider
         }
 
         // With 32-bit little-endian words, logical XRGB is stored as BGRX.
@@ -74,7 +56,7 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
             shouldInterpolate: false,
             intent: .defaultIntent
         ) else {
-            return .failure(.couldNotCreateImage)
+            throw .couldNotCreateImage
         }
 
         let destinationType: UTType
@@ -101,12 +83,12 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
             1,
             nil
         ) else {
-            return .failure(.couldNotCreateDestination)
+            throw .couldNotCreateDestination
         }
 
         CGImageDestinationAddImage(destination, image, destinationProperties)
         guard CGImageDestinationFinalize(destination) else {
-            return .failure(.destinationFinalizationFailed)
+            throw .destinationFinalizationFailed
         }
 
         // Copy the local mutable destination into detached immutable storage.
@@ -114,15 +96,13 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
             bytes: destinationData.bytes,
             count: destinationData.length
         )
-        return .success(
-            RenderedImageArtifact(
-                encoding: encoding,
-                encodedData: encodedData,
-                sourceRequestID: result.requestID,
-                sourceCursor: result.sourceCursor,
-                viewpoint: result.viewpoint,
-                renderSettings: result.settings
-            )
+        return RenderedImageArtifact(
+            encoding: encoding,
+            encodedData: encodedData,
+            sourceRequestID: result.requestID,
+            sourceCursor: result.sourceCursor,
+            viewpoint: result.viewpoint,
+            renderSettings: result.settings
         )
     }
 }

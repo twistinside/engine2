@@ -18,7 +18,7 @@ nonisolated struct OfflineCaptureRequest: Sendable {
         renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
         viewpoint: RenderViewpoint,
         renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding = .observationJPEG
+        encoding: ImageArtifactEncoding
     ) {
         self.advanceRequest = advanceRequest
         self.renderRequestID = renderRequestID
