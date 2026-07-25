@@ -183,8 +183,11 @@ Use `static let everything` for that case.
 
 ## Keep Default Arguments Exceptional
 
-A default argument makes a choice when the caller says nothing. It is therefore
-the wrong way to expose a distinguished value:
+A default argument makes a choice when the caller says nothing. Use one only
+when omission is independently safe, incidental to the type's meaning, and
+strongly justified in the declaration's documentation.
+
+Do not use a default argument to select a distinguished value:
 
 ```swift
 // Avoid: selecting every asset is now implicit.
@@ -196,11 +199,66 @@ init(
 ```
 
 Requiring `.everything` at the call site keeps the semantic choice explicit.
-The same rule is even more important for coordinated policy such as
-sensitivity or tick duration.
 
-Use a default argument only when omission is independently safe, incidental to
-the type's meaning, and strongly justified in the declaration's documentation.
+The rule is even more important for values that must remain consistent across
+objects or subsystems. Injection establishes one deliberate source of
+configuration. Adding defaults to the injected initializer weakens that
+boundary: one caller can accidentally omit a value, silently select local
+policy, and behave differently from the rest of the application.
+
+```swift
+// Avoid: these defaults can silently create inconsistent input behavior.
+struct DefaultInputDirectiveMapper {
+    let pointerOrbitSensitivity: Float
+    let scrollZoomSensitivity: Float
+
+    init(
+        pointerOrbitSensitivity: Float = 0.01,
+        scrollZoomSensitivity: Float = 0.04
+    ) {
+        self.pointerOrbitSensitivity = pointerOrbitSensitivity
+        self.scrollZoomSensitivity = scrollZoomSensitivity
+    }
+}
+```
+
+Require the composition root to provide coordinated values:
+
+```swift
+struct DefaultInputDirectiveMapper {
+    let pointerOrbitSensitivity: Float
+    let scrollZoomSensitivity: Float
+
+    init(
+        pointerOrbitSensitivity: Float,
+        scrollZoomSensitivity: Float
+    ) {
+        self.pointerOrbitSensitivity = pointerOrbitSensitivity
+        self.scrollZoomSensitivity = scrollZoomSensitivity
+    }
+}
+
+let mapper = DefaultInputDirectiveMapper(
+    pointerOrbitSensitivity: inputConfiguration.pointerOrbitSensitivity,
+    scrollZoomSensitivity: inputConfiguration.scrollZoomSensitivity
+)
+```
+
+Missing configuration is now a compile-time error instead of a silent
+behavioral difference. Keep values such as these explicit:
+
+- fixed tick duration;
+- movement, rotation, or camera sensitivity;
+- physics constants and tolerances;
+- retry, timeout, and buffering limits;
+- retention and resource budgets;
+- encoding or quality policy.
+
+A convenience initializer is not an exemption from configuration consistency.
+Ask whether each instance may safely choose the omitted value independently. If
+the value must agree across objects or subsystems, inject it explicitly from
+shared configuration.
+
 Prefer a class convenience initializer for a coherent secondary initialization
 path, a named static value for a distinguished value, and injected shared
 configuration for coordinated policy.
