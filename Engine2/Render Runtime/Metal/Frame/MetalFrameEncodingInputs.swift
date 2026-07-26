@@ -33,7 +33,7 @@ struct MetalFrameEncodingInputs {
         clearColor: MTLClearColor,
         outputMode: RenderOutputMode,
         exposure: ManualExposure
-    ) throws {
+    ) throws(MetalFrameEncoderError) {
         guard sceneColorTexture.width == depthTexture.width,
               sceneColorTexture.height == depthTexture.height,
               sceneColorTexture.width == destinationTexture.width,

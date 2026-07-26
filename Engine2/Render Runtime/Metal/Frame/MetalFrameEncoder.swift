@@ -59,7 +59,7 @@ final class MetalFrameEncoder {
         _ prepared: MetalPreparedFrame,
         inputs: MetalFrameEncodingInputs,
         into commandBuffer: any MTL4CommandBuffer
-    ) throws {
+    ) throws(MetalFrameEncoderError) {
         let frameResources = inputs.frameResources
         frameResources.write(
             prepared,

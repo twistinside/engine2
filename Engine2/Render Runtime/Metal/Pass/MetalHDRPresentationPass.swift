@@ -23,15 +23,13 @@ final class MetalHDRPresentationPass {
     /// The caller establishes the fragment-to-fragment producer barrier at the
     /// end of the scene encoder before invoking this method. Keeping exactly
     /// one synchronization point makes the two-phase dependency inspectable.
-    /// Returning `false` means no encoder was created and no presentation work
-    /// was recorded; the caller must abandon rather than submit a partial frame.
     func encode(
         sceneColorTexture: any MTLTexture,
         destinationTexture: any MTLTexture,
         parametersBuffer: any MTLBuffer,
         outputMode: RenderOutputMode,
         into commandBuffer: any MTL4CommandBuffer
-    ) -> Bool {
+    ) throws(MetalFrameEncoderError) {
         let renderPass = Self.makeRenderPassDescriptor(
             destinationTexture: destinationTexture
         )
@@ -39,7 +37,7 @@ final class MetalHDRPresentationPass {
             descriptor: renderPass,
             options: []
         ) else {
-            return false
+            throw .missingPresentationEncoder
         }
 
         encoder.setRenderPipelineState(pipeline(for: outputMode))
@@ -56,7 +54,6 @@ final class MetalHDRPresentationPass {
             vertexCount: 3
         )
         encoder.endEncoding()
-        return true
     }
 
     /// Descriptor factory kept visible to tests because the resulting encoder

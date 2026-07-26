@@ -6,6 +6,5 @@ nonisolated enum MetalOffscreenRenderTargetError: Error, Equatable, Sendable {
     case missingDestinationTexture(RenderPixelSize)
     case missingDepthTexture(RenderPixelSize)
     case missingCommandBuffer
-    case readbackRequiresSuccessfulCompletion
     case missingReadbackStorage(byteCount: Int)
 }

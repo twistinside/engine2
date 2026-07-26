@@ -9,7 +9,7 @@ still be a meaningful runtime, actor, persistence, or transport boundary.
 
 ## Avoid
 
-The offscreen Metal implementation currently turns queue feedback into a private two-case completion value:
+A value-shaped offscreen Metal implementation might turn queue feedback into a private two-case completion value:
 
 ```swift
 nonisolated enum MetalOffscreenCompletion: Equatable, Sendable {
@@ -45,14 +45,29 @@ the spelling without removing the local value-shaped error plumbing.
 
 ## Prefer
 
-Make the private asynchronous commit operation return `Void` on success and throw on failed queue feedback. Catch it
-where the concrete runtime translates backend failure into its public outcome:
+Make the private asynchronous commit operation return `Void` on success and use typed throws for its one closed failure
+domain:
+
+```swift
+private func commit(
+    _ commandBuffer: any MTL4CommandBuffer,
+    frame: FrameResources,
+    sceneTarget: MetalHDRSceneTarget,
+    targets: MetalOffscreenRenderTargets
+) async throws(MetalOffscreenSubmissionError) {
+    try await withCheckedThrowingContinuation { continuation in
+        // Retain the submission and resume on queue feedback.
+    }
+}
+```
+
+Catch the error where the concrete Runtime translates backend failure into its public outcome:
 
 ```swift
 do {
     try await commit(commandBuffer, frame: frame, sceneTarget: sceneTarget, targets: targets)
 } catch {
-    let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: String(describing: error))
+    let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: error.backendDescription)
     renderingState = .failed(failure)
     return .failed(failure)
 }
@@ -93,8 +108,9 @@ private func makeFrameResources(count: Int) throws {
 ```
 
 Use a focused `Error` type when callers need to distinguish internal failure causes. Typed throws can further constrain
-that domain when all dependencies support it without extra wrapping. Catch only to recover, add meaningful context,
-translate at a boundary, or perform required policy; otherwise let the error propagate.
+that domain when all dependencies support it without extra wrapping. "Typed throws" is Swift's term for this language
+feature; do not describe it as checked exceptions. Catch only to recover, add meaningful context, translate at a
+boundary, or perform required policy; otherwise let the error propagate.
 
 ## Keep Values at Real Boundaries
 

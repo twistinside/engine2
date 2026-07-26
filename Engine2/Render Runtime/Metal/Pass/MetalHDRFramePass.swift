@@ -28,7 +28,7 @@ final class MetalHDRFramePass {
         outputMode: RenderOutputMode,
         into commandBuffer: any MTL4CommandBuffer,
         encodeScene: (any MTL4RenderCommandEncoder) -> Void
-    ) throws {
+    ) throws(MetalFrameEncoderError) {
         let sceneRenderPassDescriptor = Self.makeSceneRenderPassDescriptor(
             sceneColorTexture: sceneColorTexture,
             depthTexture: depthTexture,
@@ -52,15 +52,13 @@ final class MetalHDRFramePass {
         )
         sceneEncoder.endEncoding()
 
-        guard presentationPass.encode(
+        try presentationPass.encode(
             sceneColorTexture: sceneColorTexture,
             destinationTexture: destinationTexture,
             parametersBuffer: presentationParametersBuffer,
             outputMode: outputMode,
             into: commandBuffer
-        ) else {
-            throw MetalFrameEncoderError.missingPresentationEncoder
-        }
+        )
     }
 
     /// Builds the opaque scene descriptor independently of MetalKit's drawable
