@@ -23,7 +23,7 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
         precondition(pointerOrbitSensitivity.isFinite, "Pointer orbit sensitivity must be finite.")
         precondition(scrollZoomSensitivity.isFinite, "Scroll zoom sensitivity must be finite.")
         precondition(
-            cameraOrbitTarget.x.isFinite && cameraOrbitTarget.y.isFinite && cameraOrbitTarget.z.isFinite,
+            cameraOrbitTarget.isFinite,
             "Camera orbit target must be finite."
         )
         precondition(

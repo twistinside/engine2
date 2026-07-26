@@ -77,12 +77,7 @@ struct RenderInstance: Equatable {
         let inverse = simd_inverse(linearModelView)
         guard determinant.isFinite,
               determinant != 0,
-              [inverse.columns.0, inverse.columns.1, inverse.columns.2]
-                .allSatisfy({ column in
-                    column.x.isFinite
-                        && column.y.isFinite
-                        && column.z.isFinite
-                })
+              [inverse.columns.0, inverse.columns.1, inverse.columns.2].allSatisfy(\.isFinite)
         else {
             throw RenderFrameProjectionError.unsupportedNormalTransform(
                 entityID: entity.id

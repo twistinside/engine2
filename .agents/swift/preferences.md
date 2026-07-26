@@ -13,6 +13,10 @@ When working in Swift:
 
 - Prefer standard Swift language features over custom abstractions.
 
+- Use the shared floating-point `SIMD` classification properties for whole-vector validation instead of repeating
+  per-lane checks. `isFinite`, `isNormal`, and `isZero` require every lane to satisfy the classification; `isInfinite`,
+  `isNaN`, `isSignalingNaN`, and `isSubnormal` report whether any lane has that exceptional classification.
+
 - Use 120 characters as the ordinary line-length limit. A modest overrun is preferable when wrapping one cohesive
   string, declaration, method signature, enum case, pattern, or call would make it harder to scan—especially when one
   readable line would become three or four. Break lines for semantic grouping, not merely to satisfy a counter.
