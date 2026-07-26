@@ -2,11 +2,23 @@ import Testing
 @testable import Engine2
 
 struct BasicGameContentTests {
-    @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
+    @Test func canonicalConstructionSelectsBasicWorldBuilderAndCompleteCatalog() {
         let content = BasicGameContent()
 
+        #expect(content.worldBuilder is BasicWorldBuilder)
+        #expect(content.renderAssetCatalog == .everything)
+    }
+
+    @Test func injectedConstructionUsesCallerWorldBuilderAndCompleteCatalog() {
+        let content = BasicGameContent(worldBuilder: EmptyWorldBuilder())
+
+        #expect(content.worldBuilder is EmptyWorldBuilder)
+        #expect(content.renderAssetCatalog == .everything)
+    }
+
+    @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
         #expect(
-            content.renderAssetCatalog.models == [
+            RenderAssetCatalog.everything.models == [
                 .ball: ModelAssetReference(
                     resourceName: "Ball",
                     format: .usdz
@@ -16,7 +28,7 @@ struct BasicGameContentTests {
     }
 
     @Test func suppliesExactAuthoredMaterialValidationMatrix() throws {
-        let catalog = BasicGameContent().renderAssetCatalog
+        let catalog = RenderAssetCatalog.everything
         let expectedMaterials: [MaterialID: PBRMaterialDescription] = [
             .warmDielectricSmooth: PBRMaterialDescription(
                 baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
@@ -55,5 +67,13 @@ struct BasicGameContentTests {
         // Game Content vocabulary consumed by Render construction.
         try catalog.validateMaterialCoverage()
         #expect(catalog.materials == expectedMaterials)
+    }
+}
+
+private extension BasicGameContentTests {
+    struct EmptyWorldBuilder: PWorldBuilder {
+        func buildWorld() -> World {
+            World()
+        }
     }
 }
