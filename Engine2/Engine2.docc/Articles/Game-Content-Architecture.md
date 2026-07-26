@@ -153,10 +153,11 @@ The App is the composition root. It creates one game-content value, then supplie
 
 The example app now implements the first version of this boundary with
 `BasicGameContent`. It supplies `BasicWorldBuilder` to ``SimulationRuntime``
-and deliberately selects `RenderAssetCatalog.everything` for the current render
-path. Its explicit `init(worldBuilder:)` keeps world construction injectable
-without hiding the catalog choice behind a default argument. Callers may still
-construct curated catalogs through `RenderAssetCatalog.init(models:materials:)`.
+beside the complete `.basicGame` ``SimulationConfiguration``, and deliberately
+selects `RenderAssetCatalog.everything` for the current render path. Its explicit
+`init(worldBuilder:)` keeps world construction injectable without hiding either
+behavior or catalog policy behind a default argument. Callers may still construct
+curated catalogs through `RenderAssetCatalog.init(models:materials:)`.
 ``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
 Game Content maps the mesh to `Ball.usdz` and maps each material identity to a
 `PBRMaterialDescription`. The renderer privately turns those descriptions and
@@ -245,7 +246,7 @@ Do not respond by making every current type public. The package should expose th
 
 The Simulation Runtime owns and schedules invariant systems required for valid position, orientation, input, and other core mechanics. A future behavior extension must compose with that schedule; it must not move the simulation foundation into Game Content.
 
-The current ``World`` has a fixed list of component stores, and ``World/add(_:from:)`` translates a fixed list of capability protocols. That is appropriate for the current experiment but is the largest structural limitation on external Game Content. Before claiming general consumer-defined components, Engine2 needs a strongly typed extension path for externally defined component storage, spawning, and system access without returning to a closed component enum or a global registry.
+The current ``World`` has a fixed list of component stores, and ``World/add(_:from:renderable:)`` translates a fixed list of capability protocols. That is appropriate for the current experiment but is the largest structural limitation on external Game Content. Before claiming general consumer-defined components, Engine2 needs a strongly typed extension path for externally defined component storage, spawning, and system access without returning to a closed component enum or a global registry.
 
 ## Current-to-Proposed Mapping
 
@@ -256,7 +257,7 @@ Current project elements map onto Game Content as follows:
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
-| `BasicGameContent` | Example App-supplied composition of world construction and render asset mappings |
+| `BasicGameContent` | Example App-supplied composition of world construction, Simulation behavior configuration, and render asset mappings |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |

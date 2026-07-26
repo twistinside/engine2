@@ -61,7 +61,7 @@ The current portable simulation primitive is an exact Runtime-level request:
 
 This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over what one tick means. ``SimulationRuntime/fixedTimeStep`` is the single production 1/60-second definition; configurations cannot substitute another duration. In ``RealtimeConfiguration``, ``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and conversion into exact batches. ``ManualConfiguration`` proves the same Simulation Runtime can progress without a wall clock or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before one draw.
 
-``Engine`` now exposes only exact complete-step execution. New configurations must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling ``Engine.step(inputSnapshot:)`` directly.
+``Engine`` now exposes only exact complete-step execution. New configurations must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling `Engine.step(inputSnapshot:)` directly.
 ## Current Limits
 The current engine is still early. Several important behaviors are intentionally simple or incomplete:
 - entity ID reservation is monotonic only; destruction, generation incrementing, and index reuse have not been added yet
@@ -69,7 +69,7 @@ The current engine is still early. Several important behaviors are intentionally
 - systems currently run in one foundational ordered schedule; dependency-derived stages and safe parallelism remain future work
 - the real-time driver's catch-up cap and overflow treatment are static configuration policy; production telemetry and adaptive overload handling remain future work
 - broader advance-authority arbitration and cursor-mismatch recovery remain App/configuration policy beyond the driver's initial fail-closed behavior
-- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained history, and replay storage remain future work
+- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained publication history, and replay storage remain future work
 ## Topics
 ### Core Symbols
 - ``Engine``

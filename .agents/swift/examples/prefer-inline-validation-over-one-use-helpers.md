@@ -8,9 +8,11 @@ optional, or make the call site artificially concise.
 ## Avoid
 
 ```swift
-if let yawDelta = Self.finiteProduct(pointerMotion.x, pointerOrbitSensitivity), yawDelta != 0 {
-    directives.append(.orbitCamera(yawDelta: yawDelta))
-}
+let cameraOrbitYawDelta = Self.finiteProduct(
+    world.input.mouse.delta.x,
+    pointerOrbitSensitivity
+)
+world.input.actions.cameraOrbitYawDelta = cameraOrbitYawDelta ?? 0
 
 private static func finiteProduct(_ lhs: Float, _ rhs: Float) -> Float? {
     let product = lhs * rhs
@@ -31,15 +33,12 @@ This version:
 ## Prefer
 
 ```swift
-let yawDelta = pointerMotion.x * pointerOrbitSensitivity
-if yawDelta.isFinite && yawDelta != 0.0 {
-    let directive = SimulationDirective.orbitCamera(yawDelta: yawDelta)
-    directives.append(directive)
-}
+let cameraOrbitYawDelta = world.input.mouse.delta.x * pointerOrbitSensitivity
+world.input.actions.cameraOrbitYawDelta = cameraOrbitYawDelta.isFinite ? cameraOrbitYawDelta : 0
 ```
 
 The preferred form keeps the data flow visible: calculate the value, validate
-it, construct the domain value, and append it. No optional or helper is needed.
+it, and assign the transient semantic action. No optional or helper is needed.
 
 Extract a private method when the operation has meaningful domain semantics or
 is reused enough that a name clarifies intent. Prefer an extension when the
