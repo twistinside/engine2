@@ -11,11 +11,11 @@ struct EntityMotionRow: Identifiable, Equatable {
     let speed: Float
 
     var locationText: String {
-        "(\(Self.format(position.x)), \(Self.format(position.y)), \(Self.format(position.z)))"
+        "(\(format(position.x)), \(format(position.y)), \(format(position.z)))"
     }
 
     var speedText: String {
-        Self.format(speed)
+        format(speed)
     }
 
     static func extract(from world: World) -> [EntityMotionRow] {
@@ -34,7 +34,7 @@ struct EntityMotionRow: Identifiable, Equatable {
         }
     }
 
-    private static func format(_ value: Float) -> String {
+    private func format(_ value: Float) -> String {
         String(format: "%.2f", value)
     }
 }

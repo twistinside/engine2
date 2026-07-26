@@ -168,7 +168,7 @@ struct MetalFrameEncoderTests {
             FrameResources.maximumInstanceCount + 10
         ] {
             let prepared = encoder.prepare(
-                Self.makeRenderFrame(instanceCount: requestedCount)
+                makeRenderFrame(instanceCount: requestedCount)
             )
             let expectedCount = min(
                 requestedCount,
@@ -292,7 +292,7 @@ struct MetalFrameEncoderTests {
         }
     }
 
-    private static func makeRenderFrame(instanceCount: Int) -> RenderFrame {
+    private func makeRenderFrame(instanceCount: Int) -> RenderFrame {
         let snapshot = SimulationPresentationSnapshot(
             cursor: SimulationCursor(
                 sessionID: SimulationSessionID(),

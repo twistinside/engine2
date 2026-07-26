@@ -327,9 +327,9 @@ struct MetalRendererTests {
         )
         let frame = try #require(resources.frames.first)
         let encoder = try MetalFrameEncoder(resources: resources)
-        let empty = encoder.prepare(Self.makeRenderFrame(instanceCount: 0))
+        let empty = encoder.prepare(makeRenderFrame(instanceCount: 0))
         let maximum = encoder.prepare(
-            Self.makeRenderFrame(
+            makeRenderFrame(
                 instanceCount: FrameResources.maximumInstanceCount
             )
         )
@@ -356,7 +356,7 @@ struct MetalRendererTests {
         )
     }
 
-    private static func makeRenderFrame(instanceCount: Int) -> RenderFrame {
+    private func makeRenderFrame(instanceCount: Int) -> RenderFrame {
         RenderFrame(
             projecting: SimulationPresentationSnapshot(
                 cursor: SimulationCursor(

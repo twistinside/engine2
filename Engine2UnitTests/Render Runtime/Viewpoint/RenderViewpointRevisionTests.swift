@@ -25,7 +25,7 @@ struct RenderViewpointRevisionTests {
         ]
 
         for revision in revisions {
-            #expect(Self.rawRoundTrip(revision) == revision)
+            #expect(rawRoundTrip(revision) == revision)
             let data = try JSONEncoder().encode(revision)
             #expect(
                 try JSONDecoder().decode(
@@ -39,7 +39,7 @@ struct RenderViewpointRevisionTests {
         #expect(revisions[2] < revisions[3])
     }
 
-    private static func rawRoundTrip<Value>(_ value: Value) -> Value? where Value: Equatable & RawRepresentable {
+    private func rawRoundTrip<Value>(_ value: Value) -> Value? where Value: Equatable & RawRepresentable {
         Value(rawValue: value.rawValue)
     }
 }

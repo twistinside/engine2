@@ -335,13 +335,13 @@ private extension SIMD3 where Scalar == Float {
     /// IEC 61966-2-1 transfer used by Metal's `_srgb` color attachment.
     var applyingSRGBTransfer: SIMD3<Float> {
         SIMD3<Float>(
-            Self.srgbEncode(x),
-            Self.srgbEncode(y),
-            Self.srgbEncode(z)
+            srgbEncode(x),
+            srgbEncode(y),
+            srgbEncode(z)
         )
     }
 
-    static func srgbEncode(_ linear: Float) -> Float {
+    private func srgbEncode(_ linear: Float) -> Float {
         let clamped = Swift.max(linear, 0)
         if clamped <= 0.0031308 {
             return clamped * 12.92

@@ -42,11 +42,11 @@ class SRotation: PSystem {
                 angularVelocity.angularVelocity
                 + accumulator.angularAcceleration * deltaTime
                 + accumulator.angularImpulse
-            let deltaRotation = Self.deltaRotation(
+            let rotationDelta = deltaRotation(
                 for: updatedAngularVelocity,
                 deltaTime: deltaTime
             )
-            let accumulatedRotation = deltaRotation * rotation.rotation
+            let accumulatedRotation = rotationDelta * rotation.rotation
             let updatedRotation = simd_quatf(vector: simd_normalize(accumulatedRotation.vector))
 
             world.angularVelocityComponents.insert(
@@ -64,7 +64,7 @@ class SRotation: PSystem {
     }
 
     /// Converts an axis-rate angular velocity into the quaternion delta for one step.
-    private static func deltaRotation(for angularVelocity: SIMD3<Float>, deltaTime: Float) -> simd_quatf {
+    private func deltaRotation(for angularVelocity: SIMD3<Float>, deltaTime: Float) -> simd_quatf {
         let angularStep = angularVelocity * deltaTime
         let angle = simd_length(angularStep)
 

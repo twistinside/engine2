@@ -15,7 +15,7 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func completedCapturePresentsExactJPEGDocumentAndTickFilename() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 42)
+        let (snapshot, artifact) = try fixture(size: size, tick: 42)
         let target = StubRealtimeSnapshotCaptureTarget(
             outcome: .completed(
                 sourceSnapshot: snapshot,
@@ -66,7 +66,7 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func inactiveAndOverlappingCaptureRequestsDoNotReachTheTarget() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 17)
+        let (snapshot, artifact) = try fixture(size: size, tick: 17)
         let inactiveTarget = StubRealtimeSnapshotCaptureTarget(
             outcome: .completed(
                 sourceSnapshot: snapshot,
@@ -106,7 +106,7 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func failedSaveRetainsExactDocumentForRetryWithoutRecapturing() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 73)
+        let (snapshot, artifact) = try fixture(size: size, tick: 73)
         let target = StubRealtimeSnapshotCaptureTarget(
             outcome: .completed(
                 sourceSnapshot: snapshot,
@@ -150,7 +150,7 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func disappearingPresentationIgnoresLateCaptureCompletion() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 91)
+        let (snapshot, artifact) = try fixture(size: size, tick: 91)
         let target = SuspendedRealtimeSnapshotCaptureTarget()
         let model = SnapshotCaptureViewModel(
             captureTarget: target,
@@ -181,8 +181,8 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func captureTerminalMessagesCoverEveryNonSuccessOutcome() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 101)
-        let rawResult = try Self.renderResult(
+        let (snapshot, artifact) = try fixture(size: size, tick: 101)
+        let rawResult = try renderResult(
             artifact: artifact,
             size: size
         )
@@ -382,7 +382,7 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func jpegDocumentPublishesJPEGTypeAndExactFileWrapperBytes() throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (_, artifact) = try Self.fixture(size: size, tick: 7)
+        let (_, artifact) = try fixture(size: size, tick: 7)
         let document = JPEGArtifactDocument(artifact: artifact)
 
         #expect(JPEGArtifactDocument.readableContentTypes == [.jpeg])
@@ -392,7 +392,7 @@ struct SnapshotCaptureViewModelTests {
         )
     }
 
-    private nonisolated static func fixture(
+    private func fixture(
         size: RenderPixelSize,
         tick: UInt64
     ) throws -> (
@@ -422,7 +422,7 @@ struct SnapshotCaptureViewModelTests {
         return (snapshot, artifact)
     }
 
-    private nonisolated static func renderResult(
+    private func renderResult(
         artifact: RenderedImageArtifact,
         size: RenderPixelSize
     ) throws -> OffscreenRenderResult {
