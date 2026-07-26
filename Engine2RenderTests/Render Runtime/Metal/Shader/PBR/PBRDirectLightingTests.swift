@@ -30,24 +30,15 @@ struct PBRDirectLightingTests {
 
     @Test func diagnosticsExposeTheEvaluatorInputsAtSphereCenter() throws {
         let renderer = try MetalPBRProofRenderer()
-        let authoredBaseColor = SIMD3<Float>(0.2, 0.4, 0.8)
-        let lightDirection = SIMD3<Float>(0, 3, 4)
-        let lightColor = SIMD3<Float>(repeating: 1)
-        let cameraDirection = SIMD3<Float>(0, 0, 1)
         let parameters = PBRProofParameters(
-            baseColor: authoredBaseColor,
+            baseColor: SIMD3<Float>(0.2, 0.4, 0.8),
             metallic: 0.75,
             perceptualRoughness: 0.3,
-            directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(0, 3, 4),
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: cameraDirection
+            directionToCameraView: SIMD3<Float>(0, 0, 1)
         )
-        let expectedNormal = SIMD3<Float>(0.5, 0.5, 1)
-        let expectedBaseColor = SIMD3<Float>(0.2, 0.4, 0.8)
-        let expectedMetallic = SIMD3<Float>(repeating: 0.75)
-        let expectedRoughness = SIMD3<Float>(repeating: 0.3)
-        let expectedNDotL = SIMD3<Float>(repeating: 0.8)
 
         // At the center of the analytic sphere, N is view-space +Z. The
         // normalized 3-4-5 light direction therefore gives N dot L = 0.8.
@@ -55,23 +46,23 @@ struct PBRDirectLightingTests {
         // encoding, or a proof shader that bypasses the shared evaluator.
         expectStoredRGB(
             center(try renderer.render(.normal, parameters: parameters)),
-            approximately: expectedNormal
+            approximately: SIMD3<Float>(0.5, 0.5, 1)
         )
         expectStoredRGB(
             center(try renderer.render(.baseColor, parameters: parameters)),
-            approximately: expectedBaseColor
+            approximately: SIMD3<Float>(0.2, 0.4, 0.8)
         )
         expectStoredRGB(
             center(try renderer.render(.metallic, parameters: parameters)),
-            approximately: expectedMetallic
+            approximately: SIMD3<Float>(repeating: 0.75)
         )
         expectStoredRGB(
             center(try renderer.render(.roughness, parameters: parameters)),
-            approximately: expectedRoughness
+            approximately: SIMD3<Float>(repeating: 0.3)
         )
         expectStoredRGB(
             center(try renderer.render(.nDotL, parameters: parameters)),
-            approximately: expectedNDotL
+            approximately: SIMD3<Float>(repeating: 0.8)
         )
     }
 
@@ -96,71 +87,36 @@ struct PBRDirectLightingTests {
             try renderer.render(.diffuse, parameters: metal)
         )
 
-        let expectedDielectricDiffuse = SIMD3<Float>(
-            0.15278875,
-            0.07639437,
-            0.03819719
-        )
-        let expectedDielectricSpecular = SIMD3<Float>(
-            repeating: 0.05092958
-        )
-        let expectedDielectricShaded = SIMD3<Float>(
-            0.20371833,
-            0.12732395,
-            0.08912677
-        )
-        let expectedMetalShaded = SIMD3<Float>(
-            0.63661977,
-            0.31830989,
-            0.15915494
-        )
         expectStoredRGB(
             dielectricDiffuse,
-            approximately: expectedDielectricDiffuse
+            approximately: SIMD3<Float>(0.15278875, 0.07639437, 0.03819719)
         )
         expectStoredRGB(
             dielectricSpecular,
-            approximately: expectedDielectricSpecular
+            approximately: SIMD3<Float>(repeating: 0.05092958)
         )
         expectStoredRGB(
             dielectricShaded,
-            approximately: expectedDielectricShaded
+            approximately: SIMD3<Float>(0.20371833, 0.12732395, 0.08912677)
         )
         expectStoredRGB(
             metalShaded,
-            approximately: expectedMetalShaded
+            approximately: SIMD3<Float>(0.63661977, 0.31830989, 0.15915494)
         )
         expectStoredRGB(metalDiffuse, approximately: .zero)
     }
 
     @Test func asymmetricGeometryMatchesIndependentBRDFReferences() throws {
         let renderer = try MetalPBRProofRenderer()
-        let lightDirection = SIMD3<Float>(-0.8, 0, 0.6)
-        let lightColor = SIMD3<Float>(repeating: 1)
         let cameraDirection = SIMD3<Float>(sqrt(0.99), 0, 0.1)
         let parameters = PBRProofParameters(
             baseColor: baseColor,
             metallic: 0.35,
             perceptualRoughness: 0.6,
-            directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(-0.8, 0, 0.6),
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
             directionToCameraView: cameraDirection
-        )
-        let expectedDiffuse = SIMD3<Float>(
-            0.044403076171875,
-            0.024627685546875,
-            0.0129241943359375
-        )
-        let expectedSpecular = SIMD3<Float>(
-            0.328857421875,
-            0.23828125,
-            0.193115234375
-        )
-        let expectedShaded = SIMD3<Float>(
-            0.373291015625,
-            0.262939453125,
-            0.2059326171875
         )
 
         // Here N dot V differs from N dot L, and V dot H differs from both.
@@ -169,31 +125,28 @@ struct PBRDirectLightingTests {
         // duplicated.
         expectStoredRGB(
             center(try renderer.render(.diffuse, parameters: parameters)),
-            approximately: expectedDiffuse
+            approximately: SIMD3<Float>(0.044403076171875, 0.024627685546875, 0.0129241943359375)
         )
         expectStoredRGB(
             center(try renderer.render(.specular, parameters: parameters)),
-            approximately: expectedSpecular
+            approximately: SIMD3<Float>(0.328857421875, 0.23828125, 0.193115234375)
         )
         expectStoredRGB(
             center(try renderer.render(.shaded, parameters: parameters)),
-            approximately: expectedShaded
+            approximately: SIMD3<Float>(0.373291015625, 0.262939453125, 0.2059326171875)
         )
     }
 
     @Test func lightBehindTheSurfaceContributesNothing() throws {
         let renderer = try MetalPBRProofRenderer()
-        let lightDirection = SIMD3<Float>(0.8, 0, -0.6)
-        let lightColor = SIMD3<Float>(repeating: 1)
-        let cameraDirection = SIMD3<Float>(0, 0, 1)
         let parameters = PBRProofParameters(
             baseColor: baseColor,
             metallic: 0.35,
             perceptualRoughness: 0.6,
-            directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(0.8, 0, -0.6),
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: cameraDirection
+            directionToCameraView: SIMD3<Float>(0, 0, 1)
         )
 
         // Center-sphere N and V are +Z, while L is below the surface. Every
@@ -214,17 +167,14 @@ struct PBRDirectLightingTests {
 
     @Test func cameraBehindTheSurfaceContributesNothing() throws {
         let renderer = try MetalPBRProofRenderer()
-        let lightDirection = SIMD3<Float>(0, 0, 1)
-        let lightColor = SIMD3<Float>(repeating: 1)
-        let cameraDirection = SIMD3<Float>(0.8, 0, -0.6)
         let parameters = PBRProofParameters(
             baseColor: baseColor,
             metallic: 0.35,
             perceptualRoughness: 0.6,
-            directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(0, 0, 1),
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: cameraDirection
+            directionToCameraView: SIMD3<Float>(0.8, 0, -0.6)
         )
 
         // Center-sphere N and L are +Z, while V is below the surface. This is
@@ -251,31 +201,23 @@ struct PBRDirectLightingTests {
                 parameters: proofParameters(metallic: 0, roughness: 0.5)
             )
         )
-        let lightDirection = SIMD3<Float>(0, 0, 1)
-        let lightColor = SIMD3<Float>(8, 4, 2)
-        let cameraDirection = SIMD3<Float>(0, 0, 1)
         let hdrParameters = PBRProofParameters(
             baseColor: baseColor,
             metallic: 0,
             perceptualRoughness: 0.5,
-            directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(0, 0, 1),
+            lightColor: SIMD3<Float>(8, 4, 2),
             lightIntensity: 1,
-            directionToCameraView: cameraDirection
+            directionToCameraView: SIMD3<Float>(0, 0, 1)
         )
         let hdrShaded = center(
             try renderer.render(.shaded, parameters: hdrParameters)
         )
 
         expectStoredRGB(linearBaseColor, approximately: baseColor)
-        let expectedHDRShaded = SIMD3<Float>(
-            1.6297466,
-            0.5092958,
-            0.17825353
-        )
         expectStoredRGB(
             hdrShaded,
-            approximately: expectedHDRShaded
+            approximately: SIMD3<Float>(1.6297466, 0.5092958, 0.17825353)
         )
         #expect(hdrShaded.x > 1)
     }
@@ -376,7 +318,6 @@ struct PBRDirectLightingTests {
             0,
             grazingCosine
         )
-        let lightColor = SIMD3<Float>(repeating: 1)
         let cameraDirection = SIMD3<Float>(
             tangent,
             0,
@@ -387,7 +328,7 @@ struct PBRDirectLightingTests {
             metallic: 0,
             perceptualRoughness: 0.5,
             directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
             directionToCameraView: cameraDirection
         )
@@ -402,14 +343,9 @@ struct PBRDirectLightingTests {
                 pixel.x.isFinite && pixel.y.isFinite && pixel.z.isFinite
             }
         )
-        let expectedGrazingRGB = SIMD3<Float>(
-            4.849776,
-            4.849738,
-            4.849720
-        )
         expectRGB(
             centerPixel,
-            approximately: expectedGrazingRGB,
+            approximately: SIMD3<Float>(4.849776, 4.849738, 4.849720),
             tolerance: 0.02
         )
 
@@ -432,10 +368,9 @@ struct PBRDirectLightingTests {
                 parameters: endpointParameters
             )
         )
-        let expectedEndpointSpecular = SIMD3<Float>(repeating: 50.732948)
         expectStoredRGB(
             endpointSpecular,
-            approximately: expectedEndpointSpecular
+            approximately: SIMD3<Float>(repeating: 50.732948)
         )
         let effectiveRoughness = center(
             try renderer.render(
@@ -443,42 +378,35 @@ struct PBRDirectLightingTests {
                 parameters: endpointParameters
             )
         )
-        let expectedEffectiveRoughness = SIMD3<Float>(repeating: 0.089)
         expectStoredRGB(
             effectiveRoughness,
-            approximately: expectedEffectiveRoughness
+            approximately: SIMD3<Float>(repeating: 0.089)
         )
     }
 
     private func proofParameters(metallic: Float, roughness: Float) -> PBRProofParameters {
-        let directionToLight = SIMD3<Float>(0, 0, 1)
-        let lightColor = SIMD3<Float>(repeating: 1)
-        let directionToCamera = SIMD3<Float>(0, 0, 1)
-        return PBRProofParameters(
+        PBRProofParameters(
             baseColor: baseColor,
             metallic: metallic,
             perceptualRoughness: roughness,
-            directionToLightWorld: directionToLight,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(0, 0, 1),
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: directionToCamera
+            directionToCameraView: SIMD3<Float>(0, 0, 1)
         )
     }
 
     /// Converts one Render-owned catalog description into the isolated proof's
     /// provisional binding while preserving its authored factors exactly.
     private func proofParameters(material: PBRMaterialDescription) -> PBRProofParameters {
-        let directionToLight = SIMD3<Float>(0, 0, 1)
-        let lightColor = SIMD3<Float>(repeating: 1)
-        let directionToCamera = SIMD3<Float>(0, 0, 1)
-        return PBRProofParameters(
+        PBRProofParameters(
             baseColor: material.baseColor,
             metallic: material.metallic,
             perceptualRoughness: material.perceptualRoughness,
-            directionToLightWorld: directionToLight,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(0, 0, 1),
+            lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: directionToCamera
+            directionToCameraView: SIMD3<Float>(0, 0, 1)
         )
     }
 }

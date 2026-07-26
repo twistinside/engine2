@@ -255,12 +255,11 @@ struct RuntimeCompositionScenarioTests {
     private struct MovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()
-            let velocity = SIMD3<Float>(1, 0, 0)
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: velocity
+                velocity: SIMD3<Float>(1, 0, 0)
             )
             return world
         }

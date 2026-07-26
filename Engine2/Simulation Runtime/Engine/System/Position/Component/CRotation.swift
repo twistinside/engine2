@@ -8,8 +8,10 @@ import simd
 struct CRotation: PComponent {
     /// Neutral orientation used when Game Content supplies no authored rotation.
     static let identity: Self = {
-        let neutralAxis = SIMD3<Float>(0, 0, 1)
-        let neutralRotation = simd_quatf(angle: 0, axis: neutralAxis)
+        let neutralRotation = simd_quatf(
+            angle: 0,
+            axis: SIMD3<Float>(0, 0, 1)
+        )
         return Self(rotation: neutralRotation)
     }()
 

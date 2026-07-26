@@ -114,11 +114,10 @@ struct RealtimeAssemblyTests {
         let heldKey = KeyboardKey(keyCode: 13, displayName: "W")
 
         let pointerDelta = SIMD2<Float>(50, 0)
-        let pointerPosition = SIMD2<Float>(10, 20)
         hostSink.receive(
             .mouseDragged(
                 delta: pointerDelta,
-                position: pointerPosition
+                position: SIMD2<Float>(10, 20)
             )
         )
         let scrollDelta = SIMD2<Float>(0, 25)

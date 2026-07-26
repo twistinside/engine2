@@ -78,6 +78,9 @@ Current example ownership:
 - Never construct a value inside another call's arguments. Bind every explicit initializer result to a role-named local
   before passing it to an initializer, method, enum case, macro, or modifier, even when it fits on one line. Existing
   values, literals, and enum cases may remain inline; a construction that is the surrounding result is not nested.
+  One-line `SIMD2`, `SIMD3`, and `SIMD4` initializers whose lanes—or single `repeating:` value—are numeric literals
+  with optional unary signs are vector literals and may also remain inline. Keep computed, multiline, reused, or
+  role-clarifying vectors named.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.
 - Using `String` or a string-backed wrapper in place of an enum for a closed set is heavily discouraged. Any exception must be justified with a code or documentation comment explaining why the vocabulary is genuinely open-ended or why an external API requires strings.

@@ -17,13 +17,11 @@ struct EngineTests {
             configuration: .basicGame
         )
         let revision = InputRevision(session: 1, sequence: 1)
-        let pointerMotionTotal = SIMD2<Float>(40, 0)
-        let scrollTotal = SIMD2<Float>(0, 30)
         let snapshot = InputSnapshot(
             revision: revision,
             pointerPosition: .zero,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
+            pointerMotionTotal: SIMD2<Float>(40, 0),
+            scrollTotal: SIMD2<Float>(0, 30),
             pressedMouseButtons: [],
             pressedKeys: []
         )
@@ -98,16 +96,13 @@ struct EngineTests {
     @Test func exactStepUsesTheInjectedSystemTestDuration() throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
-        let initialVelocity = SIMD3<Float>(4, 5, 6)
-        let initialImpulse = SIMD3<Float>(1, -1, 0.5)
         var motion = CMotion(
-            velocity: initialVelocity,
-            impulse: initialImpulse
+            velocity: SIMD3<Float>(4, 5, 6),
+            impulse: SIMD3<Float>(1, -1, 0.5)
         )
         motion.accumulator.acceleration = SIMD3<Float>(2, 0, -2)
 
-        let initialPositionValue = SIMD3<Float>(1, 2, 3)
-        let initialPosition = CPosition(position: initialPositionValue)
+        let initialPosition = CPosition(position: SIMD3<Float>(1, 2, 3))
         world.positionComponents.insert(
             initialPosition,
             for: entity
@@ -122,12 +117,10 @@ struct EngineTests {
 
         engine.step()
 
-        let expectedVelocity = SIMD3<Float>(6, 4, 5.5)
-        let expectedPosition = SIMD3<Float>(4, 4, 5.75)
         let expectedTick = SimulationTick(rawValue: 1)
 
-        #expect(world.motionComponents[entity]?.velocity == expectedVelocity)
-        #expect(world.positionComponents[entity]?.position == expectedPosition)
+        #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
+        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.completedTick == expectedTick)
     }
 
@@ -160,11 +153,10 @@ struct EngineTests {
             systems: systems
         )
         let revision = InputRevision(session: 1, sequence: 1)
-        let pointerMotionTotal = SIMD2<Float>(3, -2)
         let snapshot = InputSnapshot(
             revision: revision,
             pointerPosition: .zero,
-            pointerMotionTotal: pointerMotionTotal,
+            pointerMotionTotal: SIMD2<Float>(3, -2),
             scrollTotal: .zero,
             pressedMouseButtons: [],
             pressedKeys: []
@@ -192,13 +184,11 @@ struct EngineTests {
         let replacement = World()
         let revision = InputRevision(session: 2, sequence: 10)
         let pointerPosition = SIMD2<Float>(8, 9)
-        let pointerMotionTotal = SIMD2<Float>(100, 0)
-        let scrollTotal = SIMD2<Float>(0, 40)
         let baseline = InputSnapshot(
             revision: revision,
             pointerPosition: pointerPosition,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
+            pointerMotionTotal: SIMD2<Float>(100, 0),
+            scrollTotal: SIMD2<Float>(0, 40),
             pressedMouseButtons: [.right],
             pressedKeys: []
         )
@@ -220,11 +210,10 @@ struct EngineTests {
             configuration: .basicGame
         )
         let initialRevision = InputRevision(session: 1, sequence: 1)
-        let initialPointerMotionTotal = SIMD2<Float>(100, 0)
         let initialSnapshot = InputSnapshot(
             revision: initialRevision,
             pointerPosition: .zero,
-            pointerMotionTotal: initialPointerMotionTotal,
+            pointerMotionTotal: SIMD2<Float>(100, 0),
             scrollTotal: .zero,
             pressedMouseButtons: [],
             pressedKeys: []
@@ -237,22 +226,19 @@ struct EngineTests {
             near: 0.5,
             far: 200
         )
-        let replacementCameraPosition = SIMD3<Float>(0, 3, 12)
-        let replacementCameraUp = SIMD3<Float>(0, 1, 0)
         replacement.camera = Camera.lookingAt(
             .zero,
-            from: replacementCameraPosition,
-            up: replacementCameraUp,
+            from: SIMD3<Float>(0, 3, 12),
+            up: SIMD3<Float>(0, 1, 0),
             projection: replacementProjection
         )
         engine.replaceWorld(with: replacement, inputBaseline: nil)
 
         let replacementRevision = InputRevision(session: 2, sequence: 1)
-        let replacementPointerMotionTotal = SIMD2<Float>(10, 0)
         let replacementSnapshot = InputSnapshot(
             revision: replacementRevision,
             pointerPosition: .zero,
-            pointerMotionTotal: replacementPointerMotionTotal,
+            pointerMotionTotal: SIMD2<Float>(10, 0),
             scrollTotal: .zero,
             pressedMouseButtons: [],
             pressedKeys: []

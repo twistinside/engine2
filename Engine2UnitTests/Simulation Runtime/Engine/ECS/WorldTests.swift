@@ -28,8 +28,7 @@ struct WorldTests {
     @Test func addSeedsAccelerationIntentForMovableEntity() async throws {
         let world = World()
         let entity = TestMovableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
-        let acceleration = SIMD3<Float>(1, 2, 3)
-        let expectedIntent = CMotion.AccelerationIntent.accelerating(acceleration)
+        let expectedIntent = CMotion.AccelerationIntent.accelerating(SIMD3<Float>(1, 2, 3))
         let initialState = Entity.InitialState(accelerationIntent: expectedIntent)
 
         world.add(

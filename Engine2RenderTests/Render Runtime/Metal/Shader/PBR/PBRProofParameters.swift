@@ -12,20 +12,15 @@ struct PBRProofParameters {
     var lightColorIntensity: SIMD4<Float>
     var directionToCameraPadding: SIMD4<Float>
 
-    private static let validationBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
-    private static let validationLightDirection = SIMD3<Float>(0, 0, 1)
-    private static let validationLightColor = SIMD3<Float>(repeating: 1)
-    private static let validationCameraDirection = SIMD3<Float>(0, 0, 1)
-
     /// Renderer-owned constants used when a test does not need a variant.
     static let validation = PBRProofParameters(
-        baseColor: validationBaseColor,
+        baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
         metallic: 0,
         perceptualRoughness: 0.5,
-        directionToLightWorld: validationLightDirection,
-        lightColor: validationLightColor,
+        directionToLightWorld: SIMD3<Float>(0, 0, 1),
+        lightColor: SIMD3<Float>(repeating: 1),
         lightIntensity: 1,
-        directionToCameraView: validationCameraDirection
+        directionToCameraView: SIMD3<Float>(0, 0, 1)
     )
 
     init(

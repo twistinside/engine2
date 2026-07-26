@@ -55,9 +55,8 @@ struct SimulationRuntimeTests {
         )
         let firstWorld = simulation.world
         let firstEntity = try #require(firstWorld.positionComponents.entities.first)
-        let firstExpectedPosition = SIMD3<Float>(1, 0, 0)
 
-        #expect(firstWorld.positionComponents[firstEntity]?.position == firstExpectedPosition)
+        #expect(firstWorld.positionComponents[firstEntity]?.position == SIMD3<Float>(1, 0, 0))
         #expect(builder.buildCount == 1)
 
         simulation.rebuildWorld(inputBaseline: nil)
@@ -76,8 +75,7 @@ struct SimulationRuntimeTests {
     }
 
     @Test func replacingBuilderCanDeferWorldReconstruction() throws {
-        let initialPosition = SIMD3<Float>(1, 0, 0)
-        let initialBuilder = TestWorldBuilder(position: initialPosition)
+        let initialBuilder = TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
         let simulation = SimulationRuntime(
             worldBuilder: initialBuilder,
             configuration: .basicGame,
@@ -104,8 +102,7 @@ struct SimulationRuntimeTests {
     }
 
     @Test func namedBuilderReplacementAndRebuildStartsANewWorldImmediately() throws {
-        let initialPosition = SIMD3<Float>(1, 0, 0)
-        let initialBuilder = TestWorldBuilder(position: initialPosition)
+        let initialBuilder = TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
         let simulation = SimulationRuntime(
             worldBuilder: initialBuilder,
             configuration: .basicGame,
@@ -137,13 +134,11 @@ struct SimulationRuntimeTests {
         )
         let revision = InputRevision(session: 2, sequence: 4)
         let pointerPosition = SIMD2<Float>(20, 30)
-        let pointerMotionTotal = SIMD2<Float>(8, -3)
-        let scrollTotal = SIMD2<Float>(0, 5)
         let inputBaseline = InputSnapshot(
             revision: revision,
             pointerPosition: pointerPosition,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
+            pointerMotionTotal: SIMD2<Float>(8, -3),
+            scrollTotal: SIMD2<Float>(0, 5),
             pressedMouseButtons: [.left],
             pressedKeys: [key]
         )

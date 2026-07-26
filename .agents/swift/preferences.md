@@ -25,7 +25,10 @@ When working in Swift:
   local before passing it to an initializer, method, enum case, macro, or modifier, even when the construction fits on
   one line. Existing values, literals, and enum cases may remain inline; a construction that is itself the surrounding
   expression's result is not nested. In result builders, declare constructed modifier inputs before the builder call
-  when Swift permits it rather than hiding construction in the modifier's arguments.
+  when Swift permits it rather than hiding construction in the modifier's arguments. Treat a one-line `SIMD2`, `SIMD3`,
+  or `SIMD4` initializer whose lanes—or single `repeating:` value—are numeric literals optionally preceded by `+` or
+  `-` as a vector literal that may remain inline. Keep it named when a lane is computed, the initializer spans multiple
+  lines, the value is reused, or the name materially clarifies its units, coordinate space, or role.
 
 - Use Swift's synthesized initializers when they express the intended construction API. Do not write a structure
   initializer that only assigns same-named parameters to stored properties. Keep an explicit initializer when it

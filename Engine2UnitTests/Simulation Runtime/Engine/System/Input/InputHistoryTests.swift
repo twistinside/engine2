@@ -118,13 +118,11 @@ struct InputHistoryTests {
         let aKey = KeyboardKey(keyCode: 0, charactersIgnoringModifiers: "a")
         let zKey = KeyboardKey(keyCode: 6, charactersIgnoringModifiers: "z")
 
-        let pointerMotionTotal = SIMD2<Float>(1.6, -1.6)
-        let scrollTotal = SIMD2<Float>(0, 0.4)
         let publication = snapshot(
             session: 1,
             sequence: 1,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
+            pointerMotionTotal: SIMD2<Float>(1.6, -1.6),
+            scrollTotal: SIMD2<Float>(0, 0.4),
             pressedMouseButtons: [.other(5), .middle, .right, .left],
             pressedKeys: [zKey, aKey]
         )

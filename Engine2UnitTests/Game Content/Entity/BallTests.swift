@@ -7,15 +7,13 @@ struct BallTests {
         let world = World()
         let expectedPosition = SIMD3<Float>(1, 2, 3)
         let expectedVelocity = SIMD3<Float>(4, 5, 6)
-        let acceleration = SIMD3<Float>(1, 0, 0)
         let expectedAccelerationIntent = CMotion.AccelerationIntent.accelerating(
-            acceleration
+            SIMD3<Float>(1, 0, 0)
         )
         let expectedImpulse = SIMD3<Float>(-1, 0.5, 2)
-        let rotationAxis = SIMD3<Float>(0, 1, 0)
         let expectedRotation = simd_quatf(
             angle: .pi / 3,
-            axis: rotationAxis
+            axis: SIMD3<Float>(0, 1, 0)
         )
         let expectedAngularVelocity = SIMD3<Float>(0.1, 0.2, 0.3)
         let expectedAngularAcceleration = SIMD3<Float>(0.4, 0.5, 0.6)
@@ -58,8 +56,10 @@ struct BallTests {
     @Test func initDefaultsMissingStateToZeroAndIdentity() async throws {
         let world = World()
         let ball = Ball(in: world, materialID: .warmDielectric)
-        let rotationAxis = SIMD3<Float>(0, 0, 1)
-        let expectedRotation = simd_quatf(angle: 0, axis: rotationAxis)
+        let expectedRotation = simd_quatf(
+            angle: 0,
+            axis: SIMD3<Float>(0, 0, 1)
+        )
 
         #expect(ball.position == .zero)
         #expect(ball.velocity == .zero)

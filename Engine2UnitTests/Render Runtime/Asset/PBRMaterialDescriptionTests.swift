@@ -25,9 +25,8 @@ struct PBRMaterialDescriptionTests {
             metallic: 0,
             perceptualRoughness: 0
         )
-        let white = SIMD3<Float>(repeating: 1)
         let metal = PBRMaterialDescription(
-            baseColor: white,
+            baseColor: SIMD3<Float>(repeating: 1),
             metallic: 1,
             perceptualRoughness: 1
         )
@@ -62,8 +61,7 @@ struct PBRMaterialDescriptionTests {
 
         // Exercise each vector lane independently so deleting any one channel
         // check would weaken the authored base-color precondition observably.
-        let validBaseColor = SIMD3<Float>(0, 0.5, 1)
-        #expect(PBRMaterialDescription.acceptsBaseColor(validBaseColor))
+        #expect(PBRMaterialDescription.acceptsBaseColor(SIMD3<Float>(0, 0.5, 1)))
         for invalid in invalidScalars {
             let invalidRed = SIMD3<Float>(invalid, 0.5, 0.5)
             let invalidGreen = SIMD3<Float>(0.5, invalid, 0.5)

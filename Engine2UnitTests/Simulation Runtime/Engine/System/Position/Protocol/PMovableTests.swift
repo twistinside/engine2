@@ -12,9 +12,8 @@ struct PMovableTests {
         let expectedVelocity = SIMD3<Float>(1, 2, 3)
         let expectedAcceleration = SIMD3<Float>(4, 5, 6)
         let expectedImpulse = SIMD3<Float>(7, 8, 9)
-        let accelerationIntentValue = SIMD3<Float>(10, 11, 12)
         let expectedIntent = CMotion.AccelerationIntent.accelerating(
-            accelerationIntentValue
+            SIMD3<Float>(10, 11, 12)
         )
         var motion = CMotion(
             velocity: expectedVelocity,

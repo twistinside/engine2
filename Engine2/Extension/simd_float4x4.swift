@@ -76,9 +76,8 @@ nonisolated extension simd_float4x4 {
             1 - 2 * x * x - 2 * y * y,
             0
         )
-        let identityColumn = SIMD4<Float>(0, 0, 0, 1)
         return simd_float4x4(
-            columns: (xColumn, yColumn, zColumn, identityColumn)
+            columns: (xColumn, yColumn, zColumn, SIMD4<Float>(0, 0, 0, 1))
         )
     }
 
@@ -86,19 +85,20 @@ nonisolated extension simd_float4x4 {
         let xColumn = SIMD4<Float>(scale.x, 0, 0, 0)
         let yColumn = SIMD4<Float>(0, scale.y, 0, 0)
         let zColumn = SIMD4<Float>(0, 0, scale.z, 0)
-        let identityColumn = SIMD4<Float>(0, 0, 0, 1)
         return simd_float4x4(
-            columns: (xColumn, yColumn, zColumn, identityColumn)
+            columns: (xColumn, yColumn, zColumn, SIMD4<Float>(0, 0, 0, 1))
         )
     }
 
     static func translation(_ translation: SIMD3<Float>) -> simd_float4x4 {
-        let xColumn = SIMD4<Float>(1, 0, 0, 0)
-        let yColumn = SIMD4<Float>(0, 1, 0, 0)
-        let zColumn = SIMD4<Float>(0, 0, 1, 0)
         let translationColumn = SIMD4<Float>(translation.x, translation.y, translation.z, 1)
         return simd_float4x4(
-            columns: (xColumn, yColumn, zColumn, translationColumn)
+            columns: (
+                SIMD4<Float>(1, 0, 0, 0),
+                SIMD4<Float>(0, 1, 0, 0),
+                SIMD4<Float>(0, 0, 1, 0),
+                translationColumn
+            )
         )
     }
 }

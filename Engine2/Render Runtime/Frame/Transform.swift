@@ -2,20 +2,14 @@ import simd
 
 /// Position, orientation, and scale used to place one renderable object in world space.
 nonisolated struct Transform: Sendable {
-    static let identityRotation: simd_quatf = {
-        let axis = SIMD3<Float>(0, 0, 1)
-        return simd_quatf(angle: 0, axis: axis)
-    }()
+    static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
 
     /// Neutral placement that leaves local-space positions unchanged.
-    static let identity: Self = {
-        let scale = SIMD3<Float>(repeating: 1)
-        return Self(
-            position: .zero,
-            rotation: identityRotation,
-            scale: scale
-        )
-    }()
+    static let identity = Transform(
+        position: .zero,
+        rotation: identityRotation,
+        scale: SIMD3<Float>(repeating: 1)
+    )
 
     var position: SIMD3<Float>
     var rotation: simd_quatf

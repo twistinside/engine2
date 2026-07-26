@@ -307,12 +307,10 @@ struct MetalOffscreenRenderRuntimeTests {
             revision: .zero,
             camera: fixture.snapshot.camera
         )
-        let secondCameraPosition = SIMD3<Float>(1, 0, 8)
-        let secondCameraUp = SIMD3<Float>(0, 1, 0)
         let secondCamera = Camera.lookingAt(
             .zero,
-            from: secondCameraPosition,
-            up: secondCameraUp,
+            from: SIMD3<Float>(1, 0, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: fixture.snapshot.camera.projection
         )
         let secondViewpoint = RenderViewpoint(

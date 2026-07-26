@@ -12,15 +12,9 @@ struct MetalHDRPipelineTests {
         // warm dielectric and incident radiance (8, 4, 2). Reproducing M3's
         // exact output proves the transitional renderer material was removed
         // without changing the established HDR pathway.
-        let expectedSceneLinearRGBA = SIMD4<Float>(
-            1.62974664,
-            0.5092958,
-            0.17825354,
-            1
-        )
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
-            approximately: expectedSceneLinearRGBA
+            approximately: SIMD4<Float>(1.62974664, 0.5092958, 0.17825354, 1)
         )
         #expect(result.sceneLinearRGBA.x > 1)
 
@@ -29,8 +23,7 @@ struct MetalHDRPipelineTests {
         // The `_srgb` attachment then performs the sole transfer encoding; CPU
         // `getBytes` exposes those encoded BGRA bytes without a shader read.
         let sceneRGB = result.sceneLinearRGBA.xyz
-        let one = SIMD3<Float>(repeating: 1)
-        let reinhard = sceneRGB / (one + sceneRGB)
+        let reinhard = sceneRGB / (SIMD3<Float>(repeating: 1) + sceneRGB)
         let expectedOnceEncoded = srgbEncodedBGRA8(from: reinhard)
         expectBGRA8(
             result.presentedBGRA8,
@@ -60,15 +53,9 @@ struct MetalHDRPipelineTests {
         // incident radiance (8, 4, 2). This differs strongly from the warm
         // dielectric and proves the authored factors reach the production
         // surface fragment rather than a retained renderer fallback.
-        let expectedSceneLinearRGBA = SIMD4<Float>(
-            42.42364164,
-            16.24825475,
-            3.5635859,
-            1
-        )
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
-            approximately: expectedSceneLinearRGBA
+            approximately: SIMD4<Float>(42.42364164, 16.24825475, 3.5635859, 1)
         )
     }
 
@@ -174,10 +161,9 @@ struct MetalHDRPipelineTests {
             let specularRGB = specular[index].xyz
 
             if descriptions[index].metallic == 1 {
-                let expectedDiffuse = SIMD4<Float>(0, 0, 0, 1)
                 expectStoredHalfRGBA(
                     diffuse[index],
-                    approximately: expectedDiffuse
+                    approximately: SIMD4<Float>(0, 0, 0, 1)
                 )
             } else {
                 #expect(diffuseRGB.x > 0)
@@ -220,9 +206,8 @@ struct MetalHDRPipelineTests {
             // Derive final bytes from this draw's already-quantized HDR sample,
             // proving each stored material result uses the expected presentation
             // mapping rather than a separate factor or transfer assumption.
-            let one = SIMD3<Float>(repeating: 1)
             let reinhard = sceneRGB
-                / (one + sceneRGB)
+                / (SIMD3<Float>(repeating: 1) + sceneRGB)
             expectBGRA8(
                 result.presentedBGRA8,
                 approximately: srgbEncodedBGRA8(from: reinhard)
@@ -232,11 +217,10 @@ struct MetalHDRPipelineTests {
 
     @Test func normalDiagnosticBypassesExposureAndReinhard() throws {
         let renderer = try MetalHDRPipelineTestRenderer()
-        let normal = SIMD3<Float>(1, 0, 0)
         let exposure = ManualExposure(multiplier: 8)
         let result = try renderer.render(
             outputMode: .viewSpaceNormals,
-            normal: normal,
+            normal: SIMD3<Float>(1, 0, 0),
             // A deliberately large exposure makes accidental use of the
             // surface presentation pipeline unmistakable.
             exposure: exposure
@@ -252,9 +236,8 @@ struct MetalHDRPipelineTests {
             approximately: srgbEncodedBGRA8(from: expectedLinear.xyz)
         )
 
-        let one = SIMD3<Float>(repeating: 1)
         let accidentallyToneMapped = expectedLinear.xyz * 8
-            / (one + expectedLinear.xyz * 8)
+            / (SIMD3<Float>(repeating: 1) + expectedLinear.xyz * 8)
         let wrongSurfaceBytes = srgbEncodedBGRA8(
             from: accidentallyToneMapped
         )
@@ -273,8 +256,7 @@ struct MetalHDRPipelineTests {
         // toward Reinhard's limiting value; the brightest product overflows.
         // The shader must produce white without `inf / inf` NaNs or subnormal
         // reciprocal behavior leaking into fixed-function conversion.
-        let expectedPresentedBGRA8 = SIMD4<UInt8>(repeating: 255)
-        #expect(result.presentedBGRA8 == expectedPresentedBGRA8)
+        #expect(result.presentedBGRA8 == SIMD4<UInt8>(repeating: 255))
     }
 }
 

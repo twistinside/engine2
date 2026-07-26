@@ -23,9 +23,8 @@ struct OffscreenRenderResultTests {
         )!
         let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
         let viewpointRevision = RenderViewpointRevision(rawValue: 23)
-        let cameraPosition = SIMD3<Float>(7, 8, 9)
         let camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(7, 8, 9),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )

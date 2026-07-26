@@ -4,9 +4,8 @@ import Testing
 
 struct CameraTests {
     @Test func orthographicViewProjectionCentersCameraPosition() async throws {
-        let position = SIMD3<Float>(2, -1, 0)
         let camera = Camera(
-            position: position,
+            position: SIMD3<Float>(2, -1, 0),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 4,
@@ -57,12 +56,10 @@ struct CameraTests {
     }
 
     @Test func perspectiveProjectionCentersLookAtTarget() async throws {
-        let position = SIMD3<Float>(0, 0, 8)
-        let up = SIMD3<Float>(0, 1, 0)
         let camera = Camera.lookingAt(
             .zero,
-            from: position,
-            up: up,
+            from: SIMD3<Float>(0, 0, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
                 near: 1,
@@ -110,9 +107,8 @@ struct CameraTests {
     }
 
     @Test func projectionUsesUnitAspectRatioForInvalidDrawableShapes() {
-        let position = SIMD3<Float>(0, 0, 8)
         let camera = Camera(
-            position: position,
+            position: SIMD3<Float>(0, 0, 8),
             rotation: Transform.identityRotation,
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
@@ -144,10 +140,9 @@ struct CameraTests {
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
-        let standardPosition = SIMD3<Float>(0, 0, 8)
         let invalidRotation = simd_quatf(vector: .zero)
         let invalidOrientationCamera = Camera(
-            position: standardPosition,
+            position: SIMD3<Float>(0, 0, 8),
             rotation: invalidRotation,
             projection: .standardPerspective
         )
@@ -156,8 +151,7 @@ struct CameraTests {
             0,
             -.greatestFiniteMagnitude
         )
-        let rotationAxis = SIMD3<Float>(0, 1, 0)
-        let rotation = simd_quatf(angle: .pi / 4, axis: rotationAxis)
+        let rotation = simd_quatf(angle: .pi / 4, axis: SIMD3<Float>(0, 1, 0))
         let overflowingCamera = Camera(
             position: extremePosition,
             rotation: rotation,
@@ -169,9 +163,8 @@ struct CameraTests {
     }
 
     @Test func standardCameraNamesTheCompleteNeutralView() {
-        let position = SIMD3<Float>(0, 0, 8)
         let expected = Camera(
-            position: position,
+            position: SIMD3<Float>(0, 0, 8),
             rotation: Transform.identityRotation,
             projection: .perspective(
                 verticalFieldOfView: .pi / 3,

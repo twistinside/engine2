@@ -125,8 +125,7 @@ class World {
         // PScalable
         precondition(state.scale == nil || entity is PScalable, "Initial state.scale requires PScalable conformance")
         if entity is PScalable {
-            let defaultScale = SIMD3<Float>(repeating: 1)
-            let scale = CScale(scale: state.scale ?? defaultScale)
+            let scale = CScale(scale: state.scale ?? SIMD3<Float>(repeating: 1))
             scaleComponents.insert(scale, for: entity.id)
         }
 

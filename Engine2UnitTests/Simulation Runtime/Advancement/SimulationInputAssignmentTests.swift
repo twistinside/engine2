@@ -5,14 +5,11 @@ import Testing
 struct SimulationInputAssignmentTests {
     @Test func distinguishesNoInputIngestionAndRebasing() {
         let revision = InputRevision(session: 4, sequence: 12)
-        let pointerPosition = SIMD2<Float>(3, 5)
-        let pointerMotionTotal = SIMD2<Float>(8, -2)
-        let scrollTotal = SIMD2<Float>(0, 7)
         let publication = InputSnapshot(
             revision: revision,
-            pointerPosition: pointerPosition,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
+            pointerPosition: SIMD2<Float>(3, 5),
+            pointerMotionTotal: SIMD2<Float>(8, -2),
+            scrollTotal: SIMD2<Float>(0, 7),
             pressedMouseButtons: [.left],
             pressedKeys: []
         )
@@ -36,12 +33,10 @@ struct SimulationInputAssignmentTests {
 
     @Test func transitionPreservesBothImmutableBoundaryValues() {
         let baseline = InputSnapshot.empty
-        let pointerPosition = SIMD2<Float>(4, 2)
-        let pointerMotionTotal = SIMD2<Float>(4, 2)
         let snapshot = InputSnapshot(
             revision: baseline.revision.advanced(),
-            pointerPosition: pointerPosition,
-            pointerMotionTotal: pointerMotionTotal,
+            pointerPosition: SIMD2<Float>(4, 2),
+            pointerMotionTotal: SIMD2<Float>(4, 2),
             scrollTotal: .zero,
             pressedMouseButtons: [],
             pressedKeys: []

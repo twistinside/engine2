@@ -47,10 +47,8 @@ struct RenderAssetCatalogTests {
         }
     }
 
-    private static let goldMetalBaseColor = SIMD3<Float>(1, 0.766, 0.336)
-
     private static let goldMetal = PBRMaterialDescription(
-        baseColor: goldMetalBaseColor,
+        baseColor: SIMD3<Float>(1, 0.766, 0.336),
         metallic: 1,
         perceptualRoughness: 0.35
     )

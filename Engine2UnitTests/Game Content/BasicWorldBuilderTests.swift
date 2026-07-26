@@ -130,8 +130,7 @@ struct BasicWorldBuilderTests {
     /// Freezes the independently documented M5 camera rather than asking the
     /// named production standard to serve as its own test expectation.
     private func expectReferenceCamera(_ camera: Camera) {
-        let expectedPosition = SIMD3<Float>(0, 0, 8)
-        #expect(camera.position == expectedPosition)
+        #expect(camera.position == SIMD3<Float>(0, 0, 8))
         #expect(camera.rotation.vector == Self.identityRotation.vector)
 
         switch camera.projection {
@@ -167,10 +166,8 @@ struct BasicWorldBuilderTests {
         .goldMetalRough
     ]
 
-    private static let identityRotationAxis = SIMD3<Float>(0, 0, 1)
-
     private static let identityRotation = simd_quatf(
         angle: 0,
-        axis: identityRotationAxis
+        axis: SIMD3<Float>(0, 0, 1)
     )
 }

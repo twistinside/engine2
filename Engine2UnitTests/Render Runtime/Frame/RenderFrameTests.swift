@@ -111,8 +111,7 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
 
-        let position = SIMD3<Float>(2, -4, 0)
-        let positionComponent = CPosition(position: position)
+        let positionComponent = CPosition(position: SIMD3<Float>(2, -4, 0))
         world.positionComponents.insert(positionComponent, for: entity)
 
         let snapshot = world.presentationSnapshot(at: cursor())
@@ -144,13 +143,11 @@ struct RenderFrameTests {
     @Test func projectionIncludesCameraRotationAndScale() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
-        let rotationAxis = SIMD3<Float>(0, 0, 1)
-        let rotation = simd_quatf(angle: .pi / 2, axis: rotationAxis)
+        let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
         let scale = SIMD3<Float>(2, 3, 4)
 
-        let cameraPosition = SIMD3<Float>(1, 2, 3)
         world.camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(1, 2, 3),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 12,
@@ -201,8 +198,7 @@ struct RenderFrameTests {
         let tick = SimulationTick(rawValue: 11)
         let cursor = cursor(at: tick)
         let entity = EntityID(index: 0, generation: 0)
-        let position = SIMD3<Float>(2, 3, 4)
-        let positionComponent = CPosition(position: position)
+        let positionComponent = CPosition(position: SIMD3<Float>(2, 3, 4))
         world.positionComponents.insert(
             positionComponent,
             for: entity
@@ -216,9 +212,8 @@ struct RenderFrameTests {
         let snapshot = world.presentationSnapshot(at: cursor)
         let firstViewpointID = RenderViewpointID()
         let firstViewpointRevision = RenderViewpointRevision(rawValue: 2)
-        let firstCameraPosition = SIMD3<Float>(0, 0, 6)
         let firstCamera = Camera(
-            position: firstCameraPosition,
+            position: SIMD3<Float>(0, 0, 6),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
@@ -229,9 +224,8 @@ struct RenderFrameTests {
         )
         let secondViewpointID = RenderViewpointID()
         let secondViewpointRevision = RenderViewpointRevision(rawValue: 9)
-        let secondCameraPosition = SIMD3<Float>(6, 2, 0)
         let secondCamera = Camera(
-            position: secondCameraPosition,
+            position: SIMD3<Float>(6, 2, 0),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
@@ -305,8 +299,7 @@ struct RenderFrameTests {
             zeroPosition,
             for: zeroScaleEntity
         )
-        let zeroScale = SIMD3<Float>(1, 0, 1)
-        let zeroScaleComponent = CScale(scale: zeroScale)
+        let zeroScaleComponent = CScale(scale: SIMD3<Float>(1, 0, 1))
         world.scaleComponents.insert(
             zeroScaleComponent,
             for: zeroScaleEntity
@@ -389,9 +382,8 @@ struct RenderFrameTests {
         let snapshot = world.presentationSnapshot(at: cursor)
         let viewpointID = RenderViewpointID()
         let viewpointRevision = RenderViewpointRevision(rawValue: 6)
-        let cameraPosition = SIMD3<Float>(0, 0, 10)
         let camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(0, 0, 10),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
@@ -457,8 +449,7 @@ struct RenderFrameTests {
         let entity = EntityID(index: 23, generation: 4)
         let positionComponent = CPosition(position: .zero)
         world.positionComponents.insert(positionComponent, for: entity)
-        let invalidScale = SIMD3<Float>(1, 0, 1)
-        let scaleComponent = CScale(scale: invalidScale)
+        let scaleComponent = CScale(scale: SIMD3<Float>(1, 0, 1))
         world.scaleComponents.insert(
             scaleComponent,
             for: entity
@@ -491,8 +482,7 @@ struct RenderFrameTests {
         let entity = EntityID(index: 24, generation: 4)
         let positionComponent = CPosition(position: .zero)
         world.positionComponents.insert(positionComponent, for: entity)
-        let underflowingScale = SIMD3<Float>(repeating: 1e-20)
-        let scaleComponent = CScale(scale: underflowingScale)
+        let scaleComponent = CScale(scale: SIMD3<Float>(repeating: 1e-20))
         world.scaleComponents.insert(
             scaleComponent,
             for: entity

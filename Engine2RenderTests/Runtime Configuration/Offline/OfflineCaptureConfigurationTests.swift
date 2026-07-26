@@ -32,11 +32,10 @@ struct OfflineCaptureConfigurationTests {
             rawValue: viewpointUUID
         )
         let firstViewpointRevision = RenderViewpointRevision(rawValue: 7)
-        let firstCameraPosition = SIMD3<Float>(0, 0, 8)
         let cameraUp = SIMD3<Float>(0, 1, 0)
         let firstCamera = Camera.lookingAt(
             .zero,
-            from: firstCameraPosition,
+            from: SIMD3<Float>(0, 0, 8),
             up: cameraUp,
             projection: .standardPerspective
         )
@@ -104,10 +103,9 @@ struct OfflineCaptureConfigurationTests {
             encoding: firstEncoding
         )
 
-        let secondCameraPosition = SIMD3<Float>(1, 0.5, 8)
         let secondCamera = Camera.lookingAt(
             .zero,
-            from: secondCameraPosition,
+            from: SIMD3<Float>(1, 0.5, 8),
             up: cameraUp,
             projection: .standardPerspective
         )

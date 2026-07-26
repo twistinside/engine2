@@ -4,14 +4,11 @@ import Testing
 
 struct TransformTests {
     @Test func matrixAppliesScaleRotationThenTranslation() async throws {
-        let position = SIMD3<Float>(2, 3, 4)
-        let rotationAxis = SIMD3<Float>(0, 0, 1)
-        let rotation = simd_quatf(angle: .pi / 2, axis: rotationAxis)
-        let scale = SIMD3<Float>(2, 1, 1)
+        let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
         let transform = Transform(
-            position: position,
+            position: SIMD3<Float>(2, 3, 4),
             rotation: rotation,
-            scale: scale
+            scale: SIMD3<Float>(2, 1, 1)
         )
 
         let transformed = transform.matrix * SIMD4<Float>(1, 0, 0, 1)
@@ -24,11 +21,10 @@ struct TransformTests {
 
     @Test func normalTransformSupportRejectsDegenerateOrNonfiniteInputs() {
         #expect(Transform.identity.supportsNormalTransform)
-        let zeroScale = SIMD3<Float>(1, 0, 1)
         let degenerate = Transform(
             position: .zero,
             rotation: Transform.identityRotation,
-            scale: zeroScale
+            scale: SIMD3<Float>(1, 0, 1)
         )
         let subnormalScale = SIMD3<Float>(
             Float.leastNonzeroMagnitude,

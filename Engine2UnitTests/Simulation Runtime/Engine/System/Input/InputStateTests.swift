@@ -44,13 +44,11 @@ struct InputStateTests {
 
     @Test func sameRevisionDoesNotReplayTransientInput() {
         var input = InputState()
-        let pointerMotionTotal = SIMD2<Float>(4, -2)
-        let scrollTotal = SIMD2<Float>(0, 5)
         let publication = snapshot(
             session: 1,
             sequence: 3,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal
+            pointerMotionTotal: SIMD2<Float>(4, -2),
+            scrollTotal: SIMD2<Float>(0, 5)
         )
 
         input.ingest(publication)
@@ -64,32 +62,25 @@ struct InputStateTests {
     @Test func skippedRevisionsPreserveCumulativeDifferences() {
         var input = InputState()
 
-        let initialPointerMotionTotal = SIMD2<Float>(2, 1)
-        let initialScrollTotal = SIMD2<Float>(0, 3)
         let initialSnapshot = snapshot(
             session: 1,
             sequence: 1,
-            pointerMotionTotal: initialPointerMotionTotal,
-            scrollTotal: initialScrollTotal
+            pointerMotionTotal: SIMD2<Float>(2, 1),
+            scrollTotal: SIMD2<Float>(0, 3)
         )
         input.ingest(initialSnapshot)
         input.clearTransientInput()
 
-        let nextPointerMotionTotal = SIMD2<Float>(9, -3)
-        let nextScrollTotal = SIMD2<Float>(0, 11)
         let nextSnapshot = snapshot(
             session: 1,
             sequence: 5,
-            pointerMotionTotal: nextPointerMotionTotal,
-            scrollTotal: nextScrollTotal
+            pointerMotionTotal: SIMD2<Float>(9, -3),
+            scrollTotal: SIMD2<Float>(0, 11)
         )
         input.ingest(nextSnapshot)
 
-        let expectedPointerDelta = SIMD2<Float>(7, -4)
-        let expectedScrollDelta = SIMD2<Float>(0, 8)
-
-        #expect(input.mouse.delta == expectedPointerDelta)
-        #expect(input.mouse.scrollDelta == expectedScrollDelta)
+        #expect(input.mouse.delta == SIMD2<Float>(7, -4))
+        #expect(input.mouse.scrollDelta == SIMD2<Float>(0, 8))
     }
 
     @Test func staleRevisionIsIgnored() {
@@ -100,12 +91,11 @@ struct InputStateTests {
         )
 
         let currentPosition = SIMD2<Float>(8, 9)
-        let currentPointerMotionTotal = SIMD2<Float>(4, 3)
         let currentSnapshot = snapshot(
             session: 2,
             sequence: 5,
             position: currentPosition,
-            pointerMotionTotal: currentPointerMotionTotal,
+            pointerMotionTotal: SIMD2<Float>(4, 3),
             pressedMouseButtons: [.right],
             pressedKeys: [heldKey]
         )
@@ -128,19 +118,16 @@ struct InputStateTests {
         #expect(input.mouse.scrollDelta == .zero)
 
         let newerPosition = SIMD2<Float>(9, 10)
-        let newerPointerMotionTotal = SIMD2<Float>(7, 5)
         let newerSnapshot = snapshot(
             session: 2,
             sequence: 6,
             position: newerPosition,
-            pointerMotionTotal: newerPointerMotionTotal
+            pointerMotionTotal: SIMD2<Float>(7, 5)
         )
         input.ingest(newerSnapshot)
 
-        let expectedPointerDelta = SIMD2<Float>(3, 2)
-
         #expect(input.mouse.position == newerPosition)
-        #expect(input.mouse.delta == expectedPointerDelta)
+        #expect(input.mouse.delta == SIMD2<Float>(3, 2))
     }
 
     @Test func rebaseImportsPersistentStateWithoutHistoricalTransients() {
@@ -151,14 +138,12 @@ struct InputStateTests {
         )
 
         let baselinePosition = SIMD2<Float>(21, 34)
-        let baselinePointerMotionTotal = SIMD2<Float>(50, -40)
-        let baselineScrollTotal = SIMD2<Float>(0, 12)
         let baseline = snapshot(
             session: 3,
             sequence: 8,
             position: baselinePosition,
-            pointerMotionTotal: baselinePointerMotionTotal,
-            scrollTotal: baselineScrollTotal,
+            pointerMotionTotal: SIMD2<Float>(50, -40),
+            scrollTotal: SIMD2<Float>(0, 12),
             pressedMouseButtons: [.left],
             pressedKeys: [heldKey]
         )
@@ -170,25 +155,19 @@ struct InputStateTests {
         #expect(input.mouse.delta == .zero)
         #expect(input.mouse.scrollDelta == .zero)
 
-        let nextPosition = SIMD2<Float>(23, 31)
-        let nextPointerMotionTotal = SIMD2<Float>(52, -43)
-        let nextScrollTotal = SIMD2<Float>(0, 14)
         let nextSnapshot = snapshot(
             session: 3,
             sequence: 9,
-            position: nextPosition,
-            pointerMotionTotal: nextPointerMotionTotal,
-            scrollTotal: nextScrollTotal,
+            position: SIMD2<Float>(23, 31),
+            pointerMotionTotal: SIMD2<Float>(52, -43),
+            scrollTotal: SIMD2<Float>(0, 14),
             pressedMouseButtons: [.left],
             pressedKeys: [heldKey]
         )
         input.ingest(nextSnapshot)
 
-        let expectedPointerDelta = SIMD2<Float>(2, -3)
-        let expectedScrollDelta = SIMD2<Float>(0, 2)
-
-        #expect(input.mouse.delta == expectedPointerDelta)
-        #expect(input.mouse.scrollDelta == expectedScrollDelta)
+        #expect(input.mouse.delta == SIMD2<Float>(2, -3))
+        #expect(input.mouse.scrollDelta == SIMD2<Float>(0, 2))
     }
 
     @Test func newerSnapshotUpdatesHeldKeyboardState() {
@@ -211,11 +190,10 @@ struct InputStateTests {
     @Test func newerSnapshotUpdatesHeldButtonsAndPointerPosition() {
         var input = InputState()
 
-        let initialPosition = SIMD2<Float>(2, 3)
         let initialSnapshot = snapshot(
             session: 1,
             sequence: 1,
-            position: initialPosition,
+            position: SIMD2<Float>(2, 3),
             pressedMouseButtons: [.right]
         )
         input.ingest(initialSnapshot)
@@ -236,13 +214,12 @@ struct InputStateTests {
         let key = KeyboardKey(keyCode: 49, charactersIgnoringModifiers: " ")
 
         let position = SIMD2<Float>(5, 0)
-        let scrollTotal = SIMD2<Float>(0, 2)
         let snapshot = snapshot(
             session: 1,
             sequence: 1,
             position: position,
             pointerMotionTotal: position,
-            scrollTotal: scrollTotal,
+            scrollTotal: SIMD2<Float>(0, 2),
             pressedMouseButtons: [.left],
             pressedKeys: [key]
         )

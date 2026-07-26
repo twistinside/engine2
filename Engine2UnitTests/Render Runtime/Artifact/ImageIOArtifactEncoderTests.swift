@@ -219,9 +219,8 @@ struct ImageIOArtifactEncoderTests {
         )!
         let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
         let viewpointRevision = RenderViewpointRevision(rawValue: 43)
-        let cameraPosition = SIMD3<Float>(3, 5, 7)
         let camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(3, 5, 7),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 11,

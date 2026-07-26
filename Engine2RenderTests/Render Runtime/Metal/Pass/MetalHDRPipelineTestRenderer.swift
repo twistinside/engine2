@@ -15,10 +15,8 @@ final class MetalHDRPipelineTestRenderer {
     static let width = 65
     static let height = 65
 
-    private static let cameraPosition = SIMD3<Float>(0, 0, 1)
-
     private static let camera = Camera(
-        position: cameraPosition,
+        position: SIMD3<Float>(0, 0, 1),
         rotation: Transform.identityRotation,
         projection: .orthographic(
             height: 2,
@@ -111,11 +109,10 @@ final class MetalHDRPipelineTestRenderer {
         right: SIMD4<Float>
     ) {
         precondition(materialIDs.count == 2, "The paired material proof requires exactly two identities.")
-        let normal = SIMD3<Float>(0, 0, 1)
         let results = try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
-            normal: normal,
+            normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
             materialIDs: materialIDs,
             scissorRects: [Self.leftScissorRect, Self.rightScissorRect],
@@ -135,11 +132,10 @@ final class MetalHDRPipelineTestRenderer {
     /// while continuing to use production frame packing and argument binding.
     func renderAuthoredMaterialScene(_ materialIDs: [MaterialID]) throws -> [MetalHDRPipelineTestResult] {
         let layout = centeredStripLayout(drawCount: materialIDs.count)
-        let normal = SIMD3<Float>(0, 0, 1)
         return try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
-            normal: normal,
+            normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
             materialIDs: materialIDs,
             scissorRects: layout.scissorRects,
@@ -158,14 +154,13 @@ final class MetalHDRPipelineTestRenderer {
         }
 
         let layout = centeredStripLayout(drawCount: materialIDs.count)
-        let normal = SIMD3<Float>(0, 0, 1)
         let results = try render(
             scenePipeline: pipeline,
             // Factor and contribution assertions inspect the raw HDR scene
             // samples. Linear presentation keeps the unused presented result
             // from applying the surface exposure/tone-map policy.
             presentationOutputMode: .viewSpaceNormals,
-            normal: normal,
+            normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
             materialIDs: materialIDs,
             scissorRects: layout.scissorRects,
@@ -224,7 +219,6 @@ final class MetalHDRPipelineTestRenderer {
             sessionID: sessionID,
             tick: .zero
         )
-        let instanceScale = SIMD3<Float>(repeating: 1)
         let entityPresentations = materialIDs.enumerated().map {
             index, materialID in
             let id = EntityID(index: index, generation: 0)
@@ -232,7 +226,7 @@ final class MetalHDRPipelineTestRenderer {
                 id: id,
                 position: .zero,
                 rotation: Transform.identityRotation,
-                scale: instanceScale,
+                scale: SIMD3<Float>(repeating: 1),
                 meshID: .ball,
                 materialID: materialID
             )

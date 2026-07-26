@@ -26,9 +26,8 @@ struct ComponentStoreTests {
     @Test func insertForExistingEntityReplacesWithoutAppending() {
         var store = ComponentStore<CPosition>()
         let entity = EntityID(index: 3, generation: 1)
-        let initialPositionValue = SIMD3<Float>(1, 2, 3)
         let replacementPositionValue = SIMD3<Float>(7, 8, 9)
-        let initialPosition = CPosition(position: initialPositionValue)
+        let initialPosition = CPosition(position: SIMD3<Float>(1, 2, 3))
         let replacementPosition = CPosition(position: replacementPositionValue)
 
         store.insert(initialPosition, for: entity)
@@ -63,9 +62,8 @@ struct ComponentStoreTests {
         let livePosition = CPosition(position: livePositionValue)
         store.insert(livePosition, for: liveEntity)
 
-        let stalePosition = SIMD3<Float>(9, 9, 9)
         let didUpdate = store.update(for: staleEntity) { position in
-            position.position = stalePosition
+            position.position = SIMD3<Float>(9, 9, 9)
         }
 
         #expect(store[staleEntity] == nil)

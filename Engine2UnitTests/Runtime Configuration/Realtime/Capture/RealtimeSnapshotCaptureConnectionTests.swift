@@ -674,11 +674,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             tick: simulationTick
         )
         let cameraPosition = SIMD3<Float>(cameraX, 0, 8)
-        let cameraUp = SIMD3<Float>(0, 1, 0)
         let camera = Camera.lookingAt(
             .zero,
             from: cameraPosition,
-            up: cameraUp,
+            up: SIMD3<Float>(0, 1, 0),
             projection: .standardPerspective
         )
         return SimulationPresentationSnapshot(

@@ -23,9 +23,8 @@ struct GPUInstanceTests {
     }
 
     @Test func packsAuthoredFactorsIntoAlignedPerDrawLanes() throws {
-        let baseColor = SIMD3<Float>(0.2, 0.4, 0.8)
         let material = PBRMaterialDescription(
-            baseColor: baseColor,
+            baseColor: SIMD3<Float>(0.2, 0.4, 0.8),
             metallic: 0.75,
             perceptualRoughness: 0.3
         )
@@ -41,47 +40,38 @@ struct GPUInstanceTests {
 
         #expect(gpuInstance.modelViewMatrix == renderInstance.modelViewMatrix)
         #expect(gpuInstance.normalMatrix == renderInstance.normalMatrix)
-        let expectedBaseColorMetallic = SIMD4<Float>(0.2, 0.4, 0.8, 0.75)
-        let expectedRoughnessPadding = SIMD4<Float>(0.3, 0, 0, 0)
         #expect(
             gpuInstance.baseColorMetallic
-                == expectedBaseColorMetallic
+                == SIMD4<Float>(0.2, 0.4, 0.8, 0.75)
         )
         #expect(
             gpuInstance.perceptualRoughnessPadding
-                == expectedRoughnessPadding
+                == SIMD4<Float>(0.3, 0, 0, 0)
         )
     }
 
     @Test func inverseTransposeKeepsNormalPerpendicularAfterNonuniformScale() throws {
-        let localNormalDirection = SIMD3<Float>(1, 2, 3)
-        let localNormal = simd_normalize(localNormalDirection)
-        let tangentReference = SIMD3<Float>(0, 1, 0)
+        let localNormal = simd_normalize(SIMD3<Float>(1, 2, 3))
         let localTangent = simd_normalize(
-            simd_cross(localNormal, tangentReference)
+            simd_cross(localNormal, SIMD3<Float>(0, 1, 0))
         )
         let secondLocalTangent = simd_normalize(
             simd_cross(localNormal, localTangent)
         )
-        let position = SIMD3<Float>(2, -1, -4)
-        let rotationDirection = SIMD3<Float>(1, 1, 0)
-        let rotationAxis = simd_normalize(rotationDirection)
+        let rotationAxis = simd_normalize(SIMD3<Float>(1, 1, 0))
         let rotation = simd_quatf(
             angle: .pi / 3,
             axis: rotationAxis
         )
-        let scale = SIMD3<Float>(2, 0.5, 3)
         let transform = Transform(
-            position: position,
+            position: SIMD3<Float>(2, -1, -4),
             rotation: rotation,
-            scale: scale
+            scale: SIMD3<Float>(2, 0.5, 3)
         )
-        let cameraPosition = SIMD3<Float>(0, 1, 8)
-        let cameraUp = SIMD3<Float>(0, 1, 0)
         let camera = Camera.lookingAt(
             .zero,
-            from: cameraPosition,
-            up: cameraUp,
+            from: SIMD3<Float>(0, 1, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: .standardPerspective
         )
         let renderInstance = try projectedInstance(
@@ -108,26 +98,22 @@ struct GPUInstanceTests {
     }
 
     @Test func cameraTranslationDoesNotChangeNormalTransform() throws {
-        let rotationAxis = SIMD3<Float>(0, 1, 0)
         let rotation = simd_quatf(
             angle: .pi / 4,
-            axis: rotationAxis
+            axis: SIMD3<Float>(0, 1, 0)
         )
-        let scale = SIMD3<Float>(2, 1, 0.5)
         let transform = Transform(
             position: .zero,
             rotation: rotation,
-            scale: scale
+            scale: SIMD3<Float>(2, 1, 0.5)
         )
-        let firstCameraPosition = SIMD3<Float>(0, 0, 8)
         let firstCamera = Camera(
-            position: firstCameraPosition,
+            position: SIMD3<Float>(0, 0, 8),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
-        let translatedCameraPosition = SIMD3<Float>(3, -2, 8)
         let translatedCamera = Camera(
-            position: translatedCameraPosition,
+            position: SIMD3<Float>(3, -2, 8),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
@@ -175,10 +161,8 @@ struct GPUInstanceTests {
         )
     }
 
-    private static let warmDielectricBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
-
     private static let warmDielectric = PBRMaterialDescription(
-        baseColor: warmDielectricBaseColor,
+        baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
         metallic: 0,
         perceptualRoughness: 0.5
     )

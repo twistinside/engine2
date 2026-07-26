@@ -14,9 +14,8 @@ struct MetalDepthRenderingTests {
             frameCount: 1
         )
 
-        let orthographicPosition = SIMD3<Float>(0, 0, 8)
         let orthographicCamera = Camera(
-            position: orthographicPosition,
+            position: SIMD3<Float>(0, 0, 8),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 8,
@@ -45,10 +44,9 @@ struct MetalDepthRenderingTests {
             )
 
             #expect(nearThenFar == farThenNear)
-            let expectedColor = SIMD4<Float>(1, 0.5, 0.5, 1)
             expectLinearRGBA(
                 nearThenFar,
-                approximately: expectedColor
+                approximately: SIMD4<Float>(1, 0.5, 0.5, 1)
             )
         }
     }
@@ -60,10 +58,9 @@ struct MetalDepthRenderingTests {
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
-        let nearNormal = SIMD3<Float>(1, 0, 0)
         let pixel = try renderCenterPixel(
             drawOrder: [0],
-            nearNormal: nearNormal,
+            nearNormal: SIMD3<Float>(1, 0, 0),
             camera: .standard,
             resources: resources
         )
@@ -71,10 +68,9 @@ struct MetalDepthRenderingTests {
         // View-space +X maps directly to linear RGBA (1, 0.5, 0.5, 1) in the
         // scene target. Presentation transfer is tested separately so this
         // diagnostic remains focused on the model fragment's normalization.
-        let expectedColor = SIMD4<Float>(1, 0.5, 0.5, 1)
         expectLinearRGBA(
             pixel,
-            approximately: expectedColor
+            approximately: SIMD4<Float>(1, 0.5, 0.5, 1)
         )
     }
 }
@@ -114,9 +110,8 @@ private func renderCenterPixel(
         normal: nearNormal,
         device: resources.device
     )
-    let farNormal = SIMD3<Float>(0, 1, 0)
     let farVertexBuffer = try makeTriangleBuffer(
-        normal: farNormal,
+        normal: SIMD3<Float>(0, 1, 0),
         device: resources.device
     )
     let vertexBuffers = [nearVertexBuffer, farVertexBuffer]
@@ -141,15 +136,13 @@ private func renderCenterPixel(
     residencySet.commit()
 
     let sharedScale = SIMD3<Float>(4, 4, 1)
-    let nearPosition = SIMD3<Float>(0, 0, 0)
     let nearTransform = Transform(
-        position: nearPosition,
+        position: SIMD3<Float>(0, 0, 0),
         rotation: Transform.identityRotation,
         scale: sharedScale
     )
-    let farPosition = SIMD3<Float>(0, 0, -2)
     let farTransform = Transform(
-        position: farPosition,
+        position: SIMD3<Float>(0, 0, -2),
         rotation: Transform.identityRotation,
         scale: sharedScale
     )

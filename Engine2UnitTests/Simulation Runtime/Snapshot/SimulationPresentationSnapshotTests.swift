@@ -8,10 +8,9 @@ struct SimulationPresentationSnapshotTests {
         let sessionID = SimulationSessionID()
         let renderableEntity = EntityID(index: 4, generation: 0)
         let nonRenderableEntity = EntityID(index: 1, generation: 2)
-        let rotationAxis = SIMD3<Float>(0, 1, 0)
         let expectedRotation = simd_quatf(
             angle: .pi / 3,
-            axis: rotationAxis
+            axis: SIMD3<Float>(0, 1, 0)
         )
         let cameraPosition = SIMD3<Float>(1, 2, 8)
         world.camera = Camera(
@@ -48,8 +47,7 @@ struct SimulationPresentationSnapshotTests {
             renderableScale,
             for: renderableEntity
         )
-        let nonRenderablePositionValue = SIMD3<Float>(9, 9, 9)
-        let nonRenderablePosition = CPosition(position: nonRenderablePositionValue)
+        let nonRenderablePosition = CPosition(position: SIMD3<Float>(9, 9, 9))
         world.positionComponents.insert(
             nonRenderablePosition,
             for: nonRenderableEntity

@@ -40,12 +40,10 @@ struct RealtimeAdvanceDriverIntegrationTests {
         // This event arrives after the driver's transition baseline but before
         // the first tick. The atomic rebase-then-ingest assignment must retain
         // it rather than swallowing it into a late baseline.
-        let pointerDelta = SIMD2<Float>(5, 0)
-        let pointerPosition = SIMD2<Float>(20, 10)
         inputRuntime.receive(
             .mouseDragged(
-                delta: pointerDelta,
-                position: pointerPosition
+                delta: SIMD2<Float>(5, 0),
+                position: SIMD2<Float>(20, 10)
             )
         )
         await sleeper.resumeNext()
@@ -135,16 +133,13 @@ struct RealtimeAdvanceDriverIntegrationTests {
         await sleeper.waitForPendingCount(1)
 
         driver.pauseAdvancement()
-        let pausedPointerDelta = SIMD2<Float>(50, 0)
-        let pausedPointerPosition = SIMD2<Float>(10, 20)
         inputRuntime.receive(
             .mouseDragged(
-                delta: pausedPointerDelta,
-                position: pausedPointerPosition
+                delta: SIMD2<Float>(50, 0),
+                position: SIMD2<Float>(10, 20)
             )
         )
-        let pausedScrollDelta = SIMD2<Float>(0, 25)
-        inputRuntime.receive(.scroll(delta: pausedScrollDelta))
+        inputRuntime.receive(.scroll(delta: SIMD2<Float>(0, 25)))
 
         #expect(simulationRuntime.currentCursor.tick == .zero)
         #expect(simulationRuntime.world.camera == initialCamera)
@@ -175,12 +170,10 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
 
         await sleeper.waitForPendingCount(1)
-        let activePointerDelta = SIMD2<Float>(10, 0)
-        let activePointerPosition = SIMD2<Float>(20, 20)
         inputRuntime.receive(
             .mouseDragged(
-                delta: activePointerDelta,
-                position: activePointerPosition
+                delta: SIMD2<Float>(10, 0),
+                position: SIMD2<Float>(20, 20)
             )
         )
         #expect(simulationRuntime.world.camera == initialCamera)
@@ -239,12 +232,11 @@ private extension RealtimeAdvanceDriverIntegrationTests {
     private struct IntegrationMovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()
-            let velocity = SIMD3<Float>(1, 0, 0)
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: velocity
+                velocity: SIMD3<Float>(1, 0, 0)
             )
             return world
         }

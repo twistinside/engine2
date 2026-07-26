@@ -217,16 +217,14 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let expectedRevision = InputRevision(session: 4, sequence: 7)
-        let expectedPointerMotionTotal = SIMD2<Float>(12, -3)
         let expectedSnapshot = inputSnapshot(
             revision: expectedRevision,
-            pointerMotionTotal: expectedPointerMotionTotal
+            pointerMotionTotal: SIMD2<Float>(12, -3)
         )
         let laterRevision = InputRevision(session: 4, sequence: 8)
-        let laterPointerMotionTotal = SIMD2<Float>(99, 99)
         let laterSnapshot = inputSnapshot(
             revision: laterRevision,
-            pointerMotionTotal: laterPointerMotionTotal
+            pointerMotionTotal: SIMD2<Float>(99, 99)
         )
         let inputSource = SequencedInputSource(
             snapshots: [expectedSnapshot, laterSnapshot]
@@ -275,10 +273,9 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let firstRevision = InputRevision(session: 2, sequence: 1)
-        let firstPointerMotionTotal = SIMD2<Float>(6, 0)
         let firstSnapshot = inputSnapshot(
             revision: firstRevision,
-            pointerMotionTotal: firstPointerMotionTotal
+            pointerMotionTotal: SIMD2<Float>(6, 0)
         )
         let secondRevision = InputRevision(session: 2, sequence: 2)
         let secondPointerMotionTotal = SIMD2<Float>(10, 0)
@@ -437,10 +434,9 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let revision = InputRevision(session: 8, sequence: 1)
-        let pointerMotionTotal = SIMD2<Float>(3, 1)
         let snapshot = inputSnapshot(
             revision: revision,
-            pointerMotionTotal: pointerMotionTotal
+            pointerMotionTotal: SIMD2<Float>(3, 1)
         )
         let inputSource = SequencedInputSource(
             snapshots: [snapshot]

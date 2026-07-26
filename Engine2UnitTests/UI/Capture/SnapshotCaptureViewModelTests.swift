@@ -390,12 +390,10 @@ struct SnapshotCaptureViewModelTests {
             sessionID: sessionID,
             tick: simulationTick
         )
-        let cameraPosition = SIMD3<Float>(0, 0, 8)
-        let cameraUp = SIMD3<Float>(0, 1, 0)
         let camera = Camera.lookingAt(
             .zero,
-            from: cameraPosition,
-            up: cameraUp,
+            from: SIMD3<Float>(0, 0, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: .standardPerspective
         )
         let snapshot = SimulationPresentationSnapshot(

@@ -10,8 +10,7 @@ struct POrientableTests {
             unregisteredID: entityID,
             in: world
         )
-        let rotationAxis = SIMD3<Float>(0, 1, 0)
-        let expectedRotation = simd_quatf(angle: .pi / 4, axis: rotationAxis)
+        let expectedRotation = simd_quatf(angle: .pi / 4, axis: SIMD3<Float>(0, 1, 0))
         let rotation = CRotation(rotation: expectedRotation)
 
         world.rotationComponents.insert(rotation, for: entity.id)

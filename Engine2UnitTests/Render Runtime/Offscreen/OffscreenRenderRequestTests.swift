@@ -31,9 +31,8 @@ struct OffscreenRenderRequestTests {
         )!
         let requestID = OffscreenRenderRequestID(rawValue: requestUUID)
         let cursor = cursor(tick: 12)
-        let snapshotCameraPosition = SIMD3<Float>(1, 2, 3)
         let snapshotCamera = Camera(
-            position: snapshotCameraPosition,
+            position: SIMD3<Float>(1, 2, 3),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
@@ -83,9 +82,8 @@ struct OffscreenRenderRequestTests {
         )!
         let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
         let viewpointRevision = RenderViewpointRevision(rawValue: revision)
-        let cameraPosition = SIMD3<Float>(4, 5, 6)
         let camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(4, 5, 6),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )

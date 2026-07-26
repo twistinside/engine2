@@ -1471,9 +1471,8 @@ struct AgentSessionCoordinatorTests {
         )!
         let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
         let viewpointRevision = RenderViewpointRevision(rawValue: 4)
-        let cameraPosition = SIMD3<Float>(2, 3, 8)
         let camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(2, 3, 8),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )

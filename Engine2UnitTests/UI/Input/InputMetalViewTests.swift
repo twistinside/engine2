@@ -91,15 +91,13 @@ struct InputMetalViewTests {
         )
         view.mouseDragged(with: dragEvent)
 
-        let expectedPointerPosition = SIMD2<Float>(30, 40)
-        let expectedPointerMotionTotal = SIMD2<Float>(7, -9)
         #expect(
             inputRuntime.latestInputSnapshot.pointerPosition
-                == expectedPointerPosition
+                == SIMD2<Float>(30, 40)
         )
         #expect(
             inputRuntime.latestInputSnapshot.pointerMotionTotal
-                == expectedPointerMotionTotal
+                == SIMD2<Float>(7, -9)
         )
 
         let scrollEvent = try makePixelScrollEvent(
@@ -112,10 +110,9 @@ struct InputMetalViewTests {
 
         view.scrollWheel(with: scrollEvent)
 
-        let expectedScrollTotal = SIMD2<Float>(5, -7)
         #expect(
             inputRuntime.latestInputSnapshot.scrollTotal
-                == expectedScrollTotal
+                == SIMD2<Float>(5, -7)
         )
     }
 

@@ -67,11 +67,10 @@ struct AgentSessionConfigurationTests {
             rawValue: viewpointUUID
         )
         let firstViewpointRevision = RenderViewpointRevision(rawValue: 11)
-        let firstCameraPosition = SIMD3<Float>(0, 0, 8)
         let cameraUp = SIMD3<Float>(0, 1, 0)
         let firstCamera = Camera.lookingAt(
             .zero,
-            from: firstCameraPosition,
+            from: SIMD3<Float>(0, 0, 8),
             up: cameraUp,
             projection: .standardPerspective
         )
@@ -139,10 +138,9 @@ struct AgentSessionConfigurationTests {
             sessionID: sessionID,
             sequence: secondSequence
         )
-        let secondCameraPosition = SIMD3<Float>(0.75, 0.25, 8)
         let secondCamera = Camera.lookingAt(
             .zero,
-            from: secondCameraPosition,
+            from: SIMD3<Float>(0.75, 0.25, 8),
             up: cameraUp,
             projection: .standardPerspective
         )
@@ -221,10 +219,9 @@ struct AgentSessionConfigurationTests {
             sessionID: sessionID,
             sequence: thirdSequence
         )
-        let thirdCameraPosition = SIMD3<Float>(-0.5, 0.5, 8)
         let thirdCamera = Camera.lookingAt(
             .zero,
-            from: thirdCameraPosition,
+            from: SIMD3<Float>(-0.5, 0.5, 8),
             up: cameraUp,
             projection: .standardPerspective
         )

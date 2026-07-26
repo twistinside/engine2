@@ -426,9 +426,8 @@ struct OfflineCaptureCoordinatorTests {
         let returnedFinalCursor = fixture.initialSnapshot.cursor
             .advanced()
             .advanced()
-        let returnedCameraPosition = SIMD3<Float>(3, 5, 9)
         let returnedCamera = Camera(
-            position: returnedCameraPosition,
+            position: SIMD3<Float>(3, 5, 9),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 11,
@@ -1528,9 +1527,8 @@ struct OfflineCaptureCoordinatorTests {
             sessionID: sessionID,
             tick: initialTick
         )
-        let initialCameraPosition = SIMD3<Float>(9, 8, 7)
         let initialCamera = Camera(
-            position: initialCameraPosition,
+            position: SIMD3<Float>(9, 8, 7),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 12,
@@ -1548,9 +1546,8 @@ struct OfflineCaptureCoordinatorTests {
             sessionID: sessionID,
             tick: finalTick
         )
-        let finalCameraPosition = SIMD3<Float>(2, 4, 8)
         let finalCamera = Camera(
-            position: finalCameraPosition,
+            position: SIMD3<Float>(2, 4, 8),
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 9,
@@ -1559,13 +1556,11 @@ struct OfflineCaptureCoordinatorTests {
             )
         )
         let entityID = EntityID(index: 17, generation: 2)
-        let entityPosition = SIMD3<Float>(1, 2, 3)
-        let entityScale = SIMD3<Float>(repeating: 1.5)
         let entityPresentation = EntityPresentationSnapshot(
             id: entityID,
-            position: entityPosition,
+            position: SIMD3<Float>(1, 2, 3),
             rotation: Transform.identityRotation,
-            scale: entityScale,
+            scale: SIMD3<Float>(repeating: 1.5),
             meshID: .ball,
             materialID: .goldMetal
         )
@@ -1587,9 +1582,8 @@ struct OfflineCaptureCoordinatorTests {
         )!
         let viewpointID = RenderViewpointID(rawValue: rawViewpointID)
         let viewpointRevision = RenderViewpointRevision(rawValue: 7)
-        let viewpointCameraPosition = SIMD3<Float>(6, 5, 4)
         let viewpointCamera = Camera(
-            position: viewpointCameraPosition,
+            position: SIMD3<Float>(6, 5, 4),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )

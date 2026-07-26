@@ -75,6 +75,28 @@ inline. A construction that is itself the surrounding expression's result is
 also not nested. In a SwiftUI result builder, declare a constructed modifier
 input before the builder call when Swift permits it, then pass the named value.
 
+#### Treat Obvious SIMD Values as Vector Literals
+
+`SIMD2`, `SIMD3`, and `SIMD4` use initializer syntax, but a short list of
+numeric lanes reads as directly as a numeric literal. A one-line initializer
+whose lanes—or single `repeating:` value—are numeric literals optionally
+preceded by `+` or `-` may remain inline:
+
+```swift
+let camera = Camera(
+    position: SIMD3<Float>(0, 0, 8),
+    rotation: Transform.identityRotation,
+    projection: .standardPerspective
+)
+#expect(actualColor == SIMD4<Float>(1, 0.5, 0.5, 1))
+```
+
+This exception ends when any lane is computed, the initializer needs multiple
+lines, the value is reused, or a name materially clarifies units, coordinate
+space, or role. Keep those vectors named before the consuming call. For example,
+`warmBaseColor` and `goldBaseColor` later in this article are deliberately
+named because each authored color is reused by several material descriptions.
+
 ### Let Swift Synthesize Plain Memberwise Construction
 
 Choosing a full initializer at the call site does not mean hand-writing one in

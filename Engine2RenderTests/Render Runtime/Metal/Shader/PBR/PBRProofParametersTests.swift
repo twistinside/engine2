@@ -28,31 +28,25 @@ struct PBRProofParametersTests {
     }
 
     @Test func initializerNormalizesDirectionsAndPreservesSemanticFactors() {
-        let rotationAxis = SIMD3<Float>(0, 1, 0)
         let rotation = simd_quatf(
             angle: .pi / 2,
-            axis: rotationAxis
+            axis: SIMD3<Float>(0, 1, 0)
         )
         let worldToView = simd_float3x3(rotation)
-        let baseColor = SIMD3<Float>(0.2, 0.4, 0.8)
-        let lightDirection = SIMD3<Float>(2, 0, 0)
-        let lightColor = SIMD3<Float>(4, 2, 1)
-        let cameraDirection = SIMD3<Float>(0, 0, 5)
         let parameters = PBRProofParameters(
-            baseColor: baseColor,
+            baseColor: SIMD3<Float>(0.2, 0.4, 0.8),
             metallic: 0.75,
             perceptualRoughness: 0.3,
-            directionToLightWorld: lightDirection,
-            lightColor: lightColor,
+            directionToLightWorld: SIMD3<Float>(2, 0, 0),
+            lightColor: SIMD3<Float>(4, 2, 1),
             lightIntensity: 3,
-            directionToCameraView: cameraDirection,
+            directionToCameraView: SIMD3<Float>(0, 0, 5),
             worldToViewRotation: worldToView
         )
 
-        let expectedBaseColorMetallic = SIMD4<Float>(0.2, 0.4, 0.8, 0.75)
         #expect(
             parameters.baseColorMetallic
-                == expectedBaseColorMetallic
+                == SIMD4<Float>(0.2, 0.4, 0.8, 0.75)
         )
         #expect(parameters.directionToLightRoughness.w == 0.3)
         let transformedLightDirection = SIMD3<Float>(
@@ -65,22 +59,19 @@ struct PBRProofParametersTests {
                 simd_length(transformedLightDirection) - 1
             ) < 0.0001
         )
-        let expectedLightDirection = SIMD3<Float>(0, 0, -1)
         #expect(
             simd_distance(
                 transformedLightDirection,
-                expectedLightDirection
+                SIMD3<Float>(0, 0, -1)
             ) < 0.0001
         )
-        let expectedLightColorIntensity = SIMD4<Float>(4, 2, 1, 3)
         #expect(
             parameters.lightColorIntensity
-                == expectedLightColorIntensity
+                == SIMD4<Float>(4, 2, 1, 3)
         )
-        let expectedCameraDirection = SIMD4<Float>(0, 0, 1, 0)
         #expect(
             parameters.directionToCameraPadding
-                == expectedCameraDirection
+                == SIMD4<Float>(0, 0, 1, 0)
         )
     }
 }

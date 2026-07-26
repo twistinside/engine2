@@ -64,35 +64,26 @@ struct InputRuntimeTests {
         let runtime = InputRuntime()
         runtime.start()
 
-        let firstDragDelta = SIMD2<Float>(1.5, -2)
-        let firstDragPosition = SIMD2<Float>(10, 20)
         runtime.receive(
             .mouseDragged(
-                delta: firstDragDelta,
-                position: firstDragPosition
+                delta: SIMD2<Float>(1.5, -2),
+                position: SIMD2<Float>(10, 20)
             )
         )
-        let secondDragDelta = SIMD2<Float>(-0.5, 5)
-        let secondDragPosition = SIMD2<Float>(11, 25)
         runtime.receive(
             .mouseDragged(
-                delta: secondDragDelta,
-                position: secondDragPosition
+                delta: SIMD2<Float>(-0.5, 5),
+                position: SIMD2<Float>(11, 25)
             )
         )
-        let firstScrollDelta = SIMD2<Float>(4, -3)
-        runtime.receive(.scroll(delta: firstScrollDelta))
-        let secondScrollDelta = SIMD2<Float>(-1, 0.5)
-        runtime.receive(.scroll(delta: secondScrollDelta))
+        runtime.receive(.scroll(delta: SIMD2<Float>(4, -3)))
+        runtime.receive(.scroll(delta: SIMD2<Float>(-1, 0.5)))
 
         let snapshot = runtime.latestInputSnapshot
-        let expectedPointerPosition = SIMD2<Float>(11, 25)
-        let expectedPointerMotionTotal = SIMD2<Float>(1, 3)
-        let expectedScrollTotal = SIMD2<Float>(3, -2.5)
         let expectedRevision = InputRevision(session: 1, sequence: 4)
-        #expect(snapshot.pointerPosition == expectedPointerPosition)
-        #expect(snapshot.pointerMotionTotal == expectedPointerMotionTotal)
-        #expect(snapshot.scrollTotal == expectedScrollTotal)
+        #expect(snapshot.pointerPosition == SIMD2<Float>(11, 25))
+        #expect(snapshot.pointerMotionTotal == SIMD2<Float>(1, 3))
+        #expect(snapshot.scrollTotal == SIMD2<Float>(3, -2.5))
         #expect(snapshot.revision == expectedRevision)
     }
 
@@ -101,8 +92,7 @@ struct InputRuntimeTests {
         let key = KeyboardKey(keyCode: 49, displayName: "Space")
         runtime.start()
 
-        let leftButtonPosition = SIMD2<Float>(3, 4)
-        runtime.receive(.mouseButtonDown(.left, position: leftButtonPosition))
+        runtime.receive(.mouseButtonDown(.left, position: SIMD2<Float>(3, 4)))
         let otherButtonPosition = SIMD2<Float>(5, 6)
         runtime.receive(.mouseButtonDown(.other(4), position: otherButtonPosition))
         runtime.receive(.keyDown(key))
@@ -124,19 +114,15 @@ struct InputRuntimeTests {
         let runtime = InputRuntime()
         let key = KeyboardKey(keyCode: 13, displayName: "W")
         runtime.start()
-        let buttonPosition = SIMD2<Float>(8, 9)
-        runtime.receive(.mouseButtonDown(.right, position: buttonPosition))
+        runtime.receive(.mouseButtonDown(.right, position: SIMD2<Float>(8, 9)))
         runtime.receive(.keyDown(key))
-        let dragDelta = SIMD2<Float>(2, 3)
-        let dragPosition = SIMD2<Float>(10, 12)
         runtime.receive(
             .mouseDragged(
-                delta: dragDelta,
-                position: dragPosition
+                delta: SIMD2<Float>(2, 3),
+                position: SIMD2<Float>(10, 12)
             )
         )
-        let scrollDelta = SIMD2<Float>(0, -4)
-        runtime.receive(.scroll(delta: scrollDelta))
+        runtime.receive(.scroll(delta: SIMD2<Float>(0, -4)))
         let activeSnapshot = runtime.latestInputSnapshot
 
         runtime.stop()
@@ -157,22 +143,18 @@ struct InputRuntimeTests {
         let key = KeyboardKey(keyCode: 13, displayName: "W")
 
         runtime.receive(.keyDown(key))
-        let ignoredScrollDelta = SIMD2<Float>(1, 2)
-        runtime.receive(.scroll(delta: ignoredScrollDelta))
+        runtime.receive(.scroll(delta: SIMD2<Float>(1, 2)))
         #expect(runtime.latestInputSnapshot == .empty)
 
         runtime.start()
         runtime.stop()
         let stoppedSnapshot = runtime.latestInputSnapshot
 
-        let ignoredButtonPosition = SIMD2<Float>(2, 3)
-        runtime.receive(.mouseButtonDown(.left, position: ignoredButtonPosition))
-        let ignoredDragDelta = SIMD2<Float>(4, 5)
-        let ignoredDragPosition = SIMD2<Float>(6, 7)
+        runtime.receive(.mouseButtonDown(.left, position: SIMD2<Float>(2, 3)))
         runtime.receive(
             .mouseDragged(
-                delta: ignoredDragDelta,
-                position: ignoredDragPosition
+                delta: SIMD2<Float>(4, 5),
+                position: SIMD2<Float>(6, 7)
             )
         )
 
@@ -195,9 +177,8 @@ struct InputRuntimeTests {
         #expect(secondRuntime.latestInputSnapshot.pressedKeys.isEmpty)
         #expect(secondRuntime.latestInputSnapshot.scrollTotal == .zero)
 
-        let secondButtonPosition = SIMD2<Float>(3, 4)
         secondRuntime.receive(
-            .mouseButtonDown(.right, position: secondButtonPosition)
+            .mouseButtonDown(.right, position: SIMD2<Float>(3, 4))
         )
 
         #expect(firstRuntime.latestInputSnapshot.pressedMouseButtons.isEmpty)
@@ -208,8 +189,7 @@ struct InputRuntimeTests {
         let runtime = InputRuntime()
         runtime.start()
 
-        let firstPosition = SIMD2<Float>(1, 1)
-        runtime.receive(.mouseButtonDown(.left, position: firstPosition))
+        runtime.receive(.mouseButtonDown(.left, position: SIMD2<Float>(1, 1)))
         let secondPosition = SIMD2<Float>(2, 2)
         runtime.receive(.mouseButtonDown(.left, position: secondPosition))
 
@@ -217,8 +197,7 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot.pointerPosition == secondPosition)
         #expect(runtime.latestInputSnapshot.revision.sequence == 2)
 
-        let firstReleasePosition = SIMD2<Float>(3, 3)
-        runtime.receive(.mouseButtonUp(.left, position: firstReleasePosition))
+        runtime.receive(.mouseButtonUp(.left, position: SIMD2<Float>(3, 3)))
         let secondReleasePosition = SIMD2<Float>(4, 4)
         runtime.receive(.mouseButtonUp(.left, position: secondReleasePosition))
 
@@ -253,11 +232,10 @@ struct InputRuntimeTests {
                 position: .zero
             )
         )
-        let finiteDragDelta = SIMD2<Float>(1, 1)
         let invalidDragPosition = SIMD2<Float>(.infinity, 0)
         runtime.receive(
             .mouseDragged(
-                delta: finiteDragDelta,
+                delta: SIMD2<Float>(1, 1),
                 position: invalidDragPosition
             )
         )
@@ -285,11 +263,10 @@ struct InputRuntimeTests {
             )
         )
         let largestFinitePointerPublication = runtime.latestInputSnapshot
-        let secondLargestFinitePointerPosition = SIMD2<Float>(4, 5)
         runtime.receive(
             .mouseDragged(
                 delta: largestFinitePointerDelta,
-                position: secondLargestFinitePointerPosition
+                position: SIMD2<Float>(4, 5)
             )
         )
 

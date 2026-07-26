@@ -17,19 +17,16 @@ struct SRotationTests {
             initialRotation,
             for: entity
         )
-        let initialAngularVelocityValue = SIMD3<Float>(0, 0, 1)
         let initialAngularVelocity = CAngularVelocity(
-            angularVelocity: initialAngularVelocityValue
+            angularVelocity: SIMD3<Float>(0, 0, 1)
         )
         world.angularVelocityComponents.insert(
             initialAngularVelocity,
             for: entity
         )
-        let initialAngularAcceleration = SIMD3<Float>(0, 0, 2)
-        let initialAngularImpulse = SIMD3<Float>(0, 0, 0.5)
         let initialAccumulator = CAngularMotionAccumulator(
-            angularAcceleration: initialAngularAcceleration,
-            angularImpulse: initialAngularImpulse
+            angularAcceleration: SIMD3<Float>(0, 0, 2),
+            angularImpulse: SIMD3<Float>(0, 0, 0.5)
         )
         world.angularMotionAccumulatorComponents.insert(
             initialAccumulator,
@@ -117,15 +114,12 @@ struct SRotationTests {
     @Test func incompleteEntityWithoutRotationIsLeftUnchanged() {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)
-        let expectedAngularVelocity = SIMD3<Float>(1, 2, 3)
         let expectedVelocity = CAngularVelocity(
-            angularVelocity: expectedAngularVelocity
+            angularVelocity: SIMD3<Float>(1, 2, 3)
         )
-        let expectedAngularAcceleration = SIMD3<Float>(4, 5, 6)
-        let expectedAngularImpulse = SIMD3<Float>(7, 8, 9)
         let expectedAccumulator = CAngularMotionAccumulator(
-            angularAcceleration: expectedAngularAcceleration,
-            angularImpulse: expectedAngularImpulse
+            angularAcceleration: SIMD3<Float>(4, 5, 6),
+            angularImpulse: SIMD3<Float>(7, 8, 9)
         )
         world.angularVelocityComponents.insert(expectedVelocity, for: entity)
         world.angularMotionAccumulatorComponents.insert(

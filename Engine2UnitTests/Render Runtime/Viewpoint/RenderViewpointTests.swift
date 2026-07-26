@@ -4,9 +4,8 @@ import Testing
 struct RenderViewpointTests {
     @Test func equalityIncludesIdentityRevisionAndCamera() {
         let id = RenderViewpointID()
-        let cameraPosition = SIMD3<Float>(1, 2, 3)
         let camera = Camera(
-            position: cameraPosition,
+            position: SIMD3<Float>(1, 2, 3),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
@@ -27,9 +26,8 @@ struct RenderViewpointTests {
             revision: .zero.advanced(),
             camera: camera
         )
-        let differentCameraPosition = SIMD3<Float>(3, 2, 1)
         let differentCamera = Camera(
-            position: differentCameraPosition,
+            position: SIMD3<Float>(3, 2, 1),
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
