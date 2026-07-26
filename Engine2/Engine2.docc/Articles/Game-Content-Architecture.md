@@ -179,6 +179,7 @@ let inputRuntime = InputRuntime()
 
 let simulationRuntime = SimulationRuntime(
     worldBuilder: content.worldBuilder,
+    configuration: content.simulationConfiguration,
     inputBaseline: inputRuntime.latestInputSnapshot
 )
 

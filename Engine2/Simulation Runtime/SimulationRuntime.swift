@@ -30,6 +30,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
 
     init(
         worldBuilder: any PWorldBuilder,
+        configuration: SimulationConfiguration,
         inputBaseline: InputSnapshot?,
         sessionID: SimulationSessionID
     ) {
@@ -41,7 +42,8 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         }
         let engine = Engine(
             world: world,
-            fixedTimeStep: Self.fixedTimeStep
+            fixedTimeStep: Self.fixedTimeStep,
+            configuration: configuration
         )
         self.engine = engine
         self.latestPresentationSnapshot = engine.world.presentationSnapshot(
@@ -56,11 +58,16 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     /// optional Input publication baseline.
     ///
     /// Restored or externally correlated sessions use
-    /// `init(worldBuilder:inputBaseline:sessionID:)` so identity selection
+    /// `init(worldBuilder:configuration:inputBaseline:sessionID:)` so identity selection
     /// remains explicit at their composition boundary.
-    convenience init(worldBuilder: any PWorldBuilder, inputBaseline: InputSnapshot?) {
+    convenience init(
+        worldBuilder: any PWorldBuilder,
+        configuration: SimulationConfiguration,
+        inputBaseline: InputSnapshot?
+    ) {
         self.init(
             worldBuilder: worldBuilder,
+            configuration: configuration,
             inputBaseline: inputBaseline,
             sessionID: SimulationSessionID()
         )
@@ -71,7 +78,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     /// A configuration with an input connection supplies its latest
     /// publication as a baseline. That restores held state without replaying
     /// cumulative transient motion from the preceding world.
-    func rebuildWorld(inputBaseline: InputSnapshot? = nil) {
+    func rebuildWorld(inputBaseline: InputSnapshot?) {
         sessionID = SimulationSessionID()
         engine.replaceWorld(
             with: worldBuilder.buildWorld(),
@@ -80,16 +87,15 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         publishPresentationSnapshot(at: engine.completedTick)
     }
 
-    /// Replaces the current builder, optionally rebuilding the world immediately.
-    func replaceWorldBuilder(
-        _ worldBuilder: any PWorldBuilder,
-        rebuildWorldImmediately: Bool = true,
-        inputBaseline: InputSnapshot? = nil
-    ) {
+    /// Replaces the builder used by the next explicitly requested world rebuild.
+    func replaceWorldBuilder(_ worldBuilder: any PWorldBuilder) {
         self.worldBuilder = worldBuilder
-        if rebuildWorldImmediately {
-            rebuildWorld(inputBaseline: inputBaseline)
-        }
+    }
+
+    /// Replaces the builder and immediately begins a new session from its world.
+    func replaceWorldBuilderAndRebuild(_ worldBuilder: any PWorldBuilder, inputBaseline: InputSnapshot?) {
+        self.worldBuilder = worldBuilder
+        rebuildWorld(inputBaseline: inputBaseline)
     }
 
     /// Advances the Runtime by an exact number of complete fixed steps.

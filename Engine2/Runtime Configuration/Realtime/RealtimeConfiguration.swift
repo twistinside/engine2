@@ -23,6 +23,7 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let advanceDriver = RealtimeAdvanceDriver(

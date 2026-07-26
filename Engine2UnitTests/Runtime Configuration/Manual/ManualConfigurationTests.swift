@@ -108,6 +108,7 @@ private extension ManualConfigurationTests {
             let world = World()
             _ = Ball(
                 in: world,
+                materialID: .warmDielectric,
                 position: .zero,
                 velocity: SIMD3<Float>(
                     1 / SimulationRuntime.fixedTimeStep.seconds,

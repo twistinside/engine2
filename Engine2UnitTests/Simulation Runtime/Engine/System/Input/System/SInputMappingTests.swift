@@ -26,7 +26,10 @@ struct SInputMappingTests {
 
     @Test func zeroRawInputProducesNeutralCommands() {
         var world = World()
-        var system = SInputMapping()
+        var system = SInputMapping(
+            pointerOrbitSensitivity: 0.01,
+            scrollZoomSensitivity: 0.04
+        )
         world.input.actions.cameraOrbitYawDelta = 12
         world.input.actions.cameraZoomDelta = -9
 

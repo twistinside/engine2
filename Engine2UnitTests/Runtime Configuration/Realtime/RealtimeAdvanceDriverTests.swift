@@ -592,7 +592,7 @@ struct RealtimeAdvanceDriverTests {
         driver.resumeAdvancement()
         #expect(driver.isAdvancementEnabled == false)
 
-        driver.synchronize(to: rebuiltCursor)
+        driver.synchronize(to: rebuiltCursor, inputBaseline: nil)
         driver.resumeAdvancement()
         driver.start()
         let didCompleteAfterSynchronization = await eventually {
@@ -750,7 +750,7 @@ struct RealtimeAdvanceDriverTests {
         await target.waitForRequestCount(1)
 
         driver.stop()
-        driver.synchronize(to: synchronizedCursor)
+        driver.synchronize(to: synchronizedCursor, inputBaseline: nil)
         driver.start()
 
         let firstRequest = try #require(await target.recordedRequests().first)

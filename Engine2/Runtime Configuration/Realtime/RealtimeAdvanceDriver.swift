@@ -216,7 +216,7 @@ final class RealtimeAdvanceDriver {
     /// Synchronizing clears any prior authority fault but deliberately preserves
     /// the user's enabled/paused preference. A faulted driver therefore remains
     /// paused until the App explicitly resumes it.
-    func synchronize(to cursor: SimulationCursor, inputBaseline: InputSnapshot? = nil) {
+    func synchronize(to cursor: SimulationCursor, inputBaseline: InputSnapshot?) {
         precondition(synchronizationGeneration < .max, "Real-time synchronization generation exhausted.")
         synchronizationGeneration += 1
         expectedCursor = cursor

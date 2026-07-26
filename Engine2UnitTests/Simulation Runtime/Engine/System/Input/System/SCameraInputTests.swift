@@ -41,7 +41,11 @@ struct SCameraInputTests {
 
     @Test func positiveAndNegativeOrbitCommandsAccumulateFromCurrentCamera() {
         var world = World()
-        var system = SCameraInput()
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 2,
+            maximumRadius: 30
+        )
 
         world.input.actions.cameraOrbitYawDelta = .pi / 2
         system.update(world: &world, deltaTime: 1)
@@ -58,7 +62,11 @@ struct SCameraInputTests {
 
     @Test func hugeZoomCommandsClampAndRepeatedBlockedInputIsANoOp() {
         var world = World()
-        var system = SCameraInput(minimumRadius: 4, maximumRadius: 10)
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 4,
+            maximumRadius: 10
+        )
 
         world.input.actions.cameraZoomDelta = .greatestFiniteMagnitude
         system.update(world: &world, deltaTime: 1)
@@ -84,7 +92,11 @@ struct SCameraInputTests {
     @Test func zeroAndNonfiniteCommandsLeaveCameraExactlyUnchanged() {
         var world = World()
         let initialCamera = world.camera
-        var system = SCameraInput()
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 2,
+            maximumRadius: 30
+        )
 
         system.update(world: &world, deltaTime: 1)
         #expect(world.camera == initialCamera)
@@ -103,7 +115,11 @@ struct SCameraInputTests {
     @Test func hugeFiniteOrbitRemainsFiniteAndKeepsRadius() {
         var world = World()
         let initialCamera = world.camera
-        var system = SCameraInput()
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 2,
+            maximumRadius: 30
+        )
         world.input.actions.cameraOrbitYawDelta = 1e20
 
         system.update(world: &world, deltaTime: 1)

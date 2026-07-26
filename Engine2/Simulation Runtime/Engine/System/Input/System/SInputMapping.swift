@@ -7,7 +7,7 @@ struct SInputMapping: PSystem {
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
 
-    init(pointerOrbitSensitivity: Float = 0.01, scrollZoomSensitivity: Float = 0.04) {
+    init(pointerOrbitSensitivity: Float, scrollZoomSensitivity: Float) {
         precondition(pointerOrbitSensitivity.isFinite, "Pointer orbit sensitivity must be finite.")
         precondition(scrollZoomSensitivity.isFinite, "Scroll zoom sensitivity must be finite.")
 

@@ -14,18 +14,35 @@ final class Engine {
     private(set) var completedTick: SimulationTick
     private(set) var world: World
 
+    /// Constructs the invariant production schedule from one validated Simulation policy.
+    convenience init(world: World, fixedTimeStep: Duration, configuration: SimulationConfiguration) {
+        self.init(
+            world: world,
+            fixedTimeStep: fixedTimeStep,
+            systems: [
+                SInputMapping(
+                    pointerOrbitSensitivity: configuration.pointerOrbitSensitivity,
+                    scrollZoomSensitivity: configuration.scrollZoomSensitivity
+                ),
+                SCameraInput(
+                    target: configuration.cameraOrbitTarget,
+                    minimumRadius: configuration.minimumCameraOrbitRadius,
+                    maximumRadius: configuration.maximumCameraOrbitRadius
+                ),
+                SInputHistory(),
+                SInputCleanup(),
+                SAccelerationIntent(),
+                SMovement(),
+                SRotation()
+            ]
+        )
+    }
+
+    /// Constructs an Engine with a complete injected schedule for focused integration tests.
     init(
-        world: World = World(),
+        world: World,
         fixedTimeStep: Duration,
-        systems: [any PSystem] = [
-            SInputMapping(),
-            SCameraInput(),
-            SInputHistory(),
-            SInputCleanup(),
-            SAccelerationIntent(),
-            SMovement(),
-            SRotation()
-        ]
+        systems: [any PSystem]
     ) {
         precondition(fixedTimeStep > .zero, "Engine requires a positive fixed time step.")
         self.world = world
@@ -46,7 +63,7 @@ final class Engine {
     }
 
     /// Installs a newly constructed world and begins a new tick timeline.
-    func replaceWorld(with world: World, inputBaseline: InputSnapshot? = nil) {
+    func replaceWorld(with world: World, inputBaseline: InputSnapshot?) {
         self.world = world
         if let inputBaseline {
             self.world.input.rebase(to: inputBaseline)
