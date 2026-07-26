@@ -16,18 +16,10 @@ struct SInputMapping: PSystem {
     }
 
     mutating func update(world: inout World, deltaTime: Float) {
-        world.input.actions.cameraOrbitYawDelta = Self.finiteProduct(
-            world.input.mouse.delta.x,
-            pointerOrbitSensitivity
-        )
-        world.input.actions.cameraZoomDelta = Self.finiteProduct(
-            world.input.mouse.scrollDelta.y,
-            scrollZoomSensitivity
-        )
-    }
+        let cameraOrbitYawDelta = world.input.mouse.delta.x * pointerOrbitSensitivity
+        world.input.actions.cameraOrbitYawDelta = cameraOrbitYawDelta.isFinite ? cameraOrbitYawDelta : 0
 
-    private static func finiteProduct(_ lhs: Float, _ rhs: Float) -> Float {
-        let product = lhs * rhs
-        return product.isFinite ? product : 0
+        let cameraZoomDelta = world.input.mouse.scrollDelta.y * scrollZoomSensitivity
+        world.input.actions.cameraZoomDelta = cameraZoomDelta.isFinite ? cameraZoomDelta : 0
     }
 }
