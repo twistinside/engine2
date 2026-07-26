@@ -21,6 +21,7 @@ class World {
     // MARK: Resources
     var camera = Camera.standard
     var input = InputState()
+    var inputHistory = InputHistory(maximumEntryCount: 60)
 
     private var nextEntityIndex = 0
 

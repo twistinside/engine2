@@ -20,7 +20,7 @@ struct RuntimeCompositionScenarioTests {
         )
 
         #expect(abs(position.x - 1) < 0.0001)
-        #expect(runtime.world.input.history.isEmpty)
+        #expect(runtime.world.inputHistory.entries.isEmpty)
         #expect(
             runtime.latestPresentationSnapshot.entityPresentations.first?.position
                 == position

@@ -40,7 +40,7 @@ struct EngineTests {
             )
         )
         #expect(cameraAfterInput.projection == initialCamera.projection)
-        #expect(world.input.history.first?.tokens == [
+        #expect(world.inputHistory.entries.first?.tokens == [
             "Mouse dx:+40 dy:+0",
             "Wheel:+30"
         ])
@@ -52,7 +52,7 @@ struct EngineTests {
         engine.step()
 
         #expect(world.camera == cameraAfterInput)
-        #expect(world.input.history.count == 1)
+        #expect(world.inputHistory.entries.count == 1)
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
@@ -77,7 +77,7 @@ struct EngineTests {
 
         #expect(world.camera == initialCamera)
         #expect(
-            world.input.history.first?.tokens == [
+            world.inputHistory.entries.first?.tokens == [
                 "Mouse dx:+nan dy:+inf",
                 "Wheel:-inf"
             ]
@@ -158,9 +158,9 @@ struct EngineTests {
         engine.step(inputSnapshot: snapshot)
         engine.step()
 
-        #expect(world.input.history.count == 1)
-        #expect(world.input.history.first?.tokens == ["Mouse dx:+3 dy:-2"])
-        #expect(world.input.history.first?.frameCount == 1)
+        #expect(world.inputHistory.entries.count == 1)
+        #expect(world.inputHistory.entries.first?.tokens == ["Mouse dx:+3 dy:-2"])
+        #expect(world.inputHistory.entries.first?.frameCount == 1)
         #expect(world.input.mouse.delta == .zero)
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }

@@ -75,7 +75,7 @@ struct SimulationRuntimeAdvanceTests {
         )
         #expect(simulation.currentCursor == initialCursor)
         #expect(simulation.latestPresentationSnapshot == initialSnapshot)
-        #expect(simulation.world.input.history.isEmpty)
+        #expect(simulation.world.inputHistory.entries.isEmpty)
     }
 
     @Test func rebuildStartsANewSessionAtTickZero() async throws {
@@ -150,11 +150,11 @@ struct SimulationRuntimeAdvanceTests {
 
         let result = try completedResult(from: await simulation.advance(request))
 
-        #expect(simulation.world.input.history.count == 2)
-        #expect(simulation.world.input.history[0].tokens == ["W"])
-        #expect(simulation.world.input.history[0].frameCount == 2)
-        #expect(simulation.world.input.history[1].tokens == ["Mouse dx:+5 dy:+0", "W"])
-        #expect(simulation.world.input.history[1].frameCount == 1)
+        #expect(simulation.world.inputHistory.entries.count == 2)
+        #expect(simulation.world.inputHistory.entries[0].tokens == ["W"])
+        #expect(simulation.world.inputHistory.entries[0].frameCount == 2)
+        #expect(simulation.world.inputHistory.entries[1].tokens == ["Mouse dx:+5 dy:+0", "W"])
+        #expect(simulation.world.inputHistory.entries[1].frameCount == 1)
         #expect(simulation.world.input.mouse.delta == .zero)
         let expectedCamera = Camera.lookingAt(
             .zero,
@@ -194,9 +194,9 @@ struct SimulationRuntimeAdvanceTests {
 
         _ = try completedResult(from: await simulation.advance(request))
 
-        #expect(simulation.world.input.history.count == 1)
-        #expect(simulation.world.input.history[0].tokens == ["W"])
-        #expect(simulation.world.input.history[0].frameCount == 2)
+        #expect(simulation.world.inputHistory.entries.count == 1)
+        #expect(simulation.world.inputHistory.entries[0].tokens == ["W"])
+        #expect(simulation.world.inputHistory.entries[0].frameCount == 2)
         #expect(simulation.world.input.mouse.delta == .zero)
         #expect(simulation.world.camera == initialCamera)
     }
@@ -225,16 +225,16 @@ struct SimulationRuntimeAdvanceTests {
 
         let result = try completedResult(from: await simulation.advance(request))
 
-        #expect(simulation.world.input.history.count == 2)
-        #expect(simulation.world.input.history[0].tokens == ["D"])
-        #expect(simulation.world.input.history[0].frameCount == 2)
+        #expect(simulation.world.inputHistory.entries.count == 2)
+        #expect(simulation.world.inputHistory.entries[0].tokens == ["D"])
+        #expect(simulation.world.inputHistory.entries[0].frameCount == 2)
         #expect(
-            simulation.world.input.history[1].tokens == [
+            simulation.world.inputHistory.entries[1].tokens == [
                 "Mouse dx:+5 dy:+3",
                 "D"
             ]
         )
-        #expect(simulation.world.input.history[1].frameCount == 1)
+        #expect(simulation.world.inputHistory.entries[1].frameCount == 1)
         #expect(simulation.world.input.keyboard.keys == subsequentSnapshot.pressedKeys)
         #expect(simulation.world.input.mouse.position == subsequentSnapshot.pointerPosition)
         #expect(simulation.world.input.mouse.delta == .zero)
@@ -293,7 +293,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.currentCursor == currentCursor)
         #expect(simulation.world.input.keyboard.keys.isEmpty)
         #expect(simulation.world.input.mouse.position == .zero)
-        #expect(simulation.world.input.history.isEmpty)
+        #expect(simulation.world.inputHistory.entries.isEmpty)
     }
 
     @Test func simultaneousExpectedCursorRequestsCannotDoubleAdvance() async {
