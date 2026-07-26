@@ -44,7 +44,8 @@ struct OfflineCaptureConfigurationTests {
         let firstRequest = OfflineCaptureRequest(
             advanceRequest: SimulationAdvanceRequest(
                 expectedCursor: assembly.initialCursor,
-                stepCount: .one
+                stepCount: .one,
+                inputAssignment: .none
             ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
@@ -103,7 +104,8 @@ struct OfflineCaptureConfigurationTests {
         let secondRequest = OfflineCaptureRequest(
             advanceRequest: SimulationAdvanceRequest(
                 expectedCursor: firstResult.advanceResult.finalCursor,
-                stepCount: SimulationStepCount(rawValue: 2)
+                stepCount: SimulationStepCount(rawValue: 2),
+                inputAssignment: .none
             ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(

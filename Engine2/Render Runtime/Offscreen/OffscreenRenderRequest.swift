@@ -8,17 +8,4 @@ nonisolated struct OffscreenRenderRequest: Equatable, Sendable {
     let presentationSnapshot: SimulationPresentationSnapshot
     let viewpoint: RenderViewpoint
     let settings: OffscreenRenderSettings
-
-    /// Creates a request with exact presentation and viewpoint inputs.
-    init(
-        id: OffscreenRenderRequestID = OffscreenRenderRequestID(),
-        presentationSnapshot: SimulationPresentationSnapshot,
-        viewpoint: RenderViewpoint,
-        settings: OffscreenRenderSettings
-    ) {
-        self.id = id
-        self.presentationSnapshot = presentationSnapshot
-        self.viewpoint = viewpoint
-        self.settings = settings
-    }
 }

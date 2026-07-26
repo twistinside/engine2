@@ -30,7 +30,8 @@ struct ManualConfigurationTests {
         let outcome = await assembly.advanceTarget.advance(
             SimulationAdvanceRequest(
                 expectedCursor: initialCursor,
-                stepCount: SimulationStepCount(rawValue: 4)
+                stepCount: SimulationStepCount(rawValue: 4),
+                inputAssignment: .none
             )
         )
         guard case let .completed(result) = outcome else {
@@ -59,7 +60,8 @@ struct ManualConfigurationTests {
         let outcome = await assembly.advanceTarget.advance(
             SimulationAdvanceRequest(
                 expectedCursor: initialCursor,
-                stepCount: stepCount
+                stepCount: stepCount,
+                inputAssignment: .none
             )
         )
         guard case let .completed(result) = outcome else {

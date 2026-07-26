@@ -62,8 +62,10 @@ struct AgentSessionConfigurationTests {
         )
         let firstRequest = AgentCaptureRequest(
             id: firstRequestID,
-            expectedCursor: initialCursor,
-            stepCount: .one,
+            source: .advance(
+                expectedCursor: initialCursor,
+                stepCount: .one
+            ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000004"
@@ -119,9 +121,9 @@ struct AgentSessionConfigurationTests {
             exposure: ManualExposure(multiplier: 1.1)
         )
         let secondEncoding = ImageArtifactEncoding.png
-        let secondRequest = AgentCaptureRequest.current(
+        let secondRequest = AgentCaptureRequest(
             id: secondRequestID,
-            expectedCursor: firstResponse.knownCursor,
+            source: .current(expectedCursor: firstResponse.knownCursor),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000005"
@@ -188,8 +190,10 @@ struct AgentSessionConfigurationTests {
         )
         let thirdRequest = AgentCaptureRequest(
             id: thirdRequestID,
-            expectedCursor: secondResponse.knownCursor,
-            stepCount: .one,
+            source: .advance(
+                expectedCursor: secondResponse.knownCursor,
+                stepCount: .one
+            ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000006"

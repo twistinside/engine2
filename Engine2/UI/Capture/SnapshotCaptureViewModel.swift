@@ -96,6 +96,7 @@ final class SnapshotCaptureViewModel {
         }
 
         let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: renderSize,
                 outputMode: outputMode,

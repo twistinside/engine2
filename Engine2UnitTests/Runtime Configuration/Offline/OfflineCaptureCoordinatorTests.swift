@@ -1130,6 +1130,7 @@ struct OfflineCaptureCoordinatorTests {
     ) -> OfflineCurrentCaptureRequest {
         OfflineCurrentCaptureRequest(
             expectedCursor: expectedCursor ?? fixture.initialSnapshot.cursor,
+            renderRequestID: OffscreenRenderRequestID(),
             viewpoint: fixture.request.viewpoint,
             renderSettings: fixture.request.renderSettings,
             encoding: fixture.request.encoding

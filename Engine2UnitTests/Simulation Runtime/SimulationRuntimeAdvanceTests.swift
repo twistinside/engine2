@@ -24,7 +24,8 @@ struct SimulationRuntimeAdvanceTests {
         let initialCursor = simulation.currentCursor
         let request = SimulationAdvanceRequest(
             expectedCursor: initialCursor,
-            stepCount: SimulationStepCount(rawValue: 3)
+            stepCount: SimulationStepCount(rawValue: 3),
+            inputAssignment: .none
         )
 
         let outcome = await simulation.advance(request)
@@ -81,7 +82,11 @@ struct SimulationRuntimeAdvanceTests {
         let simulation = makeSimulation()
         let firstResult = try completedResult(
             from: await simulation.advance(
-                SimulationAdvanceRequest(stepCount: .one)
+                SimulationAdvanceRequest(
+                    expectedCursor: nil,
+                    stepCount: .one,
+                    inputAssignment: .none
+                )
             )
         )
 
@@ -98,14 +103,19 @@ struct SimulationRuntimeAdvanceTests {
 
         let first = try completedResult(
             from: await simulation.advance(
-                SimulationAdvanceRequest(stepCount: .one)
+                SimulationAdvanceRequest(
+                    expectedCursor: nil,
+                    stepCount: .one,
+                    inputAssignment: .none
+                )
             )
         )
         _ = try completedResult(
             from: await simulation.advance(
                 SimulationAdvanceRequest(
                     expectedCursor: first.finalCursor,
-                    stepCount: .one
+                    stepCount: .one,
+                    inputAssignment: .none
                 )
             )
         )
@@ -127,6 +137,7 @@ struct SimulationRuntimeAdvanceTests {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
         let request = SimulationAdvanceRequest(
+            expectedCursor: nil,
             stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .ingest(
                 inputSnapshot(
@@ -168,6 +179,7 @@ struct SimulationRuntimeAdvanceTests {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
         let request = SimulationAdvanceRequest(
+            expectedCursor: nil,
             stepCount: SimulationStepCount(rawValue: 2),
             inputAssignment: .rebase(
                 inputSnapshot(
@@ -201,6 +213,7 @@ struct SimulationRuntimeAdvanceTests {
             pressedKeys: [KeyboardKey(keyCode: 2, displayName: "D")]
         )
         let request = SimulationAdvanceRequest(
+            expectedCursor: nil,
             stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .rebaseThenIngest(
                 baseline: baseline,
@@ -284,7 +297,8 @@ struct SimulationRuntimeAdvanceTests {
         let initialCursor = simulation.currentCursor
         let request = SimulationAdvanceRequest(
             expectedCursor: initialCursor,
-            stepCount: .one
+            stepCount: .one,
+            inputAssignment: .none
         )
 
         async let firstOutcome = simulation.advance(request)
@@ -312,7 +326,11 @@ struct SimulationRuntimeAdvanceTests {
         let simulation = makeSimulation()
         let first = try completedResult(
             from: await simulation.advance(
-                SimulationAdvanceRequest(stepCount: .one)
+                SimulationAdvanceRequest(
+                    expectedCursor: nil,
+                    stepCount: .one,
+                    inputAssignment: .none
+                )
             )
         )
 
@@ -320,7 +338,8 @@ struct SimulationRuntimeAdvanceTests {
             from: await simulation.advance(
                 SimulationAdvanceRequest(
                     expectedCursor: first.finalCursor,
-                    stepCount: .one
+                    stepCount: .one,
+                    inputAssignment: .none
                 )
             )
         )

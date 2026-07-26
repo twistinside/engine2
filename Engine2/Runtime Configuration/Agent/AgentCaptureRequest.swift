@@ -14,65 +14,6 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
     let renderSettings: OffscreenRenderSettings
     let encoding: ImageArtifactEncoding
 
-    /// Creates an advance-then-capture request compatible with the first API.
-    init(
-        id: AgentSessionRequestID,
-        expectedCursor: SimulationCursor,
-        stepCount: SimulationStepCount,
-        renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
-        viewpoint: RenderViewpoint,
-        renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding
-    ) {
-        self.init(
-            id: id,
-            source: .advance(
-                expectedCursor: expectedCursor,
-                stepCount: stepCount
-            ),
-            renderRequestID: renderRequestID,
-            viewpoint: viewpoint,
-            renderSettings: renderSettings,
-            encoding: encoding
-        )
-    }
-
-    /// Creates one stable request from an explicitly selected scene source.
-    init(
-        id: AgentSessionRequestID,
-        source: AgentCaptureSource,
-        renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
-        viewpoint: RenderViewpoint,
-        renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding
-    ) {
-        self.id = id
-        self.source = source
-        self.renderRequestID = renderRequestID
-        self.viewpoint = viewpoint
-        self.renderSettings = renderSettings
-        self.encoding = encoding
-    }
-
-    /// Creates a capture of an already completed cursor without advancing it.
-    static func current(
-        id: AgentSessionRequestID,
-        expectedCursor: SimulationCursor,
-        renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
-        viewpoint: RenderViewpoint,
-        renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding
-    ) -> AgentCaptureRequest {
-        AgentCaptureRequest(
-            id: id,
-            source: .current(expectedCursor: expectedCursor),
-            renderRequestID: renderRequestID,
-            viewpoint: viewpoint,
-            renderSettings: renderSettings,
-            encoding: encoding
-        )
-    }
-
     /// Projects an accepted advance source into the lower-level workflow.
     func makeOfflineCaptureRequest(expectedCursor: SimulationCursor, stepCount: SimulationStepCount) -> OfflineCaptureRequest {
         OfflineCaptureRequest(

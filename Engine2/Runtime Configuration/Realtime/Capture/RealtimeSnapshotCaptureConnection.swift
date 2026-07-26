@@ -12,6 +12,10 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
     private var isCapturing = false
 
     /// Creates a production connection around one dedicated Render Runtime.
+    ///
+    /// A connection generates its own stable viewpoint identity by default
+    /// because it owns that output projection. Injection remains available for
+    /// restoration and deterministic tests.
     init(
         presentationSource: any PSimulationPresentationSource,
         renderTarget: any POffscreenRenderTarget,
