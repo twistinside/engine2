@@ -12,20 +12,58 @@ struct USDRenderModel {
     let meshes: [MTKMesh]
 
     /// Whether every indexed draw visited by the frame encoder has complete,
-    /// usable geometry.
+    /// usable geometry, proved once when the immutable model is constructed.
     ///
     /// The production encoder binds only the first vertex buffer of each mesh
     /// and emits indexed draws for its submeshes. Exact rendering uses this
-    /// predicate during preparation so a decoded-but-empty or partially
+    /// proof during preparation so a decoded-but-empty or partially
     /// malformed model is distinct from a missing model. Requiring every mesh
     /// and submesh prevents an exact result from silently omitting only part of
     /// a decoded asset; live screen rendering remains free to tolerate it.
-    var hasCompleteDrawableIndexedGeometry: Bool {
-        guard !meshes.isEmpty else {
-            return false
+    let hasCompleteDrawableIndexedGeometry: Bool
+
+    init(meshes: [MTKMesh]) {
+        func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
+            guard minimumByteCount > 0,
+                  meshBuffer.offset >= 0,
+                  meshBuffer.length >= minimumByteCount
+            else {
+                return false
+            }
+
+            let sliceEnd = meshBuffer.offset.addingReportingOverflow(
+                meshBuffer.length
+            )
+            return !sliceEnd.overflow
+                && sliceEnd.partialValue <= meshBuffer.buffer.length
         }
 
-        return meshes.allSatisfy { mesh in
+        func requiredIndexByteCount(for submesh: MTKSubmesh) -> Int? {
+            let bytesPerIndex: Int
+            switch submesh.indexType {
+            case .uint16:
+                bytesPerIndex = MemoryLayout<UInt16>.stride
+
+            case .uint32:
+                bytesPerIndex = MemoryLayout<UInt32>.stride
+
+            @unknown default:
+                return nil
+            }
+
+            let result = submesh.indexCount.multipliedReportingOverflow(
+                by: bytesPerIndex
+            )
+            return result.overflow ? nil : result.partialValue
+        }
+
+        self.meshes = meshes
+        guard !meshes.isEmpty else {
+            self.hasCompleteDrawableIndexedGeometry = false
+            return
+        }
+
+        self.hasCompleteDrawableIndexedGeometry = meshes.allSatisfy { mesh in
             guard let vertexBuffer = mesh.vertexBuffers.first,
                   containsUsableBytes(vertexBuffer, minimumByteCount: 1),
                   !mesh.submeshes.isEmpty
@@ -159,42 +197,5 @@ struct USDRenderModel {
         }
 
         allocations.append(allocation)
-    }
-
-    /// Computes the byte range consumed by one indexed draw without allowing
-    /// malformed counts to overflow into an apparently small buffer request.
-    private func requiredIndexByteCount(for submesh: MTKSubmesh) -> Int? {
-        let bytesPerIndex: Int
-        switch submesh.indexType {
-        case .uint16:
-            bytesPerIndex = MemoryLayout<UInt16>.stride
-
-        case .uint32:
-            bytesPerIndex = MemoryLayout<UInt32>.stride
-
-        @unknown default:
-            return nil
-        }
-
-        let result = submesh.indexCount.multipliedReportingOverflow(
-            by: bytesPerIndex
-        )
-        return result.overflow ? nil : result.partialValue
-    }
-
-    /// Proves the MetalKit slice contains the bytes the encoder will address.
-    private func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
-        guard minimumByteCount > 0,
-              meshBuffer.offset >= 0,
-              meshBuffer.length >= minimumByteCount
-        else {
-            return false
-        }
-
-        let sliceEnd = meshBuffer.offset.addingReportingOverflow(
-            meshBuffer.length
-        )
-        return !sliceEnd.overflow
-            && sliceEnd.partialValue <= meshBuffer.buffer.length
     }
 }
