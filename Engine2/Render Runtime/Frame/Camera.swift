@@ -38,28 +38,6 @@ nonisolated struct Camera: Sendable {
     var rotation: simd_quatf
     var projection: Projection
 
-    init(position: SIMD3<Float>, rotation: simd_quatf, projection: Projection) {
-        Self.validate(projection)
-
-        self.position = position
-        self.rotation = rotation
-        self.projection = projection
-    }
-
-    /// Builds a camera placed at `position` and aimed at a target point.
-    static func lookingAt(
-        _ target: SIMD3<Float>,
-        from position: SIMD3<Float>,
-        up: SIMD3<Float>,
-        projection: Projection
-    ) -> Camera {
-        Camera(
-            position: position,
-            rotation: rotationLookingAt(target, from: position, up: up),
-            projection: projection
-        )
-    }
-
     /// Converts world-space positions into the camera's local view space.
     var viewMatrix: simd_float4x4 {
         .rotation(rotation.inverse) * .translation(-position)
@@ -86,6 +64,28 @@ nonisolated struct Camera: Sendable {
         // rotated. Validate the matrix that rendering will actually consume,
         // not only the values used to build it.
         return viewMatrix.hasFiniteElements
+    }
+
+    init(position: SIMD3<Float>, rotation: simd_quatf, projection: Projection) {
+        Self.validate(projection)
+
+        self.position = position
+        self.rotation = rotation
+        self.projection = projection
+    }
+
+    /// Builds a camera placed at `position` and aimed at a target point.
+    static func lookingAt(
+        _ target: SIMD3<Float>,
+        from position: SIMD3<Float>,
+        up: SIMD3<Float>,
+        projection: Projection
+    ) -> Camera {
+        Camera(
+            position: position,
+            rotation: rotationLookingAt(target, from: position, up: up),
+            projection: projection
+        )
     }
 
     /// Builds a Metal clip-space projection for the current drawable shape.

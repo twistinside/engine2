@@ -10,13 +10,13 @@ final class OfflineCaptureAssembly {
 
     private let coordinator: OfflineCaptureCoordinator
 
-    init(initialCursor: SimulationCursor, coordinator: OfflineCaptureCoordinator) {
-        self.initialCursor = initialCursor
-        self.coordinator = coordinator
-    }
-
     /// Sole directed workflow capability exposed by this assembly.
     nonisolated var captureTarget: any POfflineCaptureTarget {
         coordinator
+    }
+
+    init(initialCursor: SimulationCursor, coordinator: OfflineCaptureCoordinator) {
+        self.initialCursor = initialCursor
+        self.coordinator = coordinator
     }
 }

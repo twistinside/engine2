@@ -3,6 +3,12 @@ import Testing
 @testable import Engine2
 
 struct GPUInstanceTests {
+    private static let warmDielectric = PBRMaterialDescription(
+        baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+        metallic: 0,
+        perceptualRoughness: 0.5
+    )
+
     @Test func layoutMatchesMetalTransformsAndTwoMaterialLanes() {
         // MSL float4x4 is 64 bytes, float3x3 is three 16-byte columns, and the
         // material uses two explicit float4 lanes. Locking every offset protects
@@ -156,12 +162,6 @@ struct GPUInstanceTests {
             viewMatrix: viewMatrix
         )
     }
-
-    private static let warmDielectric = PBRMaterialDescription(
-        baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-        metallic: 0,
-        perceptualRoughness: 0.5
-    )
 }
 
 private func upperLeft3x3(of matrix: simd_float4x4) -> simd_float3x3 {

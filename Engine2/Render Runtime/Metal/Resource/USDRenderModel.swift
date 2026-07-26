@@ -22,6 +22,33 @@ struct USDRenderModel {
     /// a decoded asset; live screen rendering remains free to tolerate it.
     let hasCompleteDrawableIndexedGeometry: Bool
 
+    /// Unique Metal allocations retained by this decoded model. The resource
+    /// store decides which residency set owns their residency lifetime.
+    var allocations: [any MTLAllocation] {
+        var allocations: [any MTLAllocation] = []
+        var addedAllocations = Set<ObjectIdentifier>()
+
+        for mesh in meshes {
+            for vertexBuffer in mesh.vertexBuffers {
+                append(
+                    vertexBuffer.buffer,
+                    to: &allocations,
+                    tracking: &addedAllocations
+                )
+            }
+
+            for submesh in mesh.submeshes {
+                append(
+                    submesh.indexBuffer.buffer,
+                    to: &allocations,
+                    tracking: &addedAllocations
+                )
+            }
+        }
+
+        return allocations
+    }
+
     init(meshes: [MTKMesh]) {
         func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
             guard minimumByteCount > 0,
@@ -86,33 +113,6 @@ struct USDRenderModel {
                 )
             }
         }
-    }
-
-    /// Unique Metal allocations retained by this decoded model. The resource
-    /// store decides which residency set owns their residency lifetime.
-    var allocations: [any MTLAllocation] {
-        var allocations: [any MTLAllocation] = []
-        var addedAllocations = Set<ObjectIdentifier>()
-
-        for mesh in meshes {
-            for vertexBuffer in mesh.vertexBuffers {
-                append(
-                    vertexBuffer.buffer,
-                    to: &allocations,
-                    tracking: &addedAllocations
-                )
-            }
-
-            for submesh in mesh.submeshes {
-                append(
-                    submesh.indexBuffer.buffer,
-                    to: &allocations,
-                    tracking: &addedAllocations
-                )
-            }
-        }
-
-        return allocations
     }
 
     /// Resolves every Game Content model reference into renderer-owned Metal

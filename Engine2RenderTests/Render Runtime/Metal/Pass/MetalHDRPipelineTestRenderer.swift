@@ -25,6 +25,36 @@ final class MetalHDRPipelineTestRenderer {
         )
     )
 
+    private static var centerRegion: MTLRegion {
+        MTLRegionMake2D(width / 2, height / 2, 1, 1)
+    }
+
+    private static var leftSampleRegion: MTLRegion {
+        MTLRegionMake2D(width * 3 / 8, height / 2, 1, 1)
+    }
+
+    private static var rightSampleRegion: MTLRegion {
+        MTLRegionMake2D(width * 5 / 8, height / 2, 1, 1)
+    }
+
+    private static var fullScissorRect: MTLScissorRect {
+        MTLScissorRect(x: 0, y: 0, width: width, height: height)
+    }
+
+    private static var leftScissorRect: MTLScissorRect {
+        MTLScissorRect(x: 0, y: 0, width: width / 2, height: height)
+    }
+
+    private static var rightScissorRect: MTLScissorRect {
+        let origin = width / 2
+        return MTLScissorRect(
+            x: origin,
+            y: 0,
+            width: width - origin,
+            height: height
+        )
+    }
+
     private let resources: MetalResourceStore
     private let frame: FrameResources
     private let pbrPipeline: any MTLRenderPipelineState
@@ -564,36 +594,6 @@ final class MetalHDRPipelineTestRenderer {
             components[1],
             components[2],
             components[3]
-        )
-    }
-
-    private static var centerRegion: MTLRegion {
-        MTLRegionMake2D(width / 2, height / 2, 1, 1)
-    }
-
-    private static var leftSampleRegion: MTLRegion {
-        MTLRegionMake2D(width * 3 / 8, height / 2, 1, 1)
-    }
-
-    private static var rightSampleRegion: MTLRegion {
-        MTLRegionMake2D(width * 5 / 8, height / 2, 1, 1)
-    }
-
-    private static var fullScissorRect: MTLScissorRect {
-        MTLScissorRect(x: 0, y: 0, width: width, height: height)
-    }
-
-    private static var leftScissorRect: MTLScissorRect {
-        MTLScissorRect(x: 0, y: 0, width: width / 2, height: height)
-    }
-
-    private static var rightScissorRect: MTLScissorRect {
-        let origin = width / 2
-        return MTLScissorRect(
-            x: origin,
-            y: 0,
-            width: width - origin,
-            height: height
         )
     }
 }

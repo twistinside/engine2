@@ -3,6 +3,30 @@ import simd
 @testable import Engine2
 
 struct BasicWorldBuilderTests {
+    private static let expectedEntityIDs = (0..<6).map {
+        EntityID(index: $0, generation: 0)
+    }
+
+    private static let expectedPositions = [
+        SIMD3<Float>(-1.75, 1.10, 0),
+        SIMD3<Float>(0, 1.10, 0),
+        SIMD3<Float>(1.75, 1.10, 0),
+        SIMD3<Float>(-1.75, -1.10, 0),
+        SIMD3<Float>(0, -1.10, 0),
+        SIMD3<Float>(1.75, -1.10, 0)
+    ]
+
+    private static let expectedMaterialIDs: [MaterialID] = [
+        .warmDielectricSmooth,
+        .warmDielectric,
+        .warmDielectricRough,
+        .goldMetalSmooth,
+        .goldMetal,
+        .goldMetalRough
+    ]
+
+    private static let identityRotation = simd_quatf.identity
+
     @Test func seedsDeterministicMaterialSphereScene() {
         let world = BasicWorldBuilder().buildWorld()
 
@@ -138,28 +162,4 @@ struct BasicWorldBuilderTests {
             Issue.record("The M5 reference camera must remain perspective.")
         }
     }
-
-    private static let expectedEntityIDs = (0..<6).map {
-        EntityID(index: $0, generation: 0)
-    }
-
-    private static let expectedPositions = [
-        SIMD3<Float>(-1.75, 1.10, 0),
-        SIMD3<Float>(0, 1.10, 0),
-        SIMD3<Float>(1.75, 1.10, 0),
-        SIMD3<Float>(-1.75, -1.10, 0),
-        SIMD3<Float>(0, -1.10, 0),
-        SIMD3<Float>(1.75, -1.10, 0)
-    ]
-
-    private static let expectedMaterialIDs: [MaterialID] = [
-        .warmDielectricSmooth,
-        .warmDielectric,
-        .warmDielectricRough,
-        .goldMetalSmooth,
-        .goldMetal,
-        .goldMetalRough
-    ]
-
-    private static let identityRotation = simd_quatf.identity
 }

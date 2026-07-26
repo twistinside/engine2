@@ -1651,6 +1651,10 @@ struct AgentSessionCoordinatorTests {
         ] = []
         private var countWaiters: [CountWaiter] = []
 
+        private var totalRequestCount: Int {
+            requests.count + currentRequests.count
+        }
+
         init(scripts: [Script]) {
             self.scripts = scripts
         }
@@ -1742,10 +1746,6 @@ struct AgentSessionCoordinatorTests {
                 return
             }
             suspendedCurrent.removeFirst().resume(returning: outcome)
-        }
-
-        private var totalRequestCount: Int {
-            requests.count + currentRequests.count
         }
 
         private func notifyCountWaiters() {

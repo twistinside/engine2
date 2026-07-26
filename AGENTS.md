@@ -84,6 +84,8 @@ Current example ownership:
 - Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
 - Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
 - One type per file is a project rule. Name the file after the type. Keep extensions of repository-owned types in the owning type's file; never extend one repository type from another type's file. Put extensions of framework or other externally owned types in dedicated, appropriately named files under `Extension/`. Do not create a separate extension file solely for one static member; keep that member with the repository type's primary declaration. A documented test-target-only extension may remain in a clearly named test-support file when putting fixture API in the production declaration would be the only alternative.
+- In every declaration and extension, place all stored and computed properties before every initializer, subscript, and
+  method. Computed projections belong with the property surface even when their implementation is substantial.
 - Extract a constructed value when the local adds a nonredundant role or separates substantial construction from the
   operation that consumes it. Otherwise, keep construction inline when an argument, property, or enum case label,
   direct assignment, or aggregate shape already supplies the meaning. A label does not erase a separate ownership,
