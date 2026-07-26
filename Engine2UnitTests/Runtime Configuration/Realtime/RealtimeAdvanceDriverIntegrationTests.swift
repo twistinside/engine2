@@ -3,7 +3,7 @@ import Testing
 @testable import Engine2
 
 struct RealtimeAdvanceDriverIntegrationTests {
-    @Test @MainActor func driverCommitsExactRuntimePublicationAndPostStartInput() async throws {
+    @Test func driverCommitsExactRuntimePublicationAndPostStartInput() async throws {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: IntegrationMovingWorldBuilder(),
@@ -81,7 +81,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
         #expect(simulationRuntime.world.input.history.first?.tokens == ["Mouse dx:+5 dy:+0"])
     }
 
-    @Test @MainActor
+    @Test
     func pausedCameraInputIsDiscardedAndFreshInputCommitsAfterResume() async {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
@@ -197,7 +197,6 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
     }
 
-    @MainActor
     private func eventually(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<10_000 {
             if condition() {

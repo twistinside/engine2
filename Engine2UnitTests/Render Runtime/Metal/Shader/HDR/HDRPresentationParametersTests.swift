@@ -1,7 +1,6 @@
 import Testing
 @testable import Engine2
 
-@MainActor
 struct HDRPresentationParametersTests {
     @Test func layoutMatchesOneMetalFloat4Lane() {
         // The presentation argument buffer is mirrored by one Metal `float4`.

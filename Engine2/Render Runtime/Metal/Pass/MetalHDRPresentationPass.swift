@@ -6,7 +6,6 @@ import Metal
 /// use the sibling linear pipeline so their 0...1 meanings remain intact. Both
 /// pipelines write display-linear values to the sRGB drawable, which performs
 /// the only transfer encoding in the visible pathway.
-@MainActor
 final class MetalHDRPresentationPass {
     private let toneMappedPipeline: any MTLRenderPipelineState
     private let linearPipeline: any MTLRenderPipelineState

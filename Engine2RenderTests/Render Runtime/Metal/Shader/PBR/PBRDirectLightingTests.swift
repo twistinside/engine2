@@ -3,7 +3,6 @@ import simd
 import Testing
 @testable import Engine2
 
-@MainActor
 struct PBRDirectLightingTests {
     private let baseColor = SIMD3<Float>(0.5, 0.25, 0.125)
 

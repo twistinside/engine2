@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 struct RealtimeAssemblyTests {
-    @Test @MainActor func lifecycleStartsAndStopsTheOwnedRuntimes() async {
+    @Test func lifecycleStartsAndStopsTheOwnedRuntimes() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60)
         ).makeAssembly(gameContent: BasicGameContent())
@@ -20,7 +20,7 @@ struct RealtimeAssemblyTests {
         #expect(assembly.inputRuntime.isRunning == false)
     }
 
-    @Test @MainActor func lifecycleIsIdempotent() async {
+    @Test func lifecycleIsIdempotent() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60)
         ).makeAssembly(gameContent: BasicGameContent())
@@ -40,7 +40,7 @@ struct RealtimeAssemblyTests {
         #expect(assembly.advanceDriver.isRunning == false)
     }
 
-    @Test @MainActor func userPauseSurvivesAppLifecycleAndLeavesInputLive() async {
+    @Test func userPauseSurvivesAppLifecycleAndLeavesInputLive() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60)
         ).makeAssembly(gameContent: BasicGameContent())
@@ -65,7 +65,7 @@ struct RealtimeAssemblyTests {
         await assembly.stop()
     }
 
-    @Test @MainActor func rebuildCoordinatesSessionCursorAndDriverLifecycle() async {
+    @Test func rebuildCoordinatesSessionCursorAndDriverLifecycle() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60)
         ).makeAssembly(gameContent: BasicGameContent())
@@ -82,7 +82,7 @@ struct RealtimeAssemblyTests {
         await assembly.stop()
     }
 
-    @Test @MainActor func pausedInputPublishesWithoutBypassingSimulation() async {
+    @Test func pausedInputPublishesWithoutBypassingSimulation() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60)
         ).makeAssembly(gameContent: BasicGameContent())

@@ -5,7 +5,6 @@ import simd
 ///
 /// The pane extracts lightweight `EntityMotionRow` values for display and does
 /// not turn entity facades into a simulation iteration path.
-@MainActor
 struct EntityMotionPane: View {
     let simulation: SimulationRuntime
 

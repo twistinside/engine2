@@ -2,7 +2,6 @@ import Testing
 import simd
 @testable import Engine2
 
-@MainActor
 struct BasicWorldBuilderRenderTests {
     @Test func materialSphereSceneUsesOrdinarySnapshotAndRenderFramePath() {
         let world = BasicWorldBuilder().buildWorld()

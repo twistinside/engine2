@@ -18,7 +18,6 @@ final class MetalInFlightSubmission: @unchecked Sendable {
     private let frame: FrameResources
     private let errorState: MetalRenderErrorState
 
-    @MainActor
     init(
         resources: MetalResourceStore,
         drawable: any CAMetalDrawable,

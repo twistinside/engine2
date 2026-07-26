@@ -5,7 +5,6 @@ import Testing
 @testable import Engine2
 
 struct MetalRendererTests {
-    @MainActor
     @Test func resourceStoreCreatesEveryRendererPipelineAndArgumentTable() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -53,7 +52,6 @@ struct MetalRendererTests {
         )
     }
 
-    @MainActor
     @Test func sceneCoordinatorRetainsAuthoredContentPreflightFailure() throws {
         let completeCatalog = BasicGameContent().renderAssetCatalog
         let incompleteCatalog = RenderAssetCatalog(
@@ -87,7 +85,6 @@ struct MetalRendererTests {
         #expect(coordinator.renderer == nil)
     }
 
-    @MainActor
     @Test func publishedMaterialSceneReachesEveryProductionModelDraw() throws {
         let scene = PublishedMaterialValidationScene()
         let device = try #require(MTLCreateSystemDefaultDevice())
@@ -127,7 +124,6 @@ struct MetalRendererTests {
         #expect(decodedMeshCounts.allSatisfy { $0 > 0 })
     }
 
-    @MainActor
     @Test func renderTargetConfigurationSeparatesHDRSceneFromSRGBPresentation() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let view = MTKView(frame: .zero, device: device)
@@ -158,7 +154,6 @@ struct MetalRendererTests {
         #expect(configuredColorSpaceName == CGColorSpace.sRGB)
     }
 
-    @MainActor
     @Test func createsRequestedFrameResourceRing() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -191,7 +186,6 @@ struct MetalRendererTests {
         }
     }
 
-    @MainActor
     @Test func frameResourceReusesAndResizesItsHDRSceneTarget() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -251,7 +245,6 @@ struct MetalRendererTests {
         #expect(!initial.residencySet.containsAllocation(resized.texture))
     }
 
-    @MainActor
     @Test func sceneRenderPassStoresHDRColorAndUsesTransientOrdinaryDepth() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let sceneColorTexture = try makeTexture(
@@ -298,7 +291,6 @@ struct MetalRendererTests {
         #expect(descriptor.depthAttachment.clearDepth == MetalFrameEncoder.clearDepth)
     }
 
-    @MainActor
     @Test func presentationRenderPassStoresOnlyTheSRGBDrawable() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let drawableTexture = try makeTexture(
@@ -326,7 +318,6 @@ struct MetalRendererTests {
         #expect(descriptor.depthAttachment.texture == nil)
     }
 
-    @MainActor
     @Test func frameResourcesWriteZeroAndMaximumPreparedInstances() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -387,7 +378,6 @@ struct MetalRendererTests {
         )
     }
 
-    @MainActor
     private func makeTexture(
         device: any MTLDevice,
         pixelFormat: MTLPixelFormat,

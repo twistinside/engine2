@@ -3,7 +3,6 @@ import simd
 import Testing
 @testable import Engine2
 
-@MainActor
 struct MetalHDRPipelineTests {
     @Test func validationPBRSurvivesHDRAndPresentsWithOneSRGBTransfer() throws {
         let renderer = try MetalHDRPipelineTestRenderer()

@@ -6,7 +6,6 @@ import Metal
 /// never mutates a set referenced by another in-flight frame. `FrameResources`
 /// replaces this value only after its availability semaphore proves prior GPU
 /// work for the slot has completed.
-@MainActor
 final class MetalHDRSceneTarget {
     let texture: any MTLTexture
     let residencySet: any MTLResidencySet

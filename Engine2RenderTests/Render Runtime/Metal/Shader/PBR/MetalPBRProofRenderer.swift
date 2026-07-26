@@ -9,7 +9,6 @@ import Metal
 /// not use the application's drawable path or establish a production material
 /// binding. The only artifact intended for production reuse is the shader
 /// evaluator called by these proof pipelines.
-@MainActor
 final class MetalPBRProofRenderer {
     static let width = 65
     static let height = 65

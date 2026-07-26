@@ -1,7 +1,6 @@
 import simd
 
 /// Owns platform-neutral device state and publishes immutable input snapshots.
-@MainActor
 final class InputRuntime: PInputEventSink, PInputSnapshotSource {
     private var revision = InputRevision.initial
     private var pointerPosition = SIMD2<Float>.zero

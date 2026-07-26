@@ -5,7 +5,6 @@
 /// publication's camera, then carries both immutable values through exact
 /// offscreen rendering and artifact derivation. It neither pauses nor advances
 /// Simulation, and it owns no independently mutable camera state.
-@MainActor
 final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
     private let presentationSource: any PSimulationPresentationSource
     private let viewpointID: RenderViewpointID

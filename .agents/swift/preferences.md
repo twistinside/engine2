@@ -6,6 +6,11 @@ When working in Swift:
 
 - Prefer value semantics unless reference identity is required.
 
+- When `SWIFT_DEFAULT_ACTOR_ISOLATION` supplies an actor, omit redundant explicit actor annotations from
+  declarations that inherit it. Keep actor-qualified closure types, deliberate actor re-entry annotations, and
+  actor-isolated members whose enclosing type is explicitly `nonisolated`, or protocol conformances whose isolation
+  must be stated to preserve the intended witness boundary.
+
 - Prefer standard Swift language features over custom abstractions.
 
 - Use 120 characters as the ordinary line-length limit. A modest overrun is preferable when wrapping one cohesive

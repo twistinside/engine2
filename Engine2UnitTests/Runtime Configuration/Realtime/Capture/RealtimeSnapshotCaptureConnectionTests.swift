@@ -4,7 +4,7 @@ import Testing
 @testable import Engine2
 
 struct RealtimeSnapshotCaptureConnectionTests {
-    @Test @MainActor
+    @Test
     func locksSelectedSnapshotCameraBeforeRenderingSuspends() async throws {
         let initialSnapshot = Self.snapshot(tick: 3, cameraX: 0)
         let laterSnapshot = Self.snapshot(
@@ -63,7 +63,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
     }
 
-    @Test @MainActor
+    @Test
     func sequentialCapturesKeepOneIdentityAndFollowSimulationPublications() async throws {
         let firstSnapshot = Self.snapshot(tick: 43, cameraX: -2)
         let secondSnapshot = Self.snapshot(
@@ -146,7 +146,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(presentationSource.sampleCount == 2)
     }
 
-    @Test @MainActor
+    @Test
     func overlappingCaptureReturnsBusyWithoutSamplingAgain() async throws {
         let snapshot = Self.snapshot(tick: 1, cameraX: 0)
         let presentationSource = MutablePresentationSource(snapshot)
@@ -185,7 +185,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         _ = await firstCapture.value
     }
 
-    @Test @MainActor
+    @Test
     func overlapDuringArtifactEncodingReturnsBusyWithoutResampling() async throws {
         let snapshot = Self.snapshot(tick: 11, cameraX: 0)
         let presentationSource = MutablePresentationSource(snapshot)
@@ -237,7 +237,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
     }
 
-    @Test @MainActor
+    @Test
     func preCancelledCaptureDoesNotSampleSourcesOrRender() async throws {
         let snapshot = Self.snapshot(tick: 17, cameraX: 0)
         let presentationSource = MutablePresentationSource(snapshot)
@@ -267,7 +267,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(await renderTarget.requestCount() == 0)
     }
 
-    @Test @MainActor
+    @Test
     func cancellationAfterRawRenderRetainsExactSnapshotAndResult() async throws {
         let snapshot = Self.snapshot(tick: 23, cameraX: 0)
         let renderTarget = ControlledRenderTarget()
@@ -300,7 +300,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
     }
 
-    @Test @MainActor
+    @Test
     func mismatchedRenderProvenancePreventsArtifactEncoding() async throws {
         let snapshot = Self.snapshot(tick: 31, cameraX: 0)
         let renderTarget = ControlledRenderTarget()
@@ -345,7 +345,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(await encoder.count() == 0)
     }
 
-    @Test @MainActor
+    @Test
     func everyPreEncodingRenderTerminalPreservesTheSelectedSnapshot() async throws {
         let snapshot = Self.snapshot(tick: 37, cameraX: 1)
         let request = RealtimeSnapshotCaptureRequest(
@@ -421,7 +421,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         }
     }
 
-    @Test @MainActor
+    @Test
     func artifactFailurePreservesSelectedSnapshotAndRawResult() async throws {
         let snapshot = Self.snapshot(tick: 41, cameraX: -1)
         let renderTarget = ControlledRenderTarget()
@@ -456,7 +456,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(await encoder.count() == 1)
     }
 
-    @Test @MainActor
+    @Test
     func mismatchedArtifactProvenanceRetainsRawAndEncodedValues() async throws {
         let snapshot = Self.snapshot(tick: 47, cameraX: 1)
         let renderTarget = ControlledRenderTarget()
@@ -549,7 +549,6 @@ struct RealtimeSnapshotCaptureConnectionTests {
     }
 }
 
-@MainActor
 private final class MutablePresentationSource: PSimulationPresentationSource {
     var snapshot: SimulationPresentationSnapshot
     private(set) var sampleCount = 0

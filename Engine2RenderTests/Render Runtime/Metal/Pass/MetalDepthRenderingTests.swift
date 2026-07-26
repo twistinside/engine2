@@ -6,7 +6,6 @@ import Testing
 @testable import Engine2
 
 struct MetalDepthRenderingTests {
-    @MainActor
     @Test func nearerTriangleWinsForBothProjectionsRegardlessOfSubmissionOrder() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -48,7 +47,6 @@ struct MetalDepthRenderingTests {
         }
     }
 
-    @MainActor
     @Test func normalDiagnosticEncodesNormalizedViewSpaceDirection() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -72,7 +70,6 @@ struct MetalDepthRenderingTests {
     }
 }
 
-@MainActor
 private func renderCenterPixel(
     drawOrder: [Int],
     nearNormal: SIMD3<Float> = SIMD3<Float>(1, 0, 0),

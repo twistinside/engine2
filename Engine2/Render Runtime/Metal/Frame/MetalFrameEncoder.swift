@@ -8,7 +8,6 @@ import MetalKit
 /// frame-slot arbitration, drawable ownership, queue submission, presentation,
 /// source sampling, and terminal-error policy remain with the caller so the
 /// same exact encoder can serve screen and offscreen configurations.
-@MainActor
 final class MetalFrameEncoder {
     /// Linear half-float scene format retained until presentation.
     static let sceneColorPixelFormat = MTLPixelFormat.rgba16Float

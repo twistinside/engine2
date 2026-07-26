@@ -3,7 +3,6 @@ import MetalKit
 import simd
 
 /// MetalKit view subclass that translates AppKit events into engine input events.
-@MainActor
 final class InputMetalView: MTKView {
     weak var inputSink: (any PInputEventSink)?
 

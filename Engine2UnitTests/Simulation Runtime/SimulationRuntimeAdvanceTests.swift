@@ -4,7 +4,7 @@ import Testing
 @testable import Engine2
 
 struct SimulationRuntimeAdvanceTests {
-    @Test @MainActor func initialCursorQualifiesTickZeroAndPresentation() {
+    @Test func initialCursorQualifiesTickZeroAndPresentation() {
         let sessionID = SimulationSessionID(
             rawValue: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!
         )
@@ -19,7 +19,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.latestPresentationSnapshot.cursor == simulation.currentCursor)
     }
 
-    @Test @MainActor func boundedAdvanceRunsCompleteScheduleAndReturnsExactSnapshot() async throws {
+    @Test func boundedAdvanceRunsCompleteScheduleAndReturnsExactSnapshot() async throws {
         let simulation = makeSimulation()
         let initialCursor = simulation.currentCursor
         let request = SimulationAdvanceRequest(
@@ -43,7 +43,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Float>(3, 0, 0))
     }
 
-    @Test @MainActor func staleExpectedCursorRejectsWithoutMutation() async {
+    @Test func staleExpectedCursorRejectsWithoutMutation() async {
         let simulation = makeSimulation()
         let initialCursor = simulation.currentCursor
         let initialSnapshot = simulation.latestPresentationSnapshot
@@ -77,7 +77,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.input.history.isEmpty)
     }
 
-    @Test @MainActor func rebuildStartsANewSessionAtTickZero() async throws {
+    @Test func rebuildStartsANewSessionAtTickZero() async throws {
         let simulation = makeSimulation()
         let firstResult = try completedResult(
             from: await simulation.advance(
@@ -92,7 +92,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.latestPresentationSnapshot.cursor == simulation.currentCursor)
     }
 
-    @Test @MainActor func sequentialRequestsDoNotReplaceTheSession() async throws {
+    @Test func sequentialRequestsDoNotReplaceTheSession() async throws {
         let simulation = makeSimulation()
         let sessionID = simulation.sessionID
 
@@ -114,7 +114,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.currentCursor.tick == SimulationTick(rawValue: 2))
     }
 
-    @Test @MainActor func runtimeDoesNotAdvanceWithoutAnExplicitRequest() async {
+    @Test func runtimeDoesNotAdvanceWithoutAnExplicitRequest() async {
         let simulation = makeSimulation()
         let cursor = simulation.currentCursor
 
@@ -123,7 +123,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.currentCursor == cursor)
     }
 
-    @Test @MainActor func batchIngestsTransientInputOnlyOnItsFirstTick() async throws {
+    @Test func batchIngestsTransientInputOnlyOnItsFirstTick() async throws {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
         let request = SimulationAdvanceRequest(
@@ -164,7 +164,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(result.finalPresentationSnapshot.camera == simulation.world.camera)
     }
 
-    @Test @MainActor func rebaseCarriesHeldStateWithoutHistoricalTransients() async throws {
+    @Test func rebaseCarriesHeldStateWithoutHistoricalTransients() async throws {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
         let request = SimulationAdvanceRequest(
@@ -187,7 +187,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.camera == initialCamera)
     }
 
-    @Test @MainActor func transitionRebasesThenIngestsOnlyPostBaselineInput() async throws {
+    @Test func transitionRebasesThenIngestsOnlyPostBaselineInput() async throws {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
         let baseline = inputSnapshot(
@@ -242,7 +242,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(result.finalPresentationSnapshot.camera == simulation.world.camera)
     }
 
-    @Test @MainActor func cursorMismatchRejectsTransitionWithoutChangingInput() async {
+    @Test func cursorMismatchRejectsTransitionWithoutChangingInput() async {
         let simulation = makeSimulation()
         let currentCursor = simulation.currentCursor
         let staleCursor = SimulationCursor(
@@ -279,7 +279,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.world.input.history.isEmpty)
     }
 
-    @Test @MainActor func simultaneousExpectedCursorRequestsCannotDoubleAdvance() async {
+    @Test func simultaneousExpectedCursorRequestsCannotDoubleAdvance() async {
         let simulation = makeSimulation()
         let initialCursor = simulation.currentCursor
         let request = SimulationAdvanceRequest(
@@ -308,7 +308,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.currentCursor.tick == SimulationTick(rawValue: 1))
     }
 
-    @Test @MainActor func returnedSnapshotRemainsDetachedFromLaterAdvances() async throws {
+    @Test func returnedSnapshotRemainsDetachedFromLaterAdvances() async throws {
         let simulation = makeSimulation()
         let first = try completedResult(
             from: await simulation.advance(
@@ -331,7 +331,6 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.latestPresentationSnapshot.entityPresentations.first?.position == SIMD3<Float>(2, 0, 0))
     }
 
-    @MainActor
     private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),

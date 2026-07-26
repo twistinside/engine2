@@ -5,7 +5,6 @@ import Metal
 /// The store is private infrastructure inside a Render Runtime. Game Content
 /// supplies backend-neutral asset references, while this object resolves and
 /// retains the corresponding device objects for exactly one `MTLDevice`.
-@MainActor
 final class MetalResourceStore {
     /// Default number of reusable allocator/buffer slots for live rendering.
     static let defaultFrameCount = 3

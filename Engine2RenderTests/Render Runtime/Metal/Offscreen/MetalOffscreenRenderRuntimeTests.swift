@@ -3,7 +3,6 @@ import Testing
 @testable import Engine2
 
 struct MetalOffscreenRenderRuntimeTests {
-    @MainActor
     @Test func rendersExactMaterialSceneIntoDetachedOpaquePixels() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
@@ -42,7 +41,6 @@ struct MetalOffscreenRenderRuntimeTests {
         })
     }
 
-    @MainActor
     @Test func overLimitRejectionDoesNotPoisonFollowingRequest() async throws {
         let fixture = makeFixture()
         let limits = OffscreenRenderLimits(
@@ -83,7 +81,6 @@ struct MetalOffscreenRenderRuntimeTests {
         #expect(result.sourceCursor == fixture.snapshot.cursor)
     }
 
-    @MainActor
     @Test func invalidExplicitCameraIsRejectedBeforeSubmission() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
@@ -107,7 +104,6 @@ struct MetalOffscreenRenderRuntimeTests {
         #expect(outcome == .rejected(.invalidViewpoint))
     }
 
-    @MainActor
     @Test func projectionOverflowIdentifiesTheExactEntityBeforeSubmission() async throws {
         let fixture = makeFixture()
         let seed = try #require(fixture.snapshot.entityPresentations.first)
@@ -150,7 +146,6 @@ struct MetalOffscreenRenderRuntimeTests {
         )
     }
 
-    @MainActor
     @Test func excessiveProjectedSceneIsRejectedRatherThanTruncated() async throws {
         let fixture = makeFixture()
         let seed = try #require(fixture.snapshot.entityPresentations.first)
@@ -193,7 +188,6 @@ struct MetalOffscreenRenderRuntimeTests {
         )
     }
 
-    @MainActor
     @Test func sequentialViewpointRevisionsPreserveExactSourceCursor() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
@@ -247,7 +241,6 @@ struct MetalOffscreenRenderRuntimeTests {
         #expect(firstResult.viewpoint.camera != secondResult.viewpoint.camera)
     }
 
-    @MainActor
     @Test func missingModelFailsExactPreflightWithoutAffectingValidRuntime() async throws {
         let fixture = makeFixture()
         let request = OffscreenRenderRequest(
@@ -281,7 +274,6 @@ struct MetalOffscreenRenderRuntimeTests {
         #expect(result.sourceCursor == fixture.snapshot.cursor)
     }
 
-    @MainActor
     private func makeFixture() -> (
         content: BasicGameContent,
         snapshot: SimulationPresentationSnapshot,
