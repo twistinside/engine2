@@ -11,14 +11,14 @@ struct RenderInstance: Equatable {
 
     let meshID: MeshID
     let materialID: MaterialID
+    /// Validated world-space placement retained for inspection and attribution.
     let transform: Transform
-}
+    /// Exact camera-relative transform proved finite during frame projection.
+    let modelViewMatrix: simd_float4x4
+    /// Inverse-transpose linear transform proved usable with the model-view value.
+    let normalMatrix: simd_float3x3
 
-extension RenderInstance {
     /// Validates and projects one entity through a selected camera view.
-    ///
-    /// The initializer lives in an extension so Swift can still synthesize the
-    /// direct memberwise initializer used for already-projected Render values.
     init(projecting entity: EntityPresentationSnapshot, viewMatrix: simd_float4x4) throws(RenderFrameProjectionError) {
         guard let position = entity.position else {
             throw RenderFrameProjectionError.missingPosition(
@@ -89,10 +89,10 @@ extension RenderInstance {
             )
         }
 
-        self.init(
-            meshID: entity.meshID,
-            materialID: entity.materialID,
-            transform: transform
-        )
+        self.meshID = entity.meshID
+        self.materialID = entity.materialID
+        self.transform = transform
+        self.modelViewMatrix = modelViewMatrix
+        self.normalMatrix = simd_transpose(inverse)
     }
 }

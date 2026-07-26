@@ -107,16 +107,15 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
             return .rejected(.invalidViewpoint)
         }
 
-        // `GPUInstance` multiplies projection by each model-view matrix after
-        // frame admission. Prove those exact products remain finite so an
-        // accepted offline request cannot write NaNs for one extreme entity.
+        // GPU packing multiplies projection by each retained validated
+        // model-view matrix after frame admission. Prove those output-shaped
+        // products remain finite so an accepted offline request cannot write
+        // NaNs for one extreme entity.
         for (entity, instance) in zip(
             request.presentationSnapshot.entityPresentations,
             renderFrame.instances
         ) {
-            let modelViewMatrix = request.viewpoint.camera.viewMatrix
-                * instance.transform.matrix
-            guard (projectionMatrix * modelViewMatrix).hasFiniteElements else {
+            guard (projectionMatrix * instance.modelViewMatrix).hasFiniteElements else {
                 return .rejected(
                     .invalidPresentation(
                         .nonfiniteModelViewProjectionTransform(

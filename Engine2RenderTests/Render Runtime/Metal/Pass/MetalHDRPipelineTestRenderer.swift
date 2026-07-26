@@ -212,13 +212,6 @@ final class MetalHDRPipelineTestRenderer {
         )
 
         frame.commandAllocator.reset()
-        let instances = materialIDs.map { materialID in
-            RenderInstance(
-                meshID: .ball,
-                materialID: materialID,
-                transform: .identity
-            )
-        }
         let preparedFrame = MetalPreparedFrame(
             renderFrame: RenderFrame(
                 projecting: SimulationPresentationSnapshot(
@@ -227,15 +220,15 @@ final class MetalHDRPipelineTestRenderer {
                         tick: .zero
                     ),
                     camera: Self.camera,
-                    entityPresentations: instances.enumerated().map {
-                        index, instance in
+                    entityPresentations: materialIDs.enumerated().map {
+                        index, materialID in
                         EntityPresentationSnapshot(
                             id: EntityID(index: index, generation: 0),
-                            position: instance.transform.position,
-                            rotation: instance.transform.rotation,
-                            scale: instance.transform.scale,
-                            meshID: instance.meshID,
-                            materialID: instance.materialID
+                            position: .zero,
+                            rotation: Transform.identityRotation,
+                            scale: SIMD3<Float>(repeating: 1),
+                            meshID: .ball,
+                            materialID: materialID
                         )
                     }
                 )
