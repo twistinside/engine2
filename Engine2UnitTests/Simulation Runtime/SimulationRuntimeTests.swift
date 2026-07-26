@@ -120,7 +120,7 @@ struct SimulationRuntimeTests {
     }
 
     @Test func explicitInputBaselineEstablishesWorldWithoutReplayingMotion() {
-        let key = KeyboardKey.make(
+        let key = KeyboardKey(
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )

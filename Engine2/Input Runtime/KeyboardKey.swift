@@ -5,19 +5,12 @@
 nonisolated struct KeyboardKey: Hashable, Sendable {
     let keyCode: UInt16
     let displayName: String
+}
 
-    static func make(keyCode: UInt16, charactersIgnoringModifiers: String?) -> KeyboardKey {
-        KeyboardKey(
-            keyCode: keyCode,
-            displayName: displayName(
-                for: keyCode,
-                charactersIgnoringModifiers: charactersIgnoringModifiers
-            )
-        )
-    }
-
-    private static func displayName(for keyCode: UInt16, charactersIgnoringModifiers: String?) -> String {
-        switch keyCode {
+extension KeyboardKey {
+    /// Derives the display label supplied with one platform key event.
+    init(keyCode: UInt16, charactersIgnoringModifiers: String?) {
+        let displayName = switch keyCode {
         case 36: "Return"
         case 48: "Tab"
         case 49: "Space"
@@ -34,6 +27,8 @@ nonisolated struct KeyboardKey: Hashable, Sendable {
                 "Key\(keyCode)"
             }
         }
+
+        self.init(keyCode: keyCode, displayName: displayName)
     }
 }
 
