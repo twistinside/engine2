@@ -30,7 +30,7 @@ final class MetalHDRPresentationPass {
         outputMode: RenderOutputMode,
         into commandBuffer: any MTL4CommandBuffer
     ) throws(MetalFrameEncoderError) {
-        let renderPass = Self.makeRenderPassDescriptor(
+        let renderPass = makeRenderPassDescriptor(
             destinationTexture: destinationTexture
         )
         guard let encoder = commandBuffer.makeRenderCommandEncoder(
@@ -56,9 +56,11 @@ final class MetalHDRPresentationPass {
         encoder.endEncoding()
     }
 
-    /// Descriptor factory kept visible to tests because the resulting encoder
-    /// does not expose which attachment policy created it.
-    static func makeRenderPassDescriptor(destinationTexture: any MTLTexture) -> MTL4RenderPassDescriptor {
+    /// Builds the descriptor for this pass's output attachment policy.
+    ///
+    /// The method remains visible to tests because the resulting encoder does
+    /// not expose which attachment policy created it.
+    func makeRenderPassDescriptor(destinationTexture: any MTLTexture) -> MTL4RenderPassDescriptor {
         let descriptor = MTL4RenderPassDescriptor()
         descriptor.colorAttachments[0].texture = destinationTexture
         descriptor.colorAttachments[0].loadAction = .clear

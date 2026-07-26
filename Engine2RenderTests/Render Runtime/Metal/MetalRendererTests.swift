@@ -292,8 +292,14 @@ struct MetalRendererTests {
             blue: 0.5,
             alpha: 1
         )
+        let resources = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: 1
+        )
+        let framePass = MetalHDRFramePass(resources: resources)
 
-        let descriptor = MetalHDRFramePass.makeSceneRenderPassDescriptor(
+        let descriptor = framePass.makeSceneRenderPassDescriptor(
             sceneColorTexture: sceneColorTexture,
             depthTexture: depthTexture,
             clearColor: clearColor
@@ -327,8 +333,14 @@ struct MetalRendererTests {
             pixelFormat: .bgra8Unorm_srgb,
             usage: .renderTarget
         )
+        let resources = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: 1
+        )
+        let presentationPass = MetalHDRPresentationPass(resources: resources)
 
-        let descriptor = MetalHDRPresentationPass.makeRenderPassDescriptor(
+        let descriptor = presentationPass.makeRenderPassDescriptor(
             destinationTexture: drawableTexture
         )
         let colorAttachment = try #require(descriptor.colorAttachments[0])
