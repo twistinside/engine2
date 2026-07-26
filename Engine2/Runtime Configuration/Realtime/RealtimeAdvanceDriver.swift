@@ -77,7 +77,7 @@ final class RealtimeAdvanceDriver {
     private var expectedCursor: SimulationCursor
 
     @ObservationIgnored
-    private var transitionInputBaseline: InputSnapshot?
+    private var inputAssignmentState = RealtimeInputAssignmentState()
 
     @ObservationIgnored
     private var discardNextElapsedSample = false
@@ -93,9 +93,6 @@ final class RealtimeAdvanceDriver {
 
     @ObservationIgnored
     private var synchronizationGeneration: UInt64 = 0
-
-    @ObservationIgnored
-    private var inputPolicyGeneration: UInt64 = 0
 
     @ObservationIgnored
     private var advanceDrainWaiters: [CheckedContinuation<Void, Never>] = []
@@ -372,23 +369,10 @@ final class RealtimeAdvanceDriver {
         // Read the latest-value source once so input and step count remain one
         // immutable, attributable request across the async boundary.
         let inputSnapshot = inputSource?.latestInputSnapshot
-        let inputAssignment: SimulationInputAssignment
-        switch (transitionInputBaseline, inputSnapshot) {
-        case let (.some(baseline), .some(snapshot)):
-            inputAssignment = .rebaseThenIngest(
-                baseline: baseline,
-                snapshot: snapshot
-            )
-
-        case let (.some(baseline), .none):
-            inputAssignment = .rebase(baseline)
-
-        case let (.none, .some(snapshot)):
-            inputAssignment = .ingest(snapshot)
-
-        case (.none, .none):
-            inputAssignment = .none
-        }
+        let requestInputAssignmentState = inputAssignmentState
+        let inputAssignment = requestInputAssignmentState.assignment(
+            ingesting: inputSnapshot
+        )
 
         let request = SimulationAdvanceRequest(
             expectedCursor: expectedCursor,
@@ -396,7 +380,6 @@ final class RealtimeAdvanceDriver {
             inputAssignment: inputAssignment
         )
         let requestSynchronizationGeneration = synchronizationGeneration
-        let requestInputPolicyGeneration = inputPolicyGeneration
 
         // No suspension occurs between the wake validation above and this
         // request, but keep the authority check adjacent to the mutation
@@ -417,9 +400,9 @@ final class RealtimeAdvanceDriver {
             if requestSynchronizationGeneration == synchronizationGeneration {
                 expectedCursor = result.finalCursor
             }
-            if requestInputPolicyGeneration == inputPolicyGeneration {
-                transitionInputBaseline = nil
-            }
+            inputAssignmentState.retireTransitionBaseline(
+                ifUnchangedSince: requestInputAssignmentState
+            )
         }
 
         // A stopped task may still receive a result from a target that did not
@@ -492,9 +475,7 @@ final class RealtimeAdvanceDriver {
 
     /// Changes input policy while superseding any in-flight request bookkeeping.
     private func setTransitionInputBaseline(_ baseline: InputSnapshot?) {
-        precondition(inputPolicyGeneration < .max, "Real-time input policy generation exhausted.")
-        inputPolicyGeneration += 1
-        transitionInputBaseline = baseline
+        inputAssignmentState.replaceTransitionBaseline(baseline)
     }
 
     /// Releases lifecycle waiters after one accepted target request settles.

@@ -156,6 +156,7 @@ Current example ownership:
   - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, and lifecycle-generation protection for coordinated Simulation cutovers. It is not an input router; the App supplies its `InputRuntime` to `InputMetalView` through the narrow `PInputEventSink` capability.
   - `RealtimeConfiguration` resolves its optional polling interval against `SimulationRuntime.fixedTimeStep` before constructing the driver.
   - `RealtimeStepAccumulator` is the driver's value-semantic elapsed-debt and bounded-batching policy. It has no clock, cursor, lifecycle, Input, or Simulation authority.
+  - `RealtimeInputAssignmentState` couples one transition baseline to its policy generation, forms the immutable assignment for an exact request, and prevents older completion bookkeeping from clearing newer policy.
   - `RealtimeAdvanceDriver` separates its production suspending-clock construction path from a fully injected clock, scheduling-time, and sleeper path. Both require explicit input-source, cadence, catch-up, and initial-enabled choices.
   - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
 - `Engine2/Runtime Configuration/Manual/*.swift`
