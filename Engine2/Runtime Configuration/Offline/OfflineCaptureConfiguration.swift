@@ -36,7 +36,8 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
         let coordinator = OfflineCaptureCoordinator(
             advanceTarget: simulationRuntime,
             initialPresentationSnapshot: initialPresentationSnapshot,
-            renderTarget: renderRuntime
+            renderTarget: renderRuntime,
+            artifactEncoder: ImageIOArtifactEncoder()
         )
 
         // Only immutable initial identity and the coordinator's narrow workflow

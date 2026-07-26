@@ -160,7 +160,7 @@ Current example ownership:
 - `Engine2/Runtime Configuration/Manual/*.swift`
   - `ManualConfiguration` and `ManualAssembly` expose caller-driven exact advancement without Input or a polling task.
 - `Engine2/Runtime Configuration/Offline/*.swift`
-  - `OfflineCaptureConfiguration` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, and one `OfflineCaptureCoordinator`. It has no Input Runtime, wall-clock cadence, screen surface, or optional-runtime bag.
+  - `OfflineCaptureConfiguration` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, one production `ImageIOArtifactEncoder`, and one `OfflineCaptureCoordinator`, injecting each capability explicitly. It has no Input Runtime, wall-clock cadence, screen surface, or optional-runtime bag.
   - `OfflineCaptureAssembly` exposes only `initialCursor` and the narrow `POfflineCaptureTarget`; it does not expose either Runtime or a second advance capability.
   - `OfflineCaptureCoordinator` is the sole effective advance authority and one-slot exact-presentation holder. It is seeded with Simulation's initial completed snapshot and replaces that value immediately whenever an advance completes, before downstream cancellation or output failure can return. It retains no history.
   - `POfflineCaptureTarget.capture(_:)` submits its supplied positive-step advance request at most once and renders only the returned completed snapshot. `captureCurrent(_:)` requires the retained snapshot's exact cursor and issues no Simulation request or latest-value read. Both paths share one actor-reentrancy gate and common request/cursor/viewpoint/settings/image-size validation.
