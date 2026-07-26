@@ -2,7 +2,8 @@
 ///
 /// Construction proves both dimensions are positive and that the pixel count,
 /// tightly packed BGRA row length, and total BGRA byte count all fit in `Int`.
-/// Callers may therefore use ``pixelCount`` without repeating overflow checks.
+/// Callers may therefore use its pixel, aspect, row, and byte projections
+/// without repeating overflow checks or pixel-layout arithmetic.
 nonisolated struct RenderPixelSize: Equatable, Hashable, Sendable {
     /// UHD 4K output at 3,840 by 2,160 pixels.
     static let uhd4K = RenderPixelSize(
@@ -18,8 +19,23 @@ nonisolated struct RenderPixelSize: Equatable, Hashable, Sendable {
         width * height
     }
 
+    /// Width divided by height for camera projection at this exact output size.
+    var aspectRatio: Float {
+        Float(width) / Float(height)
+    }
+
+    /// Bytes in one tightly packed four-byte BGRA8 row.
+    var bgra8BytesPerRow: Int {
+        width * 4
+    }
+
+    /// Bytes in the complete tightly packed four-byte BGRA8 image.
+    var bgra8ByteCount: Int {
+        bgra8BytesPerRow * height
+    }
+
     /// Creates a positive extent with representable pixel and BGRA byte counts.
-    init(width: Int, height: Int) throws {
+    init(width: Int, height: Int) throws(RenderPixelSizeError) {
         guard width > 0 else {
             throw RenderPixelSizeError.nonpositiveWidth(width)
         }

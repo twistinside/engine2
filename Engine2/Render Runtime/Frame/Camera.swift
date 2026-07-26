@@ -13,21 +13,32 @@ nonisolated struct Camera: Sendable {
     nonisolated enum Projection: Equatable, Sendable {
         case orthographic(height: Float, near: Float, far: Float)
         case perspective(verticalFieldOfView: Float, near: Float, far: Float)
+
+        /// Standard perspective projection used by the engine's neutral camera.
+        ///
+        /// Callers select this value deliberately when the ordinary 60-degree,
+        /// 0.1-to-100 world-unit view volume suits their content.
+        static let standardPerspective = Self.perspective(
+            verticalFieldOfView: .pi / 3,
+            near: 0.1,
+            far: 100
+        )
     }
+
+    /// Finite neutral camera used by a new World and safe renderer fallbacks.
+    ///
+    /// Game Content may replace this complete value with an authored camera.
+    static let standard = Camera(
+        position: SIMD3<Float>(0, 0, 8),
+        rotation: Transform.identityRotation,
+        projection: .standardPerspective
+    )
 
     var position: SIMD3<Float>
     var rotation: simd_quatf
     var projection: Projection
 
-    init(
-        position: SIMD3<Float> = SIMD3<Float>(0, 0, 8),
-        rotation: simd_quatf = Transform.identityRotation,
-        projection: Projection = .perspective(
-            verticalFieldOfView: .pi / 3,
-            near: 0.1,
-            far: 100
-        )
-    ) {
+    init(position: SIMD3<Float>, rotation: simd_quatf, projection: Projection) {
         Self.validate(projection)
 
         self.position = position
@@ -35,34 +46,12 @@ nonisolated struct Camera: Sendable {
         self.projection = projection
     }
 
-    init(
-        position: SIMD3<Float>,
-        rotation: simd_quatf = Transform.identityRotation,
-        orthographicHeight: Float,
-        nearPlane: Float = 0.1,
-        farPlane: Float = 100
-    ) {
-        self.init(
-            position: position,
-            rotation: rotation,
-            projection: .orthographic(
-                height: orthographicHeight,
-                near: nearPlane,
-                far: farPlane
-            )
-        )
-    }
-
     /// Builds a camera placed at `position` and aimed at a target point.
     static func lookingAt(
         _ target: SIMD3<Float>,
         from position: SIMD3<Float>,
-        up: SIMD3<Float> = SIMD3<Float>(0, 1, 0),
-        projection: Projection = .perspective(
-            verticalFieldOfView: .pi / 3,
-            near: 0.1,
-            far: 100
-        )
+        up: SIMD3<Float>,
+        projection: Projection
     ) -> Camera {
         Camera(
             position: position,
@@ -83,19 +72,13 @@ nonisolated struct Camera: Sendable {
     /// simulation state produces no draw instances instead of NaN view-space
     /// positions and normal matrices.
     var supportsViewTransform: Bool {
-        let positionIsFinite = position.x.isFinite
-            && position.y.isFinite
-            && position.z.isFinite
         let rotationVector = rotation.vector
         let rotationLengthSquared = simd_length_squared(rotationVector)
-        let rotationIsFiniteAndNonzero = rotationVector.x.isFinite
-            && rotationVector.y.isFinite
-            && rotationVector.z.isFinite
-            && rotationVector.w.isFinite
+        let rotationIsFiniteAndNonzero = rotationVector.isFinite
             && rotationLengthSquared.isFinite
             && rotationLengthSquared > 0
 
-        guard positionIsFinite && rotationIsFiniteAndNonzero else {
+        guard position.isFinite && rotationIsFiniteAndNonzero else {
             return false
         }
 
@@ -137,11 +120,7 @@ nonisolated struct Camera: Sendable {
         projectionMatrix(aspectRatio: aspectRatio) * viewMatrix
     }
 
-    private static func rotationLookingAt(
-        _ target: SIMD3<Float>,
-        from position: SIMD3<Float>,
-        up: SIMD3<Float>
-    ) -> simd_quatf {
+    private static func rotationLookingAt(_ target: SIMD3<Float>, from position: SIMD3<Float>, up: SIMD3<Float>) -> simd_quatf {
         let forward = simd_normalize(target - position)
         let right = simd_normalize(simd_cross(forward, up))
         let correctedUp = simd_cross(right, forward)
@@ -159,36 +138,15 @@ nonisolated struct Camera: Sendable {
     private static func validate(_ projection: Projection) {
         switch projection {
         case let .orthographic(height, near, far):
-            precondition(
-                height.isFinite && height > 0,
-                "Camera orthographic height must be finite and positive."
-            )
-            precondition(
-                near.isFinite && near > 0,
-                "Camera orthographic near plane must be finite and positive."
-            )
-            precondition(
-                far.isFinite && far > near,
-                "Camera orthographic far plane must be finite and greater than the near plane."
-            )
+            precondition(height.isFinite && height > 0, "Camera orthographic height must be finite and positive.")
+            precondition(near.isFinite && near > 0, "Camera orthographic near plane must be finite and positive.")
+            precondition(far.isFinite && far > near, "Camera orthographic far plane must be finite and greater than the near plane.")
 
         case let .perspective(verticalFieldOfView, near, far):
-            precondition(
-                verticalFieldOfView.isFinite && verticalFieldOfView > 0,
-                "Camera field of view must be finite and positive."
-            )
-            precondition(
-                verticalFieldOfView < .pi,
-                "Camera field of view must be less than pi radians."
-            )
-            precondition(
-                near.isFinite && near > 0,
-                "Camera perspective near plane must be finite and positive."
-            )
-            precondition(
-                far.isFinite && far > near,
-                "Camera perspective far plane must be finite and greater than the near plane."
-            )
+            precondition(verticalFieldOfView.isFinite && verticalFieldOfView > 0, "Camera field of view must be finite and positive.")
+            precondition(verticalFieldOfView < .pi, "Camera field of view must be less than pi radians.")
+            precondition(near.isFinite && near > 0, "Camera perspective near plane must be finite and positive.")
+            precondition(far.isFinite && far > near, "Camera perspective far plane must be finite and greater than the near plane.")
         }
     }
 }

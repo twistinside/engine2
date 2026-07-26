@@ -3,33 +3,26 @@ import Testing
 @testable import Engine2
 
 struct MetalResourceStoreTests {
-    @MainActor
     @Test func ownsMetal4CompilerQueueAndRequiredStateLibraries() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
         #expect(store.frames.count == MetalResourceStore.defaultFrameCount)
 
-        let library = try store.shaderLibrary(for: .engine)
-        let pbrPipeline = try store.renderPipelineState(for: .modelPBR)
-        let normalPipeline = try store.renderPipelineState(
-            for: .modelNormalDiagnostic
-        )
-        let toneMappedPresentationPipeline = try store.renderPipelineState(
-            for: .hdrToneMappedPresentation
-        )
-        let linearPresentationPipeline = try store.renderPipelineState(
-            for: .linearPresentation
-        )
-        let depthStencil = try store.depthStencilState(for: .opaque)
-        let modelArgumentTable = try store.argumentTable(for: .model)
-        let pbrSceneArgumentTable = try store.argumentTable(for: .pbrScene)
-        let presentationArgumentTable = try store.argumentTable(
-            for: .hdrPresentation
-        )
+        let requiredResources = store.requiredResources
+        let library = requiredResources.engineLibrary
+        let pbrPipeline = requiredResources.modelPBRPipeline
+        let normalPipeline = requiredResources.modelNormalDiagnosticPipeline
+        let toneMappedPresentationPipeline = requiredResources.hdrToneMappedPresentationPipeline
+        let linearPresentationPipeline = requiredResources.linearPresentationPipeline
+        let depthStencil = requiredResources.opaqueDepthStencilState
+        let modelArgumentTable = requiredResources.modelArgumentTable
+        let pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        let presentationArgumentTable = requiredResources.hdrPresentationArgumentTable
 
         #expect(store.device.registryID == device.registryID)
         #expect(store.compiler.device.registryID == device.registryID)
@@ -74,38 +67,27 @@ struct MetalResourceStoreTests {
         )
     }
 
-    @MainActor
-    @Test func opaqueDepthDescriptorWritesOnlyNearerFragments() {
-        let descriptor = MetalResourceStore.makeDepthStencilDescriptor(
-            for: .opaque
-        )
-
-        #expect(descriptor.label == "Opaque Depth")
-        #expect(descriptor.depthCompareFunction == .less)
-        #expect(descriptor.isDepthWriteEnabled)
-    }
-
-    @MainActor
-    @Test func repeatedLookupReturnsTheRetainedResource() throws {
+    @Test func requiredSetRetainsTheExactEngineLibrary() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
-        let first = try store.shaderLibrary(for: .engine)
-        let second = try store.shaderLibrary(for: .engine)
+        let first = store.requiredResources.engineLibrary
+        let second = store.requiredResources.engineLibrary
 
         #expect(first as AnyObject === second as AnyObject)
     }
 
-    @MainActor
     @Test func retainsExactAuthoredMaterialDescriptions() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let catalog = BasicGameContent().renderAssetCatalog
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: catalog
+            renderAssetCatalog: catalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
         // Material identities cross the runtime boundary, while the retained
@@ -120,7 +102,6 @@ struct MetalResourceStoreTests {
         }
     }
 
-    @MainActor
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let incompleteCatalog = RenderAssetCatalog(
@@ -137,7 +118,8 @@ struct MetalResourceStoreTests {
         do {
             _ = try MetalResourceStore(
                 device: device,
-                renderAssetCatalog: incompleteCatalog
+                renderAssetCatalog: incompleteCatalog,
+                frameCount: MetalResourceStore.defaultFrameCount
             )
             Issue.record("Expected incomplete authored material content to fail")
         } catch let error as RenderAssetCatalogError {
@@ -151,7 +133,6 @@ struct MetalResourceStoreTests {
         }
     }
 
-    @MainActor
     @Test func residencySetsSeparateStaticAndPerFrameAllocations() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(

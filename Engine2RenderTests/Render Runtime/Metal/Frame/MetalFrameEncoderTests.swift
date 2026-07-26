@@ -5,7 +5,6 @@ import Testing
 @testable import Engine2
 
 struct MetalFrameEncoderTests {
-    @MainActor
     @Test func encodesPublishedFrameIntoCallerOwnedOffscreenTargets() throws {
         let width = 320
         let height = 240
@@ -14,7 +13,7 @@ struct MetalFrameEncoderTests {
             renderAssetCatalog: scene.catalog,
             frameCount: 1
         )
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
 
         // Content resolution is deliberately complete before acquiring the
         // mutable frame slot or resetting its allocator. A caller can therefore
@@ -32,6 +31,11 @@ struct MetalFrameEncoderTests {
             prepared.instances.map { $0.renderInstance.materialID }
                 == scene.materialIDs
         )
+        for instance in prepared.instances {
+            let preparedModel = try #require(instance.model)
+            let storedModel = try #require(resources.model(for: instance.renderInstance.meshID))
+            #expect(preparedModel.meshes.map(ObjectIdentifier.init) == storedModel.meshes.map(ObjectIdentifier.init))
+        }
         #expect(
             prepared.renderFrame.sourceCursor == scene.renderFrame.sourceCursor
         )
@@ -93,7 +97,8 @@ struct MetalFrameEncoderTests {
             depthTexture: depthTexture,
             destinationTexture: destinationTexture,
             clearColor: MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1),
-            outputMode: .surface
+            outputMode: .surface,
+            exposure: .validation
         )
         #expect(inputs.drawableSize == CGSize(width: width, height: height))
 
@@ -155,13 +160,12 @@ struct MetalFrameEncoderTests {
         #expect(containsRenderedColor)
     }
 
-    @MainActor
     @Test func preparationBoundsZeroOrdinaryMaximumAndExcessiveFrames() throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
 
         for requestedCount in [
             0,
@@ -170,7 +174,7 @@ struct MetalFrameEncoderTests {
             FrameResources.maximumInstanceCount + 10
         ] {
             let prepared = encoder.prepare(
-                Self.makeRenderFrame(instanceCount: requestedCount)
+                makeRenderFrame(instanceCount: requestedCount)
             )
             let expectedCount = min(
                 requestedCount,
@@ -191,7 +195,6 @@ struct MetalFrameEncoderTests {
         }
     }
 
-    @MainActor
     @Test func encodingInputsRejectMismatchedTargetDimensions() throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: .materialOnlyTestCatalog,
@@ -235,12 +238,12 @@ struct MetalFrameEncoderTests {
                     blue: 0,
                     alpha: 1
                 ),
-                outputMode: .surface
+                outputMode: .surface,
+                exposure: .validation
             )
         }
     }
 
-    @MainActor
     @Test func encodingInputsRejectUnexpectedTargetFormats() throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: .materialOnlyTestCatalog,
@@ -291,18 +294,19 @@ struct MetalFrameEncoderTests {
                     blue: 0,
                     alpha: 1
                 ),
-                outputMode: .surface
+                outputMode: .surface,
+                exposure: .validation
             )
         }
     }
 
-    private static func makeRenderFrame(instanceCount: Int) -> RenderFrame {
+    private func makeRenderFrame(instanceCount: Int) -> RenderFrame {
         let snapshot = SimulationPresentationSnapshot(
             cursor: SimulationCursor(
                 sessionID: SimulationSessionID(),
                 tick: .zero
             ),
-            camera: Camera(),
+            camera: .standard,
             entityPresentations: (0..<instanceCount).map { index in
                 EntityPresentationSnapshot(
                     id: EntityID(index: index, generation: 0),
@@ -317,7 +321,6 @@ struct MetalFrameEncoderTests {
         return RenderFrame(projecting: snapshot)
     }
 
-    @MainActor
     private func makeTexture(
         device: any MTLDevice,
         pixelFormat: MTLPixelFormat,
@@ -337,11 +340,7 @@ struct MetalFrameEncoderTests {
         return try #require(device.makeTexture(descriptor: descriptor))
     }
 
-    @MainActor
-    private func makeResidencySet(
-        device: any MTLDevice,
-        allocations: [any MTLAllocation]
-    ) throws -> any MTLResidencySet {
+    private func makeResidencySet(device: any MTLDevice, allocations: [any MTLAllocation]) throws -> any MTLResidencySet {
         let descriptor = MTLResidencySetDescriptor()
         descriptor.label = "MetalFrameEncoder Offscreen Targets"
         descriptor.initialCapacity = allocations.count

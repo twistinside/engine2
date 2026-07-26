@@ -5,7 +5,7 @@ import Testing
 
 struct OffscreenRenderOutcomeTests {
     @Test func completedRejectedAndFailedOutcomesRetainValueEquality() throws {
-        let completedResult = try Self.result()
+        let completedResult = try result()
         let limits = OffscreenRenderLimits(
             maxDimension: 2_048,
             maxPixelCount: 4_194_304
@@ -80,7 +80,7 @@ struct OffscreenRenderOutcomeTests {
         requireError(failure)
     }
 
-    private static func result() throws -> OffscreenRenderResult {
+    private func result() throws -> OffscreenRenderResult {
         let size = try RenderPixelSize(width: 1, height: 1)
         return OffscreenRenderResult(
             requestID: OffscreenRenderRequestID(
@@ -103,9 +103,17 @@ struct OffscreenRenderOutcomeTests {
                     )!
                 ),
                 revision: RenderViewpointRevision(rawValue: 4),
-                camera: Camera(position: SIMD3<Float>(0, 0, 5))
+                camera: Camera(
+                    position: SIMD3<Float>(0, 0, 5),
+                    rotation: Transform.identityRotation,
+                    projection: .standardPerspective
+                )
             ),
-            settings: OffscreenRenderSettings(size: size),
+            settings: OffscreenRenderSettings(
+                size: size,
+                outputMode: .surface,
+                exposure: .validation
+            ),
             image: try RenderedBGRA8SRGBImage(
                 size: size,
                 bytes: Data([0, 0, 0, 255])

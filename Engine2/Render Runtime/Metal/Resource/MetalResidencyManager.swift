@@ -8,7 +8,6 @@ import QuartzCore
 /// allocation resident. The resource store retains the actual objects, while
 /// this manager groups their `MTLAllocation`s by lifetime and registers those
 /// groups with the command queue.
-@MainActor
 final class MetalResidencyManager {
     /// Immutable meshes, textures, and other long-lived content allocations.
     let staticAssets: any MTLResidencySet
@@ -19,12 +18,7 @@ final class MetalResidencyManager {
     private let commandQueue: any MTL4CommandQueue
     private var registeredExternalSets: Set<ObjectIdentifier> = []
 
-    init(
-        device: any MTLDevice,
-        commandQueue: any MTL4CommandQueue,
-        staticAssetCapacity: Int,
-        frameResourceCapacity: Int
-    ) throws {
+    init(device: any MTLDevice, commandQueue: any MTL4CommandQueue, staticAssetCapacity: Int, frameResourceCapacity: Int) throws {
         let staticDescriptor = MTLResidencySetDescriptor()
         staticDescriptor.label = "Static Render Assets"
         staticDescriptor.initialCapacity = staticAssetCapacity

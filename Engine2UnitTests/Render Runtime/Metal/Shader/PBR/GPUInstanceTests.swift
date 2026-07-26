@@ -22,23 +22,24 @@ struct GPUInstanceTests {
         )
     }
 
-    @Test func packsAuthoredFactorsIntoAlignedPerDrawLanes() {
+    @Test func packsAuthoredFactorsIntoAlignedPerDrawLanes() throws {
         let material = PBRMaterialDescription(
             baseColor: SIMD3<Float>(0.2, 0.4, 0.8),
             metallic: 0.75,
             perceptualRoughness: 0.3
         )
+        let renderInstance = try projectedInstance(
+            transform: .identity,
+            viewMatrix: matrix_identity_float4x4
+        )
         let gpuInstance = GPUInstance(
-            RenderInstance(
-                meshID: .ball,
-                materialID: .warmDielectric,
-                transform: Transform()
-            ),
+            renderInstance,
             material: material,
-            viewMatrix: matrix_identity_float4x4,
             projectionMatrix: matrix_identity_float4x4
         )
 
+        #expect(gpuInstance.modelViewMatrix == renderInstance.modelViewMatrix)
+        #expect(gpuInstance.normalMatrix == renderInstance.normalMatrix)
         #expect(
             gpuInstance.baseColorMetallic
                 == SIMD4<Float>(0.2, 0.4, 0.8, 0.75)
@@ -49,7 +50,7 @@ struct GPUInstanceTests {
         )
     }
 
-    @Test func inverseTransposeKeepsNormalPerpendicularAfterNonuniformScale() {
+    @Test func inverseTransposeKeepsNormalPerpendicularAfterNonuniformScale() throws {
         let localNormal = simd_normalize(SIMD3<Float>(1, 2, 3))
         let localTangent = simd_normalize(
             simd_cross(localNormal, SIMD3<Float>(0, 1, 0))
@@ -65,16 +66,19 @@ struct GPUInstanceTests {
             ),
             scale: SIMD3<Float>(2, 0.5, 3)
         )
-        let renderInstance = RenderInstance(
-            meshID: .ball,
-            materialID: .warmDielectric,
-            transform: transform
+        let camera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(0, 1, 8),
+            up: SIMD3<Float>(0, 1, 0),
+            projection: .standardPerspective
         )
-        let camera = Camera.lookingAt(.zero, from: SIMD3<Float>(0, 1, 8))
+        let renderInstance = try projectedInstance(
+            transform: transform,
+            viewMatrix: camera.viewMatrix
+        )
         let gpuInstance = GPUInstance(
             renderInstance,
             material: Self.warmDielectric,
-            viewMatrix: camera.viewMatrix,
             projectionMatrix: camera.projectionMatrix(aspectRatio: 1)
         )
         let linearModelView = upperLeft3x3(of: gpuInstance.modelViewMatrix)
@@ -91,31 +95,42 @@ struct GPUInstanceTests {
         )
     }
 
-    @Test func cameraTranslationDoesNotChangeNormalTransform() {
-        let renderInstance = RenderInstance(
-            meshID: .ball,
-            materialID: .warmDielectric,
-            transform: Transform(
-                rotation: simd_quatf(
-                    angle: .pi / 4,
-                    axis: SIMD3<Float>(0, 1, 0)
-                ),
-                scale: SIMD3<Float>(2, 1, 0.5)
-            )
+    @Test func cameraTranslationDoesNotChangeNormalTransform() throws {
+        let transform = Transform(
+            position: .zero,
+            rotation: simd_quatf(
+                angle: .pi / 4,
+                axis: SIMD3<Float>(0, 1, 0)
+            ),
+            scale: SIMD3<Float>(2, 1, 0.5)
         )
-        let firstCamera = Camera(position: SIMD3<Float>(0, 0, 8))
-        let translatedCamera = Camera(position: SIMD3<Float>(3, -2, 8))
+        let firstCamera = Camera(
+            position: SIMD3<Float>(0, 0, 8),
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
+        let translatedCamera = Camera(
+            position: SIMD3<Float>(3, -2, 8),
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let projection = firstCamera.projectionMatrix(aspectRatio: 1)
+        let firstRenderInstance = try projectedInstance(
+            transform: transform,
+            viewMatrix: firstCamera.viewMatrix
+        )
+        let translatedRenderInstance = try projectedInstance(
+            transform: transform,
+            viewMatrix: translatedCamera.viewMatrix
+        )
         let first = GPUInstance(
-            renderInstance,
+            firstRenderInstance,
             material: Self.warmDielectric,
-            viewMatrix: firstCamera.viewMatrix,
             projectionMatrix: projection
         )
         let translated = GPUInstance(
-            renderInstance,
+            translatedRenderInstance,
             material: Self.warmDielectric,
-            viewMatrix: translatedCamera.viewMatrix,
             projectionMatrix: projection
         )
 
@@ -124,6 +139,20 @@ struct GPUInstanceTests {
                 first.normalMatrix,
                 translated.normalMatrix
             )
+        )
+    }
+
+    private func projectedInstance(transform: Transform, viewMatrix: simd_float4x4) throws -> RenderInstance {
+        try RenderInstance(
+            projecting: EntityPresentationSnapshot(
+                id: EntityID(index: 0, generation: 0),
+                position: transform.position,
+                rotation: transform.rotation,
+                scale: transform.scale,
+                meshID: .ball,
+                materialID: .warmDielectric
+            ),
+            viewMatrix: viewMatrix
         )
     }
 
@@ -156,11 +185,7 @@ private func upperLeft3x3(of matrix: simd_float4x4) -> simd_float3x3 {
     )
 }
 
-private func matricesAreApproximatelyEqual(
-    _ lhs: simd_float3x3,
-    _ rhs: simd_float3x3,
-    tolerance: Float = 0.0001
-) -> Bool {
+private func matricesAreApproximatelyEqual(_ lhs: simd_float3x3, _ rhs: simd_float3x3, tolerance: Float = 0.0001) -> Bool {
     simd_length(lhs.columns.0 - rhs.columns.0) <= tolerance
         && simd_length(lhs.columns.1 - rhs.columns.1) <= tolerance
         && simd_length(lhs.columns.2 - rhs.columns.2) <= tolerance

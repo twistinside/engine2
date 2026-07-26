@@ -19,10 +19,10 @@ class World {
     var selectableComponents = ComponentStore<CSelectable>()
 
     // MARK: Resources
-    var camera = Camera()
+    var camera = Camera.standard
     var input = InputState()
+    var inputHistory = InputHistory(maximumEntryCount: 60)
 
-    private static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
     private var nextEntityIndex = 0
 
     /// Captures this World's completed backend-neutral presentation facts.
@@ -30,9 +30,7 @@ class World {
     /// The authoritative owner performs this projection while the resulting
     /// ``SimulationPresentationSnapshot`` remains an isolation-independent
     /// immutable boundary value.
-    func presentationSnapshot(
-        at cursor: SimulationCursor
-    ) -> SimulationPresentationSnapshot {
+    func presentationSnapshot(at cursor: SimulationCursor) -> SimulationPresentationSnapshot {
         let entityPresentations = zip(
             renderableComponents.entities,
             renderableComponents.dense
@@ -107,7 +105,7 @@ class World {
         precondition(state.rotation == nil || entity is POrientable, "Initial state.rotation requires POrientable conformance")
         if entity is POrientable {
             rotationComponents.insert(
-                CRotation(rotation: state.rotation ?? Self.identityRotation),
+                state.rotation.map(CRotation.init(rotation:)) ?? .identity,
                 for: entity.id
             )
         }
@@ -141,14 +139,8 @@ class World {
         }
 
         // PRenderable
-        precondition(
-            renderableState == nil || entity is PRenderable,
-            "Renderable initial state requires PRenderable conformance"
-        )
-        precondition(
-            !(entity is PRenderable) || renderableState != nil,
-            "PRenderable conformance requires renderable initial state"
-        )
+        precondition(renderableState == nil || entity is PRenderable, "Renderable initial state requires PRenderable conformance")
+        precondition(!(entity is PRenderable) || renderableState != nil, "PRenderable conformance requires renderable initial state")
         if let renderableState {
             renderableComponents.insert(
                 CRenderable(

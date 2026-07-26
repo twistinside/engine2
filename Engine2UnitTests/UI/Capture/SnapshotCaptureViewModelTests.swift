@@ -5,17 +5,10 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct SnapshotCaptureViewModelTests {
-    @Test @MainActor
-    func defaultRenderSizeUsesNamedUHD4KPreset() {
-        #expect(SnapshotCaptureViewModel.defaultRenderSize == .uhd4K)
-        #expect(SnapshotCaptureViewModel.defaultRenderSize.width == 3_840)
-        #expect(SnapshotCaptureViewModel.defaultRenderSize.height == 2_160)
-    }
-
-    @Test @MainActor
+    @Test
     func completedCapturePresentsExactJPEGDocumentAndTickFilename() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 42)
+        let (snapshot, artifact) = try fixture(size: size, tick: 42)
         let target = StubRealtimeSnapshotCaptureTarget(
             outcome: .completed(
                 sourceSnapshot: snapshot,
@@ -31,42 +24,44 @@ struct SnapshotCaptureViewModelTests {
         await model.capture(outputMode: .viewSpaceNormals)
 
         #expect(model.isCapturing == false)
-        #expect(model.isExporterPresented)
-        #expect(model.exportDocument?.encodedData == artifact.encodedData)
-        #expect(model.defaultFilename == "Engine2-tick-42")
+        guard case let .exporter(document, defaultFilename) = model.presentedModal else {
+            Issue.record("Expected a completed capture to present the exporter.")
+            return
+        }
+        #expect(document.encodedData == artifact.encodedData)
+        #expect(defaultFilename == "Engine2-tick-42")
 
         let request = try #require(target.requests.first)
         #expect(request.renderSettings.size == size)
         #expect(request.renderSettings.outputMode == .viewSpaceNormals)
+        #expect(request.renderSettings.exposure == .validation)
         #expect(request.encoding == .jpeg(quality: .maximum))
 
         model.exportCancelled()
-        #expect(model.exportDocument == nil)
+        #expect(model.presentedModal == nil)
     }
 
-    @Test @MainActor
+    @Test
     func unavailableRendererSurfacesFailureWithoutPresentingExporter() async {
         let model = SnapshotCaptureViewModel(
-            unavailableReason: "Synthetic Metal initialization failure."
+            unavailableReason: "Synthetic Metal initialization failure.",
+            renderSize: .uhd4K
         )
         model.activatePresentation()
 
         await model.capture(outputMode: .surface)
 
         #expect(model.isCapturing == false)
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == nil)
-        #expect(model.isFailurePresented)
         #expect(
-            model.failureMessage
-                == "Synthetic Metal initialization failure."
+            model.presentedModal
+                == .captureFailure(message: "Synthetic Metal initialization failure.")
         )
     }
 
-    @Test @MainActor
+    @Test
     func inactiveAndOverlappingCaptureRequestsDoNotReachTheTarget() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 17)
+        let (snapshot, artifact) = try fixture(size: size, tick: 17)
         let inactiveTarget = StubRealtimeSnapshotCaptureTarget(
             outcome: .completed(
                 sourceSnapshot: snapshot,
@@ -82,7 +77,7 @@ struct SnapshotCaptureViewModelTests {
 
         #expect(inactiveTarget.requests.isEmpty)
         #expect(inactiveModel.isCapturing == false)
-        #expect(inactiveModel.isExporterPresented == false)
+        #expect(inactiveModel.presentedModal == nil)
 
         let suspendedTarget = SuspendedRealtimeSnapshotCaptureTarget()
         let activeModel = SnapshotCaptureViewModel(
@@ -103,10 +98,10 @@ struct SnapshotCaptureViewModelTests {
         await firstCapture.value
     }
 
-    @Test @MainActor
+    @Test
     func failedSaveRetainsExactDocumentForRetryWithoutRecapturing() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 73)
+        let (snapshot, artifact) = try fixture(size: size, tick: 73)
         let target = StubRealtimeSnapshotCaptureTarget(
             outcome: .completed(
                 sourceSnapshot: snapshot,
@@ -119,38 +114,42 @@ struct SnapshotCaptureViewModelTests {
         )
         model.activatePresentation()
         await model.capture(outputMode: .surface)
-        let originalDocument = try #require(model.exportDocument)
+        guard case let .exporter(originalDocument, defaultFilename) = model.presentedModal else {
+            Issue.record("Expected a completed capture to present the exporter.")
+            return
+        }
 
         model.exportCompleted(.failure(SyntheticSaveError()))
 
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == originalDocument)
-        #expect(model.failureAllowsExportRetry)
-        #expect(model.isFailurePresented)
-        #expect(model.failureMessage.contains("Synthetic save failure"))
+        guard case let .exportFailure(message, retainedDocument, retainedFilename) = model.presentedModal else {
+            Issue.record("Expected a failed save to retain retryable export state.")
+            return
+        }
+        #expect(retainedDocument == originalDocument)
+        #expect(retainedFilename == defaultFilename)
+        #expect(message.contains("Synthetic save failure"))
         #expect(target.requests.count == 1)
 
         model.retryExport()
 
-        #expect(model.isExporterPresented)
-        #expect(model.exportDocument == originalDocument)
-        #expect(model.failureAllowsExportRetry == false)
-        #expect(model.isFailurePresented == false)
+        #expect(
+            model.presentedModal
+                == .exporter(document: originalDocument, defaultFilename: defaultFilename)
+        )
         #expect(target.requests.count == 1)
 
         model.exportCompleted(
             .success(URL(fileURLWithPath: "/tmp/Engine2-tick-73.jpeg"))
         )
 
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == nil)
+        #expect(model.presentedModal == nil)
         #expect(target.requests.count == 1)
     }
 
-    @Test @MainActor
+    @Test
     func disappearingPresentationIgnoresLateCaptureCompletion() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 91)
+        let (snapshot, artifact) = try fixture(size: size, tick: 91)
         let target = SuspendedRealtimeSnapshotCaptureTarget()
         let model = SnapshotCaptureViewModel(
             captureTarget: target,
@@ -174,15 +173,14 @@ struct SnapshotCaptureViewModelTests {
         await capture.value
 
         #expect(model.isCapturing == false)
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == nil)
+        #expect(model.presentedModal == nil)
     }
 
-    @Test @MainActor
-    func captureTerminalMessagesCoverEveryNonSuccessOutcome() async throws {
+    @Test
+    func jpegCapturePresentationMapsEveryNonSuccessOutcome() throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (snapshot, artifact) = try Self.fixture(size: size, tick: 101)
-        let rawResult = try Self.renderResult(
+        let (snapshot, artifact) = try fixture(size: size, tick: 101)
+        let rawResult = try renderResult(
             artifact: artifact,
             size: size
         )
@@ -356,33 +354,19 @@ struct SnapshotCaptureViewModelTests {
         ]
 
         for scenario in scenarios {
-            let target = StubRealtimeSnapshotCaptureTarget(
-                outcome: scenario.outcome
+            #expect(
+                SnapshotCapturePresentation(
+                    jpegCaptureOutcome: scenario.outcome
+                )
+                    == .captureFailure(message: scenario.expectedMessage)
             )
-            let model = SnapshotCaptureViewModel(
-                captureTarget: target,
-                renderSize: size
-            )
-            model.activatePresentation()
-
-            await model.capture(outputMode: .surface)
-
-            #expect(model.isFailurePresented)
-            #expect(model.failureMessage == scenario.expectedMessage)
-            #expect(model.failureAllowsExportRetry == false)
-            #expect(model.isExporterPresented == false)
-            #expect(model.exportDocument == nil)
-            #expect(target.requests.count == 1)
-
-            model.dismissFailure()
-            #expect(model.isFailurePresented == false)
         }
     }
 
     @Test
     func jpegDocumentPublishesJPEGTypeAndExactFileWrapperBytes() throws {
         let size = try RenderPixelSize(width: 8, height: 6)
-        let (_, artifact) = try Self.fixture(size: size, tick: 7)
+        let (_, artifact) = try fixture(size: size, tick: 7)
         let document = JPEGArtifactDocument(artifact: artifact)
 
         #expect(JPEGArtifactDocument.readableContentTypes == [.jpeg])
@@ -392,7 +376,7 @@ struct SnapshotCaptureViewModelTests {
         )
     }
 
-    private nonisolated static func fixture(
+    private func fixture(
         size: RenderPixelSize,
         tick: UInt64
     ) throws -> (
@@ -404,7 +388,12 @@ struct SnapshotCaptureViewModelTests {
                 sessionID: SimulationSessionID(),
                 tick: SimulationTick(rawValue: tick)
             ),
-            camera: Camera.lookingAt(.zero, from: SIMD3<Float>(0, 0, 8)),
+            camera: Camera.lookingAt(
+                .zero,
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
+            ),
             entityPresentations: []
         )
         let artifact = RenderedImageArtifact(
@@ -417,12 +406,16 @@ struct SnapshotCaptureViewModelTests {
                 revision: .zero,
                 camera: snapshot.camera
             ),
-            renderSettings: OffscreenRenderSettings(size: size)
+            renderSettings: OffscreenRenderSettings(
+                size: size,
+                outputMode: .surface,
+                exposure: .validation
+            )
         )
         return (snapshot, artifact)
     }
 
-    private nonisolated static func renderResult(
+    private func renderResult(
         artifact: RenderedImageArtifact,
         size: RenderPixelSize
     ) throws -> OffscreenRenderResult {
@@ -433,66 +426,59 @@ struct SnapshotCaptureViewModelTests {
             settings: artifact.renderSettings,
             image: try RenderedBGRA8SRGBImage(
                 size: size,
-                bytes: Data(repeating: 0xFF, count: size.pixelCount * 4)
+                bytes: Data(repeating: 0xFF, count: size.bgra8ByteCount)
             )
         )
     }
 }
 
-@MainActor
-private final class StubRealtimeSnapshotCaptureTarget:
-    PRealtimeSnapshotCaptureTarget {
-    let outcome: RealtimeSnapshotCaptureOutcome
-    private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
+private extension SnapshotCaptureViewModelTests {
+    private final class StubRealtimeSnapshotCaptureTarget: PRealtimeSnapshotCaptureTarget {
+        let outcome: RealtimeSnapshotCaptureOutcome
+        private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
 
-    init(outcome: RealtimeSnapshotCaptureOutcome) {
-        self.outcome = outcome
-    }
+        init(outcome: RealtimeSnapshotCaptureOutcome) {
+            self.outcome = outcome
+        }
 
-    func capture(
-        _ request: RealtimeSnapshotCaptureRequest
-    ) async -> RealtimeSnapshotCaptureOutcome {
-        requests.append(request)
-        return outcome
-    }
-}
-
-@MainActor
-private final class SuspendedRealtimeSnapshotCaptureTarget:
-    PRealtimeSnapshotCaptureTarget {
-    private var continuation:
-        CheckedContinuation<RealtimeSnapshotCaptureOutcome, Never>?
-    private var requestWaiters: [CheckedContinuation<Void, Never>] = []
-    private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
-
-    func capture(
-        _ request: RealtimeSnapshotCaptureRequest
-    ) async -> RealtimeSnapshotCaptureOutcome {
-        requests.append(request)
-        requestWaiters.forEach { $0.resume() }
-        requestWaiters.removeAll()
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
+        func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
+            requests.append(request)
+            return outcome
         }
     }
 
-    func waitForRequest() async {
-        guard requests.isEmpty else {
-            return
+    private final class SuspendedRealtimeSnapshotCaptureTarget: PRealtimeSnapshotCaptureTarget {
+        private var continuation: CheckedContinuation<RealtimeSnapshotCaptureOutcome, Never>?
+        private var requestWaiters: [CheckedContinuation<Void, Never>] = []
+        private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
+
+        func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
+            requests.append(request)
+            requestWaiters.forEach { $0.resume() }
+            requestWaiters.removeAll()
+            return await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
         }
-        await withCheckedContinuation { continuation in
-            requestWaiters.append(continuation)
+
+        func waitForRequest() async {
+            guard requests.isEmpty else {
+                return
+            }
+            await withCheckedContinuation { continuation in
+                requestWaiters.append(continuation)
+            }
+        }
+
+        func complete(_ outcome: RealtimeSnapshotCaptureOutcome) {
+            continuation?.resume(returning: outcome)
+            continuation = nil
         }
     }
 
-    func complete(_ outcome: RealtimeSnapshotCaptureOutcome) {
-        continuation?.resume(returning: outcome)
-        continuation = nil
-    }
-}
-
-private struct SyntheticSaveError: LocalizedError {
-    var errorDescription: String? {
-        "Synthetic save failure."
+    private struct SyntheticSaveError: LocalizedError {
+        var errorDescription: String? {
+            "Synthetic save failure."
+        }
     }
 }

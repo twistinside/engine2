@@ -2,10 +2,34 @@ import Testing
 @testable import Engine2
 
 struct SimulationRuntimeTests {
-    @Test @MainActor func initBuildsEngineWorldFromBuilder() async throws {
+    @Test func constructionDistinguishesFreshAndInjectedSessionIdentity() {
+        let injectedSessionID = SimulationSessionID()
+        let injected = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
+            configuration: .basicGame,
+            inputBaseline: nil,
+            sessionID: injectedSessionID
+        )
+        let fresh = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
+            configuration: .basicGame,
+            inputBaseline: nil
+        )
+
+        #expect(injected.sessionID == injectedSessionID)
+        #expect(injected.currentCursor.sessionID == injectedSessionID)
+        #expect(fresh.sessionID != injectedSessionID)
+        #expect(fresh.currentCursor.sessionID == fresh.sessionID)
+    }
+
+    @Test func initBuildsEngineWorldFromBuilder() async throws {
         let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
 
-        let simulation = SimulationRuntime(worldBuilder: builder)
+        let simulation = SimulationRuntime(
+            worldBuilder: builder,
+            configuration: .basicGame,
+            inputBaseline: nil
+        )
         let presentationSource: any PSimulationPresentationSource = simulation
 
         let entity = try #require(simulation.world.positionComponents.entities.first)
@@ -18,17 +42,21 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
+    @Test func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
         let builder = IncrementingWorldBuilder()
 
-        let simulation = SimulationRuntime(worldBuilder: builder)
+        let simulation = SimulationRuntime(
+            worldBuilder: builder,
+            configuration: .basicGame,
+            inputBaseline: nil
+        )
         let firstWorld = simulation.world
         let firstEntity = try #require(firstWorld.positionComponents.entities.first)
 
         #expect(firstWorld.positionComponents[firstEntity]?.position == SIMD3<Float>(1, 0, 0))
         #expect(builder.buildCount == 1)
 
-        simulation.rebuildWorld()
+        simulation.rebuildWorld(inputBaseline: nil)
 
         let secondEntity = try #require(simulation.world.positionComponents.entities.first)
 
@@ -42,20 +70,21 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func replacingBuilderCanDeferWorldReconstruction() throws {
+    @Test func replacingBuilderCanDeferWorldReconstruction() throws {
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0)),
+            configuration: .basicGame,
+            inputBaseline: nil
         )
         let originalWorld = simulation.world
 
         simulation.replaceWorldBuilder(
-            TestWorldBuilder(position: SIMD3<Float>(9, 0, 0)),
-            rebuildWorldImmediately: false
+            TestWorldBuilder(position: SIMD3<Float>(9, 0, 0))
         )
 
         #expect(simulation.world === originalWorld)
 
-        simulation.rebuildWorld()
+        simulation.rebuildWorld(inputBaseline: nil)
 
         let entity = try #require(
             simulation.world.positionComponents.entities.first
@@ -67,14 +96,17 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func replacingBuilderRebuildsImmediatelyByDefault() throws {
+    @Test func namedBuilderReplacementAndRebuildStartsANewWorldImmediately() throws {
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0)),
+            configuration: .basicGame,
+            inputBaseline: nil
         )
         let originalWorld = simulation.world
 
-        simulation.replaceWorldBuilder(
-            TestWorldBuilder(position: SIMD3<Float>(5, 0, 0))
+        simulation.replaceWorldBuilderAndRebuild(
+            TestWorldBuilder(position: SIMD3<Float>(5, 0, 0)),
+            inputBaseline: nil
         )
 
         let entity = try #require(
@@ -87,8 +119,8 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func explicitInputBaselineEstablishesWorldWithoutReplayingMotion() {
-        let key = KeyboardKey.make(
+    @Test func explicitInputBaselineEstablishesWorldWithoutReplayingMotion() {
+        let key = KeyboardKey(
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )
@@ -102,6 +134,7 @@ struct SimulationRuntimeTests {
         )
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: .zero),
+            configuration: .basicGame,
             inputBaseline: inputBaseline
         )
 
@@ -121,24 +154,30 @@ struct SimulationRuntimeTests {
     }
 }
 
-private struct TestWorldBuilder: PWorldBuilder {
-    let position: SIMD3<Float>
+private extension SimulationRuntimeTests {
+    private struct TestWorldBuilder: PWorldBuilder {
+        let position: SIMD3<Float>
 
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(in: world, position: position)
-        return world
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(in: world, materialID: .warmDielectric, position: position)
+            return world
+        }
     }
-}
 
-private final class IncrementingWorldBuilder: PWorldBuilder {
-    private(set) var buildCount = 0
+    private final class IncrementingWorldBuilder: PWorldBuilder {
+        private(set) var buildCount = 0
 
-    func buildWorld() -> World {
-        buildCount += 1
+        func buildWorld() -> World {
+            buildCount += 1
 
-        let world = World()
-        _ = Ball(in: world, position: SIMD3<Float>(Float(buildCount), 0, 0))
-        return world
+            let world = World()
+            _ = Ball(
+                in: world,
+                materialID: .warmDielectric,
+                position: SIMD3<Float>(Float(buildCount), 0, 0)
+            )
+            return world
+        }
     }
 }

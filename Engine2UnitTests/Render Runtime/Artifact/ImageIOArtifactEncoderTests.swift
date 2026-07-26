@@ -33,12 +33,10 @@ struct ImageIOArtifactEncoderTests {
     }
 
     @Test(arguments: [0.0, 0.73])
-    func encodesDecodableJPEGAndPreservesExactProvenance(
-        _ qualityValue: Double
-    ) async throws {
+    func encodesDecodableJPEGAndPreservesExactProvenance(_ qualityValue: Double) async throws {
         let size = try RenderPixelSize(width: 7, height: 5)
-        let result = try Self.makeResult(
-            image: Self.solidImage(
+        let result = try makeResult(
+            image: solidImage(
                 size: size,
                 blue: 29,
                 green: 113,
@@ -83,8 +81,8 @@ struct ImageIOArtifactEncoderTests {
 
     @Test func jpegPreservesTopLeftRowsAndInterpretsBGRA() async throws {
         let size = try RenderPixelSize(width: 128, height: 128)
-        let sourceImage = try Self.twoBandImage(size: size)
-        let result = try Self.makeResult(image: sourceImage)
+        let sourceImage = try twoBandImage(size: size)
+        let result = try makeResult(image: sourceImage)
         let artifact = try await ImageIOArtifactEncoder().encode(
             result,
             as: .jpeg(quality: .maximum)
@@ -96,16 +94,16 @@ struct ImageIOArtifactEncoderTests {
         let decodedImage = try #require(
             CGImageSourceCreateImageAtIndex(source, 0, nil)
         )
-        let rgba = try Self.drawTopLeftRGBA(decodedImage)
+        let rgba = try drawTopLeftRGBA(decodedImage)
 
         // Sample far from the lossy boundary so only orientation and channel
         // interpretation can determine which dominant color appears here.
-        let topOffset = Self.rgbaOffset(
+        let topOffset = rgbaOffset(
             x: size.width / 2,
             y: size.height / 4,
             width: size.width
         )
-        let bottomOffset = Self.rgbaOffset(
+        let bottomOffset = rgbaOffset(
             x: size.width / 2,
             y: size.height * 3 / 4,
             width: size.width
@@ -127,8 +125,8 @@ struct ImageIOArtifactEncoderTests {
 
     @Test func pngIsLosslessTopLeftBGRAWithExactProvenance() async throws {
         let size = try RenderPixelSize(width: 8, height: 4)
-        let result = try Self.makeResult(
-            image: Self.twoBandImage(size: size)
+        let result = try makeResult(
+            image: twoBandImage(size: size)
         )
 
         let artifact = try await ImageIOArtifactEncoder().encode(
@@ -157,13 +155,13 @@ struct ImageIOArtifactEncoderTests {
         #expect(decodedImage.width == size.width)
         #expect(decodedImage.height == size.height)
 
-        let rgba = try Self.drawTopLeftRGBA(decodedImage)
-        let topOffset = Self.rgbaOffset(
+        let rgba = try drawTopLeftRGBA(decodedImage)
+        let topOffset = rgbaOffset(
             x: size.width / 2,
             y: size.height / 4,
             width: size.width
         )
-        let bottomOffset = Self.rgbaOffset(
+        let bottomOffset = rgbaOffset(
             x: size.width / 2,
             y: size.height * 3 / 4,
             width: size.width
@@ -177,8 +175,8 @@ struct ImageIOArtifactEncoderTests {
 
     @Test func completionWinsAfterEncodingIsInvokedByCancelledTask() async throws {
         let size = try RenderPixelSize(width: 1, height: 1)
-        let result = try Self.makeResult(
-            image: Self.solidImage(
+        let result = try makeResult(
+            image: solidImage(
                 size: size,
                 blue: 3,
                 green: 5,
@@ -201,9 +199,7 @@ struct ImageIOArtifactEncoderTests {
         #expect(artifact.sourceRequestID == result.requestID)
     }
 
-    private static func makeResult(
-        image: RenderedBGRA8SRGBImage
-    ) throws -> OffscreenRenderResult {
+    private func makeResult(image: RenderedBGRA8SRGBImage) throws -> OffscreenRenderResult {
         let requestID = OffscreenRenderRequestID(
             rawValue: UUID(
                 uuidString: "00000000-0000-0000-0000-000000000301"
@@ -226,9 +222,12 @@ struct ImageIOArtifactEncoderTests {
             revision: RenderViewpointRevision(rawValue: 43),
             camera: Camera(
                 position: SIMD3<Float>(3, 5, 7),
-                orthographicHeight: 11,
-                nearPlane: 0.25,
-                farPlane: 250
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 11,
+                    near: 0.25,
+                    far: 250
+                )
             )
         )
         let settings = OffscreenRenderSettings(
@@ -246,14 +245,14 @@ struct ImageIOArtifactEncoderTests {
         )
     }
 
-    private static func solidImage(
+    private func solidImage(
         size: RenderPixelSize,
         blue: UInt8,
         green: UInt8,
         red: UInt8
     ) throws -> RenderedBGRA8SRGBImage {
         var bytes = [UInt8]()
-        bytes.reserveCapacity(size.pixelCount * 4)
+        bytes.reserveCapacity(size.bgra8ByteCount)
 
         for _ in 0..<size.pixelCount {
             bytes.append(contentsOf: [blue, green, red, 255])
@@ -265,11 +264,9 @@ struct ImageIOArtifactEncoderTests {
         )
     }
 
-    private static func twoBandImage(
-        size: RenderPixelSize
-    ) throws -> RenderedBGRA8SRGBImage {
+    private func twoBandImage(size: RenderPixelSize) throws -> RenderedBGRA8SRGBImage {
         var bytes = [UInt8]()
-        bytes.reserveCapacity(size.pixelCount * 4)
+        bytes.reserveCapacity(size.bgra8ByteCount)
 
         for y in 0..<size.height {
             // The source contract is top-left BGRA: red occupies the first
@@ -290,7 +287,7 @@ struct ImageIOArtifactEncoderTests {
         )
     }
 
-    private static func drawTopLeftRGBA(_ image: CGImage) throws -> [UInt8] {
+    private func drawTopLeftRGBA(_ image: CGImage) throws -> [UInt8] {
         let colorSpace = try #require(
             CGColorSpace(name: CGColorSpace.sRGB)
         )
@@ -341,7 +338,7 @@ struct ImageIOArtifactEncoderTests {
         return rgba
     }
 
-    private static func rgbaOffset(x: Int, y: Int, width: Int) -> Int {
+    private func rgbaOffset(x: Int, y: Int, width: Int) -> Int {
         (y * width + x) * 4
     }
 }

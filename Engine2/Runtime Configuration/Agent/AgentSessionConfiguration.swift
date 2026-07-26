@@ -7,21 +7,24 @@ nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
     let renderLimits: OffscreenRenderLimits
     let sessionLimits: AgentSessionLimits
 
-    /// Creates render and agent-session policy.
-    init(
-        renderLimits: OffscreenRenderLimits = .conservative,
-        sessionLimits: AgentSessionLimits = .conservative
-    ) {
-        self.renderLimits = renderLimits
-        self.sessionLimits = sessionLimits
+    /// Constructs one closed agent assembly with fresh agent and Simulation
+    /// session identities.
+    @MainActor
+    func makeAssembly(gameContent: BasicGameContent) throws -> AgentSessionAssembly {
+        try makeAssembly(
+            gameContent: gameContent,
+            agentSessionID: AgentSessionID(),
+            simulationSessionID: SimulationSessionID()
+        )
     }
 
-    /// Constructs one closed agent assembly from consumer Game Content.
+    /// Constructs one closed agent assembly with caller-supplied identities for
+    /// restoration or external correlation.
     @MainActor
     func makeAssembly(
         gameContent: BasicGameContent,
-        agentSessionID: AgentSessionID = AgentSessionID(),
-        simulationSessionID: SimulationSessionID = SimulationSessionID()
+        agentSessionID: AgentSessionID,
+        simulationSessionID: SimulationSessionID
     ) throws -> AgentSessionAssembly {
         let offlineAssembly = try OfflineCaptureConfiguration(
             renderLimits: renderLimits
@@ -33,7 +36,8 @@ nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
             sessionID: agentSessionID,
             initialCursor: offlineAssembly.initialCursor,
             limits: sessionLimits,
-            captureTarget: offlineAssembly.captureTarget
+            captureTarget: offlineAssembly.captureTarget,
+            initialRequestSequence: .first
         )
 
         return AgentSessionAssembly(

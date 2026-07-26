@@ -29,7 +29,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
         advanceTarget: any PSimulationAdvanceTarget,
         initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: any POffscreenRenderTarget,
-        artifactEncoder: any PImageArtifactEncoder = ImageIOArtifactEncoder()
+        artifactEncoder: any PImageArtifactEncoder
     ) {
         self.advanceTarget = advanceTarget
         self.currentPresentationSnapshot = initialPresentationSnapshot
@@ -98,8 +98,8 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             return .cancelledAfterAdvance(advanceResult)
         }
 
-        return offlineCaptureOutcome(
-            from: await imageDeriver.derive(
+        return OfflineCaptureOutcome(
+            artifactOutcome: await imageDeriver.derive(
                 sourceSnapshot: advanceResult.finalPresentationSnapshot,
                 renderRequestID: request.renderRequestID,
                 viewpoint: request.viewpoint,
@@ -111,9 +111,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     }
 
     /// Renders and encodes the retained exact presentation without advancing.
-    func captureCurrent(
-        _ request: OfflineCurrentCaptureRequest
-    ) async -> OfflineCurrentCaptureOutcome {
+    func captureCurrent(_ request: OfflineCurrentCaptureRequest) async -> OfflineCurrentCaptureOutcome {
         // One gate spans both operation kinds. A current render cannot slip
         // between an accepted advance and its output, and an advance cannot
         // replace the selected snapshot while current output work is awaited.
@@ -137,8 +135,8 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             isCapturing = false
         }
 
-        return offlineCurrentCaptureOutcome(
-            from: await imageDeriver.derive(
+        return OfflineCurrentCaptureOutcome(
+            artifactOutcome: await imageDeriver.derive(
                 sourceSnapshot: sourceSnapshot,
                 renderRequestID: request.renderRequestID,
                 viewpoint: request.viewpoint,
@@ -147,139 +145,5 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
             ),
             sourceSnapshot: sourceSnapshot
         )
-    }
-
-    /// Restores the existing advance-aware public outcome vocabulary.
-    private func offlineCaptureOutcome(
-        from outcome: OffscreenImageArtifactOutcome,
-        advanceResult: SimulationAdvanceResult
-    ) -> OfflineCaptureOutcome {
-        switch outcome {
-        case let .completed(artifact):
-            .completed(
-                OfflineCaptureResult(
-                    advanceResult: advanceResult,
-                    artifact: artifact
-                )
-            )
-
-        case let .renderRejected(rejection):
-            .renderRejected(
-                advanceResult: advanceResult,
-                rejection: rejection
-            )
-
-        case let .renderFailed(failure):
-            .renderFailed(
-                advanceResult: advanceResult,
-                failure: failure
-            )
-
-        case let .renderCancellationRequestIDMismatch(expected, actual):
-            .renderCancellationRequestIDMismatch(
-                advanceResult: advanceResult,
-                expectedRequestID: expected,
-                actualRequestID: actual
-            )
-
-        case let .renderCancelledAfterSubmission(requestID):
-            .renderCancelledAfterSubmission(
-                advanceResult: advanceResult,
-                requestID: requestID
-            )
-
-        case let .renderResultMismatch(renderResult):
-            .renderResultMismatch(
-                advanceResult: advanceResult,
-                renderResult: renderResult
-            )
-
-        case let .cancelledAfterRender(renderResult):
-            .cancelledAfterRender(
-                advanceResult: advanceResult,
-                renderResult: renderResult
-            )
-
-        case let .artifactEncodingFailed(renderResult, failure):
-            .artifactEncodingFailed(
-                advanceResult: advanceResult,
-                renderResult: renderResult,
-                failure: failure
-            )
-
-        case let .artifactResultMismatch(renderResult, artifact):
-            .artifactResultMismatch(
-                advanceResult: advanceResult,
-                renderResult: renderResult,
-                artifact: artifact
-            )
-        }
-    }
-
-    /// Adds current-presentation provenance to the common output terminal.
-    private func offlineCurrentCaptureOutcome(
-        from outcome: OffscreenImageArtifactOutcome,
-        sourceSnapshot: SimulationPresentationSnapshot
-    ) -> OfflineCurrentCaptureOutcome {
-        switch outcome {
-        case let .completed(artifact):
-            .completed(
-                OfflineCurrentCaptureResult(
-                    sourceSnapshot: sourceSnapshot,
-                    artifact: artifact
-                )
-            )
-
-        case let .renderRejected(rejection):
-            .renderRejected(
-                sourceSnapshot: sourceSnapshot,
-                rejection: rejection
-            )
-
-        case let .renderFailed(failure):
-            .renderFailed(
-                sourceSnapshot: sourceSnapshot,
-                failure: failure
-            )
-
-        case let .renderCancellationRequestIDMismatch(expected, actual):
-            .renderCancellationRequestIDMismatch(
-                sourceSnapshot: sourceSnapshot,
-                expectedRequestID: expected,
-                actualRequestID: actual
-            )
-
-        case let .renderCancelledAfterSubmission(requestID):
-            .renderCancelledAfterSubmission(
-                sourceSnapshot: sourceSnapshot,
-                requestID: requestID
-            )
-
-        case let .renderResultMismatch(renderResult):
-            .renderResultMismatch(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult
-            )
-
-        case let .cancelledAfterRender(renderResult):
-            .cancelledAfterRender(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult
-            )
-
-        case let .artifactEncodingFailed(renderResult, failure):
-            .artifactEncodingFailed(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult,
-                failure: failure
-            )
-
-        case let .artifactResultMismatch(renderResult, artifact):
-            .artifactResultMismatch(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult,
-                artifact: artifact
-            )
-        }
     }
 }

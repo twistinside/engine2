@@ -3,7 +3,7 @@ import Testing
 @testable import Engine2
 
 struct ManualConfigurationTests {
-    @Test @MainActor func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
+    @Test func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
         let sessionID = SimulationSessionID(
             rawValue: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
         )
@@ -18,7 +18,7 @@ struct ManualConfigurationTests {
         #expect(assembly.presentationSource.latestPresentationSnapshot.cursor == assembly.simulationRuntime.currentCursor)
     }
 
-    @Test @MainActor func exactCallerAloneDeterminesProgress() async throws {
+    @Test func exactCallerAloneDeterminesProgress() async throws {
         let assembly = ManualConfiguration().makeAssembly(
             gameContent: BasicGameContent()
         )
@@ -30,7 +30,8 @@ struct ManualConfigurationTests {
         let outcome = await assembly.advanceTarget.advance(
             SimulationAdvanceRequest(
                 expectedCursor: initialCursor,
-                stepCount: SimulationStepCount(rawValue: 4)
+                stepCount: SimulationStepCount(rawValue: 4),
+                inputAssignment: .none
             )
         )
         guard case let .completed(result) = outcome else {
@@ -47,7 +48,7 @@ struct ManualConfigurationTests {
         #expect(assembly.simulationRuntime.currentCursor == result.finalCursor)
     }
 
-    @Test @MainActor func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
+    @Test func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
         let assembly = ManualConfiguration().makeAssembly(
             gameContent: BasicGameContent(
                 worldBuilder: ManualMovingWorldBuilder()
@@ -59,7 +60,8 @@ struct ManualConfigurationTests {
         let outcome = await assembly.advanceTarget.advance(
             SimulationAdvanceRequest(
                 expectedCursor: initialCursor,
-                stepCount: stepCount
+                stepCount: stepCount,
+                inputAssignment: .none
             )
         )
         guard case let .completed(result) = outcome else {
@@ -88,7 +90,7 @@ struct ManualConfigurationTests {
         #expect(worldPosition.z == 0)
     }
 
-    @Test @MainActor func assembliesOwnIndependentSessionsAndWorlds() {
+    @Test func assembliesOwnIndependentSessionsAndWorlds() {
         let configuration = ManualConfiguration()
         let first = configuration.makeAssembly(gameContent: BasicGameContent())
         let second = configuration.makeAssembly(gameContent: BasicGameContent())
@@ -100,18 +102,21 @@ struct ManualConfigurationTests {
     }
 }
 
-private struct ManualMovingWorldBuilder: PWorldBuilder {
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(
-            in: world,
-            position: .zero,
-            velocity: SIMD3<Float>(
-                1 / SimulationRuntime.fixedTimeStep.seconds,
-                0,
-                0
+private extension ManualConfigurationTests {
+    private struct ManualMovingWorldBuilder: PWorldBuilder {
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(
+                in: world,
+                materialID: .warmDielectric,
+                position: .zero,
+                velocity: SIMD3<Float>(
+                    1 / SimulationRuntime.fixedTimeStep.seconds,
+                    0,
+                    0
+                )
             )
-        )
-        return world
+            return world
+        }
     }
 }

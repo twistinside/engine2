@@ -91,7 +91,9 @@ struct WorldTests {
     }
 }
 
-private final class TestSpawnEntity: Entity, PPositionable, PScalable {}
-private final class TestMovableSpawnEntity: Entity, PMovable {}
-private final class TestSelectableSpawnEntity: Entity, PSelectable {}
-private final class TestRenderableSpawnEntity: Entity, PRenderable {}
+private extension WorldTests {
+    private final class TestSpawnEntity: Entity, PPositionable, PScalable {}
+    private final class TestMovableSpawnEntity: Entity, PMovable {}
+    private final class TestSelectableSpawnEntity: Entity, PSelectable {}
+    private final class TestRenderableSpawnEntity: Entity, PRenderable {}
+}

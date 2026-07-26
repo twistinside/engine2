@@ -6,14 +6,11 @@ import Metal
 /// encoder. This type owns the dependency boundary between phases so production
 /// rendering and offscreen validation cannot silently diverge on attachment
 /// policy, the Metal 4 producer barrier, or presentation ordering.
-@MainActor
 final class MetalHDRFramePass {
     private let presentationPass: MetalHDRPresentationPass
 
-    init(resources: MetalResourceStore) throws {
-        self.presentationPass = try MetalHDRPresentationPass(
-            resources: resources
-        )
+    init(resources: MetalResourceStore) {
+        self.presentationPass = MetalHDRPresentationPass(resources: resources)
     }
 
     /// Encodes scene geometry followed by full-screen presentation.
@@ -31,8 +28,8 @@ final class MetalHDRFramePass {
         outputMode: RenderOutputMode,
         into commandBuffer: any MTL4CommandBuffer,
         encodeScene: (any MTL4RenderCommandEncoder) -> Void
-    ) throws {
-        let sceneRenderPassDescriptor = Self.makeSceneRenderPassDescriptor(
+    ) throws(MetalFrameEncoderError) {
+        let sceneRenderPassDescriptor = makeSceneRenderPassDescriptor(
             sceneColorTexture: sceneColorTexture,
             depthTexture: depthTexture,
             clearColor: clearColor
@@ -55,20 +52,18 @@ final class MetalHDRFramePass {
         )
         sceneEncoder.endEncoding()
 
-        guard presentationPass.encode(
+        try presentationPass.encode(
             sceneColorTexture: sceneColorTexture,
             destinationTexture: destinationTexture,
             parametersBuffer: presentationParametersBuffer,
             outputMode: outputMode,
             into: commandBuffer
-        ) else {
-            throw MetalFrameEncoderError.missingPresentationEncoder
-        }
+        )
     }
 
     /// Builds the opaque scene descriptor independently of MetalKit's drawable
     /// descriptor so tests can lock the HDR, store, and depth conventions.
-    static func makeSceneRenderPassDescriptor(
+    func makeSceneRenderPassDescriptor(
         sceneColorTexture: any MTLTexture,
         depthTexture: any MTLTexture,
         clearColor: MTLClearColor

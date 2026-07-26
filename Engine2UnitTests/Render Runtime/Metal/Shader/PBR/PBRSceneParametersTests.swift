@@ -2,7 +2,6 @@ import simd
 import Testing
 @testable import Engine2
 
-@MainActor
 struct PBRSceneParametersTests {
     @Test func layoutMatchesTwoMetalFloat4LightLanes() {
         // Authored material factors moved to GPUInstance. These two scene-
@@ -37,7 +36,7 @@ struct PBRSceneParametersTests {
     }
 
     @Test func identityCameraPacksLightWithoutChangingDirection() {
-        let parameters = PBRSceneParameters(camera: Camera())
+        let parameters = PBRSceneParameters(camera: .standard)
 
         #expect(
             parameters.directionToLightPadding
@@ -51,10 +50,18 @@ struct PBRSceneParametersTests {
 
     @Test func cameraTranslationDoesNotAffectTheViewSpaceLightDirection() {
         let first = PBRSceneParameters(
-            camera: Camera(position: SIMD3<Float>(0, 0, 8))
+            camera: Camera(
+                position: SIMD3<Float>(0, 0, 8),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
         let translated = PBRSceneParameters(
-            camera: Camera(position: SIMD3<Float>(37, -12, 4))
+            camera: Camera(
+                position: SIMD3<Float>(37, -12, 4),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
 
         // Direction vectors use w=0 semantics. The camera translation can move
@@ -72,7 +79,8 @@ struct PBRSceneParametersTests {
             rotation: simd_quatf(
                 angle: .pi / 2,
                 axis: SIMD3<Float>(0, 1, 0)
-            )
+            ),
+            projection: .standardPerspective
         )
         let parameters = PBRSceneParameters(camera: camera)
         let direction = SIMD3<Float>(

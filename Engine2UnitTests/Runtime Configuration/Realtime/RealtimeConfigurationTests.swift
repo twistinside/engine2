@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 struct RealtimeConfigurationTests {
-    @Test @MainActor func makeAssemblyUsesConfigurationAndGameContent() throws {
+    @Test func makeAssemblyUsesConfigurationAndGameContent() throws {
         let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: RealtimeCatchUpPolicy(
@@ -34,8 +34,11 @@ struct RealtimeConfigurationTests {
         )
     }
 
-    @Test @MainActor func assembliesOwnIsolatedRuntimeInstances() {
-        let configuration = RealtimeConfiguration(pollInterval: .seconds(60))
+    @Test func assembliesOwnIsolatedRuntimeInstances() {
+        let configuration = RealtimeConfiguration(
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
+        )
         let gameContent = BasicGameContent(
             worldBuilder: RealtimeTestWorldBuilder(position: .zero)
         )
@@ -49,14 +52,31 @@ struct RealtimeConfigurationTests {
         #expect(first.advanceDriver !== second.advanceDriver)
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
     }
+
+    @Test func fixedStepPollingPolicyIsSelectedExplicitly() {
+        let configuration = RealtimeConfiguration(
+            pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive
+        )
+
+        let assembly = configuration.makeAssembly(gameContent: BasicGameContent())
+
+        #expect(assembly.advanceDriver.pollInterval == SimulationRuntime.fixedTimeStep)
+    }
 }
 
-private struct RealtimeTestWorldBuilder: PWorldBuilder {
-    let position: SIMD3<Float>
+private extension RealtimeConfigurationTests {
+    private struct RealtimeTestWorldBuilder: PWorldBuilder {
+        let position: SIMD3<Float>
 
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(in: world, position: position)
-        return world
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(
+                in: world,
+                materialID: .warmDielectric,
+                position: position
+            )
+            return world
+        }
     }
 }

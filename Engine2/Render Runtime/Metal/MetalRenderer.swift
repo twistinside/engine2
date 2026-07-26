@@ -10,7 +10,6 @@ import MetalKit
 /// to a view-independent ``MetalFrameEncoder``. It retains drawable cadence,
 /// queue submission, presentation, and screen error policy. It never reads live
 /// ECS storage or controls the Simulation Runtime lifecycle.
-@MainActor
 final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Device-scoped owner for every backend object used by this renderer.
     let resources: MetalResourceStore
@@ -22,6 +21,9 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
 
     /// View-independent owner of reusable Metal frame preparation and encoding.
     private let frameEncoder: MetalFrameEncoder
+
+    /// Required display color space resolved before this renderer can be used.
+    private let presentationColorSpace: CGColorSpace
 
     /// Terminal preparation and asynchronous queue failures are preserved
     /// across frame callbacks. Once one is observed, this renderer stops
@@ -51,15 +53,16 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     init(
         resources: MetalResourceStore,
         presentationSource: any PSimulationPresentationSource,
-        outputMode: RenderOutputMode = .surface
-    ) throws {
-        precondition(
-            !resources.frames.isEmpty,
-            "MetalRenderer requires at least one frame resource set."
-        )
+        outputMode: RenderOutputMode
+    ) throws(MetalRendererError) {
+        precondition(!resources.frames.isEmpty, "MetalRenderer requires at least one frame resource set.")
+        guard let presentationColorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+            throw .couldNotCreateSRGBColorSpace
+        }
 
         self.resources = resources
-        self.frameEncoder = try MetalFrameEncoder(resources: resources)
+        self.frameEncoder = MetalFrameEncoder(resources: resources)
+        self.presentationColorSpace = presentationColorSpace
         self.presentationSource = presentationSource
         self.outputMode = outputMode
 
@@ -76,7 +79,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Fragment shaders return display-linear values. Declaring the view's
         // presentation color space and using an `_srgb` drawable makes the
         // drawable perform the one and only linear-to-sRGB transfer.
-        view.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
+        view.colorspace = presentationColorSpace
         resources.residency.registerExternalResources(for: view)
     }
 
@@ -186,18 +189,20 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Phase one shades opaque geometry into linear half-float scene color;
         // phase two presents that stored value to the sRGB drawable. The frame
         // encoder owns their shared buffer packing, draws, barrier, and ordering.
+        let clearColor = viewRenderPassDescriptor.colorAttachments[0].clearColor
         do {
+            let encodingInputs = try MetalFrameEncodingInputs(
+                frameResources: frame,
+                sceneColorTexture: sceneTarget.texture,
+                depthTexture: depthTexture,
+                destinationTexture: drawable.texture,
+                clearColor: clearColor,
+                outputMode: outputMode,
+                exposure: .validation
+            )
             try frameEncoder.encode(
                 preparedFrame,
-                inputs: MetalFrameEncodingInputs(
-                    frameResources: frame,
-                    sceneColorTexture: sceneTarget.texture,
-                    depthTexture: depthTexture,
-                    destinationTexture: drawable.texture,
-                    clearColor: viewRenderPassDescriptor
-                        .colorAttachments[0].clearColor,
-                    outputMode: outputMode
-                ),
+                inputs: encodingInputs,
                 into: commandBuffer
             )
         } catch {

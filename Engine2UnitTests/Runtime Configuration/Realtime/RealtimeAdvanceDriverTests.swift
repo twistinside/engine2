@@ -3,7 +3,7 @@ import Testing
 @testable import Engine2
 
 struct RealtimeAdvanceDriverTests {
-    @Test @MainActor func substepElapsedTimeAccumulatesUntilOneExactStepIsReady() async {
+    @Test func substepElapsedTimeAccumulatesUntilOneExactStepIsReady() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -25,6 +25,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = makeDriver(
             target: target,
+            inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(40),
@@ -45,7 +46,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(requests.first?.stepCount.rawValue == 1)
     }
 
-    @Test @MainActor func oneWakeCanRequestMultipleStepsAndCarryItsRemainder() async {
+    @Test func oneWakeCanRequestMultipleStepsAndCarryItsRemainder() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -61,8 +62,10 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = makeDriver(
             target: target,
+            inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             baseInstant: baseInstant,
             sleeper: sleeper.sleep(until:)
@@ -81,7 +84,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(requests[1].expectedCursor?.tick == SimulationTick(rawValue: 2))
     }
 
-    @Test @MainActor func preservePolicyCapsOneWakeThenDrainsBacklog() async {
+    @Test func preservePolicyCapsOneWakeThenDrainsBacklog() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -97,6 +100,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
@@ -104,6 +108,7 @@ struct RealtimeAdvanceDriverTests {
                 maximumStepsPerWake: SimulationStepCount(rawValue: 3),
                 backlogTreatment: .preserve
             ),
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -119,7 +124,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(await target.recordedRequests().map(\.stepCount.rawValue) == [3, 2])
     }
 
-    @Test @MainActor func discardPolicyDropsOnlyOverflowingWholeStepDebt() async {
+    @Test func discardPolicyDropsOnlyOverflowingWholeStepDebt() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -135,6 +140,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
@@ -142,6 +148,7 @@ struct RealtimeAdvanceDriverTests {
                 maximumStepsPerWake: SimulationStepCount(rawValue: 3),
                 backlogTreatment: .discardOverflow
             ),
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -154,7 +161,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(await target.recordedRequests().map(\.stepCount.rawValue) == [3])
     }
 
-    @Test @MainActor func discardPolicyRetainsFractionWhenNoWholeStepOverflows() async {
+    @Test func discardPolicyRetainsFractionWhenNoWholeStepOverflows() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -170,6 +177,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
@@ -177,6 +185,7 @@ struct RealtimeAdvanceDriverTests {
                 maximumStepsPerWake: SimulationStepCount(rawValue: 3),
                 backlogTreatment: .discardOverflow
             ),
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -192,7 +201,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(await target.recordedRequests().map(\.stepCount.rawValue) == [3, 1])
     }
 
-    @Test @MainActor func startBaselinePreservesInputPublishedBeforeFirstTick() async throws {
+    @Test func startBaselinePreservesInputPublishedBeforeFirstTick() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let expectedSnapshot = inputSnapshot(
@@ -218,6 +227,7 @@ struct RealtimeAdvanceDriverTests {
             inputSource: inputSource,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             baseInstant: baseInstant,
             sleeper: sleeper.sleep(until:)
@@ -244,7 +254,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(snapshot == laterSnapshot)
     }
 
-    @Test @MainActor func pauseDiscardsBacklogAndResumeRebasesInput() async throws {
+    @Test func pauseDiscardsBacklogAndResumeRebasesInput() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let inputSource = SequencedInputSource(
@@ -292,11 +302,13 @@ struct RealtimeAdvanceDriverTests {
         #expect(await target.requestCount() == 0)
 
         driver.pauseAdvancement()
+        #expect(driver.advancementState == .paused)
         await sleeper.resumeNext()
         await sleeper.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
 
         driver.resumeAdvancement()
+        #expect(driver.advancementState == .enabled)
         await sleeper.resumeNext()
         await sleeper.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
@@ -323,21 +335,24 @@ struct RealtimeAdvanceDriverTests {
         #expect(snapshot.pointerMotionTotal == SIMD2<Float>(12, 0))
     }
 
-    @Test @MainActor func startAndStopAreIdempotentAndPreservePausePreference() async {
+    @Test func startAndStopAreIdempotentAndPreservePausePreference() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let sleeper = ControlledSleeper()
         var clockCreationCount = 0
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .seconds(1),
             pollInterval: .seconds(1),
+            catchUpPolicy: .interactive,
             isAdvancementEnabled: false,
             clockFactory: {
                 clockCreationCount += 1
                 return SystemClock()
             },
+            scheduleTimeSource: { SuspendingClock().now },
             sleeper: sleeper.sleep(until:)
         )
 
@@ -346,6 +361,7 @@ struct RealtimeAdvanceDriverTests {
         await sleeper.waitForPendingCount(1)
 
         #expect(driver.isRunning)
+        #expect(driver.advancementState == .paused)
         #expect(driver.isAdvancementEnabled == false)
         #expect(clockCreationCount == 1)
 
@@ -367,15 +383,20 @@ struct RealtimeAdvanceDriverTests {
         await sleeper.resumeAll()
     }
 
-    @Test @MainActor func suspendedPollingTaskDoesNotRetainTheDriver() async {
+    @Test func suspendedPollingTaskDoesNotRetainTheDriver() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let sleeper = ControlledSleeper()
         var driver: RealtimeAdvanceDriver? = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .seconds(1),
             pollInterval: .seconds(1),
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
+            clockFactory: { SystemClock() },
+            scheduleTimeSource: { SuspendingClock().now },
             sleeper: sleeper.sleep(until:)
         )
         weak let weakDriver = driver
@@ -390,7 +411,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(didRelease)
     }
 
-    @Test @MainActor func enabledStopAndRestartRebasesTheNextInputRequest() async throws {
+    @Test func enabledStopAndRestartRebasesTheNextInputRequest() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let inputSource = SequencedInputSource(
@@ -415,6 +436,7 @@ struct RealtimeAdvanceDriverTests {
             inputSource: inputSource,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: {
                 defer { clockCreationCount += 1 }
                 let source = clockCreationCount == 0
@@ -454,7 +476,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(clockCreationCount == 2)
     }
 
-    @Test @MainActor func pollingUsesAbsoluteDeadlinesAfterOversleep() async {
+    @Test func pollingUsesAbsoluteDeadlinesAfterOversleep() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -469,9 +491,12 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: scheduleSource.next,
             sleeper: sleeper.sleep(until:)
@@ -490,7 +515,7 @@ struct RealtimeAdvanceDriverTests {
         )
     }
 
-    @Test @MainActor func staleWakeAfterStopAndRestartCannotRequestAnAdvance() async {
+    @Test func staleWakeAfterStopAndRestartCannotRequestAnAdvance() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
@@ -502,8 +527,10 @@ struct RealtimeAdvanceDriverTests {
         let sleeper = ControlledSleeper()
         let driver = makeDriver(
             target: target,
+            inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: {
                 defer { clockCreationCount += 1 }
                 let source = clockCreationCount == 0
@@ -538,7 +565,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(await target.requestCount() == 1)
     }
 
-    @Test @MainActor func cursorMismatchFaultsUntilTheAppSynchronizes() async throws {
+    @Test func cursorMismatchFaultsUntilTheAppSynchronizes() async throws {
         let initialCursor = makeCursor()
         let rebuiltCursor = makeCursor(
             sessionID: SimulationSessionID(),
@@ -565,6 +592,7 @@ struct RealtimeAdvanceDriverTests {
             inputSource: inputSource,
             cursor: initialCursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: {
                 defer { clockCreationCount += 1 }
                 let source = clockCreationCount == 0
@@ -583,6 +611,15 @@ struct RealtimeAdvanceDriverTests {
         #expect(driver.isRunning == false)
         #expect(driver.isAdvancementEnabled == false)
         #expect(
+            driver.advancementState
+                == .faulted(
+                    .cursorMismatch(
+                        expected: initialCursor,
+                        current: rebuiltCursor
+                    )
+                )
+        )
+        #expect(
             driver.fault == .cursorMismatch(
                 expected: initialCursor,
                 current: rebuiltCursor
@@ -592,8 +629,10 @@ struct RealtimeAdvanceDriverTests {
         driver.resumeAdvancement()
         #expect(driver.isAdvancementEnabled == false)
 
-        driver.synchronize(to: rebuiltCursor)
+        driver.synchronize(to: rebuiltCursor, inputBaseline: nil)
+        #expect(driver.advancementState == .paused)
         driver.resumeAdvancement()
+        #expect(driver.advancementState == .enabled)
         driver.start()
         let didCompleteAfterSynchronization = await eventually {
             await target.requestCount() == 2
@@ -611,7 +650,7 @@ struct RealtimeAdvanceDriverTests {
         #expect(request.expectedCursor == rebuiltCursor)
     }
 
-    @Test @MainActor func retiringCompletionUpdatesCursorBeforeQueuedRestart() async throws {
+    @Test func retiringCompletionUpdatesCursorBeforeQueuedRestart() async throws {
         let initialCursor = makeCursor()
         let target = SuspendedAdvanceTarget()
         let baseInstant = SuspendingClock().now
@@ -674,7 +713,7 @@ struct RealtimeAdvanceDriverTests {
         await sleeper.resumeAll()
     }
 
-    @Test @MainActor func stopAndDrainWaitsForAnAlreadyIssuedRequest() async throws {
+    @Test func stopAndDrainWaitsForAnAlreadyIssuedRequest() async throws {
         let initialCursor = makeCursor()
         let target = SuspendedAdvanceTarget()
         let baseInstant = SuspendingClock().now
@@ -696,7 +735,7 @@ struct RealtimeAdvanceDriverTests {
         await target.waitForRequestCount(1)
         #expect(driver.isQuiescent == false)
 
-        let drainTask = Task { @MainActor in
+        let drainTask = Task {
             await driver.stopAndDrain()
         }
         await Task.yield()
@@ -717,7 +756,7 @@ struct RealtimeAdvanceDriverTests {
         await sleeper.resumeAll()
     }
 
-    @Test @MainActor func explicitSynchronizationSupersedesRetiringOldSessionResult() async throws {
+    @Test func explicitSynchronizationSupersedesRetiringOldSessionResult() async throws {
         let initialCursor = makeCursor()
         let synchronizedCursor = makeCursor(sessionID: SimulationSessionID())
         let target = SuspendedAdvanceTarget()
@@ -750,7 +789,7 @@ struct RealtimeAdvanceDriverTests {
         await target.waitForRequestCount(1)
 
         driver.stop()
-        driver.synchronize(to: synchronizedCursor)
+        driver.synchronize(to: synchronizedCursor, inputBaseline: nil)
         driver.start()
 
         let firstRequest = try #require(await target.recordedRequests().first)
@@ -778,13 +817,12 @@ struct RealtimeAdvanceDriverTests {
         await sleeper.resumeAll()
     }
 
-    @MainActor
     private func makeDriver(
         target: RecordingAdvanceTarget,
-        inputSource: (any PInputSnapshotSource)? = nil,
+        inputSource: (any PInputSnapshotSource)?,
         cursor: SimulationCursor,
         fixedTimeStep: Duration,
-        pollInterval: Duration? = nil,
+        pollInterval: Duration,
         clockFactory: @escaping RealtimeAdvanceDriver.ClockFactory,
         baseInstant: SuspendingClock.Instant,
         sleeper: @escaping RealtimeAdvanceDriver.Sleeper
@@ -795,13 +833,14 @@ struct RealtimeAdvanceDriverTests {
             initialCursor: cursor,
             fixedTimeStep: fixedTimeStep,
             pollInterval: pollInterval,
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: clockFactory,
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper
         )
     }
 
-    @MainActor
     private func makeSuspendedDriver(
         target: SuspendedAdvanceTarget,
         cursor: SimulationCursor,
@@ -811,9 +850,12 @@ struct RealtimeAdvanceDriverTests {
     ) -> RealtimeAdvanceDriver {
         RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: clockFactory,
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper
@@ -840,16 +882,14 @@ struct RealtimeAdvanceDriverTests {
                 ),
                 finalPresentationSnapshot: SimulationPresentationSnapshot(
                     cursor: finalCursor,
-                    camera: Camera(),
+                    camera: .standard,
                     entityPresentations: []
                 )
             )
         )
     }
 
-    private func completedCursor(
-        from outcome: SimulationAdvanceOutcome
-    ) throws -> SimulationCursor {
+    private func completedCursor(from outcome: SimulationAdvanceOutcome) throws -> SimulationCursor {
         guard case let .completed(result) = outcome else {
             Issue.record("Expected a completed outcome.")
             throw UnexpectedAdvanceOutcome()
@@ -865,10 +905,7 @@ struct RealtimeAdvanceDriverTests {
         SimulationCursor(sessionID: sessionID, tick: tick)
     }
 
-    private func inputSnapshot(
-        revision: InputRevision,
-        pointerMotionTotal: SIMD2<Float>
-    ) -> InputSnapshot {
+    private func inputSnapshot(revision: InputRevision, pointerMotionTotal: SIMD2<Float>) -> InputSnapshot {
         InputSnapshot(
             revision: revision,
             pointerPosition: pointerMotionTotal,
@@ -879,10 +916,7 @@ struct RealtimeAdvanceDriverTests {
         )
     }
 
-    @MainActor
-    private func eventually(
-        _ condition: () async -> Bool
-    ) async -> Bool {
+    private func eventually(_ condition: () async -> Bool) async -> Bool {
         for _ in 0..<10_000 {
             if await condition() {
                 return true
@@ -894,231 +928,225 @@ struct RealtimeAdvanceDriverTests {
     }
 }
 
-private struct UnexpectedAdvanceOutcome: Error {}
+private extension RealtimeAdvanceDriverTests {
+    private struct UnexpectedAdvanceOutcome: Error {}
 
-private final class SampledInstantSource {
-    private let samples: [SuspendingClock.Instant]
-    private var nextIndex = 0
+    private final class SampledInstantSource {
+        private let samples: [SuspendingClock.Instant]
+        private var nextIndex = 0
 
-    init(samples: [SuspendingClock.Instant]) {
-        self.samples = samples
-    }
+        init(samples: [SuspendingClock.Instant]) {
+            self.samples = samples
+        }
 
-    func next() -> SuspendingClock.Instant {
-        let sample = samples[min(nextIndex, samples.count - 1)]
-        nextIndex += 1
-        return sample
-    }
-}
-
-private actor ImmediateSleeper {
-    private let results: [Result<Void, any Error>]
-    private var nextIndex = 0
-    private var deadlines: [SuspendingClock.Instant] = []
-
-    init(results: [Result<Void, any Error>]) {
-        self.results = results
-    }
-
-    func sleep(until deadline: SuspendingClock.Instant) async throws {
-        deadlines.append(deadline)
-        let index = min(nextIndex, results.count - 1)
-        nextIndex += 1
-        try results[index].get()
-    }
-
-    func recordedDeadlines() -> [SuspendingClock.Instant] {
-        deadlines
-    }
-}
-
-private actor ControlledSleeper {
-    private struct Waiter {
-        let continuation: CheckedContinuation<Void, any Error>
-    }
-
-    private var waiters: [Waiter] = []
-    private var countWaiters: [
-        Int: [CheckedContinuation<Void, Never>]
-    ] = [:]
-
-    func sleep(until deadline: SuspendingClock.Instant) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            waiters.append(Waiter(continuation: continuation))
-            resumeSatisfiedCountWaiters()
+        func next() -> SuspendingClock.Instant {
+            let sample = samples[min(nextIndex, samples.count - 1)]
+            nextIndex += 1
+            return sample
         }
     }
 
-    func waitForPendingCount(_ count: Int) async {
-        guard waiters.count < count else {
-            return
+    private actor ImmediateSleeper {
+        private let results: [Result<Void, any Error>]
+        private var nextIndex = 0
+        private var deadlines: [SuspendingClock.Instant] = []
+
+        init(results: [Result<Void, any Error>]) {
+            self.results = results
         }
 
-        await withCheckedContinuation { continuation in
-            countWaiters[count, default: []].append(continuation)
-        }
-    }
-
-    func resumeNext() {
-        guard waiters.isEmpty == false else {
-            Issue.record("No controlled sleep was pending.")
-            return
+        func sleep(until deadline: SuspendingClock.Instant) async throws {
+            deadlines.append(deadline)
+            let index = min(nextIndex, results.count - 1)
+            nextIndex += 1
+            try results[index].get()
         }
 
-        waiters.removeFirst().continuation.resume()
-    }
-
-    func resumeAll() {
-        let pendingWaiters = waiters
-        waiters.removeAll()
-        for waiter in pendingWaiters {
-            waiter.continuation.resume()
+        func recordedDeadlines() -> [SuspendingClock.Instant] {
+            deadlines
         }
     }
 
-    private func resumeSatisfiedCountWaiters() {
-        let satisfiedCounts = countWaiters.keys.filter {
-            $0 <= waiters.count
+    private actor ControlledSleeper {
+        private struct Waiter {
+            let continuation: CheckedContinuation<Void, any Error>
         }
-        for count in satisfiedCounts {
-            let continuations = countWaiters.removeValue(forKey: count) ?? []
-            continuations.forEach { $0.resume() }
+
+        private var waiters: [Waiter] = []
+        private var countWaiters: [
+            Int: [CheckedContinuation<Void, Never>]
+        ] = [:]
+
+        func sleep(until deadline: SuspendingClock.Instant) async throws {
+            try await withCheckedThrowingContinuation { continuation in
+                waiters.append(Waiter(continuation: continuation))
+                resumeSatisfiedCountWaiters()
+            }
+        }
+
+        func waitForPendingCount(_ count: Int) async {
+            guard waiters.count < count else {
+                return
+            }
+
+            await withCheckedContinuation { continuation in
+                countWaiters[count, default: []].append(continuation)
+            }
+        }
+
+        func resumeNext() {
+            guard waiters.isEmpty == false else {
+                Issue.record("No controlled sleep was pending.")
+                return
+            }
+
+            waiters.removeFirst().continuation.resume()
+        }
+
+        func resumeAll() {
+            let pendingWaiters = waiters
+            waiters.removeAll()
+            for waiter in pendingWaiters {
+                waiter.continuation.resume()
+            }
+        }
+
+        private func resumeSatisfiedCountWaiters() {
+            let satisfiedCounts = countWaiters.keys.filter {
+                $0 <= waiters.count
+            }
+            for count in satisfiedCounts {
+                let continuations = countWaiters.removeValue(forKey: count) ?? []
+                continuations.forEach { $0.resume() }
+            }
         }
     }
-}
 
-private actor RecordingAdvanceTarget: PSimulationAdvanceTarget {
-    private var cursor: SimulationCursor
-    private var requests: [SimulationAdvanceRequest] = []
-    private var mismatchCursors: [SimulationCursor]
+    private actor RecordingAdvanceTarget: PSimulationAdvanceTarget {
+        private var cursor: SimulationCursor
+        private var requests: [SimulationAdvanceRequest] = []
+        private var mismatchCursors: [SimulationCursor]
 
-    init(
-        cursor: SimulationCursor,
-        mismatchCursors: [SimulationCursor] = []
-    ) {
-        self.cursor = cursor
-        self.mismatchCursors = mismatchCursors
-    }
+        init(cursor: SimulationCursor, mismatchCursors: [SimulationCursor] = []) {
+            self.cursor = cursor
+            self.mismatchCursors = mismatchCursors
+        }
 
-    func advance(
-        _ request: SimulationAdvanceRequest
-    ) async -> SimulationAdvanceOutcome {
-        requests.append(request)
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
+            requests.append(request)
 
-        if mismatchCursors.isEmpty == false {
-            let current = mismatchCursors.removeFirst()
-            cursor = current
-            return .rejected(
-                .cursorMismatch(
-                    expected: request.expectedCursor ?? cursor,
-                    current: current
+            if mismatchCursors.isEmpty == false {
+                let current = mismatchCursors.removeFirst()
+                cursor = current
+                return .rejected(
+                    .cursorMismatch(
+                        expected: request.expectedCursor ?? cursor,
+                        current: current
+                    )
+                )
+            }
+
+            let initialCursor = cursor
+            let finalCursor = SimulationCursor(
+                sessionID: cursor.sessionID,
+                tick: SimulationTick(
+                    rawValue: cursor.tick.rawValue + UInt64(request.stepCount.rawValue)
+                )
+            )
+            cursor = finalCursor
+
+            return .completed(
+                SimulationAdvanceResult(
+                    initialCursor: initialCursor,
+                    finalCursor: finalCursor,
+                    completedStepCount: SimulationCompletedStepCount(
+                        rawValue: request.stepCount.rawValue
+                    ),
+                    finalPresentationSnapshot: SimulationPresentationSnapshot(
+                        cursor: finalCursor,
+                        camera: .standard,
+                        entityPresentations: []
+                    )
                 )
             )
         }
 
-        let initialCursor = cursor
-        let finalCursor = SimulationCursor(
-            sessionID: cursor.sessionID,
-            tick: SimulationTick(
-                rawValue: cursor.tick.rawValue + UInt64(request.stepCount.rawValue)
-            )
-        )
-        cursor = finalCursor
+        func requestCount() -> Int {
+            requests.count
+        }
 
-        return .completed(
-            SimulationAdvanceResult(
-                initialCursor: initialCursor,
-                finalCursor: finalCursor,
-                completedStepCount: SimulationCompletedStepCount(
-                    rawValue: request.stepCount.rawValue
-                ),
-                finalPresentationSnapshot: SimulationPresentationSnapshot(
-                    cursor: finalCursor,
-                    camera: Camera(),
-                    entityPresentations: []
-                )
-            )
-        )
-    }
-
-    func requestCount() -> Int {
-        requests.count
-    }
-
-    func recordedRequests() -> [SimulationAdvanceRequest] {
-        requests
-    }
-}
-
-private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
-    private struct PendingAdvance {
-        let continuation: CheckedContinuation<SimulationAdvanceOutcome, Never>
-    }
-
-    private var requests: [SimulationAdvanceRequest] = []
-    private var pendingAdvances: [PendingAdvance] = []
-    private var countWaiters: [
-        Int: [CheckedContinuation<Void, Never>]
-    ] = [:]
-
-    func advance(
-        _ request: SimulationAdvanceRequest
-    ) async -> SimulationAdvanceOutcome {
-        requests.append(request)
-
-        return await withCheckedContinuation { continuation in
-            pendingAdvances.append(PendingAdvance(continuation: continuation))
-            resumeSatisfiedCountWaiters()
+        func recordedRequests() -> [SimulationAdvanceRequest] {
+            requests
         }
     }
 
-    func waitForRequestCount(_ count: Int) async {
-        guard requests.count < count else {
-            return
+    private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
+        private struct PendingAdvance {
+            let continuation: CheckedContinuation<SimulationAdvanceOutcome, Never>
         }
 
-        await withCheckedContinuation { continuation in
-            countWaiters[count, default: []].append(continuation)
+        private var requests: [SimulationAdvanceRequest] = []
+        private var pendingAdvances: [PendingAdvance] = []
+        private var countWaiters: [
+            Int: [CheckedContinuation<Void, Never>]
+        ] = [:]
+
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
+            requests.append(request)
+
+            return await withCheckedContinuation { continuation in
+                pendingAdvances.append(PendingAdvance(continuation: continuation))
+                resumeSatisfiedCountWaiters()
+            }
+        }
+
+        func waitForRequestCount(_ count: Int) async {
+            guard requests.count < count else {
+                return
+            }
+
+            await withCheckedContinuation { continuation in
+                countWaiters[count, default: []].append(continuation)
+            }
+        }
+
+        func resumeNext(with outcome: SimulationAdvanceOutcome) {
+            guard pendingAdvances.isEmpty == false else {
+                Issue.record("No suspended advance was pending.")
+                return
+            }
+
+            pendingAdvances.removeFirst().continuation.resume(returning: outcome)
+        }
+
+        func recordedRequests() -> [SimulationAdvanceRequest] {
+            requests
+        }
+
+        private func resumeSatisfiedCountWaiters() {
+            let satisfiedCounts = countWaiters.keys.filter {
+                $0 <= requests.count
+            }
+            for count in satisfiedCounts {
+                let continuations = countWaiters.removeValue(forKey: count) ?? []
+                continuations.forEach { $0.resume() }
+            }
         }
     }
 
-    func resumeNext(with outcome: SimulationAdvanceOutcome) {
-        guard pendingAdvances.isEmpty == false else {
-            Issue.record("No suspended advance was pending.")
-            return
+    private final class SequencedInputSource: PInputSnapshotSource {
+        private let snapshots: [InputSnapshot]
+        private(set) var readCount = 0
+
+        var latestInputSnapshot: InputSnapshot {
+            let snapshot = snapshots[min(readCount, snapshots.count - 1)]
+            readCount += 1
+            return snapshot
         }
 
-        pendingAdvances.removeFirst().continuation.resume(returning: outcome)
-    }
-
-    func recordedRequests() -> [SimulationAdvanceRequest] {
-        requests
-    }
-
-    private func resumeSatisfiedCountWaiters() {
-        let satisfiedCounts = countWaiters.keys.filter {
-            $0 <= requests.count
+        init(snapshots: [InputSnapshot]) {
+            precondition(snapshots.isEmpty == false)
+            self.snapshots = snapshots
         }
-        for count in satisfiedCounts {
-            let continuations = countWaiters.removeValue(forKey: count) ?? []
-            continuations.forEach { $0.resume() }
-        }
-    }
-}
-
-@MainActor
-private final class SequencedInputSource: PInputSnapshotSource {
-    private let snapshots: [InputSnapshot]
-    private(set) var readCount = 0
-
-    var latestInputSnapshot: InputSnapshot {
-        let snapshot = snapshots[min(readCount, snapshots.count - 1)]
-        readCount += 1
-        return snapshot
-    }
-
-    init(snapshots: [InputSnapshot]) {
-        precondition(snapshots.isEmpty == false)
-        self.snapshots = snapshots
     }
 }

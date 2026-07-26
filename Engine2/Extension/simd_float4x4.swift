@@ -7,26 +7,14 @@ nonisolated extension simd_float4x4 {
     /// Checking the constructed matrix catches arithmetic overflow that finite
     /// transform inputs alone cannot exclude.
     var hasFiniteElements: Bool {
-        [columns.0, columns.1, columns.2, columns.3].allSatisfy { column in
-            column.x.isFinite
-                && column.y.isFinite
-                && column.z.isFinite
-                && column.w.isFinite
-        }
+        [columns.0, columns.1, columns.2, columns.3].allSatisfy(\.isFinite)
     }
 
     static var identity: simd_float4x4 {
         matrix_identity_float4x4
     }
 
-    static func orthographic(
-        left: Float,
-        right: Float,
-        bottom: Float,
-        top: Float,
-        near: Float,
-        far: Float
-    ) -> simd_float4x4 {
+    static func orthographic(left: Float, right: Float, bottom: Float, top: Float, near: Float, far: Float) -> simd_float4x4 {
         let width = right - left
         let height = top - bottom
         let depth = far - near
@@ -49,12 +37,7 @@ nonisolated extension simd_float4x4 {
         )
     }
 
-    static func perspective(
-        verticalFieldOfView: Float,
-        aspectRatio: Float,
-        near: Float,
-        far: Float
-    ) -> simd_float4x4 {
+    static func perspective(verticalFieldOfView: Float, aspectRatio: Float, near: Float, far: Float) -> simd_float4x4 {
         let yScale = 1 / tanf(verticalFieldOfView / 2)
         let xScale = yScale / aspectRatio
         let zScale = far / (near - far)

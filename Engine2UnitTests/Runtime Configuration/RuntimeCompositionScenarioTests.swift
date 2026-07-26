@@ -6,9 +6,9 @@ import Testing
 /// Scenario-level proof that Runtime topology changes do not change Simulation
 /// semantics and that optional peers remain genuinely optional.
 struct RuntimeCompositionScenarioTests {
-    @Test @MainActor
+    @Test
     func clockDrivenSimulationRunsOneSecondWithoutInputOrRenderPeers() async throws {
-        let runtime = await Self.runClockDrivenSimulation(
+        let runtime = await runClockDrivenSimulation(
             stepCount: SimulationStepCount(rawValue: 60)
         )
 
@@ -20,19 +20,19 @@ struct RuntimeCompositionScenarioTests {
         )
 
         #expect(abs(position.x - 1) < 0.0001)
-        #expect(runtime.world.input.history.isEmpty)
+        #expect(runtime.world.inputHistory.entries.isEmpty)
         #expect(
             runtime.latestPresentationSnapshot.entityPresentations.first?.position
                 == position
         )
     }
 
-    @Test @MainActor
+    @Test
     func clockManualAndOfflineTopologiesReachEquivalentTickTwentyState() async throws {
         let gameContent = BasicGameContent(
             worldBuilder: MovingWorldBuilder()
         )
-        let clockDriven = await Self.runClockDrivenSimulation(
+        let clockDriven = await runClockDrivenSimulation(
             stepCount: SimulationStepCount(rawValue: 20)
         )
         let manual = ManualConfiguration().makeAssembly(
@@ -41,7 +41,8 @@ struct RuntimeCompositionScenarioTests {
         let manualOutcome = await manual.advanceTarget.advance(
             SimulationAdvanceRequest(
                 expectedCursor: manual.simulationRuntime.currentCursor,
-                stepCount: SimulationStepCount(rawValue: 20)
+                stepCount: SimulationStepCount(rawValue: 20),
+                inputAssignment: .none
             )
         )
         guard case let .completed(manualResult) = manualOutcome else {
@@ -49,23 +50,31 @@ struct RuntimeCompositionScenarioTests {
             return
         }
 
-        let offline = try OfflineCaptureConfiguration().makeAssembly(
+        let offline = try OfflineCaptureConfiguration(
+            renderLimits: .conservative
+        ).makeAssembly(
             gameContent: gameContent
         )
         let size = try RenderPixelSize(width: 64, height: 64)
         let viewpoint = RenderViewpoint(
             id: RenderViewpointID(),
             revision: .zero,
-            camera: Camera()
+            camera: .standard
         )
-        let settings = OffscreenRenderSettings(size: size)
+        let settings = OffscreenRenderSettings(
+            size: size,
+            outputMode: .surface,
+            exposure: .validation
+        )
 
         let firstOutcome = await offline.captureTarget.capture(
             OfflineCaptureRequest(
                 advanceRequest: SimulationAdvanceRequest(
                     expectedCursor: offline.initialCursor,
-                    stepCount: SimulationStepCount(rawValue: 10)
+                    stepCount: SimulationStepCount(rawValue: 10),
+                    inputAssignment: .none
                 ),
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: settings,
                 encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
@@ -80,8 +89,10 @@ struct RuntimeCompositionScenarioTests {
             OfflineCaptureRequest(
                 advanceRequest: SimulationAdvanceRequest(
                     expectedCursor: firstResult.advanceResult.finalCursor,
-                    stepCount: SimulationStepCount(rawValue: 10)
+                    stepCount: SimulationStepCount(rawValue: 10),
+                    inputAssignment: .none
                 ),
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: settings,
                 encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
@@ -95,6 +106,7 @@ struct RuntimeCompositionScenarioTests {
         let currentOutcome = await offline.captureTarget.captureCurrent(
             OfflineCurrentCaptureRequest(
                 expectedCursor: secondResult.advanceResult.finalCursor,
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: settings,
                 encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
@@ -128,17 +140,16 @@ struct RuntimeCompositionScenarioTests {
                 == manualResult.finalPresentationSnapshot.camera
         )
 
-        try Self.expectDecodableJPEG(firstResult.artifact, size: size)
-        try Self.expectDecodableJPEG(secondResult.artifact, size: size)
-        try Self.expectDecodableJPEG(currentResult.artifact, size: size)
+        try expectDecodableJPEG(firstResult.artifact, size: size)
+        try expectDecodableJPEG(secondResult.artifact, size: size)
+        try expectDecodableJPEG(currentResult.artifact, size: size)
     }
 
-    @MainActor
-    private static func runClockDrivenSimulation(
-        stepCount: SimulationStepCount
-    ) async -> SimulationRuntime {
+    private func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
         let runtime = SimulationRuntime(
-            worldBuilder: MovingWorldBuilder()
+            worldBuilder: MovingWorldBuilder(),
+            configuration: .basicGame,
+            inputBaseline: nil
         )
         let baseInstant = SuspendingClock().now
         let elapsed = (0..<stepCount.rawValue).reduce(Duration.zero) {
@@ -155,6 +166,7 @@ struct RuntimeCompositionScenarioTests {
         let sleeper = ControlledSleeper()
         let driver = RealtimeAdvanceDriver(
             advanceTarget: runtime,
+            inputSource: nil,
             initialCursor: runtime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
@@ -162,6 +174,7 @@ struct RuntimeCompositionScenarioTests {
                 maximumStepsPerWake: stepCount,
                 backlogTreatment: .preserve
             ),
+            isAdvancementEnabled: true,
             clockFactory: {
                 SystemClock(timeSource: elapsedSource.next)
             },
@@ -176,7 +189,7 @@ struct RuntimeCompositionScenarioTests {
         let expectedTick = SimulationTick(
             rawValue: UInt64(stepCount.rawValue)
         )
-        let didAdvance = await Self.eventually {
+        let didAdvance = await eventually {
             runtime.currentCursor.tick == expectedTick
         }
         await driver.stopAndDrain()
@@ -186,9 +199,7 @@ struct RuntimeCompositionScenarioTests {
         return runtime
     }
 
-    private static func eventually(
-        _ condition: @MainActor () -> Bool
-    ) async -> Bool {
+    private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: .seconds(5))
 
@@ -202,10 +213,7 @@ struct RuntimeCompositionScenarioTests {
         return false
     }
 
-    private static func expectDecodableJPEG(
-        _ artifact: RenderedImageArtifact,
-        size: RenderPixelSize
-    ) throws {
+    private func expectDecodableJPEG(_ artifact: RenderedImageArtifact, size: RenderPixelSize) throws {
         guard case .jpeg = artifact.encoding else {
             Issue.record("Expected the scenario artifact to use JPEG.")
             return
@@ -228,6 +236,7 @@ struct RuntimeCompositionScenarioTests {
             let world = World()
             _ = Ball(
                 in: world,
+                materialID: .warmDielectric,
                 position: .zero,
                 velocity: SIMD3<Float>(1, 0, 0)
             )

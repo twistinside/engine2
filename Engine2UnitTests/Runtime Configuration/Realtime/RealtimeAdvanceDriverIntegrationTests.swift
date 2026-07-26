@@ -3,10 +3,11 @@ import Testing
 @testable import Engine2
 
 struct RealtimeAdvanceDriverIntegrationTests {
-    @Test @MainActor func driverCommitsExactRuntimePublicationAndPostStartInput() async throws {
+    @Test func driverCommitsExactRuntimePublicationAndPostStartInput() async throws {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: IntegrationMovingWorldBuilder(),
+            configuration: .basicGame,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let initialCamera = simulationRuntime.world.camera
@@ -24,6 +25,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -78,13 +81,15 @@ struct RealtimeAdvanceDriverIntegrationTests {
                 projecting: simulationRuntime.latestPresentationSnapshot
             ).camera == simulationRuntime.world.camera
         )
-        #expect(simulationRuntime.world.input.history.first?.tokens == ["Mouse dx:+5 dy:+0"])
+        #expect(simulationRuntime.world.inputHistory.entries.first?.tokens == ["Mouse dx:+5 dy:+0"])
     }
 
-    @Test @MainActor
+    @Test
     func pausedCameraInputIsDiscardedAndFreshInputCommitsAfterResume() async {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
+            configuration: .basicGame,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let initialCamera = simulationRuntime.world.camera
@@ -113,6 +118,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -192,12 +199,11 @@ struct RealtimeAdvanceDriverIntegrationTests {
             simulationRuntime.world.camera
         )
         #expect(
-            simulationRuntime.world.input.history.first?.tokens ==
+            simulationRuntime.world.inputHistory.entries.first?.tokens ==
             ["Mouse dx:+10 dy:+0"]
         )
     }
 
-    @MainActor
     private func eventually(_ condition: () -> Bool) async -> Bool {
         for _ in 0..<10_000 {
             if condition() {
@@ -211,94 +217,94 @@ struct RealtimeAdvanceDriverIntegrationTests {
 }
 
 private extension SIMD3 where Scalar == Float {
-    func isApproximately(
-        _ other: SIMD3<Float>,
-        tolerance: Float = 0.0001
-    ) -> Bool {
+    func isApproximately(_ other: SIMD3<Float>, tolerance: Float = 0.0001) -> Bool {
         abs(x - other.x) <= tolerance
             && abs(y - other.y) <= tolerance
             && abs(z - other.z) <= tolerance
     }
 }
 
-private struct IntegrationMovingWorldBuilder: PWorldBuilder {
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(
-            in: world,
-            position: .zero,
-            velocity: SIMD3<Float>(1, 0, 0)
-        )
-        return world
-    }
-}
-
-private final class IntegrationInstantSource {
-    private let samples: [SuspendingClock.Instant]
-    private var nextIndex = 0
-
-    init(samples: [SuspendingClock.Instant]) {
-        self.samples = samples
-    }
-
-    func next() -> SuspendingClock.Instant {
-        let sample = samples[min(nextIndex, samples.count - 1)]
-        nextIndex += 1
-        return sample
-    }
-}
-
-private actor IntegrationControlledSleeper {
-    private struct Waiter {
-        let continuation: CheckedContinuation<Void, any Error>
-    }
-
-    private var waiters: [Waiter] = []
-    private var countWaiters: [
-        Int: [CheckedContinuation<Void, Never>]
-    ] = [:]
-
-    func sleep(until deadline: SuspendingClock.Instant) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            waiters.append(Waiter(continuation: continuation))
-            resumeSatisfiedCountWaiters()
+private extension RealtimeAdvanceDriverIntegrationTests {
+    private struct IntegrationMovingWorldBuilder: PWorldBuilder {
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(
+                in: world,
+                materialID: .warmDielectric,
+                position: .zero,
+                velocity: SIMD3<Float>(1, 0, 0)
+            )
+            return world
         }
     }
 
-    func waitForPendingCount(_ count: Int) async {
-        guard waiters.count < count else {
-            return
+    private final class IntegrationInstantSource {
+        private let samples: [SuspendingClock.Instant]
+        private var nextIndex = 0
+
+        init(samples: [SuspendingClock.Instant]) {
+            self.samples = samples
         }
 
-        await withCheckedContinuation { continuation in
-            countWaiters[count, default: []].append(continuation)
-        }
-    }
-
-    func resumeNext() {
-        guard waiters.isEmpty == false else {
-            Issue.record("No integration sleep was pending.")
-            return
-        }
-
-        waiters.removeFirst().continuation.resume()
-    }
-
-    func resumeAll() {
-        let pendingWaiters = waiters
-        waiters.removeAll()
-        for waiter in pendingWaiters {
-            waiter.continuation.resume()
+        func next() -> SuspendingClock.Instant {
+            let sample = samples[min(nextIndex, samples.count - 1)]
+            nextIndex += 1
+            return sample
         }
     }
 
-    private func resumeSatisfiedCountWaiters() {
-        let satisfiedCounts = countWaiters.keys.filter {
-            $0 <= waiters.count
+    private actor IntegrationControlledSleeper {
+        private struct Waiter {
+            let continuation: CheckedContinuation<Void, any Error>
         }
-        for count in satisfiedCounts {
-            let continuations = countWaiters.removeValue(forKey: count) ?? []
-            continuations.forEach { $0.resume() }
+
+        private var waiters: [Waiter] = []
+        private var countWaiters: [
+            Int: [CheckedContinuation<Void, Never>]
+        ] = [:]
+
+        func sleep(until deadline: SuspendingClock.Instant) async throws {
+            try await withCheckedThrowingContinuation { continuation in
+                waiters.append(Waiter(continuation: continuation))
+                resumeSatisfiedCountWaiters()
+            }
+        }
+
+        func waitForPendingCount(_ count: Int) async {
+            guard waiters.count < count else {
+                return
+            }
+
+            await withCheckedContinuation { continuation in
+                countWaiters[count, default: []].append(continuation)
+            }
+        }
+
+        func resumeNext() {
+            guard waiters.isEmpty == false else {
+                Issue.record("No integration sleep was pending.")
+                return
+            }
+
+            waiters.removeFirst().continuation.resume()
+        }
+
+        func resumeAll() {
+            let pendingWaiters = waiters
+            waiters.removeAll()
+            for waiter in pendingWaiters {
+                waiter.continuation.resume()
+            }
+        }
+
+        private func resumeSatisfiedCountWaiters() {
+            let satisfiedCounts = countWaiters.keys.filter {
+                $0 <= waiters.count
+            }
+            for count in satisfiedCounts {
+                let continuations = countWaiters.removeValue(forKey: count) ?? []
+                continuations.forEach { $0.resume() }
+            }
         }
     }
 }

@@ -6,6 +6,11 @@ import simd
 /// stable `Codable` and exact `Equatable` value semantics independent of app
 /// actor isolation.
 struct CRotation: PComponent {
+    /// Neutral orientation used when Game Content supplies no authored rotation.
+    static let identity = CRotation(
+        rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
+    )
+
     let rotation: simd_quatf
 }
 

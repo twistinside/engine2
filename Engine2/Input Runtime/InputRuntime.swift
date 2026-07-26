@@ -1,7 +1,6 @@
 import simd
 
 /// Owns platform-neutral device state and publishes immutable input snapshots.
-@MainActor
 final class InputRuntime: PInputEventSink, PInputSnapshotSource {
     private var revision = InputRevision.initial
     private var pointerPosition = SIMD2<Float>.zero
@@ -54,14 +53,14 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         switch event {
         case let .mouseButtonDown(button, position):
-            guard Self.isFinite(position) else {
+            guard position.isFinite else {
                 return
             }
             pointerPosition = position
             pressedMouseButtons.insert(button)
 
         case let .mouseButtonUp(button, position):
-            guard Self.isFinite(position) else {
+            guard position.isFinite else {
                 return
             }
             pointerPosition = position
@@ -69,9 +68,9 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         case let .mouseDragged(delta, position):
             let nextPointerMotionTotal = pointerMotionTotal + delta
-            guard Self.isFinite(delta),
-                  Self.isFinite(position),
-                  Self.isFinite(nextPointerMotionTotal) else {
+            guard delta.isFinite,
+                  position.isFinite,
+                  nextPointerMotionTotal.isFinite else {
                 return
             }
             pointerPosition = position
@@ -79,8 +78,8 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         case let .scroll(delta):
             let nextScrollTotal = scrollTotal + delta
-            guard Self.isFinite(delta),
-                  Self.isFinite(nextScrollTotal) else {
+            guard delta.isFinite,
+                  nextScrollTotal.isFinite else {
                 return
             }
             scrollTotal = nextScrollTotal
@@ -94,10 +93,6 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         revision = revision.advanced()
         publishSnapshot()
-    }
-
-    private static func isFinite(_ value: SIMD2<Float>) -> Bool {
-        value.x.isFinite && value.y.isFinite
     }
 
     private func publishSnapshot() {

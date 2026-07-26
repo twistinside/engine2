@@ -7,7 +7,20 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct AgentSessionConfigurationTests {
-    @MainActor
+    @Test
+    func freshConstructionOwnsSessionIdentitiesAndStartsAtTheFirstRequest() throws {
+        let assembly = try AgentSessionConfiguration(
+            renderLimits: .conservative,
+            sessionLimits: .conservative
+        ).makeAssembly(
+            gameContent: BasicGameContent()
+        )
+
+        #expect(assembly.initialCursor.tick == .zero)
+        #expect(assembly.firstRequestID.sessionID == assembly.sessionID)
+        #expect(assembly.firstRequestID.sequence == .first)
+    }
+
     @Test
     func executesReplaysAndContinuesThroughTheClosedAssemblyBoundary() async throws {
         let agentSessionID = AgentSessionID(
@@ -20,7 +33,10 @@ struct AgentSessionConfigurationTests {
                 uuidString: "50000000-0000-0000-0000-000000000002"
             )!
         )
-        let assembly = try AgentSessionConfiguration().makeAssembly(
+        let assembly = try AgentSessionConfiguration(
+            renderLimits: .conservative,
+            sessionLimits: .conservative
+        ).makeAssembly(
             gameContent: BasicGameContent(),
             agentSessionID: agentSessionID,
             simulationSessionID: simulationSessionID
@@ -50,7 +66,9 @@ struct AgentSessionConfigurationTests {
             revision: RenderViewpointRevision(rawValue: 11),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(0, 0, 8)
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let firstRenderSettings = OffscreenRenderSettings(
@@ -63,8 +81,10 @@ struct AgentSessionConfigurationTests {
         )
         let firstRequest = AgentCaptureRequest(
             id: firstRequestID,
-            expectedCursor: initialCursor,
-            stepCount: .one,
+            source: .advance(
+                expectedCursor: initialCursor,
+                stepCount: .one
+            ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000004"
@@ -75,10 +95,10 @@ struct AgentSessionConfigurationTests {
             encoding: firstEncoding
         )
 
-        let firstResponse = try Self.executedResponse(
+        let firstResponse = try executedResponse(
             from: await target.capture(firstRequest)
         )
-        let firstResult = try Self.completedCapture(from: firstResponse)
+        let firstResult = try completedCapture(from: firstResponse)
 
         #expect(firstResponse.requestID == firstRequestID)
         #expect(firstResponse.knownCursor == initialCursor.advanced())
@@ -92,7 +112,7 @@ struct AgentSessionConfigurationTests {
             firstResult.advanceResult.finalPresentationSnapshot.cursor ==
             firstResponse.knownCursor
         )
-        try Self.assertArtifact(
+        try assertArtifact(
             firstResult.artifact,
             requestID: firstRequest.renderRequestID,
             cursor: firstResponse.knownCursor,
@@ -111,7 +131,9 @@ struct AgentSessionConfigurationTests {
             revision: firstViewpoint.revision.advanced(),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(0.75, 0.25, 8)
+                from: SIMD3<Float>(0.75, 0.25, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let secondRenderSettings = OffscreenRenderSettings(
@@ -120,9 +142,9 @@ struct AgentSessionConfigurationTests {
             exposure: ManualExposure(multiplier: 1.1)
         )
         let secondEncoding = ImageArtifactEncoding.png
-        let secondRequest = AgentCaptureRequest.current(
+        let secondRequest = AgentCaptureRequest(
             id: secondRequestID,
-            expectedCursor: firstResponse.knownCursor,
+            source: .current(expectedCursor: firstResponse.knownCursor),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000005"
@@ -133,10 +155,10 @@ struct AgentSessionConfigurationTests {
             encoding: secondEncoding
         )
 
-        let secondResponse = try Self.executedResponse(
+        let secondResponse = try executedResponse(
             from: await target.capture(secondRequest)
         )
-        let secondResult = try Self.completedCurrentCapture(
+        let secondResult = try completedCurrentCapture(
             from: secondResponse
         )
 
@@ -150,7 +172,7 @@ struct AgentSessionConfigurationTests {
         #expect(secondResponse.knownCursor == firstResponse.knownCursor)
         #expect(secondResponse.knownCursor.tick == SimulationTick(rawValue: 1))
         #expect(secondResponse.knownCursor.sessionID == simulationSessionID)
-        try Self.assertArtifact(
+        try assertArtifact(
             secondResult.artifact,
             requestID: secondRequest.renderRequestID,
             cursor: secondResponse.knownCursor,
@@ -161,10 +183,10 @@ struct AgentSessionConfigurationTests {
 
         // An identical current-capture retry replays the byte-identical result
         // and likewise leaves the cursor at tick one.
-        let replayedResponse = try Self.replayedResponse(
+        let replayedResponse = try replayedResponse(
             from: await target.capture(secondRequest)
         )
-        let replayedResult = try Self.completedCurrentCapture(
+        let replayedResult = try completedCurrentCapture(
             from: replayedResponse
         )
         #expect(replayedResponse == secondResponse)
@@ -184,13 +206,17 @@ struct AgentSessionConfigurationTests {
             revision: secondViewpoint.revision.advanced(),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(-0.5, 0.5, 8)
+                from: SIMD3<Float>(-0.5, 0.5, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let thirdRequest = AgentCaptureRequest(
             id: thirdRequestID,
-            expectedCursor: secondResponse.knownCursor,
-            stepCount: .one,
+            source: .advance(
+                expectedCursor: secondResponse.knownCursor,
+                stepCount: .one
+            ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
                     uuidString: "50000000-0000-0000-0000-000000000006"
@@ -200,10 +226,10 @@ struct AgentSessionConfigurationTests {
             renderSettings: secondRenderSettings,
             encoding: secondEncoding
         )
-        let thirdResponse = try Self.executedResponse(
+        let thirdResponse = try executedResponse(
             from: await target.capture(thirdRequest)
         )
-        let thirdResult = try Self.completedCapture(from: thirdResponse)
+        let thirdResult = try completedCapture(from: thirdResponse)
 
         // If either current capture had advanced, this expected cursor would
         // reject. The next true advance begins at tick one and commits tick two.
@@ -219,7 +245,7 @@ struct AgentSessionConfigurationTests {
         #expect(thirdResponse.knownCursor == thirdResult.advanceResult.finalCursor)
         #expect(thirdResponse.knownCursor.tick == SimulationTick(rawValue: 2))
         #expect(thirdResult.advanceResult.completedStepCount.rawValue == 1)
-        try Self.assertArtifact(
+        try assertArtifact(
             thirdResult.artifact,
             requestID: thirdRequest.renderRequestID,
             cursor: thirdResponse.knownCursor,
@@ -229,9 +255,7 @@ struct AgentSessionConfigurationTests {
         )
     }
 
-    private static func executedResponse(
-        from outcome: AgentSessionSubmissionOutcome
-    ) throws -> AgentSessionResponse {
+    private func executedResponse(from outcome: AgentSessionSubmissionOutcome) throws -> AgentSessionResponse {
         guard case let .executed(response) = outcome else {
             Issue.record("Expected executed agent response, received \(outcome)")
             throw UnexpectedOutcome()
@@ -239,9 +263,7 @@ struct AgentSessionConfigurationTests {
         return response
     }
 
-    private static func replayedResponse(
-        from outcome: AgentSessionSubmissionOutcome
-    ) throws -> AgentSessionResponse {
+    private func replayedResponse(from outcome: AgentSessionSubmissionOutcome) throws -> AgentSessionResponse {
         guard case let .replayed(response) = outcome else {
             Issue.record("Expected replayed agent response, received \(outcome)")
             throw UnexpectedOutcome()
@@ -249,9 +271,7 @@ struct AgentSessionConfigurationTests {
         return response
     }
 
-    private static func completedCapture(
-        from response: AgentSessionResponse
-    ) throws -> OfflineCaptureResult {
+    private func completedCapture(from response: AgentSessionResponse) throws -> OfflineCaptureResult {
         guard case let .capture(captureOutcome) = response.outcome else {
             Issue.record("Expected capture execution, received \(response.outcome)")
             throw UnexpectedOutcome()
@@ -263,13 +283,9 @@ struct AgentSessionConfigurationTests {
         return result
     }
 
-    private static func completedCurrentCapture(
-        from response: AgentSessionResponse
-    ) throws -> OfflineCurrentCaptureResult {
+    private func completedCurrentCapture(from response: AgentSessionResponse) throws -> OfflineCurrentCaptureResult {
         guard case let .currentCapture(captureOutcome) = response.outcome else {
-            Issue.record(
-                "Expected current capture execution, received \(response.outcome)"
-            )
+            Issue.record("Expected current capture execution, received \(response.outcome)")
             throw UnexpectedOutcome()
         }
         guard case let .completed(result) = captureOutcome else {
@@ -279,7 +295,7 @@ struct AgentSessionConfigurationTests {
         return result
     }
 
-    private static func assertArtifact(
+    private func assertArtifact(
         _ artifact: RenderedImageArtifact,
         requestID: OffscreenRenderRequestID,
         cursor: SimulationCursor,

@@ -21,14 +21,8 @@ nonisolated struct SimulationAdvanceResult: Equatable, Sendable {
         completedStepCount: SimulationCompletedStepCount,
         finalPresentationSnapshot: SimulationPresentationSnapshot
     ) {
-        precondition(
-            completedStepCount.rawValue > 0,
-            "A completed Simulation advance must contain at least one step."
-        )
-        precondition(
-            initialCursor.sessionID == finalCursor.sessionID,
-            "A completed Simulation advance cannot cross session identity."
-        )
+        precondition(completedStepCount.rawValue > 0, "A completed Simulation advance must contain at least one step.")
+        precondition(initialCursor.sessionID == finalCursor.sessionID, "A completed Simulation advance cannot cross session identity.")
 
         let (expectedFinalTick, overflowed) =
             initialCursor.tick.rawValue.addingReportingOverflow(
@@ -38,10 +32,7 @@ nonisolated struct SimulationAdvanceResult: Equatable, Sendable {
             !overflowed && finalCursor.tick.rawValue == expectedFinalTick,
             "A completed Simulation cursor range must match its step count."
         )
-        precondition(
-            finalPresentationSnapshot.cursor == finalCursor,
-            "A completed Simulation result must publish its final cursor."
-        )
+        precondition(finalPresentationSnapshot.cursor == finalCursor, "A completed Simulation result must publish its final cursor.")
 
         self.initialCursor = initialCursor
         self.finalCursor = finalCursor

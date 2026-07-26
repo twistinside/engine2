@@ -12,19 +12,9 @@ struct SCameraInput: PSystem {
     let minimumRadius: Float
     let maximumRadius: Float
 
-    init(
-        target: SIMD3<Float> = .zero,
-        minimumRadius: Float = 2,
-        maximumRadius: Float = 30
-    ) {
-        precondition(
-            target.x.isFinite && target.y.isFinite && target.z.isFinite,
-            "Camera orbit target must be finite."
-        )
-        precondition(
-            minimumRadius.isFinite && minimumRadius > 0,
-            "Camera orbit minimum radius must be finite and positive."
-        )
+    init(target: SIMD3<Float>, minimumRadius: Float, maximumRadius: Float) {
+        precondition(target.isFinite, "Camera orbit target must be finite.")
+        precondition(minimumRadius.isFinite && minimumRadius > 0, "Camera orbit minimum radius must be finite and positive.")
         precondition(
             maximumRadius.isFinite && maximumRadius >= minimumRadius,
             "Camera orbit maximum radius must be finite and no smaller than its minimum."
@@ -48,9 +38,7 @@ struct SCameraInput: PSystem {
 
         let currentCamera = world.camera
         let offset = currentCamera.position - target
-        guard offset.x.isFinite,
-              offset.y.isFinite,
-              offset.z.isFinite else {
+        guard offset.isFinite else {
             return
         }
 
@@ -79,15 +67,14 @@ struct SCameraInput: PSystem {
             offset.y,
             cosf(nextYaw) * nextRadius
         )
-        guard nextPosition.x.isFinite,
-              nextPosition.y.isFinite,
-              nextPosition.z.isFinite else {
+        guard nextPosition.isFinite else {
             return
         }
 
         let nextCamera = Camera.lookingAt(
             target,
             from: nextPosition,
+            up: SIMD3<Float>(0, 1, 0),
             projection: currentCamera.projection
         )
         guard nextCamera.supportsViewTransform else {

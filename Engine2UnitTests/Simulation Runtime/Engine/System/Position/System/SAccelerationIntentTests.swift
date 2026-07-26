@@ -16,7 +16,7 @@ struct SAccelerationIntentTests {
         )
 
         var intentSystem = SAccelerationIntent()
-        let movementSystem = SMovement()
+        var movementSystem = SMovement()
 
         intentSystem.update(world: &world, deltaTime: 0.5)
         movementSystem.update(world: &world, deltaTime: 0.5)

@@ -19,26 +19,32 @@ struct Engine2App: App {
 
     init() {
         let gameContent = BasicGameContent()
-        let realtimeAssembly = RealtimeConfiguration().makeAssembly(
+        let realtimeAssembly = RealtimeConfiguration(
+            pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive
+        ).makeAssembly(
             gameContent: gameContent
         )
         let snapshotCaptureViewModel: SnapshotCaptureViewModel
 
         do {
             let offscreenRenderRuntime = try MetalOffscreenRenderRuntime(
-                catalog: gameContent.renderAssetCatalog
+                catalog: gameContent.renderAssetCatalog,
+                limits: .conservative
             )
-            let captureConnection = RealtimeSnapshotCaptureConnection(
+            let captureConnection = try RealtimeSnapshotCaptureConnection(
                 presentationSource: realtimeAssembly.simulationRuntime,
                 renderTarget: offscreenRenderRuntime
             )
             snapshotCaptureViewModel = SnapshotCaptureViewModel(
-                captureTarget: captureConnection
+                captureTarget: captureConnection,
+                renderSize: .uhd4K
             )
         } catch {
             snapshotCaptureViewModel = SnapshotCaptureViewModel(
                 unavailableReason:
-                    "The offline Metal renderer could not start. \(error)"
+                    "Snapshot output could not start. \(error)",
+                renderSize: .uhd4K
             )
         }
 
@@ -58,7 +64,7 @@ struct Engine2App: App {
                     realtimeAssembly.isAdvancementActive
                 },
                 inputHistory: {
-                    realtimeAssembly.simulationRuntime.world.input.history
+                    realtimeAssembly.simulationRuntime.world.inputHistory.entries
                 },
                 toggleSimulation: {
                     if realtimeAssembly.isAdvancementActive {
@@ -83,10 +89,7 @@ struct Engine2App: App {
             }
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
-            precondition(
-                lifecycleRequestID < .max,
-                "App lifecycle request identity exhausted."
-            )
+            precondition(lifecycleRequestID < .max, "App lifecycle request identity exhausted.")
             lifecycleRequestID += 1
             let requestID = lifecycleRequestID
 

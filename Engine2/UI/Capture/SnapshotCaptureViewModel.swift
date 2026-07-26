@@ -6,29 +6,16 @@ import Observation
 /// The model requests one artifact through a narrow App-owned connection, then
 /// exposes a detached file document to SwiftUI. It never samples Simulation,
 /// resolves a viewpoint, calls Metal directly, or writes a destination itself.
-@MainActor
 @Observable
 final class SnapshotCaptureViewModel {
-    /// Deliberate 4K output that stays within the conservative Render limits.
-    static let defaultRenderSize = RenderPixelSize.uhd4K
-
     private(set) var isCapturing = false
-    var isExporterPresented = false
-    private(set) var exportDocument: JPEGArtifactDocument?
-    private(set) var defaultFilename = "Engine2 Snapshot"
-    var isFailurePresented = false
-    private(set) var failureMessage = ""
-    private(set) var failureAllowsExportRetry = false
+    private(set) var presentedModal: SnapshotCapturePresentation?
 
     @ObservationIgnored
-    private let captureTarget: (any PRealtimeSnapshotCaptureTarget)?
+    private let availability: SnapshotCaptureAvailability
 
     @ObservationIgnored
     private let renderSize: RenderPixelSize
-
-    /// Open-ended initialization diagnostic supplied by Metal or the driver.
-    @ObservationIgnored
-    private let unavailableReason: String?
 
     @ObservationIgnored
     private var isPresentationActive = false
@@ -37,26 +24,18 @@ final class SnapshotCaptureViewModel {
     private var presentationGeneration: UInt64 = 0
 
     /// Creates an available UI model around the App-owned capture capability.
-    init(
-        captureTarget: any PRealtimeSnapshotCaptureTarget,
-        renderSize: RenderPixelSize = SnapshotCaptureViewModel.defaultRenderSize
-    ) {
-        self.captureTarget = captureTarget
+    init(captureTarget: any PRealtimeSnapshotCaptureTarget, renderSize: RenderPixelSize) {
+        self.availability = .available(captureTarget)
         self.renderSize = renderSize
-        self.unavailableReason = nil
     }
 
     /// Creates a model that reports a retained Render initialization failure.
     ///
     /// `reason` is intentionally open-ended because Metal and driver diagnostic
     /// vocabularies are external to Engine2's closed capture state.
-    init(
-        unavailableReason reason: String,
-        renderSize: RenderPixelSize = SnapshotCaptureViewModel.defaultRenderSize
-    ) {
-        self.captureTarget = nil
+    init(unavailableReason reason: String, renderSize: RenderPixelSize) {
+        self.availability = .unavailable(reason: reason)
         self.renderSize = renderSize
-        self.unavailableReason = reason
     }
 
     /// Marks the window presentation lane as available for capture results.
@@ -70,16 +49,10 @@ final class SnapshotCaptureViewModel {
     /// Advancing the generation prevents that stale completion from opening a
     /// save panel in a later presentation of the window.
     func deactivatePresentation() {
-        precondition(
-            presentationGeneration < .max,
-            "Snapshot presentation generation exhausted."
-        )
+        precondition(presentationGeneration < .max, "Snapshot presentation generation exhausted.")
         presentationGeneration += 1
         isPresentationActive = false
-        isExporterPresented = false
-        exportDocument = nil
-        failureAllowsExportRetry = false
-        isFailurePresented = false
+        presentedModal = nil
     }
 
     /// Renders the current presentation and opens export state on completion.
@@ -87,27 +60,32 @@ final class SnapshotCaptureViewModel {
         guard isPresentationActive, !isCapturing else {
             return
         }
-        guard let captureTarget else {
-            presentFailure(
-                unavailableReason
-                    ?? "The offline renderer is unavailable for this window."
-            )
+
+        let captureTarget: any PRealtimeSnapshotCaptureTarget
+        switch availability {
+        case let .available(target):
+            captureTarget = target
+
+        case let .unavailable(reason):
+            presentedModal = .captureFailure(message: reason)
             return
         }
 
         let selectedPresentationGeneration = presentationGeneration
-        exportDocument = nil
+        presentedModal = nil
         isCapturing = true
         defer {
             isCapturing = false
         }
 
+        let renderSettings = OffscreenRenderSettings(
+            size: renderSize,
+            outputMode: outputMode,
+            exposure: .validation
+        )
         let request = RealtimeSnapshotCaptureRequest(
-            renderSettings: OffscreenRenderSettings(
-                size: renderSize,
-                outputMode: outputMode,
-                exposure: .validation
-            ),
+            renderRequestID: OffscreenRenderRequestID(),
+            renderSettings: renderSettings,
             encoding: .jpeg(quality: .maximum)
         )
         let outcome = await captureTarget.capture(request)
@@ -117,7 +95,9 @@ final class SnapshotCaptureViewModel {
         else {
             return
         }
-        handle(outcome)
+        presentedModal = SnapshotCapturePresentation(
+            jpegCaptureOutcome: outcome
+        )
     }
 
     /// Resolves SwiftUI's attempt to write the detached JPEG.
@@ -125,39 +105,36 @@ final class SnapshotCaptureViewModel {
     /// A failed write retains the already-rendered document so retrying never
     /// resamples Simulation or repeats GPU and JPEG work.
     func exportCompleted(_ result: Result<URL, any Error>) {
-        isExporterPresented = false
+        guard case let .exporter(document, defaultFilename) = presentedModal else {
+            return
+        }
 
         switch result {
         case .success:
-            exportDocument = nil
-            failureAllowsExportRetry = false
+            presentedModal = nil
 
         case let .failure(error):
-            presentFailure(
-                "The rendered JPEG could not be saved. \(error.localizedDescription)",
-                allowsExportRetry: exportDocument != nil
+            presentedModal = .exportFailure(
+                message: "The rendered JPEG could not be saved. \(error.localizedDescription)",
+                document: document,
+                defaultFilename: defaultFilename
             )
         }
     }
 
     /// Reopens the save panel around the exact retained JPEG document.
     func retryExport() {
-        guard exportDocument != nil else {
+        guard case let .exportFailure(_, document, defaultFilename) = presentedModal else {
             discardExport()
             return
         }
 
-        failureAllowsExportRetry = false
-        isFailurePresented = false
-        isExporterPresented = true
+        presentedModal = .exporter(document: document, defaultFilename: defaultFilename)
     }
 
     /// Discards a rendered JPEG after the user declines another save attempt.
     func discardExport() {
-        isExporterPresented = false
-        exportDocument = nil
-        failureAllowsExportRetry = false
-        isFailurePresented = false
+        presentedModal = nil
     }
 
     /// Discards the pending detached document when the save panel is cancelled.
@@ -167,118 +144,13 @@ final class SnapshotCaptureViewModel {
 
     /// Clears the current user-visible failure.
     func dismissFailure() {
-        isFailurePresented = false
-    }
+        switch presentedModal {
+        case .captureFailure, .exportFailure:
+            presentedModal = nil
 
-    private func handle(_ outcome: RealtimeSnapshotCaptureOutcome) {
-        switch outcome {
-        case let .completed(sourceSnapshot, artifact):
-            exportDocument = JPEGArtifactDocument(artifact: artifact)
-            defaultFilename =
-                "Engine2-tick-\(sourceSnapshot.cursor.tick.rawValue)"
-            isExporterPresented = true
-
-        case .connectionBusy:
-            presentFailure("Another snapshot capture is already in progress.")
-
-        case .cancelledBeforeRender:
-            presentFailure("Snapshot capture was cancelled before rendering.")
-
-        case let .renderRejected(_, rejection):
-            presentFailure(message(for: rejection))
-
-        case let .renderFailed(_, failure):
-            presentFailure(
-                "The offline renderer failed during \(failure.stage). "
-                    + failure.backendDescription
-            )
-
-        case .renderCancellationRequestIDMismatch:
-            presentFailure(
-                "The offline renderer returned cancellation for the wrong request."
-            )
-
-        case .renderCancelledAfterSubmission:
-            presentFailure(
-                "Snapshot capture was cancelled after GPU submission completed."
-            )
-
-        case .renderResultMismatch:
-            presentFailure(
-                "The offline renderer returned an image that did not match "
-                    + "the selected snapshot or output settings."
-            )
-
-        case .artifactResultMismatch:
-            presentFailure(
-                "The image encoder returned an artifact that did not match "
-                    + "the selected snapshot or output settings."
-            )
-
-        case .cancelledAfterRender:
-            presentFailure(
-                "Snapshot capture was cancelled before JPEG encoding began."
-            )
-
-        case let .artifactEncodingFailed(_, _, failure):
-            presentFailure(message(for: failure))
+        case .exporter, nil:
+            break
         }
     }
 
-    private func message(
-        for rejection: OffscreenRenderRejection
-    ) -> String {
-        switch rejection {
-        case .runtimeBusy:
-            "The offline renderer is busy with another request."
-
-        case .cancelledBeforeSubmission:
-            "Snapshot capture was cancelled before GPU submission."
-
-        case .invalidViewpoint:
-            "The selected Simulation camera cannot be rendered offscreen."
-
-        case .invalidPresentation:
-            "The selected Simulation snapshot contains invalid presentation data."
-
-        case let .exceedsLimits(requested, limits):
-            "The requested \(requested.width)×\(requested.height) image exceeds "
-                + "the offline limit of \(limits.maxDimension) pixels per side "
-                + "and \(limits.maxPixelCount) total pixels."
-
-        case let .instanceLimitExceeded(requested, maximum):
-            "The selected snapshot contains \(requested) render instances; "
-                + "the offline renderer supports \(maximum)."
-        }
-    }
-
-    private func message(
-        for failure: ImageArtifactEncoderError
-    ) -> String {
-        switch failure {
-        case .couldNotCreateSRGBColorSpace:
-            "The system could not create the sRGB color space for JPEG export."
-
-        case .couldNotCreateDataProvider:
-            "The rendered pixels could not be opened for JPEG export."
-
-        case .couldNotCreateImage:
-            "The rendered pixel layout could not be converted into an image."
-
-        case .couldNotCreateDestination:
-            "The system could not create an in-memory JPEG destination."
-
-        case .destinationFinalizationFailed:
-            "The system could not finish encoding the JPEG."
-        }
-    }
-
-    private func presentFailure(
-        _ message: String,
-        allowsExportRetry: Bool = false
-    ) {
-        failureMessage = message
-        failureAllowsExportRetry = allowsExportRetry
-        isFailurePresented = true
-    }
 }

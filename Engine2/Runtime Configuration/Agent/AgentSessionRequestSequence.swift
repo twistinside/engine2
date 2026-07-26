@@ -24,10 +24,7 @@ nonisolated struct AgentSessionRequestSequence: Codable, Hashable, RawRepresenta
 }
 
 extension AgentSessionRequestSequence: Comparable {
-    static func < (
-        lhs: AgentSessionRequestSequence,
-        rhs: AgentSessionRequestSequence
-    ) -> Bool {
+    static func < (lhs: AgentSessionRequestSequence, rhs: AgentSessionRequestSequence) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
 }

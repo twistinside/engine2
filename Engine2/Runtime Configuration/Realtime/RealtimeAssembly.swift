@@ -4,7 +4,6 @@
 /// time into exact requests, and one Simulation Runtime commits those requests.
 /// The App wires platform input directly to the Input Runtime and screen Render
 /// directly to completed Simulation presentation snapshots.
-@MainActor
 final class RealtimeAssembly {
     let inputRuntime: InputRuntime
     let simulationRuntime: SimulationRuntime
@@ -27,11 +26,7 @@ final class RealtimeAssembly {
         advanceDriver.fault
     }
 
-    init(
-        inputRuntime: InputRuntime,
-        simulationRuntime: SimulationRuntime,
-        advanceDriver: RealtimeAdvanceDriver
-    ) {
+    init(inputRuntime: InputRuntime, simulationRuntime: SimulationRuntime, advanceDriver: RealtimeAdvanceDriver) {
         self.inputRuntime = inputRuntime
         self.simulationRuntime = simulationRuntime
         self.advanceDriver = advanceDriver
@@ -109,10 +104,7 @@ final class RealtimeAssembly {
     /// apply an older App-scene decision after a newer one.
     @discardableResult
     private func beginLifecycleTransition() -> UInt64 {
-        precondition(
-            lifecycleGeneration < .max,
-            "Real-time assembly lifecycle generation exhausted."
-        )
+        precondition(lifecycleGeneration < .max, "Real-time assembly lifecycle generation exhausted.")
         lifecycleGeneration += 1
         return lifecycleGeneration
     }

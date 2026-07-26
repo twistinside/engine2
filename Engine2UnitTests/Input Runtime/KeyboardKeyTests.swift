@@ -17,7 +17,7 @@ struct KeyboardKeyTests {
 
         for (keyCode, expectedName) in expectedNames {
             #expect(
-                KeyboardKey.make(
+                KeyboardKey(
                     keyCode: keyCode,
                     charactersIgnoringModifiers: nil
                 ).displayName == expectedName
@@ -27,13 +27,13 @@ struct KeyboardKeyTests {
 
     @Test func ordinaryAndUnknownKeysHaveDeterministicFallbackNames() {
         #expect(
-            KeyboardKey.make(
+            KeyboardKey(
                 keyCode: 13,
                 charactersIgnoringModifiers: "w"
             ).displayName == "W"
         )
         #expect(
-            KeyboardKey.make(
+            KeyboardKey(
                 keyCode: 200,
                 charactersIgnoringModifiers: nil
             ).displayName == "Key200"

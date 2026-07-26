@@ -19,4 +19,6 @@ struct PPositionableTests {
     }
 }
 
-private final class TestPositionableEntity: Entity, PPositionable {}
+private extension PPositionableTests {
+    private final class TestPositionableEntity: Entity, PPositionable {}
+}

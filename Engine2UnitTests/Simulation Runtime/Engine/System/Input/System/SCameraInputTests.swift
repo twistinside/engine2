@@ -14,6 +14,7 @@ struct SCameraInputTests {
         world.camera = Camera.lookingAt(
             target,
             from: target + SIMD3<Float>(0, 4, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: projection
         )
         world.input.actions.cameraOrbitYawDelta = .pi / 2
@@ -41,7 +42,11 @@ struct SCameraInputTests {
 
     @Test func positiveAndNegativeOrbitCommandsAccumulateFromCurrentCamera() {
         var world = World()
-        var system = SCameraInput()
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 2,
+            maximumRadius: 30
+        )
 
         world.input.actions.cameraOrbitYawDelta = .pi / 2
         system.update(world: &world, deltaTime: 1)
@@ -58,7 +63,11 @@ struct SCameraInputTests {
 
     @Test func hugeZoomCommandsClampAndRepeatedBlockedInputIsANoOp() {
         var world = World()
-        var system = SCameraInput(minimumRadius: 4, maximumRadius: 10)
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 4,
+            maximumRadius: 10
+        )
 
         world.input.actions.cameraZoomDelta = .greatestFiniteMagnitude
         system.update(world: &world, deltaTime: 1)
@@ -84,7 +93,11 @@ struct SCameraInputTests {
     @Test func zeroAndNonfiniteCommandsLeaveCameraExactlyUnchanged() {
         var world = World()
         let initialCamera = world.camera
-        var system = SCameraInput()
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 2,
+            maximumRadius: 30
+        )
 
         system.update(world: &world, deltaTime: 1)
         #expect(world.camera == initialCamera)
@@ -103,7 +116,11 @@ struct SCameraInputTests {
     @Test func hugeFiniteOrbitRemainsFiniteAndKeepsRadius() {
         var world = World()
         let initialCamera = world.camera
-        var system = SCameraInput()
+        var system = SCameraInput(
+            target: .zero,
+            minimumRadius: 2,
+            maximumRadius: 30
+        )
         world.input.actions.cameraOrbitYawDelta = 1e20
 
         system.update(world: &world, deltaTime: 1)
@@ -122,10 +139,7 @@ private extension Float {
 }
 
 private extension SIMD3 where Scalar == Float {
-    func isApproximately(
-        _ other: SIMD3<Float>,
-        tolerance: Float = 0.0001
-    ) -> Bool {
+    func isApproximately(_ other: SIMD3<Float>, tolerance: Float = 0.0001) -> Bool {
         abs(x - other.x) <= tolerance
             && abs(y - other.y) <= tolerance
             && abs(z - other.z) <= tolerance

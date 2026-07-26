@@ -3,13 +3,13 @@ import simd
 
 /// Applies one frame of accumulated angular motion by first updating angular
 /// velocity and then advancing orientation from the new angular velocity.
-class SRotation: PSystem {
+struct SRotation: PSystem {
     private static let signposter = OSSignposter(
         subsystem: "Engine2",
         category: "SRotation"
     )
 
-    func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Float) {
         let signpostState = Self.signposter.beginInterval("SRotation.update")
         defer {
             Self.signposter.endInterval("SRotation.update", signpostState)
@@ -42,31 +42,30 @@ class SRotation: PSystem {
                 angularVelocity.angularVelocity
                 + accumulator.angularAcceleration * deltaTime
                 + accumulator.angularImpulse
-            let deltaRotation = Self.deltaRotation(
+            let rotationDelta = deltaRotation(
                 for: updatedAngularVelocity,
                 deltaTime: deltaTime
             )
-            let updatedRotation = Self.normalized(deltaRotation * rotation.rotation)
+            let accumulatedRotation = rotationDelta * rotation.rotation
+            let updatedRotation = simd_quatf(vector: simd_normalize(accumulatedRotation.vector))
 
-            world.angularVelocityComponents.insert(
-                CAngularVelocity(angularVelocity: updatedAngularVelocity),
-                for: entity
-            )
-            world.rotationComponents.insert(CRotation(rotation: updatedRotation), for: entity)
+            world.angularVelocityComponents.update(for: entity) { angularVelocity in
+                angularVelocity = CAngularVelocity(angularVelocity: updatedAngularVelocity)
+            }
+            world.rotationComponents.update(for: entity) { rotation in
+                rotation = CRotation(rotation: updatedRotation)
+            }
 
             // Angular motion contributions are per-frame inputs, so clear the
             // accumulator after they have been consumed.
-            if world.angularMotionAccumulatorComponents[entity] != nil {
-                world.angularMotionAccumulatorComponents.insert(zeroAccumulator, for: entity)
+            world.angularMotionAccumulatorComponents.update(for: entity) { accumulator in
+                accumulator = zeroAccumulator
             }
         }
     }
 
     /// Converts an axis-rate angular velocity into the quaternion delta for one step.
-    private static func deltaRotation(
-        for angularVelocity: SIMD3<Float>,
-        deltaTime: Float
-    ) -> simd_quatf {
+    private func deltaRotation(for angularVelocity: SIMD3<Float>, deltaTime: Float) -> simd_quatf {
         let angularStep = angularVelocity * deltaTime
         let angle = simd_length(angularStep)
 
@@ -76,10 +75,5 @@ class SRotation: PSystem {
 
         let axis = angularStep / angle
         return simd_quatf(angle: angle, axis: axis)
-    }
-
-    /// Renormalizes accumulated quaternion math back onto the unit sphere.
-    private static func normalized(_ rotation: simd_quatf) -> simd_quatf {
-        simd_quatf(vector: simd_normalize(rotation.vector))
     }
 }

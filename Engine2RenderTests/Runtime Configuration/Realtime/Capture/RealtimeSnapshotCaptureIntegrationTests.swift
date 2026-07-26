@@ -6,23 +6,23 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct RealtimeSnapshotCaptureIntegrationTests {
-    @Test @MainActor
+    @Test
     func capturesLivePresentationThroughMetalWithoutAdvancingSimulation() async throws {
         let gameContent = BasicGameContent()
         let assembly = RealtimeConfiguration(
-            pollInterval: .seconds(60)
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
         ).makeAssembly(gameContent: gameContent)
         let sourceSnapshot =
             assembly.simulationRuntime.latestPresentationSnapshot
         let sourceCursor = assembly.simulationRuntime.currentCursor
         let renderRuntime = try MetalOffscreenRenderRuntime(
-            catalog: gameContent.renderAssetCatalog
+            catalog: gameContent.renderAssetCatalog,
+            limits: .conservative
         )
-        let viewpointID = RenderViewpointID()
-        let connection = RealtimeSnapshotCaptureConnection(
+        let connection = try RealtimeSnapshotCaptureConnection(
             presentationSource: assembly.simulationRuntime,
-            renderTarget: renderRuntime,
-            viewpointID: viewpointID
+            renderTarget: renderRuntime
         )
         let renderSettings = OffscreenRenderSettings(
             size: try RenderPixelSize(width: 96, height: 64),
@@ -51,13 +51,8 @@ struct RealtimeSnapshotCaptureIntegrationTests {
             Array(artifact.encodedData.prefix(8))
                 == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
         )
-        #expect(
-            artifact.viewpoint == RenderViewpoint(
-                id: viewpointID,
-                revision: .zero,
-                camera: sourceSnapshot.camera
-            )
-        )
+        #expect(artifact.viewpoint.revision == .zero)
+        #expect(artifact.viewpoint.camera == sourceSnapshot.camera)
 
         let imageSource = try #require(
             CGImageSourceCreateWithData(artifact.encodedData as CFData, nil)

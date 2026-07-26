@@ -3,7 +3,6 @@ import simd
 import Testing
 @testable import Engine2
 
-@MainActor
 struct PBRDirectLightingTests {
     private let baseColor = SIMD3<Float>(0.5, 0.25, 0.125)
 
@@ -413,10 +412,7 @@ struct PBRDirectLightingTests {
         )
     }
 
-    private func proofParameters(
-        metallic: Float,
-        roughness: Float
-    ) -> PBRProofParameters {
+    private func proofParameters(metallic: Float, roughness: Float) -> PBRProofParameters {
         PBRProofParameters(
             baseColor: baseColor,
             metallic: metallic,
@@ -430,9 +426,7 @@ struct PBRDirectLightingTests {
 
     /// Converts one Render-owned catalog description into the isolated proof's
     /// provisional binding while preserving its authored factors exactly.
-    private func proofParameters(
-        material: PBRMaterialDescription
-    ) -> PBRProofParameters {
+    private func proofParameters(material: PBRMaterialDescription) -> PBRProofParameters {
         PBRProofParameters(
             baseColor: material.baseColor,
             metallic: material.metallic,
@@ -451,11 +445,7 @@ private func center(_ image: [SIMD4<Float>]) -> SIMD4<Float> {
     return image[centerY * MetalPBRProofRenderer.width + centerX]
 }
 
-private func expectRGB(
-    _ actual: SIMD4<Float>,
-    approximately expected: SIMD3<Float>,
-    tolerance: Float
-) {
+private func expectRGB(_ actual: SIMD4<Float>, approximately expected: SIMD3<Float>, tolerance: Float) {
     #expect(abs(actual.x - expected.x) <= tolerance)
     #expect(abs(actual.y - expected.y) <= tolerance)
     #expect(abs(actual.z - expected.z) <= tolerance)
@@ -467,11 +457,7 @@ private func expectRGB(
 /// All BRDF outputs are nonnegative, so positive IEEE-754 half bit patterns are
 /// monotonically ordered. A two-ULP allowance covers harmless instruction
 /// ordering while remaining tight enough to reject materially different math.
-private func expectStoredRGB(
-    _ actual: SIMD4<Float>,
-    approximately expected: SIMD3<Float>,
-    maximumHalfULPDistance: Int = 2
-) {
+private func expectStoredRGB(_ actual: SIMD4<Float>, approximately expected: SIMD3<Float>, maximumHalfULPDistance: Int = 2) {
     let actualComponents = [actual.x, actual.y, actual.z, actual.w]
     let expectedComponents = [expected.x, expected.y, expected.z, 1]
 

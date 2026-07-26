@@ -6,11 +6,25 @@ When working in Swift:
 
 - Prefer value semantics unless reference identity is required.
 
+- When `SWIFT_DEFAULT_ACTOR_ISOLATION` supplies an actor, omit redundant explicit actor annotations from
+  declarations that inherit it. Keep actor-qualified closure types, deliberate actor re-entry annotations, and
+  actor-isolated members whose enclosing type is explicitly `nonisolated`, or protocol conformances whose isolation
+  must be stated to preserve the intended witness boundary.
+
 - Prefer standard Swift language features over custom abstractions.
+
+- Use the shared floating-point `SIMD` classification properties for whole-vector validation instead of repeating
+  per-lane checks. `isFinite`, `isNormal`, and `isZero` require every lane to satisfy the classification; `isInfinite`,
+  `isNaN`, `isSignalingNaN`, and `isSubnormal` report whether any lane has that exceptional classification.
 
 - Use 120 characters as the ordinary line-length limit. A modest overrun is preferable when wrapping one cohesive
   string, declaration, method signature, enum case, pattern, or call would make it harder to scan—especially when one
   readable line would become three or four. Break lines for semantic grouping, not merely to satisfy a counter.
+
+- Bind a substantial multiline construction to a role-named local before passing it into another initializer or
+  operation. This keeps each construction decision independently readable and avoids deep punctuation-driven nesting.
+  Keep tiny value projections, enum cases, and declarative builder or modifier values inline when a local name would add
+  no meaning.
 
 - Use Swift's synthesized initializers when they express the intended construction API. Do not write a structure
   initializer that only assigns same-named parameters to stored properties. Keep an explicit initializer when it
@@ -21,6 +35,11 @@ When working in Swift:
   keeping its implementation with the conformance. Defining-role, inheritance, marker, and synthesized conformances may
   remain on the primary declaration when a separate extension would add no useful organization.
 
+- Do not create a file solely to hold one static member in an extension. Keep a type-owned static member with the type's
+  primary declaration. When another domain authors the value, colocate that focused extension with the domain owner that
+  selects it. A separate extension file should represent a substantial cohesive implementation or conformance, not serve
+  as a namespace for one constant or factory.
+
 - Use `static` only for a genuinely type-level value or operation. Do not use static helper methods as an
   implementation-detail namespace. Keep helpers that support one instance's workflow as instance methods even when they
   do not currently read stored state, and keep one-use calculations inline when extraction adds no domain meaning.
@@ -29,7 +48,8 @@ When working in Swift:
   request, response, result, outcome, or completion types merely to carry local success and failure between adjacent
   calls. Keep explicit value-shaped outcomes at real runtime, actor, protocol, persistence, replay, or transport
   boundaries when admission, cancellation, provenance, partial commitment, or exhaustive handling is part of the
-  contract.
+  contract. Use typed throws when the implementation has one closed error domain and its dependencies can preserve that
+  type without artificial wrapping. Swift calls this feature "typed throws," not "checked exceptions."
 
 - Resolve required fallible resources at their owning construction boundary. Convert string or external identities into
   validated typed handles once, retain them, and make downstream access nonthrowing when successful construction proves

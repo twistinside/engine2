@@ -1,5 +1,5 @@
 /// Platform-neutral mouse button identity.
-nonisolated enum MouseButton: Hashable, Comparable, Sendable {
+nonisolated enum MouseButton: Hashable, Sendable {
     case left
     case right
     case middle
@@ -13,7 +13,9 @@ nonisolated enum MouseButton: Hashable, Comparable, Sendable {
         case let .other(buttonNumber): "M\(buttonNumber)"
         }
     }
+}
 
+extension MouseButton: Comparable {
     static func < (lhs: MouseButton, rhs: MouseButton) -> Bool {
         lhs.sortIndex < rhs.sortIndex
     }

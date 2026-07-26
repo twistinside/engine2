@@ -17,10 +17,7 @@ nonisolated final class MetalOffscreenSubmission: @unchecked Sendable {
     private let targets: MetalOffscreenRenderTargets
 
     private let stateLock = NSLock()
-    private var continuation: CheckedContinuation<
-        MetalOffscreenCompletion,
-        Never
-    >?
+    private var continuation: CheckedContinuation<Void, MetalOffscreenSubmissionError>?
 
     /// Captures the complete submitted object graph and its awaiting caller.
     @MainActor
@@ -31,7 +28,7 @@ nonisolated final class MetalOffscreenSubmission: @unchecked Sendable {
         commandBuffer: any MTL4CommandBuffer,
         sceneTarget: MetalHDRSceneTarget,
         targets: MetalOffscreenRenderTargets,
-        continuation: CheckedContinuation<MetalOffscreenCompletion, Never>
+        continuation: CheckedContinuation<Void, MetalOffscreenSubmissionError>
     ) {
         self.resources = resources
         self.encoder = encoder
@@ -48,13 +45,6 @@ nonisolated final class MetalOffscreenSubmission: @unchecked Sendable {
     /// thread-safe, and it is signaled before resumption so any completed result
     /// never races a later request for the sole offscreen frame slot.
     nonisolated func complete(feedbackError: (any Error)?) {
-        let completion: MetalOffscreenCompletion
-        if let feedbackError {
-            completion = .failure(String(describing: feedbackError))
-        } else {
-            completion = .success
-        }
-
         stateLock.lock()
         guard let continuation else {
             stateLock.unlock()
@@ -64,6 +54,14 @@ nonisolated final class MetalOffscreenSubmission: @unchecked Sendable {
         stateLock.unlock()
 
         frame.markAvailable()
-        continuation.resume(returning: completion)
+        if let feedbackError {
+            continuation.resume(
+                throwing: .gpuExecutionFailed(
+                    String(describing: feedbackError)
+                )
+            )
+        } else {
+            continuation.resume()
+        }
     }
 }

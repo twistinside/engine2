@@ -5,29 +5,22 @@ import Testing
 @testable import Engine2
 
 struct MetalRendererTests {
-    @MainActor
     @Test func resourceStoreCreatesEveryRendererPipelineAndArgumentTable() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
-        let pbrPipeline = try resources.renderPipelineState(for: .modelPBR)
-        let normalPipeline = try resources.renderPipelineState(
-            for: .modelNormalDiagnostic
-        )
-        let toneMappedPresentationPipeline = try resources.renderPipelineState(
-            for: .hdrToneMappedPresentation
-        )
-        let linearPresentationPipeline = try resources.renderPipelineState(
-            for: .linearPresentation
-        )
-        let modelArgumentTable = try resources.argumentTable(for: .model)
-        let pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
-        let presentationArgumentTable = try resources.argumentTable(
-            for: .hdrPresentation
-        )
+        let requiredResources = resources.requiredResources
+        let pbrPipeline = requiredResources.modelPBRPipeline
+        let normalPipeline = requiredResources.modelNormalDiagnosticPipeline
+        let toneMappedPresentationPipeline = requiredResources.hdrToneMappedPresentationPipeline
+        let linearPresentationPipeline = requiredResources.linearPresentationPipeline
+        let modelArgumentTable = requiredResources.modelArgumentTable
+        let pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        let presentationArgumentTable = requiredResources.hdrPresentationArgumentTable
 
         // The scene phase has one lit surface pipeline and one diagnostic
         // sibling. Presentation is a separate phase with tone-mapped and
@@ -53,9 +46,9 @@ struct MetalRendererTests {
         )
     }
 
-    @MainActor
     @Test func sceneCoordinatorRetainsAuthoredContentPreflightFailure() throws {
-        let completeCatalog = BasicGameContent().renderAssetCatalog
+        let gameContent = BasicGameContent()
+        let completeCatalog = gameContent.renderAssetCatalog
         let incompleteCatalog = RenderAssetCatalog(
             models: completeCatalog.models,
             materials: [
@@ -64,16 +57,22 @@ struct MetalRendererTests {
                 )
             ]
         )
-        let simulation = SimulationRuntime()
+        let simulation = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil
+        )
 
         let coordinator = MetalSceneView.Coordinator(
             renderAssetCatalog: incompleteCatalog,
             presentationSource: simulation,
             outputMode: .surface
         )
-        let error = try #require(
-            coordinator.latestRenderError as? RenderAssetCatalogError
-        )
+        guard case let .unavailable(initializationError) = coordinator.rendererAvailability else {
+            Issue.record("Expected renderer construction to retain an unavailable state.")
+            return
+        }
+        let error = try #require(initializationError as? RenderAssetCatalogError)
 
         // Store construction rejects the complete missing vocabulary before
         // pipelines, models, or a renderer are created. The bridge retains the
@@ -85,9 +84,31 @@ struct MetalRendererTests {
             )
         )
         #expect(coordinator.renderer == nil)
+        #expect(coordinator.latestRenderError as? RenderAssetCatalogError == error)
     }
 
-    @MainActor
+    @Test func sceneCoordinatorAvailabilityOwnsTheConstructedRenderer() throws {
+        let gameContent = BasicGameContent()
+        let simulation = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil
+        )
+        let coordinator = MetalSceneView.Coordinator(
+            renderAssetCatalog: gameContent.renderAssetCatalog,
+            presentationSource: simulation,
+            outputMode: .surface
+        )
+
+        guard case let .available(renderer) = coordinator.rendererAvailability else {
+            Issue.record("Expected complete content to construct an available renderer.")
+            return
+        }
+
+        #expect(coordinator.renderer === renderer)
+        #expect(coordinator.latestRenderError == nil)
+    }
+
     @Test func publishedMaterialSceneReachesEveryProductionModelDraw() throws {
         let scene = PublishedMaterialValidationScene()
         let device = try #require(MTLCreateSystemDefaultDevice())
@@ -96,7 +117,7 @@ struct MetalRendererTests {
             renderAssetCatalog: scene.catalog,
             frameCount: 1
         )
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
         let prepared = encoder.prepare(scene.renderFrame)
         var visitedIndices: [Int] = []
         var visitedMaterialIDs: [MaterialID] = []
@@ -127,17 +148,23 @@ struct MetalRendererTests {
         #expect(decodedMeshCounts.allSatisfy { $0 > 0 })
     }
 
-    @MainActor
     @Test func renderTargetConfigurationSeparatesHDRSceneFromSRGBPresentation() throws {
+        let gameContent = BasicGameContent()
         let device = try #require(MTLCreateSystemDefaultDevice())
         let view = MTKView(frame: .zero, device: device)
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
         let renderer = try MetalRenderer(
             resources: resources,
-            presentationSource: SimulationRuntime()
+            presentationSource: SimulationRuntime(
+                worldBuilder: gameContent.worldBuilder,
+                configuration: gameContent.simulationConfiguration,
+                inputBaseline: nil
+            ),
+            outputMode: .surface
         )
 
         renderer.configure(view)
@@ -158,7 +185,6 @@ struct MetalRendererTests {
         #expect(configuredColorSpaceName == CGColorSpace.sRGB)
     }
 
-    @MainActor
     @Test func createsRequestedFrameResourceRing() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -191,7 +217,6 @@ struct MetalRendererTests {
         }
     }
 
-    @MainActor
     @Test func frameResourceReusesAndResizesItsHDRSceneTarget() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -251,7 +276,6 @@ struct MetalRendererTests {
         #expect(!initial.residencySet.containsAllocation(resized.texture))
     }
 
-    @MainActor
     @Test func sceneRenderPassStoresHDRColorAndUsesTransientOrdinaryDepth() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let sceneColorTexture = try makeTexture(
@@ -270,8 +294,14 @@ struct MetalRendererTests {
             blue: 0.5,
             alpha: 1
         )
+        let resources = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: 1
+        )
+        let framePass = MetalHDRFramePass(resources: resources)
 
-        let descriptor = MetalHDRFramePass.makeSceneRenderPassDescriptor(
+        let descriptor = framePass.makeSceneRenderPassDescriptor(
             sceneColorTexture: sceneColorTexture,
             depthTexture: depthTexture,
             clearColor: clearColor
@@ -298,7 +328,6 @@ struct MetalRendererTests {
         #expect(descriptor.depthAttachment.clearDepth == MetalFrameEncoder.clearDepth)
     }
 
-    @MainActor
     @Test func presentationRenderPassStoresOnlyTheSRGBDrawable() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let drawableTexture = try makeTexture(
@@ -306,8 +335,14 @@ struct MetalRendererTests {
             pixelFormat: .bgra8Unorm_srgb,
             usage: .renderTarget
         )
+        let resources = try MetalResourceStore(
+            device: device,
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: 1
+        )
+        let presentationPass = MetalHDRPresentationPass(resources: resources)
 
-        let descriptor = MetalHDRPresentationPass.makeRenderPassDescriptor(
+        let descriptor = presentationPass.makeRenderPassDescriptor(
             destinationTexture: drawableTexture
         )
         let colorAttachment = try #require(descriptor.colorAttachments[0])
@@ -326,7 +361,6 @@ struct MetalRendererTests {
         #expect(descriptor.depthAttachment.texture == nil)
     }
 
-    @MainActor
     @Test func frameResourcesWriteZeroAndMaximumPreparedInstances() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -335,21 +369,23 @@ struct MetalRendererTests {
             frameCount: 1
         )
         let frame = try #require(resources.frames.first)
-        let encoder = try MetalFrameEncoder(resources: resources)
-        let empty = encoder.prepare(Self.makeRenderFrame(instanceCount: 0))
+        let encoder = MetalFrameEncoder(resources: resources)
+        let empty = encoder.prepare(makeRenderFrame(instanceCount: 0))
         let maximum = encoder.prepare(
-            Self.makeRenderFrame(
+            makeRenderFrame(
                 instanceCount: FrameResources.maximumInstanceCount
             )
         )
 
         frame.write(
             empty,
-            drawableSize: CGSize(width: 1_920, height: 1_080)
+            drawableSize: CGSize(width: 1_920, height: 1_080),
+            exposure: .validation
         )
         frame.write(
             maximum,
-            drawableSize: CGSize(width: 1_920, height: 1_080)
+            drawableSize: CGSize(width: 1_920, height: 1_080),
+            exposure: .validation
         )
 
         #expect(empty.instances.isEmpty)
@@ -365,14 +401,14 @@ struct MetalRendererTests {
         )
     }
 
-    private static func makeRenderFrame(instanceCount: Int) -> RenderFrame {
+    private func makeRenderFrame(instanceCount: Int) -> RenderFrame {
         RenderFrame(
             projecting: SimulationPresentationSnapshot(
                 cursor: SimulationCursor(
                     sessionID: SimulationSessionID(),
                     tick: .zero
                 ),
-                camera: Camera(),
+                camera: .standard,
                 entityPresentations: (0..<instanceCount).map { index in
                     EntityPresentationSnapshot(
                         id: EntityID(index: index, generation: 0),
@@ -387,7 +423,6 @@ struct MetalRendererTests {
         )
     }
 
-    @MainActor
     private func makeTexture(
         device: any MTLDevice,
         pixelFormat: MTLPixelFormat,

@@ -11,21 +11,13 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     /// Authored PBR factors keyed by Game Content material identity.
     let materials: [MaterialID: PBRMaterialDescription]
 
-    init(
-        models: [MeshID: ModelAssetReference],
-        materials: [MaterialID: PBRMaterialDescription]
-    ) {
-        self.models = models
-        self.materials = materials
-    }
-
     /// Verifies that every identity in Game Content's closed material
     /// vocabulary has an authored description before rendering can begin.
     ///
     /// Dictionary iteration order is deliberately irrelevant. Missing values
     /// are collected in `MaterialID.allCases` order so the resulting error is
     /// stable across launches and platforms.
-    func validateMaterialCoverage() throws {
+    func validateMaterialCoverage() throws(RenderAssetCatalogError) {
         let missingMaterialIDs = MaterialID.allCases.filter {
             materials[$0] == nil
         }
@@ -41,9 +33,7 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     ///
     /// Callers that accept a partial or otherwise unvalidated catalog receive a
     /// concrete content error before encoding a draw for the missing identity.
-    func materialDescription(
-        for id: MaterialID
-    ) throws -> PBRMaterialDescription {
+    func materialDescription(for id: MaterialID) throws(RenderAssetCatalogError) -> PBRMaterialDescription {
         guard let description = materials[id] else {
             throw RenderAssetCatalogError.missingMaterialDescriptions([id])
         }

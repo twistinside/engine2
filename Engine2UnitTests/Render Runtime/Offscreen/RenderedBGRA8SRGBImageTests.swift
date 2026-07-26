@@ -5,11 +5,11 @@ import Testing
 struct RenderedBGRA8SRGBImageTests {
     @Test func derivesTightlyPackedStrideAndTopLeftOrigin() throws {
         let size = try RenderPixelSize(width: 3, height: 2)
-        let bytes = Data(repeating: 0x7F, count: 24)
+        let bytes = Data(repeating: 0x7F, count: size.bgra8ByteCount)
         let image = try RenderedBGRA8SRGBImage(size: size, bytes: bytes)
 
         #expect(image.size == size)
-        #expect(image.bytesPerRow == 12)
+        #expect(image.bytesPerRow == size.bgra8BytesPerRow)
         #expect(image.origin == .topLeft)
         #expect(image.bytes == bytes)
     }

@@ -5,7 +5,6 @@ import Testing
 @testable import Engine2
 
 struct MetalFrameLifetimeTests {
-    @MainActor
     @Test func feedbackGatesResizeAndTokenRetainsTheExactOldTarget() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -74,10 +73,7 @@ struct MetalFrameLifetimeTests {
         #expect(frame.hdrSceneTarget === replacement)
     }
 
-    @MainActor
-    private func makeDrawable(
-        device: any MTLDevice
-    ) throws -> any CAMetalDrawable {
+    private func makeDrawable(device: any MTLDevice) throws -> any CAMetalDrawable {
         let layer = CAMetalLayer()
         layer.device = device
         layer.pixelFormat = MetalFrameEncoder.destinationColorPixelFormat

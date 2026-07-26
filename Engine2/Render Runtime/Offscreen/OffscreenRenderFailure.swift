@@ -7,10 +7,4 @@ nonisolated struct OffscreenRenderFailure: Error, Equatable, Sendable {
     /// This is intentionally a `String`: unlike the closed lifecycle stage,
     /// external diagnostic vocabularies are neither finite nor engine-owned.
     let backendDescription: String
-
-    /// Captures the stable failure stage and backend-authored diagnostic.
-    init(stage: OffscreenRenderFailureStage, backendDescription: String) {
-        self.stage = stage
-        self.backendDescription = backendDescription
-    }
 }

@@ -7,7 +7,6 @@ import Metal
 /// settings keeps the encoder boundary readable while preserving explicit
 /// caller ownership. Construction proves the targets agree with one another
 /// and with the pipelines compiled by ``MetalFrameEncoder``.
-@MainActor
 struct MetalFrameEncodingInputs {
     let frameResources: FrameResources
     let sceneColorTexture: any MTLTexture
@@ -33,8 +32,8 @@ struct MetalFrameEncodingInputs {
         destinationTexture: any MTLTexture,
         clearColor: MTLClearColor,
         outputMode: RenderOutputMode,
-        exposure: ManualExposure = .validation
-    ) throws {
+        exposure: ManualExposure
+    ) throws(MetalFrameEncoderError) {
         guard sceneColorTexture.width == depthTexture.width,
               sceneColorTexture.height == depthTexture.height,
               sceneColorTexture.width == destinationTexture.width,

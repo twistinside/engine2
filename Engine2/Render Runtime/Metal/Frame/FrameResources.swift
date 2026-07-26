@@ -56,20 +56,12 @@ final class FrameResources: @unchecked Sendable {
     /// Keeping resolution outside this method lets content preparation finish
     /// before mutable GPU state is touched, while this method remains
     /// responsible only for stable packing.
-    func write(
-        _ preparedFrame: MetalPreparedFrame,
-        drawableSize: CGSize,
-        exposure: ManualExposure = .validation
-    ) {
-        precondition(
-            preparedFrame.instances.count <= Self.maximumInstanceCount,
-            "Prepared frames must fit the reusable instance buffer."
-        )
+    func write(_ preparedFrame: MetalPreparedFrame, drawableSize: CGSize, exposure: ManualExposure) {
+        precondition(preparedFrame.instances.count <= Self.maximumInstanceCount, "Prepared frames must fit the reusable instance buffer.")
         let camera = preparedFrame.renderFrame.camera
         let aspectRatio = Float(
             drawableSize.width / max(drawableSize.height, 1)
         )
-        let viewMatrix = camera.viewMatrix
         let projectionMatrix = camera.projectionMatrix(
             aspectRatio: aspectRatio
         )
@@ -82,7 +74,6 @@ final class FrameResources: @unchecked Sendable {
             destination[index] = GPUInstance(
                 instance.renderInstance,
                 material: instance.materialDescription,
-                viewMatrix: viewMatrix,
                 projectionMatrix: projectionMatrix
             )
         }
@@ -91,7 +82,7 @@ final class FrameResources: @unchecked Sendable {
         // unused parameter buffer finite in that case so GPU inspection never
         // encounters stale NaNs; any nonempty frame has already validated its
         // actual camera at the Render projection boundary.
-        let parameterCamera = camera.supportsViewTransform ? camera : Camera()
+        let parameterCamera = camera.supportsViewTransform ? camera : .standard
         pbrSceneParametersBuffer.contents().storeBytes(
             of: PBRSceneParameters(camera: parameterCamera),
             as: PBRSceneParameters.self
@@ -113,10 +104,7 @@ final class FrameResources: @unchecked Sendable {
         pbrSceneArgumentTable: any MTL4ArgumentTable,
         to renderEncoder: any MTL4RenderCommandEncoder
     ) {
-        precondition(
-            (0..<Self.maximumInstanceCount).contains(index),
-            "Model instance selection must remain inside the frame buffer."
-        )
+        precondition((0..<Self.maximumInstanceCount).contains(index), "Model instance selection must remain inside the frame buffer.")
 
         let instanceAddress = instanceBuffer.gpuAddress
             + UInt64(index * MemoryLayout<GPUInstance>.stride)
@@ -133,11 +121,7 @@ final class FrameResources: @unchecked Sendable {
     /// Callers must own this frame slot by waiting for availability first.
     /// That invariant makes it safe to release a differently sized previous
     /// target: no submitted command can still reference this slot's resources.
-    func prepareHDRSceneTarget(
-        device: any MTLDevice,
-        width: Int,
-        height: Int
-    ) throws -> MetalHDRSceneTarget {
+    func prepareHDRSceneTarget(device: any MTLDevice, width: Int, height: Int) throws -> MetalHDRSceneTarget {
         if let hdrSceneTarget,
            hdrSceneTarget.matches(width: width, height: height) {
             return hdrSceneTarget

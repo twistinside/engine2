@@ -11,13 +11,14 @@ The current codebase already has:
 - ``MetalRenderer`` as the thin MetalKit adapter that samples one presentation source, uses that snapshot's camera exactly, owns screen submission/presentation policy, and delegates encoding
 - ``POffscreenRenderTarget`` and its request/outcome values as the backend-neutral asynchronous exact-render boundary
 - ``MetalOffscreenRenderRuntime`` as the production view- and drawable-independent Metal implementation with dedicated one-slot resources and explicit single-flight backpressure
-- ``PImageArtifactEncoder`` as the asynchronous CPU-transformation boundary above one completed raw result, with ``ImageIOArtifactEncoder`` as the stateless JPEG-and-PNG production implementation
+- ``PImageArtifactEncoder`` as the asynchronous CPU-transformation boundary above one completed raw result, with ``ImageIOArtifactEncoder`` as the immutable, eagerly sRGB-configured JPEG-and-PNG production implementation
 - ``OffscreenImageArtifactDeriver`` as the shared exact Render-correlation and artifact-derivation connection
 - ``OfflineCaptureConfiguration`` and ``OfflineCaptureCoordinator`` as the closed serial topology that retains exactly one completed presentation and offers at-most-once advance capture plus mandatory-cursor current capture through one ``POfflineCaptureTarget``, shared provenance validation, and explicit artifact-encoding policy
 - ``AgentCaptureSource`` and ``AgentSessionConfiguration`` as the transport-neutral live-process wrapper that unifies bounded `.advance` and non-advancing `.current` admission and exact response replay while receiving only ``POfflineCaptureTarget``
 - a real-time screen path whose camera is locked to the latest completed Simulation presentation
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
-  command queue, typed state caches, decoded models, and frame-resource ring
+  command queue, nonoptional built-in required-resource set, decoded models,
+  and frame-resource ring
 - `MetalResidencyManager` as the owner of committed static-asset and
   frame-allocation residency sets
 - typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
@@ -106,7 +107,12 @@ tolerant `RenderFrame(projecting:)` screen initializer accepts one exact
 prevents live screen code from selecting a camera that Simulation has not
 published. The presentation snapshot already contains only entities with
 explicit abstract presentation state; Render filters that set for the position
-it needs and applies render defaults.
+it needs and applies render defaults. `RenderInstance.init(projecting:viewMatrix:)`
+owns the shared per-entity transform construction and normal-matrix validation,
+then retains the validated model-view and inverse-transpose normal matrices.
+The frame initializers choose whether an invalid instance is omitted or thrown;
+later exact preflight and GPU packing reuse those retained values instead of
+repeating projection and inversion.
 
 The separate `RenderFrame(exactlyProjecting:viewpoint:)` request initializer
 requires an explicit ``RenderViewpoint``, strictly validates the complete
@@ -131,7 +137,7 @@ At draw cadence, `MetalRenderer` samples one ``SimulationPresentationSnapshot`` 
 
 Exact offscreen work remains deliberately different: every ``OffscreenRenderRequest`` carries its explicit ``RenderViewpoint`` by value. Current-cursor offline capture can therefore render the coordinator's retained scene through several separately requested viewpoints without advancing. The real-time screenshot connection adapts the selected snapshot camera into that required exact-request value before its first suspension; it does not consult independent screen-camera state. Interactive free viewpoints, persistent offline viewpoint controllers, authored camera tracks, typed input routes, route epochs, per-window controllers and bindings, Simulation observer anchors, and atomic multi-view jobs remain proposed.
 ## Snapshot Publication and Storage
-``SimulationRuntime.latestPresentationSnapshot`` is the first explicit latest-value publication slot. Every successful exact advance replaces it after the entire requested batch completes; in the current real-time configuration, ``RealtimeAdvanceDriver`` requests those batches from elapsed wall time. Slow consumers may therefore skip superseded cursors by design. The clock-free manual assembly uses the same Runtime boundary. Exact offline current capture does not sample this slot: its coordinator is seeded with the initial completed value and replaces its private one-slot presentation only from a completed advance result. Future supported advancement paths must update required publications according to each lane's declared semantics.
+`SimulationRuntime.latestPresentationSnapshot` is the first explicit latest-value publication slot. Every successful exact advance replaces it after the entire requested batch completes; in the current real-time configuration, ``RealtimeAdvanceDriver`` requests those batches from elapsed wall time. Slow consumers may therefore skip superseded cursors by design. The clock-free manual assembly uses the same Runtime boundary. Exact offline current capture does not sample this slot: its coordinator is seeded with the initial completed value and replaces its private one-slot presentation only from a completed advance result. Future supported advancement paths must update required publications according to each lane's declared semantics.
 
 The current model is:
 1. Simulation publishes a completed `SimulationPresentationSnapshot` through a latest-value boundary
@@ -181,10 +187,9 @@ different store and a different set of compiled and allocated objects.
 The store eagerly creates the resources required by the current renderer:
 
 - an `MTL4Compiler` and `MTL4CommandQueue`
-- loaded shader libraries keyed by `MetalShaderLibraryID`
-- Metal 4 render pipelines keyed by `MetalRenderPipelineID`
-- depth-stencil states keyed by `MetalDepthStencilStateID`
-- argument tables keyed by `MetalArgumentTableID`
+- one ``MetalRequiredResources`` value containing the engine shader library,
+  four compiled Metal 4 pipelines, opaque depth state, and three argument
+  tables as nonoptional typed handles
 - decoded models resolved from backend-neutral `MeshID` values
 - validated authored descriptions resolved from backend-neutral `MaterialID`
   values
@@ -192,17 +197,19 @@ The store eagerly creates the resources required by the current renderer:
 - the PBR scene, normal diagnostic, tone-mapped presentation, and linear
   diagnostic pipelines
 
-Each backend identity is a closed Render Runtime enum whose case determines the
-complete resource definition. The store builds each case once and retains the
-result for lookup. Required resources are compiled before drawing begins, so
-``MetalFrameEncoder`` performs deterministic lookup rather than shader or pipeline compilation while preparing or encoding a frame.
+``MetalRequiredResources`` keeps the string-named shader entry points inside
+the store's fallible construction boundary. Successful store construction
+therefore proves that the complete fixed set exists, and ``MetalFrameEncoder``
+retains those handles directly rather than replaying an impossible cache-miss
+failure while preparing or encoding a frame.
 Catalog or renderer construction failures remain observable through the
 `MetalSceneView` coordinator's latest render error rather than being discarded
 when the bridge cannot create a renderer.
 
-Future vertex layouts, function constants, blend state, and attachment
-variants should become explicit enum cases or deliberately modeled variant
-keys instead of silently sharing a pipeline identity.
+Future vertex layouts, function constants, blend state, and attachment variants
+that expand this small fixed set should become explicit required properties or
+deliberately modeled dynamic variant keys instead of silently sharing a
+pipeline definition.
 
 ## View-Independent Metal Frame Encoding
 
@@ -215,9 +222,9 @@ keys instead of silently sharing a pipeline identity.
 - the ordered HDR scene and presentation pass
 - model draw iteration and binding
 
-The caller supplies one prepared ``RenderFrame``, caller-owned scene-color, depth, and destination textures with matching positive dimensions and formats, an available `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. The encoder records work but does not sample live presentation state, choose a viewpoint, choose or wait for a frame-ring slot, acquire an `MTKView` or `CAMetalDrawable`, begin, end, or submit a command buffer, manage target residency or completion feedback, present an image, or decide whether an error is terminal.
+The caller supplies one prepared ``RenderFrame``, caller-owned scene-color, depth, and destination textures with matching positive dimensions and formats, an available `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. Scene and presentation encoder creation propagate the closed ``MetalFrameEncoderError`` domain through typed throws; no Boolean or result object duplicates that local control flow. The encoder records work but does not sample live presentation state, choose a viewpoint, choose or wait for a frame-ring slot, acquire an `MTKView` or `CAMetalDrawable`, begin, end, or submit a command buffer, manage target residency or completion feedback, present an image, or decide whether an error is terminal.
 
-``MetalRenderer`` now owns exactly those screen-specific policies: latest-presentation sampling, projection through the published snapshot camera, ring-slot arbitration, drawable and depth acquisition, target and residency hookup, queue submission and feedback lifetime, drawable presentation, and terminal screen error state. `MetalResourceStore.defaultFrameCount` and compiled target formats no longer depend on the adapter; the store owns its default ring cardinality and compiles against ``MetalFrameEncoder``'s format contract.
+``MetalRenderer`` now owns exactly those screen-specific policies: latest-presentation sampling, projection through the published snapshot camera, ring-slot arbitration, drawable and depth acquisition, target and residency hookup, queue submission and feedback lifetime, drawable presentation, and terminal screen error state. Construction also resolves the required presentation sRGB color space before the renderer becomes usable. Every `MetalResourceStore` caller selects a frame count explicitly: the screen deliberately passes `MetalResourceStore.defaultFrameCount`, while exact offscreen rendering passes `1`. Compiled target formats remain ``MetalFrameEncoder`` contracts.
 
 ## Exact Offscreen Rendering
 
@@ -231,13 +238,13 @@ The caller supplies one prepared ``RenderFrame``, caller-owned scene-color, dept
 
 Admission and preparation are exact rather than best-effort. The Runtime rejects a cancelled-before-submit request, an invalid viewpoint, a size outside its configured policy, or more than `FrameResources.maximumInstanceCount` projected instances. The current maximum is 256. `RenderFrame(exactlyProjecting:viewpoint:)` also rejects the first presented entity whose position is absent, normal-matrix inverse is unusable, or combined model-view transform is nonfinite. The Runtime then validates the exact model-view-projection products at the requested output aspect ratio before GPU packing. The live screen's tolerant projection continues to omit malformed model-view and normal transforms so one bad presentation fact does not stop display updates.
 
-Missing model content or incomplete drawable indexed geometry fails preparation instead of silently omitting a draw. Exact model validation requires a nonempty model, a usable nonempty first vertex-buffer slice for every encoder-visited mesh, at least one submesh per mesh, and positive in-bounds UInt16 or UInt32 index slices large enough for every submesh draw. Material, model, and geometry preflight finishes before allocator reset, frame-buffer writes, target mutation, or command encoding.
+Missing model content or incomplete drawable indexed geometry fails preparation instead of silently omitting a draw. Exact preparation resolves each model once, and validation examines the same retained optional model values that encoding will consume rather than repeating store lookups. ``USDRenderModel`` proves the geometry predicate once when its immutable meshes are constructed, so repeated exact requests read a cached proof rather than traversing every mesh and submesh again. A valid model has a usable nonempty first vertex-buffer slice for every encoder-visited mesh, at least one submesh per mesh, and positive in-bounds UInt16 or UInt32 index slices large enough for every submesh draw. Material, model, and geometry preflight finishes before allocator reset, frame-buffer writes, target mutation, or command encoding.
 
-One request owns the sole mutable frame slot through completion. Request-local targets comprise a shared `bgra8Unorm_srgb` destination, private `depth32Float` depth texture, and committed residency set; the frame slot owns its matching `rgba16Float` HDR scene target. A retained submission token keeps the resource store, encoder, frame, command buffer, scene target, and request targets alive until actual queue feedback, then marks the frame available exactly once before resuming the requester.
+Admission and immutable preflight remain one unsuspended workflow. The Runtime enters its busy state before delegating an accepted request to one mutable Metal transaction that owns request targets, the sole frame slot, command encoding and submission, feedback, cancellation boundaries, readback, and ready-or-failed restoration. Request-local targets comprise a shared `bgra8Unorm_srgb` destination, private `depth32Float` depth texture, and committed residency set; the frame slot owns its matching `rgba16Float` HDR scene target. A retained submission token keeps the resource store, encoder, frame, command buffer, scene target, and request targets alive until actual queue feedback, then marks the frame available exactly once before resuming the requester. Its `CheckedContinuation<Void, MetalOffscreenSubmissionError>` makes success an ordinary return and queue failure a typed throw rather than inventing a private completion value.
 
 Cancellation before commit rejects the request and releases unsubmitted resources. Cancellation after commit cannot abandon Metal work: the Runtime still awaits feedback and releases GPU lifetime correctly, then returns `cancelledAfterSubmission` without allocating or reading back the CPU image. A queue-feedback error becomes a `.gpuExecution` failure and latches its original terminal cause; later requests return that same failure without touching GPU state.
 
-On success, the Runtime reads the shared destination only after feedback and returns an opaque, tightly packed, top-left BGRA8-sRGB image. ``OffscreenRenderResult`` echoes the request identity, source ``SimulationCursor``, complete viewpoint, settings, and detached bytes. It is a raw rendered result, not an HDR master, accumulated high-quality frame, file, or MCP response. A completed result can subsequently become an encoded JPEG or PNG artifact without changing or reacquiring the rendered pixels.
+On successful return from the internal commit operation, the Runtime reads the shared destination and returns an opaque, tightly packed, top-left BGRA8-sRGB image. Sequential control flow establishes the feedback-before-readback order without a freely constructible success token. ``OffscreenRenderResult`` echoes the request identity, source ``SimulationCursor``, complete viewpoint, settings, and detached bytes. It is a raw rendered result, not an HDR master, accumulated high-quality frame, file, or MCP response. A completed result can subsequently become an encoded JPEG or PNG artifact without changing or reacquiring the rendered pixels.
 
 ## Image Artifact Encoding Is a Separate Asynchronous CPU Boundary
 
@@ -245,7 +252,9 @@ On success, the Runtime reads the shared destination only after feedback and ret
 
 ``ImageArtifactEncoding`` keeps the format and its policy in one closed value. `.jpeg(quality:)` carries a validated finite `0...1` ``JPEGQuality``; `.png` is lossless and carries no JPEG-specific setting. This prevents invalid combinations such as PNG plus JPEG quality. ``RenderedImageArtifact`` owns detached encoded data and preserves that exact encoding beside the source ``OffscreenRenderRequestID``, ``SimulationCursor``, complete ``RenderViewpoint``, and ``OffscreenRenderSettings``.
 
-``ImageIOArtifactEncoder`` is the stateless, nonisolated, `Sendable` production implementation. Its `@concurrent encode(_:as:)` operation runs synchronous Core Graphics and Image I/O work on Swift's concurrent executor, wrapping the completed, opaque, top-left BGRA8-sRGB image as sRGB and asking Image I/O for the selected JPEG or PNG destination. It does not flip rows, apply the sRGB transfer again, sample a Runtime source, touch Metal, or issue another render request. The source's guaranteed-opaque fourth byte is deliberately skipped for both supported formats.
+Catalog coverage and lookup, pixel extent and layout, detached BGRA8 byte count, and JPEG quality each expose their closed construction failure domain through typed throws. Internal callers use ordinary throwing control flow rather than wrapping these local failures in request/result objects.
+
+``ImageIOArtifactEncoder`` is the immutable, nonisolated, `Sendable` production implementation. Its throwing initializer resolves and retains the required standard sRGB color space before an encoder becomes usable. Its `@concurrent encode(_:as:)` operation runs synchronous Core Graphics and Image I/O work on Swift's concurrent executor, wrapping the completed, opaque, top-left BGRA8-sRGB image with that retained color space and asking Image I/O for the selected JPEG or PNG destination. It does not flip rows, apply the sRGB transfer again, sample a Runtime source, touch Metal, or issue another render request. The source's guaranteed-opaque fourth byte is deliberately skipped for both supported formats.
 
 ``OffscreenImageArtifactDeriver`` owns the shared render-then-encode connection. It validates the raw result's identity, source, viewpoint, render settings, and image extent before calling its injected encoder, then validates the returned artifact's complete provenance and selected encoding. Cancellation is checked before encoding; once ``ImageIOArtifactEncoder`` begins its synchronous concurrent-executor work, the completed artifact or typed failure wins. Encoding failure or artifact-provenance mismatch leaves the detached raw result available for retry with the same or another supported encoding without advancing Simulation or rerendering. HDR-master and accumulation workflows, persistence, `ArtifactSink`, additional formats, and a dedicated Render worker remain future work.
 
@@ -326,8 +335,8 @@ Their view and layer residency sets are registered with the command queue when
 the `MTKView` is configured rather than copied into an engine-owned set.
 
 Pipeline states, shader libraries, depth-stencil states, compilers, and argument
-tables are retained in typed caches but are not `MTLAllocation` values and do
-not belong in these residency sets.
+tables are retained as nonoptional typed resources and handles but are not
+`MTLAllocation` values and do not belong in these residency sets.
 ## Intended Frame Shape
 A likely long-term frame flow is:
 1. simulation systems update ECS state

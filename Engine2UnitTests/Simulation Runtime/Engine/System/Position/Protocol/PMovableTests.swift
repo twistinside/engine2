@@ -30,4 +30,6 @@ struct PMovableTests {
     }
 }
 
-private final class TestMovableEntity: Entity, PMovable {}
+private extension PMovableTests {
+    private final class TestMovableEntity: Entity, PMovable {}
+}

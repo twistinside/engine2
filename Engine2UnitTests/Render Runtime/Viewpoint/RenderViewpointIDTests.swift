@@ -9,15 +9,13 @@ struct RenderViewpointIDTests {
 
         #expect(first != second)
         #expect(RenderViewpointID(rawValue: first.rawValue) == first)
-        #expect(Self.rawRoundTrip(first) == first)
+        #expect(rawRoundTrip(first) == first)
 
         let data = try JSONEncoder().encode(first)
         #expect(try JSONDecoder().decode(RenderViewpointID.self, from: data) == first)
     }
 
-    private static func rawRoundTrip<Value>(
-        _ value: Value
-    ) -> Value? where Value: Equatable & RawRepresentable {
+    private func rawRoundTrip<Value>(_ value: Value) -> Value? where Value: Equatable & RawRepresentable {
         Value(rawValue: value.rawValue)
     }
 }

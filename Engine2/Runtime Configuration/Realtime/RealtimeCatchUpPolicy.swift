@@ -12,12 +12,4 @@ nonisolated struct RealtimeCatchUpPolicy: Equatable, Sendable {
 
     let maximumStepsPerWake: SimulationStepCount
     let backlogTreatment: RealtimeBacklogTreatment
-
-    init(
-        maximumStepsPerWake: SimulationStepCount,
-        backlogTreatment: RealtimeBacklogTreatment
-    ) {
-        self.maximumStepsPerWake = maximumStepsPerWake
-        self.backlogTreatment = backlogTreatment
-    }
 }

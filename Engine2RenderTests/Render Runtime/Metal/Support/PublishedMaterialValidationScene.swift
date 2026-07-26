@@ -6,7 +6,6 @@
 /// `SimulationPresentationSnapshot` → `RenderFrame` path. GPU and BRDF tests
 /// consume these projected identities instead of restating the validation
 /// scene's six material cases or depending on `MaterialID.allCases` ordering.
-@MainActor
 struct PublishedMaterialValidationScene {
     let catalog: RenderAssetCatalog
     let renderFrame: RenderFrame

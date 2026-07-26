@@ -6,7 +6,6 @@ import Metal
 /// never mutates a set referenced by another in-flight frame. `FrameResources`
 /// replaces this value only after its availability semaphore proves prior GPU
 /// work for the slot has completed.
-@MainActor
 final class MetalHDRSceneTarget {
     let texture: any MTLTexture
     let residencySet: any MTLResidencySet
@@ -20,10 +19,7 @@ final class MetalHDRSceneTarget {
     }
 
     init(device: any MTLDevice, width: Int, height: Int) throws {
-        precondition(
-            width > 0 && height > 0,
-            "An HDR scene target requires positive pixel dimensions."
-        )
+        precondition(width > 0 && height > 0, "An HDR scene target requires positive pixel dimensions.")
 
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,

@@ -13,7 +13,7 @@ struct OffscreenRenderRequestTests {
         let secondFresh = OffscreenRenderRequestID()
 
         #expect(firstFresh != secondFresh)
-        #expect(Self.rawRoundTrip(fixed) == fixed)
+        #expect(rawRoundTrip(fixed) == fixed)
 
         let data = try JSONEncoder().encode(fixed)
         #expect(
@@ -28,13 +28,17 @@ struct OffscreenRenderRequestTests {
         let requestID = OffscreenRenderRequestID(
             rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000101")!
         )
-        let cursor = Self.cursor(tick: 12)
+        let cursor = cursor(tick: 12)
         let snapshot = SimulationPresentationSnapshot(
             cursor: cursor,
-            camera: Camera(position: SIMD3<Float>(1, 2, 3)),
+            camera: Camera(
+                position: SIMD3<Float>(1, 2, 3),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            ),
             entityPresentations: []
         )
-        let viewpoint = Self.viewpoint(revision: 7)
+        let viewpoint = viewpoint(revision: 7)
         let settings = OffscreenRenderSettings(
             size: try RenderPixelSize(width: 640, height: 480),
             outputMode: .viewSpaceNormals,
@@ -55,7 +59,7 @@ struct OffscreenRenderRequestTests {
         #expect(request.settings == settings)
     }
 
-    private static func cursor(tick: UInt64) -> SimulationCursor {
+    private func cursor(tick: UInt64) -> SimulationCursor {
         SimulationCursor(
             sessionID: SimulationSessionID(
                 rawValue: UUID(
@@ -66,7 +70,7 @@ struct OffscreenRenderRequestTests {
         )
     }
 
-    private static func viewpoint(revision: UInt64) -> RenderViewpoint {
+    private func viewpoint(revision: UInt64) -> RenderViewpoint {
         RenderViewpoint(
             id: RenderViewpointID(
                 rawValue: UUID(
@@ -74,13 +78,15 @@ struct OffscreenRenderRequestTests {
                 )!
             ),
             revision: RenderViewpointRevision(rawValue: revision),
-            camera: Camera(position: SIMD3<Float>(4, 5, 6))
+            camera: Camera(
+                position: SIMD3<Float>(4, 5, 6),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
     }
 
-    private static func rawRoundTrip<Value>(
-        _ value: Value
-    ) -> Value? where Value: Equatable & RawRepresentable {
+    private func rawRoundTrip<Value>(_ value: Value) -> Value? where Value: Equatable & RawRepresentable {
         Value(rawValue: value.rawValue)
     }
 }

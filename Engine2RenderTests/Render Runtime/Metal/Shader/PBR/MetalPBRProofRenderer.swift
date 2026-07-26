@@ -9,7 +9,6 @@ import Metal
 /// not use the application's drawable path or establish a production material
 /// binding. The only artifact intended for production reuse is the shader
 /// evaluator called by these proof pipelines.
-@MainActor
 final class MetalPBRProofRenderer {
     static let width = 65
     static let height = 65
@@ -71,7 +70,7 @@ final class MetalPBRProofRenderer {
         residencySet.addAllocation(colorTexture)
         residencySet.commit()
 
-        let library = try resources.shaderLibrary(for: .engine)
+        let library = resources.requiredResources.engineLibrary
         var pipelines: [PBRProofOutput: any MTLRenderPipelineState] = [:]
         for output in PBRProofOutput.allCases {
             let vertexFunction = MTL4LibraryFunctionDescriptor()
@@ -103,10 +102,7 @@ final class MetalPBRProofRenderer {
     }
 
     /// Renders one diagnostic and returns raw linear RGBA values in row order.
-    func render(
-        _ output: PBRProofOutput,
-        parameters: PBRProofParameters = .validation
-    ) throws -> [SIMD4<Float>] {
+    func render(_ output: PBRProofOutput, parameters: PBRProofParameters = .validation) throws -> [SIMD4<Float>] {
         guard canSubmit else {
             throw MetalPBRProofRendererError.unusableAfterTimeout
         }

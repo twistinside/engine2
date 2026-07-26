@@ -6,7 +6,6 @@ import Testing
 @testable import Engine2
 
 struct MetalDepthRenderingTests {
-    @MainActor
     @Test func nearerTriangleWinsForBothProjectionsRegardlessOfSubmissionOrder() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -16,12 +15,15 @@ struct MetalDepthRenderingTests {
         )
 
         let cameras = [
-            Camera(),
+            .standard,
             Camera(
                 position: SIMD3<Float>(0, 0, 8),
-                orthographicHeight: 8,
-                nearPlane: 1,
-                farPlane: 20
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 8,
+                    near: 1,
+                    far: 20
+                )
             )
         ]
 
@@ -48,7 +50,6 @@ struct MetalDepthRenderingTests {
         }
     }
 
-    @MainActor
     @Test func normalDiagnosticEncodesNormalizedViewSpaceDirection() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
@@ -59,6 +60,7 @@ struct MetalDepthRenderingTests {
         let pixel = try renderCenterPixel(
             drawOrder: [0],
             nearNormal: SIMD3<Float>(1, 0, 0),
+            camera: .standard,
             resources: resources
         )
 
@@ -72,11 +74,10 @@ struct MetalDepthRenderingTests {
     }
 }
 
-@MainActor
 private func renderCenterPixel(
     drawOrder: [Int],
     nearNormal: SIMD3<Float> = SIMD3<Float>(1, 0, 0),
-    camera: Camera = Camera(),
+    camera: Camera,
     resources: MetalResourceStore
 ) throws -> SIMD4<Float> {
     let textureSize = 8
@@ -133,22 +134,16 @@ private func renderCenterPixel(
     }
     residencySet.commit()
 
-    let instances = [
-        RenderInstance(
-            meshID: .ball,
-            materialID: .warmDielectric,
-            transform: Transform(
-                position: SIMD3<Float>(0, 0, 0),
-                scale: SIMD3<Float>(4, 4, 1)
-            )
+    let transforms = [
+        Transform(
+            position: SIMD3<Float>(0, 0, 0),
+            rotation: Transform.identityRotation,
+            scale: SIMD3<Float>(4, 4, 1)
         ),
-        RenderInstance(
-            meshID: .ball,
-            materialID: .warmDielectric,
-            transform: Transform(
-                position: SIMD3<Float>(0, 0, -2),
-                scale: SIMD3<Float>(4, 4, 1)
-            )
+        Transform(
+            position: SIMD3<Float>(0, 0, -2),
+            rotation: Transform.identityRotation,
+            scale: SIMD3<Float>(4, 4, 1)
         )
     ]
     let frame = try #require(resources.frames.first)
@@ -161,15 +156,15 @@ private func renderCenterPixel(
                     tick: .zero
                 ),
                 camera: camera,
-                entityPresentations: instances.enumerated().map {
-                    index, instance in
+                entityPresentations: transforms.enumerated().map {
+                    index, transform in
                     EntityPresentationSnapshot(
                         id: EntityID(index: index, generation: 0),
-                        position: instance.transform.position,
-                        rotation: instance.transform.rotation,
-                        scale: instance.transform.scale,
-                        meshID: instance.meshID,
-                        materialID: instance.materialID
+                        position: transform.position,
+                        rotation: transform.rotation,
+                        scale: transform.scale,
+                        meshID: .ball,
+                        materialID: .warmDielectric
                     )
                 }
             )
@@ -178,9 +173,10 @@ private func renderCenterPixel(
     )
     frame.write(
         preparedFrame,
-        drawableSize: CGSize(width: textureSize, height: textureSize)
+        drawableSize: CGSize(width: textureSize, height: textureSize),
+        exposure: .validation
     )
-    #expect(preparedFrame.instances.count == instances.count)
+    #expect(preparedFrame.instances.count == transforms.count)
 
     let renderPass = MTL4RenderPassDescriptor()
     renderPass.colorAttachments[0].texture = colorTexture
@@ -207,13 +203,13 @@ private func renderCenterPixel(
         )
     )
     encoder.setRenderPipelineState(
-        try resources.renderPipelineState(for: .modelNormalDiagnostic)
+        resources.requiredResources.modelNormalDiagnosticPipeline
     )
     encoder.setDepthStencilState(
-        try resources.depthStencilState(for: .opaque)
+        resources.requiredResources.opaqueDepthStencilState
     )
 
-    let argumentTable = try resources.argumentTable(for: .model)
+    let argumentTable = resources.requiredResources.modelArgumentTable
     for instanceIndex in drawOrder {
         argumentTable.setAddress(
             vertexBuffers[instanceIndex].gpuAddress,
@@ -274,10 +270,7 @@ private func renderCenterPixel(
     )
 }
 
-private func makeTriangleBuffer(
-    normal: SIMD3<Float>,
-    device: any MTLDevice
-) throws -> any MTLBuffer {
+private func makeTriangleBuffer(normal: SIMD3<Float>, device: any MTLDevice) throws -> any MTLBuffer {
     let positions = [
         SIMD3<Float>(-1, -1, 0),
         SIMD3<Float>(1, -1, 0),
@@ -309,11 +302,7 @@ private func makeTriangleBuffer(
     return try #require(buffer)
 }
 
-private func expectLinearRGBA(
-    _ actual: SIMD4<Float>,
-    approximately expected: SIMD4<Float>,
-    maximumHalfULPDistance: Int = 1
-) {
+private func expectLinearRGBA(_ actual: SIMD4<Float>, approximately expected: SIMD4<Float>, maximumHalfULPDistance: Int = 1) {
     for componentIndex in 0..<4 {
         let actualHalf = Float16(actual[componentIndex])
         let expectedHalf = Float16(expected[componentIndex])

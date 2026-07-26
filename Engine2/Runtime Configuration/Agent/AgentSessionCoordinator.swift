@@ -12,15 +12,10 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
     private let captureTarget: any POfflineCaptureTarget
     private var knownCursor: SimulationCursor
-    private var nextExpectedSequence: AgentSessionRequestSequence?
-    private var highestAcceptedSequence: AgentSessionRequestSequence?
+    private var sequenceProgress: AgentSessionRequestSequenceProgress
     private var activeRequest: AgentCaptureRequest?
     private var isClosed = false
-
-    private var retainedRequests: [AgentSessionRequestID: AgentCaptureRequest] = [:]
-    private var retainedResponses: [AgentSessionRequestID: AgentSessionResponse] = [:]
-    private var retentionOrder: [AgentSessionRequestID] = []
-    private var retainedImageBytes = 0
+    private var replayCache: AgentSessionReplayCache
     private var drainWaiters: [CheckedContinuation<Void, Never>] = []
 
     /// Creates one session around the already composed offline workflow.
@@ -29,13 +24,17 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         initialCursor: SimulationCursor,
         limits: AgentSessionLimits,
         captureTarget: any POfflineCaptureTarget,
-        initialRequestSequence: AgentSessionRequestSequence = .first
+        initialRequestSequence: AgentSessionRequestSequence
     ) {
         self.sessionID = sessionID
         self.knownCursor = initialCursor
         self.limits = limits
         self.captureTarget = captureTarget
-        self.nextExpectedSequence = initialRequestSequence
+        self.sequenceProgress = AgentSessionRequestSequenceProgress(initialSequence: initialRequestSequence)
+        self.replayCache = AgentSessionReplayCache(
+            maximumResultCount: limits.maximumRetainedResultCount,
+            maximumImageBytes: limits.maximumRetainedImageBytes
+        )
     }
 
     /// Admits, executes once, replays, or refuses one stable request value.
@@ -50,12 +49,11 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         }
 
         // Retained replay and payload conflict take precedence even after close.
-        if let retainedRequest = retainedRequests[request.id],
-           let retainedResponse = retainedResponses[request.id] {
-            guard retainedRequest == request else {
+        if let replayEntry = replayCache.entry(for: request.id) {
+            guard replayEntry.request == request else {
                 return rejected(.requestConflict(request.id))
             }
-            return .replayed(retainedResponse)
+            return .replayed(replayEntry.response)
         }
 
         // Actor reentrancy makes the accepted call visible while it awaits the
@@ -70,37 +68,62 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
             )
         }
 
-        // Accepted high-water survives both cache eviction and UInt64 sequence
-        // exhaustion. An old unretained identity therefore remains explicitly
-        // evicted rather than becoming executable or losing its diagnosis.
-        if let highestAcceptedSequence,
-           request.id.sequence <= highestAcceptedSequence {
-            return rejected(.resultEvicted(request.id))
+        do {
+            try admitNewRequest(request)
+        } catch {
+            return rejected(error)
+        }
+
+        let response = await executeAcceptedRequest(request)
+
+        replayCache.retain(
+            AgentSessionReplayEntry(
+                request: request,
+                response: response
+            )
+        )
+        activeRequest = nil
+        resumeDrainWaiters()
+        return .executed(response)
+    }
+
+    /// Validates and consumes one request that has no retained or active identity.
+    ///
+    /// Refusal remains ordinary control flow inside this actor. The public
+    /// protocol method translates the typed error into its value-shaped boundary
+    /// rejection without introducing a second internal response vocabulary.
+    private func admitNewRequest(_ request: AgentCaptureRequest) throws(AgentSessionRequestRejectionReason) {
+        let sequenceClassification = sequenceProgress.classification(of: request.id.sequence)
+
+        // Accepted high-water survives cache eviction and sequence exhaustion.
+        // An old unretained identity therefore remains explicitly evicted.
+        guard sequenceClassification != .atOrBelowAcceptedHighWater else {
+            throw .resultEvicted(request.id)
         }
 
         guard !isClosed else {
-            return rejected(.sessionClosed)
+            throw .sessionClosed
         }
 
         if let activeRequest {
-            return rejected(
-                .anotherRequestBusy(activeRequestID: activeRequest.id)
-            )
+            throw .anotherRequestBusy(activeRequestID: activeRequest.id)
         }
 
-        guard let nextExpectedSequence else {
-            // Accepting UInt64.max preserves it as highestAcceptedSequence, so
-            // every representable identity is caught as old above. Keep this
-            // defensive fallback non-executing if internal state is corrupted.
-            return rejected(.resultEvicted(request.id))
-        }
-        guard request.id.sequence == nextExpectedSequence else {
-            return rejected(
-                .unexpectedSequence(
-                    expected: nextExpectedSequence,
-                    actual: request.id.sequence
-                )
+        switch sequenceClassification {
+        case .expected:
+            break
+
+        case let .unexpected(expectedSequence):
+            throw .unexpectedSequence(
+                expected: expectedSequence,
+                actual: request.id.sequence
             )
+
+        case .atOrBelowAcceptedHighWater:
+            // This case was returned before closure and overlap checks so its
+            // precedence remains explicit. Repeat the same refusal only to keep
+            // this exhaustive switch resilient to later admission changes.
+            throw .resultEvicted(request.id)
         }
 
         // Idempotency depends on a stable equivalence relation. Swift floating-
@@ -109,23 +132,24 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         // have already been resolved above; refuse a new non-reflexive payload
         // before it consumes this otherwise-admissible sequence.
         guard request == request else {
-            return rejected(.invalidPayload)
+            throw .invalidPayload
         }
         guard !Task.isCancelled else {
-            return rejected(.cancelledBeforeAcceptance)
+            throw .cancelledBeforeAcceptance
         }
 
         // From this point the request identity is consumed exactly once. Move
         // high-water before the first await so overlap can never admit it again.
         activeRequest = request
-        highestAcceptedSequence = nextExpectedSequence
-        self.nextExpectedSequence = nextExpectedSequence.successor()
+        sequenceProgress.accept(request.id.sequence)
+    }
 
-        let response: AgentSessionResponse
+    /// Executes one already consumed request through the sole offline capability.
+    private func executeAcceptedRequest(_ request: AgentCaptureRequest) async -> AgentSessionResponse {
         switch request.source {
         case let .advance(expectedCursor, stepCount):
-            if stepCount.rawValue > limits.maximumStepCount.rawValue {
-                response = AgentSessionResponse(
+            guard stepCount.rawValue <= limits.maximumStepCount.rawValue else {
+                return AgentSessionResponse(
                     requestID: request.id,
                     outcome: .stepLimitExceeded(
                         requested: stepCount,
@@ -133,20 +157,20 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                     ),
                     knownCursor: knownCursor
                 )
-            } else {
-                let outcome = await captureTarget.capture(
-                    request.makeOfflineCaptureRequest(
-                        expectedCursor: expectedCursor,
-                        stepCount: stepCount
-                    )
-                )
-                knownCursor = knownCursor(after: outcome, previous: knownCursor)
-                response = AgentSessionResponse(
-                    requestID: request.id,
-                    outcome: .capture(outcome),
-                    knownCursor: knownCursor
-                )
             }
+
+            let outcome = await captureTarget.capture(
+                request.makeOfflineCaptureRequest(
+                    expectedCursor: expectedCursor,
+                    stepCount: stepCount
+                )
+            )
+            knownCursor = outcome.authoritativeCursor(after: knownCursor)
+            return AgentSessionResponse(
+                requestID: request.id,
+                outcome: .capture(outcome),
+                knownCursor: knownCursor
+            )
 
         case let .current(expectedCursor):
             let outcome = await captureTarget.captureCurrent(
@@ -154,18 +178,13 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                     expectedCursor: expectedCursor
                 )
             )
-            knownCursor = knownCursor(after: outcome, previous: knownCursor)
-            response = AgentSessionResponse(
+            knownCursor = outcome.authoritativeCursor(after: knownCursor)
+            return AgentSessionResponse(
                 requestID: request.id,
                 outcome: .currentCapture(outcome),
                 knownCursor: knownCursor
             )
         }
-
-        retain(response: response, for: request)
-        activeRequest = nil
-        resumeDrainWaiters()
-        return .executed(response)
     }
 
     /// Closes admission immediately and waits for already accepted work.
@@ -193,34 +212,6 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         )
     }
 
-    /// Retains a response within both count and named image-byte budgets.
-    private func retain(response: AgentSessionResponse, for request: AgentCaptureRequest) {
-        let imageBytes = retainedImageByteCount(in: response.outcome)
-        guard imageBytes <= limits.maximumRetainedImageBytes else {
-            return
-        }
-
-        while retentionOrder.count >= limits.maximumRetainedResultCount
-            || retainedImageBytes
-                > limits.maximumRetainedImageBytes - imageBytes {
-            guard let oldestID = retentionOrder.first else {
-                return
-            }
-            retentionOrder.removeFirst()
-            retainedRequests[oldestID] = nil
-            if let evictedResponse = retainedResponses.removeValue(
-                forKey: oldestID
-            ) {
-                retainedImageBytes -= retainedImageByteCount(in: evictedResponse.outcome)
-            }
-        }
-
-        retainedRequests[request.id] = request
-        retainedResponses[request.id] = response
-        retentionOrder.append(request.id)
-        retainedImageBytes += imageBytes
-    }
-
     /// Resumes every closer only after accepted work reaches a terminal value.
     private func resumeDrainWaiters() {
         let waiters = drainWaiters
@@ -228,122 +219,5 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         for waiter in waiters {
             waiter.resume()
         }
-    }
-
-    /// Derives the exact authoritative position exposed with an agent response.
-    private func knownCursor(after outcome: OfflineCaptureOutcome, previous: SimulationCursor) -> SimulationCursor {
-        switch outcome {
-        case let .completed(result):
-            result.advanceResult.finalCursor
-
-        case .coordinatorBusy,
-             .cancelledBeforeAdvance:
-            previous
-
-        case let .advanceRejected(rejection):
-            switch rejection {
-            case let .cursorMismatch(_, current):
-                current
-            }
-
-        case let .advanceResultMismatch(_, _, _, result),
-             let .cancelledAfterAdvance(result),
-             let .renderRejected(result, _),
-             let .renderFailed(result, _),
-             let .renderCancellationRequestIDMismatch(result, _, _),
-             let .renderCancelledAfterSubmission(result, _),
-             let .renderResultMismatch(result, _),
-             let .cancelledAfterRender(result, _),
-             let .artifactEncodingFailed(result, _, _),
-             let .artifactResultMismatch(result, _, _):
-            result.finalCursor
-        }
-    }
-
-    /// Derives exact cursor knowledge from a non-advancing current capture.
-    private func knownCursor(after outcome: OfflineCurrentCaptureOutcome, previous: SimulationCursor) -> SimulationCursor {
-        switch outcome {
-        case let .completed(result):
-            result.sourceSnapshot.cursor
-
-        case .coordinatorBusy,
-             .cancelledBeforeRender:
-            previous
-
-        case let .cursorMismatch(_, current):
-            current
-
-        case let .renderRejected(sourceSnapshot, _),
-             let .renderFailed(sourceSnapshot, _),
-             let .renderCancellationRequestIDMismatch(sourceSnapshot, _, _),
-             let .renderCancelledAfterSubmission(sourceSnapshot, _),
-             let .renderResultMismatch(sourceSnapshot, _),
-             let .cancelledAfterRender(sourceSnapshot, _),
-             let .artifactEncodingFailed(sourceSnapshot, _, _),
-             let .artifactResultMismatch(sourceSnapshot, _, _):
-            sourceSnapshot.cursor
-        }
-    }
-
-    /// Counts only retained encoded or raw image payloads by declared policy.
-    private func retainedImageByteCount(in outcome: AgentSessionExecutionOutcome) -> Int {
-        switch outcome {
-        case let .capture(captureOutcome):
-            return switch captureOutcome {
-            case let .completed(result):
-                result.artifact.encodedData.count
-
-            case let .renderResultMismatch(_, renderResult),
-                 let .cancelledAfterRender(_, renderResult),
-                 let .artifactEncodingFailed(_, renderResult, _):
-                renderResult.image.bytes.count
-
-            case let .artifactResultMismatch(_, renderResult, artifact):
-                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
-
-            case .coordinatorBusy,
-                 .cancelledBeforeAdvance,
-                 .advanceRejected,
-                 .advanceResultMismatch,
-                 .cancelledAfterAdvance,
-                 .renderRejected,
-                 .renderFailed,
-                 .renderCancellationRequestIDMismatch,
-                 .renderCancelledAfterSubmission:
-                0
-            }
-
-        case let .currentCapture(captureOutcome):
-            return switch captureOutcome {
-            case let .completed(result):
-                result.artifact.encodedData.count
-
-            case let .renderResultMismatch(_, renderResult),
-                 let .cancelledAfterRender(_, renderResult),
-                 let .artifactEncodingFailed(_, renderResult, _):
-                renderResult.image.bytes.count
-
-            case let .artifactResultMismatch(_, renderResult, artifact):
-                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
-
-            case .coordinatorBusy,
-                 .cancelledBeforeRender,
-                 .cursorMismatch,
-                 .renderRejected,
-                 .renderFailed,
-                 .renderCancellationRequestIDMismatch,
-                 .renderCancelledAfterSubmission:
-                0
-            }
-
-        case .stepLimitExceeded:
-            return 0
-        }
-    }
-
-    /// Adds two retained payload sizes without allowing integer wraparound.
-    private func combinedImageByteCount(_ first: Int, _ second: Int) -> Int {
-        let (sum, overflowed) = first.addingReportingOverflow(second)
-        return overflowed ? .max : sum
     }
 }

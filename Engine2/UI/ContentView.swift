@@ -20,7 +20,9 @@ struct ContentView: View {
     @State private var captureTask: Task<Void, Never>?
 
     var body: some View {
-        @Bindable var captureModel = snapshotCaptureViewModel
+        let captureModel = snapshotCaptureViewModel
+        let exporter = captureModel.presentedModal?.exporter
+        let failure = captureModel.presentedModal?.failure
 
         ZStack {
             MetalSceneView(
@@ -55,10 +57,10 @@ struct ContentView: View {
             captureModel.deactivatePresentation()
         }
         .fileExporter(
-            isPresented: $captureModel.isExporterPresented,
-            document: captureModel.exportDocument,
+            isPresented: exporterPresentationBinding,
+            document: exporter?.document,
             contentTypes: [.jpeg],
-            defaultFilename: captureModel.defaultFilename
+            defaultFilename: exporter?.defaultFilename ?? "Engine2 Snapshot"
         ) { result in
             captureModel.exportCompleted(result)
         } onCancellation: {
@@ -68,12 +70,12 @@ struct ContentView: View {
         .fileDialogMessage("Choose where to save the offscreen snapshot.")
         .fileExporterFilenameLabel("Snapshot name")
         .alert(
-            captureModel.failureAllowsExportRetry
+            failure?.allowsExportRetry == true
                 ? "Snapshot Save Failed"
                 : "Snapshot Capture Failed",
-            isPresented: $captureModel.isFailurePresented
+            isPresented: failurePresentationBinding
         ) {
-            if captureModel.failureAllowsExportRetry {
+            if failure?.allowsExportRetry == true {
                 Button("Try Again", action: captureModel.retryExport)
                 Button(
                     "Discard",
@@ -84,8 +86,26 @@ struct ContentView: View {
                 Button("OK", role: .cancel, action: captureModel.dismissFailure)
             }
         } message: {
-            Text(captureModel.failureMessage)
+            Text(failure?.message ?? "")
         }
+    }
+
+    /// Adapts enum state to SwiftUI without clearing the export payload before
+    /// the framework invokes its completion or cancellation callback.
+    private var exporterPresentationBinding: Binding<Bool> {
+        Binding(
+            get: { snapshotCaptureViewModel.presentedModal?.exporter != nil },
+            set: { _ in }
+        )
+    }
+
+    /// Lets alert actions own the authoritative transition after SwiftUI writes
+    /// its presentation binding during dismissal.
+    private var failurePresentationBinding: Binding<Bool> {
+        Binding(
+            get: { snapshotCaptureViewModel.presentedModal?.failure != nil },
+            set: { _ in }
+        )
     }
 
     private func captureSnapshot() {

@@ -40,10 +40,7 @@ struct PBRProofParameters {
                 && baseColor.z >= 0 && baseColor.z <= 1,
             "PBR proof base color must be finite linear RGB in 0...1."
         )
-        precondition(
-            metallic.isFinite && metallic >= 0 && metallic <= 1,
-            "PBR proof metallic must be finite and in 0...1."
-        )
+        precondition(metallic.isFinite && metallic >= 0 && metallic <= 1, "PBR proof metallic must be finite and in 0...1.")
         precondition(
             perceptualRoughness.isFinite
                 && perceptualRoughness >= 0
@@ -57,10 +54,7 @@ struct PBRProofParameters {
                 && lightColor.z >= 0,
             "PBR proof light color must be finite, nonnegative linear RGB."
         )
-        precondition(
-            lightIntensity.isFinite && lightIntensity >= 0,
-            "PBR proof light intensity must be finite and nonnegative."
-        )
+        precondition(lightIntensity.isFinite && lightIntensity >= 0, "PBR proof light intensity must be finite and nonnegative.")
 
         // The source direction is defined surface-to-light in world space. A
         // direction uses w=0 semantics, so only the camera rotation participates
@@ -101,10 +95,7 @@ struct PBRProofParameters {
         )
     }
 
-    private static func normalizedFiniteDirection(
-        _ direction: SIMD3<Float>,
-        label: StaticString
-    ) -> SIMD3<Float> {
+    private static func normalizedFiniteDirection(_ direction: SIMD3<Float>, label: StaticString) -> SIMD3<Float> {
         let lengthSquared = simd_length_squared(direction)
         precondition(
             Self.hasOnlyFiniteValues(direction)
@@ -115,9 +106,7 @@ struct PBRProofParameters {
         return direction / sqrt(lengthSquared)
     }
 
-    private static func hasOnlyFiniteValues(
-        _ value: SIMD3<Float>
-    ) -> Bool {
+    private static func hasOnlyFiniteValues(_ value: SIMD3<Float>) -> Bool {
         value.x.isFinite && value.y.isFinite && value.z.isFinite
     }
 }

@@ -29,9 +29,10 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     }
 
     init(
-        worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
-        inputBaseline: InputSnapshot? = nil,
-        sessionID: SimulationSessionID = SimulationSessionID()
+        worldBuilder: any PWorldBuilder,
+        configuration: SimulationConfiguration,
+        inputBaseline: InputSnapshot?,
+        sessionID: SimulationSessionID
     ) {
         self.worldBuilder = worldBuilder
         self.sessionID = sessionID
@@ -41,14 +42,33 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         }
         let engine = Engine(
             world: world,
-            fixedTimeStep: Self.fixedTimeStep
+            fixedTimeStep: Self.fixedTimeStep,
+            configuration: configuration
         )
         self.engine = engine
-        self.latestPresentationSnapshot = engine.world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: sessionID,
-                tick: engine.completedTick
-            )
+        let initialCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: engine.completedTick
+        )
+        self.latestPresentationSnapshot = engine.world.presentationSnapshot(at: initialCursor)
+    }
+
+    /// Starts a fresh authoritative timeline for the supplied World recipe and
+    /// optional Input publication baseline.
+    ///
+    /// Restored or externally correlated sessions use
+    /// `init(worldBuilder:configuration:inputBaseline:sessionID:)` so identity selection
+    /// remains explicit at their composition boundary.
+    convenience init(
+        worldBuilder: any PWorldBuilder,
+        configuration: SimulationConfiguration,
+        inputBaseline: InputSnapshot?
+    ) {
+        self.init(
+            worldBuilder: worldBuilder,
+            configuration: configuration,
+            inputBaseline: inputBaseline,
+            sessionID: SimulationSessionID()
         )
     }
 
@@ -57,7 +77,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     /// A configuration with an input connection supplies its latest
     /// publication as a baseline. That restores held state without replaying
     /// cumulative transient motion from the preceding world.
-    func rebuildWorld(inputBaseline: InputSnapshot? = nil) {
+    func rebuildWorld(inputBaseline: InputSnapshot?) {
         sessionID = SimulationSessionID()
         engine.replaceWorld(
             with: worldBuilder.buildWorld(),
@@ -66,16 +86,15 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         publishPresentationSnapshot(at: engine.completedTick)
     }
 
-    /// Replaces the current builder, optionally rebuilding the world immediately.
-    func replaceWorldBuilder(
-        _ worldBuilder: any PWorldBuilder,
-        rebuildWorldImmediately: Bool = true,
-        inputBaseline: InputSnapshot? = nil
-    ) {
+    /// Replaces the builder used by the next explicitly requested world rebuild.
+    func replaceWorldBuilder(_ worldBuilder: any PWorldBuilder) {
         self.worldBuilder = worldBuilder
-        if rebuildWorldImmediately {
-            rebuildWorld(inputBaseline: inputBaseline)
-        }
+    }
+
+    /// Replaces the builder and immediately begins a new session from its world.
+    func replaceWorldBuilderAndRebuild(_ worldBuilder: any PWorldBuilder, inputBaseline: InputSnapshot?) {
+        self.worldBuilder = worldBuilder
+        rebuildWorld(inputBaseline: inputBaseline)
     }
 
     /// Advances the Runtime by an exact number of complete fixed steps.
@@ -84,18 +103,14 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     /// request and is applied once at the first requested tick boundary. The
     /// owning assembly is responsible for granting at most one caller effective
     /// advance authority at a time.
-    nonisolated func advance(
-        _ request: SimulationAdvanceRequest
-    ) async -> SimulationAdvanceOutcome {
+    nonisolated func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
         await advanceSynchronously(request)
     }
 
     /// Performs one non-suspending batch inside the Runtime's serialized
     /// mutation domain. The nonisolated protocol witness above only transports
     /// the immutable request and result across that boundary.
-    private func advanceSynchronously(
-        _ request: SimulationAdvanceRequest
-    ) -> SimulationAdvanceOutcome {
+    private func advanceSynchronously(_ request: SimulationAdvanceRequest) -> SimulationAdvanceOutcome {
         let initialCursor = currentCursor
 
         if let expectedCursor = request.expectedCursor,
@@ -135,12 +150,13 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         }
 
         let finalSnapshot = publishPresentationSnapshot(at: engine.completedTick)
+        let completedStepCount = SimulationCompletedStepCount(
+            rawValue: request.stepCount.rawValue
+        )
         let result = SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: currentCursor,
-            completedStepCount: SimulationCompletedStepCount(
-                rawValue: request.stepCount.rawValue
-            ),
+            completedStepCount: completedStepCount,
             finalPresentationSnapshot: finalSnapshot
         )
 
@@ -149,12 +165,9 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.
     @discardableResult
-    private func publishPresentationSnapshot(
-        at tick: SimulationTick
-    ) -> SimulationPresentationSnapshot {
-        let snapshot = engine.world.presentationSnapshot(
-            at: SimulationCursor(sessionID: sessionID, tick: tick)
-        )
+    private func publishPresentationSnapshot(at tick: SimulationTick) -> SimulationPresentationSnapshot {
+        let cursor = SimulationCursor(sessionID: sessionID, tick: tick)
+        let snapshot = engine.world.presentationSnapshot(at: cursor)
         latestPresentationSnapshot = snapshot
         return snapshot
     }

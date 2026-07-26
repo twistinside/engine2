@@ -8,12 +8,13 @@ struct EngineTests {
         #expect(SimulationRuntime.fixedTimeStep.seconds.isFinite)
     }
 
-    @Test func defaultScheduleAppliesCameraInputBeforeTransientCleanup() {
+    @Test func productionScheduleAppliesConfiguredCameraInputBeforeTransientCleanup() {
         let world = World()
         let initialCamera = world.camera
         let engine = Engine(
             world: world,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
@@ -39,7 +40,7 @@ struct EngineTests {
             )
         )
         #expect(cameraAfterInput.projection == initialCamera.projection)
-        #expect(world.input.history.first?.tokens == [
+        #expect(world.inputHistory.entries.first?.tokens == [
             "Mouse dx:+40 dy:+0",
             "Wheel:+30"
         ])
@@ -51,7 +52,7 @@ struct EngineTests {
         engine.step()
 
         #expect(world.camera == cameraAfterInput)
-        #expect(world.input.history.count == 1)
+        #expect(world.inputHistory.entries.count == 1)
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
@@ -60,7 +61,8 @@ struct EngineTests {
         let initialCamera = world.camera
         let engine = Engine(
             world: world,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
@@ -75,7 +77,7 @@ struct EngineTests {
 
         #expect(world.camera == initialCamera)
         #expect(
-            world.input.history.first?.tokens == [
+            world.inputHistory.entries.first?.tokens == [
                 "Mouse dx:+nan dy:+inf",
                 "Wheel:-inf"
             ]
@@ -123,6 +125,7 @@ struct EngineTests {
     @Test func eachStepRunsTheEntireScheduleInDeclarationOrder() {
         let recorder = ExecutionRecorder()
         let engine = Engine(
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: [
                 RecordingSystem(name: "input", recorder: recorder),
@@ -155,15 +158,16 @@ struct EngineTests {
         engine.step(inputSnapshot: snapshot)
         engine.step()
 
-        #expect(world.input.history.count == 1)
-        #expect(world.input.history.first?.tokens == ["Mouse dx:+3 dy:-2"])
-        #expect(world.input.history.first?.frameCount == 1)
+        #expect(world.inputHistory.entries.count == 1)
+        #expect(world.inputHistory.entries.first?.tokens == ["Mouse dx:+3 dy:-2"])
+        #expect(world.inputHistory.entries.first?.frameCount == 1)
         #expect(world.input.mouse.delta == .zero)
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
     @Test func replacingWorldStartsANewTimelineAndAppliesOnlyTheBaseline() {
         let engine = Engine(
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: []
         )
@@ -191,7 +195,8 @@ struct EngineTests {
         let initialWorld = World()
         let engine = Engine(
             world: initialWorld,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
         engine.step(
             inputSnapshot: InputSnapshot(
@@ -213,9 +218,10 @@ struct EngineTests {
         replacement.camera = Camera.lookingAt(
             .zero,
             from: SIMD3<Float>(0, 3, 12),
+            up: SIMD3<Float>(0, 1, 0),
             projection: replacementProjection
         )
-        engine.replaceWorld(with: replacement)
+        engine.replaceWorld(with: replacement, inputBaseline: nil)
 
         engine.step(
             inputSnapshot: InputSnapshot(
@@ -243,6 +249,7 @@ struct EngineTests {
     @Test func appendedSystemsRunAfterTheFoundationalSchedule() {
         let recorder = ExecutionRecorder()
         let engine = Engine(
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: [RecordingSystem(name: "foundation", recorder: recorder)]
         )
@@ -257,25 +264,24 @@ struct EngineTests {
 }
 
 private extension SIMD3 where Scalar == Float {
-    func isApproximately(
-        _ other: SIMD3<Float>,
-        tolerance: Float = 0.0001
-    ) -> Bool {
+    func isApproximately(_ other: SIMD3<Float>, tolerance: Float = 0.0001) -> Bool {
         abs(x - other.x) <= tolerance
             && abs(y - other.y) <= tolerance
             && abs(z - other.z) <= tolerance
     }
 }
 
-private final class ExecutionRecorder {
-    var entries: [String] = []
-}
+private extension EngineTests {
+    private final class ExecutionRecorder {
+        var entries: [String] = []
+    }
 
-private struct RecordingSystem: PSystem {
-    let name: String
-    let recorder: ExecutionRecorder
+    private struct RecordingSystem: PSystem {
+        let name: String
+        let recorder: ExecutionRecorder
 
-    mutating func update(world: inout World, deltaTime: Float) {
-        recorder.entries.append(name)
+        mutating func update(world: inout World, deltaTime: Float) {
+            recorder.entries.append(name)
+        }
     }
 }

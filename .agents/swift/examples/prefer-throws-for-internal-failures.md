@@ -9,7 +9,7 @@ still be a meaningful runtime, actor, persistence, or transport boundary.
 
 ## Avoid
 
-The offscreen Metal implementation currently turns queue feedback into a private two-case completion value:
+A value-shaped offscreen Metal implementation might turn queue feedback into a private two-case completion value:
 
 ```swift
 nonisolated enum MetalOffscreenCompletion: Equatable, Sendable {
@@ -28,7 +28,7 @@ case .success:
     break
 case let .failure(description):
     let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: description)
-    terminalGPUFailure = failure
+    renderingState = .failed(failure)
     return .failed(failure)
 }
 
@@ -45,15 +45,30 @@ the spelling without removing the local value-shaped error plumbing.
 
 ## Prefer
 
-Make the private asynchronous commit operation return `Void` on success and throw on failed queue feedback. Catch it
-where the concrete runtime translates backend failure into its public outcome:
+Make the private asynchronous commit operation return `Void` on success and use typed throws for its one closed failure
+domain:
+
+```swift
+private func commit(
+    _ commandBuffer: any MTL4CommandBuffer,
+    frame: FrameResources,
+    sceneTarget: MetalHDRSceneTarget,
+    targets: MetalOffscreenRenderTargets
+) async throws(MetalOffscreenSubmissionError) {
+    try await withCheckedThrowingContinuation { continuation in
+        // Retain the submission and resume on queue feedback.
+    }
+}
+```
+
+Catch the error where the concrete Runtime translates backend failure into its public outcome:
 
 ```swift
 do {
     try await commit(commandBuffer, frame: frame, sceneTarget: sceneTarget, targets: targets)
 } catch {
-    let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: String(describing: error))
-    terminalGPUFailure = failure
+    let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: error.backendDescription)
+    renderingState = .failed(failure)
     return .failed(failure)
 }
 
@@ -64,12 +79,12 @@ The sequential call site now states the safety order directly: a successful `com
 arrived, so readback may begin. A throwing continuation can carry the asynchronous failure without constructing a
 parallel success/failure result vocabulary.
 
-`MetalResourceStore` already demonstrates this shape for synchronous internal work:
+`MetalResourceStore` demonstrates this shape for synchronous internal work. Its construction boundary asks focused
+throwing operations to produce required resources and dynamic frame storage:
 
 ```swift
+let requiredResources = try MetalRequiredResources(device: device, compiler: compiler)
 try makeFrameResources(count: frameCount)
-try loadShaderLibrary(.engine)
-try loadRenderPipeline(.modelPBR)
 try loadModels(from: renderAssetCatalog)
 ```
 
@@ -93,8 +108,9 @@ private func makeFrameResources(count: Int) throws {
 ```
 
 Use a focused `Error` type when callers need to distinguish internal failure causes. Typed throws can further constrain
-that domain when all dependencies support it without extra wrapping. Catch only to recover, add meaningful context,
-translate at a boundary, or perform required policy; otherwise let the error propagate.
+that domain when all dependencies support it without extra wrapping. "Typed throws" is Swift's term for this language
+feature; do not describe it as checked exceptions. Catch only to recover, add meaningful context, translate at a
+boundary, or perform required policy; otherwise let the error propagate.
 
 ## Keep Values at Real Boundaries
 
@@ -111,6 +127,25 @@ handle exhaustively, not merely local implementation failures.
 Likewise, Agent Session outcomes carry idempotent replay, in-progress identity, sequence rejection, retained responses,
 and authoritative cursor knowledge. A thrown error alone would discard information that remains meaningful after the
 operation returns.
+
+That does not require manual failure return values between the actor's own
+methods. `AgentSessionCoordinator` uses typed throws for new-work admission,
+then converts the closed `AgentSessionRequestRejectionReason` into the public
+value-shaped submission outcome:
+
+```swift
+do {
+    try admitNewRequest(request)
+} catch {
+    return rejected(error)
+}
+
+let response = await executeAcceptedRequest(request)
+```
+
+The internal method communicates one success or one refusal through ordinary
+control flow. The protocol method still preserves that refusal as replay- and
+transport-relevant boundary data.
 
 Keep an explicit value when it:
 

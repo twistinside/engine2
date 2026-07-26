@@ -35,16 +35,10 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
     case cancelledAfterAdvance(SimulationAdvanceResult)
 
     /// Render refused before GPU submission after Simulation had committed.
-    case renderRejected(
-        advanceResult: SimulationAdvanceResult,
-        rejection: OffscreenRenderRejection
-    )
+    case renderRejected(advanceResult: SimulationAdvanceResult, rejection: OffscreenRenderRejection)
 
     /// Render accepted the request but failed before producing a raw image.
-    case renderFailed(
-        advanceResult: SimulationAdvanceResult,
-        failure: OffscreenRenderFailure
-    )
+    case renderFailed(advanceResult: SimulationAdvanceResult, failure: OffscreenRenderFailure)
 
     /// Render reported post-submission cancellation for a different request.
     ///
@@ -57,25 +51,16 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
     )
 
     /// GPU work completed and released its resources after caller cancellation.
-    case renderCancelledAfterSubmission(
-        advanceResult: SimulationAdvanceResult,
-        requestID: OffscreenRenderRequestID
-    )
+    case renderCancelledAfterSubmission(advanceResult: SimulationAdvanceResult, requestID: OffscreenRenderRequestID)
 
     /// A completed value did not echo the exact request and image extent.
-    case renderResultMismatch(
-        advanceResult: SimulationAdvanceResult,
-        renderResult: OffscreenRenderResult
-    )
+    case renderResultMismatch(advanceResult: SimulationAdvanceResult, renderResult: OffscreenRenderResult)
 
     /// Raw rendering completed, but cancellation prevented artifact encoding.
     ///
     /// Retaining the raw result permits artifact encoding to be retried without
     /// either rerendering or advancing Simulation again.
-    case cancelledAfterRender(
-        advanceResult: SimulationAdvanceResult,
-        renderResult: OffscreenRenderResult
-    )
+    case cancelledAfterRender(advanceResult: SimulationAdvanceResult, renderResult: OffscreenRenderResult)
 
     /// Artifact derivation failed without changing either completed predecessor.
     ///
@@ -96,4 +81,102 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
         renderResult: OffscreenRenderResult,
         artifact: RenderedImageArtifact
     )
+
+    /// Projects a shared artifact terminal into the advance-aware offline domain.
+    ///
+    /// Every terminal gains the exact committed Simulation result while all
+    /// render and artifact payloads remain unchanged.
+    init(artifactOutcome: OffscreenImageArtifactOutcome, advanceResult: SimulationAdvanceResult) {
+        switch artifactOutcome {
+        case let .completed(artifact):
+            self = .completed(
+                OfflineCaptureResult(
+                    advanceResult: advanceResult,
+                    artifact: artifact
+                )
+            )
+
+        case let .renderRejected(rejection):
+            self = .renderRejected(
+                advanceResult: advanceResult,
+                rejection: rejection
+            )
+
+        case let .renderFailed(failure):
+            self = .renderFailed(
+                advanceResult: advanceResult,
+                failure: failure
+            )
+
+        case let .renderCancellationRequestIDMismatch(expected, actual):
+            self = .renderCancellationRequestIDMismatch(
+                advanceResult: advanceResult,
+                expectedRequestID: expected,
+                actualRequestID: actual
+            )
+
+        case let .renderCancelledAfterSubmission(requestID):
+            self = .renderCancelledAfterSubmission(
+                advanceResult: advanceResult,
+                requestID: requestID
+            )
+
+        case let .renderResultMismatch(renderResult):
+            self = .renderResultMismatch(
+                advanceResult: advanceResult,
+                renderResult: renderResult
+            )
+
+        case let .cancelledAfterRender(renderResult):
+            self = .cancelledAfterRender(
+                advanceResult: advanceResult,
+                renderResult: renderResult
+            )
+
+        case let .artifactEncodingFailed(renderResult, failure):
+            self = .artifactEncodingFailed(
+                advanceResult: advanceResult,
+                renderResult: renderResult,
+                failure: failure
+            )
+
+        case let .artifactResultMismatch(renderResult, artifact):
+            self = .artifactResultMismatch(
+                advanceResult: advanceResult,
+                renderResult: renderResult,
+                artifact: artifact
+            )
+        }
+    }
+
+    /// Returns the authoritative Simulation cursor established by this outcome.
+    ///
+    /// Outcomes that observe no Simulation work retain `previous`. A rejection
+    /// reports the target's current cursor, and every post-advance terminal
+    /// reports the exact committed result's final cursor.
+    func authoritativeCursor(after previous: SimulationCursor) -> SimulationCursor {
+        switch self {
+        case let .completed(result):
+            result.advanceResult.finalCursor
+
+        case .coordinatorBusy,
+             .cancelledBeforeAdvance:
+            previous
+
+        case let .advanceRejected(.cursorMismatch(_, current)):
+            current
+
+        case let .advanceResultMismatch(_, _, _, result),
+             let .cancelledAfterAdvance(result),
+             let .renderRejected(result, _),
+             let .renderFailed(result, _),
+             let .renderCancellationRequestIDMismatch(result, _, _),
+             let .renderCancelledAfterSubmission(result, _),
+             let .renderResultMismatch(result, _),
+             let .cancelledAfterRender(result, _),
+             let .artifactEncodingFailed(result, _, _),
+             let .artifactResultMismatch(result, _, _):
+            result.finalCursor
+        }
+    }
 }

@@ -14,18 +14,17 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Long-lived backend resources shared by every accepted request.
     private let resources: MetalResourceStore
 
+    /// Sole reusable frame slot proved present during Runtime construction.
+    private let frame: FrameResources
+
     /// App-selected allocation and readback policy for this capability.
     let limits: OffscreenRenderLimits
 
     private let frameEncoder: MetalFrameEncoder
-    private var isRendering = false
-    private var terminalGPUFailure: OffscreenRenderFailure?
+    private(set) var renderingState = MetalOffscreenRenderState.ready
 
     /// Selects the system Metal device and constructs a one-slot offscreen store.
-    convenience init(
-        catalog: RenderAssetCatalog,
-        limits: OffscreenRenderLimits = .conservative
-    ) throws {
+    convenience init(catalog: RenderAssetCatalog, limits: OffscreenRenderLimits) throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: catalog,
             frameCount: 1
@@ -38,42 +37,37 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Injection keeps device selection and expensive resource construction
     /// controllable for integration tests while preserving the production
     /// single-request back-pressure policy.
-    init(
-        resources: MetalResourceStore,
-        limits: OffscreenRenderLimits = .conservative
-    ) throws {
-        guard resources.frames.count == 1 else {
-            throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(
-                resources.frames.count
-            )
+    init(resources: MetalResourceStore, limits: OffscreenRenderLimits) throws(MetalOffscreenRenderTargetError) {
+        guard resources.frames.count == 1, let frame = resources.frames.first else {
+            throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(resources.frames.count)
         }
 
         self.resources = resources
+        self.frame = frame
         self.limits = limits
-        self.frameEncoder = try MetalFrameEncoder(resources: resources)
+        self.frameEncoder = MetalFrameEncoder(resources: resources)
     }
 
     /// Transports an immutable request into the Runtime's serialized actor.
-    nonisolated func render(
-        _ request: OffscreenRenderRequest
-    ) async -> OffscreenRenderOutcome {
+    nonisolated func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         await renderOnMainActor(request)
     }
 
-    /// Accepts, submits, and reads back one exact request under the busy gate.
-    private func renderOnMainActor(
-        _ request: OffscreenRenderRequest
-    ) async -> OffscreenRenderOutcome {
+    /// Admits and immutably preflights one exact request under the busy gate.
+    private func renderOnMainActor(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         // One explicit request may own the sole allocator and mutable frame
         // buffers at a time. Refusal is immediate rather than an implicit queue.
-        guard !isRendering else {
-            return .rejected(.runtimeBusy)
-        }
+        switch renderingState {
+        case .ready:
+            break
 
-        // A driver failure makes allocator and queue state unsafe to reuse.
-        // Preserve and replay the original failure without touching Metal.
-        if let terminalGPUFailure {
-            return .failed(terminalGPUFailure)
+        case .rendering:
+            return .rejected(.runtimeBusy)
+
+        case let .failed(failure):
+            // A driver failure makes allocator and queue state unsafe to reuse.
+            // Preserve and replay the original failure without touching Metal.
+            return .failed(failure)
         }
 
         guard !Task.isCancelled else {
@@ -98,44 +92,30 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                 exactlyProjecting: request.presentationSnapshot,
                 viewpoint: request.viewpoint
             )
-        } catch let projectionError as RenderFrameProjectionError {
-            switch projectionError {
-            case .invalidSelectedCamera:
-                return .rejected(.invalidViewpoint)
-
-            case .missingPosition,
-                 .unsupportedNormalTransform,
-                 .nonfiniteModelViewTransform,
-                 .nonfiniteModelViewProjectionTransform:
-                return .rejected(.invalidPresentation(projectionError))
-            }
         } catch {
-            return failure(at: .preparation, causedBy: error)
+            return .rejected(OffscreenRenderRejection(error))
         }
 
         // Projection shape is output-specific. Camera construction validates
         // its authored projection, while this check catches finite view and
         // projection matrices whose product overflows for the requested size.
-        let aspectRatio = Float(request.settings.size.width)
-            / Float(request.settings.size.height)
         let projectionMatrix = request.viewpoint.camera.projectionMatrix(
-            aspectRatio: aspectRatio
+            aspectRatio: request.settings.size.aspectRatio
         )
         guard (projectionMatrix * request.viewpoint.camera.viewMatrix)
             .hasFiniteElements else {
             return .rejected(.invalidViewpoint)
         }
 
-        // `GPUInstance` multiplies projection by each model-view matrix after
-        // frame admission. Prove those exact products remain finite so an
-        // accepted offline request cannot write NaNs for one extreme entity.
+        // GPU packing multiplies projection by each retained validated
+        // model-view matrix after frame admission. Prove those output-shaped
+        // products remain finite so an accepted offline request cannot write
+        // NaNs for one extreme entity.
         for (entity, instance) in zip(
             request.presentationSnapshot.entityPresentations,
             renderFrame.instances
         ) {
-            let modelViewMatrix = request.viewpoint.camera.viewMatrix
-                * instance.transform.matrix
-            guard (projectionMatrix * modelViewMatrix).hasFiniteElements else {
+            guard (projectionMatrix * instance.modelViewMatrix).hasFiniteElements else {
                 return .rejected(
                     .invalidPresentation(
                         .nonfiniteModelViewProjectionTransform(
@@ -144,13 +124,6 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                     )
                 )
             }
-        }
-        guard let sourceCursor = renderFrame.sourceCursor else {
-            return failure(
-                at: .preparation,
-                causedBy: MetalOffscreenRenderTargetError
-                    .missingProjectedSourceCursor
-            )
         }
         guard renderFrame.instances.count <= FrameResources.maximumInstanceCount
         else {
@@ -162,17 +135,21 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
             )
         }
 
+        // Resolve all authored content before acquiring the mutable frame slot,
+        // resetting its allocator, or creating request-scoped GPU targets.
+        let preparedFrame = frameEncoder.prepare(renderFrame)
+
         // The live screen may deliberately omit an instance whose optional
         // model is unavailable. Exact offline work cannot silently produce a
-        // partial image, so prove complete model and indexed-geometry coverage
-        // during preflight.
-        for instance in renderFrame.instances {
-            guard let model = resources.model(for: instance.meshID) else {
+        // partial image, so validate the exact prepared model values that
+        // encoding will consume rather than repeating store lookups.
+        for instance in preparedFrame.instances {
+            let meshID = instance.renderInstance.meshID
+
+            guard let model = instance.model else {
                 return failure(
                     at: .preparation,
-                    causedBy: MetalOffscreenRenderTargetError.missingModel(
-                        instance.meshID
-                    )
+                    causedBy: MetalOffscreenRenderTargetError.missingModel(meshID)
                 )
             }
 
@@ -181,23 +158,30 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                     at: .preparation,
                     causedBy: MetalOffscreenRenderTargetError
                         .modelHasIncompleteDrawableIndexedGeometry(
-                            instance.meshID
+                            meshID
                         )
                 )
             }
         }
 
-        // Resolve all authored content before acquiring the mutable frame slot,
-        // resetting its allocator, or creating request-scoped GPU targets.
-        let preparedFrame = frameEncoder.prepare(renderFrame)
-
         guard !Task.isCancelled else {
             return .rejected(.cancelledBeforeSubmission)
         }
 
-        isRendering = true
+        renderingState = .rendering
+        return await renderPreparedFrame(preparedFrame, for: request)
+    }
+
+    /// Executes one admitted request while the Runtime owns its busy gate.
+    ///
+    /// The caller has completed immutable preflight and entered `.rendering`
+    /// without suspension. This method owns request-scoped targets, the sole
+    /// frame slot, command encoding and submission, feedback, and readback.
+    private func renderPreparedFrame(_ preparedFrame: MetalPreparedFrame, for request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         defer {
-            isRendering = false
+            if renderingState == .rendering {
+                renderingState = .ready
+            }
         }
 
         let targets: MetalOffscreenRenderTargets
@@ -217,7 +201,6 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         // The busy gate and completion-awaited lifecycle prove the sole slot is
         // available here. Keep the semaphore boundary nevertheless so the same
         // frame-resource invariant is enforced as in screen rendering.
-        let frame = resources.frames[0]
         frame.waitUntilAvailable()
         var runtimeOwnsFrame = true
         defer {
@@ -253,23 +236,25 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         commandBuffer.useResidencySet(sceneTarget.residencySet)
         commandBuffer.useResidencySet(targets.residencySet)
 
+        let clearColor = MTLClearColor(
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 1
+        )
         do {
+            let encodingInputs = try MetalFrameEncodingInputs(
+                frameResources: frame,
+                sceneColorTexture: sceneTarget.texture,
+                depthTexture: targets.depthTexture,
+                destinationTexture: targets.destinationTexture,
+                clearColor: clearColor,
+                outputMode: request.settings.outputMode,
+                exposure: request.settings.exposure
+            )
             try frameEncoder.encode(
                 preparedFrame,
-                inputs: MetalFrameEncodingInputs(
-                    frameResources: frame,
-                    sceneColorTexture: sceneTarget.texture,
-                    depthTexture: targets.depthTexture,
-                    destinationTexture: targets.destinationTexture,
-                    clearColor: MTLClearColor(
-                        red: 0,
-                        green: 0,
-                        blue: 0,
-                        alpha: 1
-                    ),
-                    outputMode: request.settings.outputMode,
-                    exposure: request.settings.exposure
-                ),
+                inputs: encodingInputs,
                 into: commandBuffer
             )
         } catch {
@@ -288,23 +273,19 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         // deliberately does not short-circuit the continuation or resource
         // retention: Metal 4 command buffers do not retain this object graph.
         runtimeOwnsFrame = false
-        let completion = await commit(
-            commandBuffer,
-            frame: frame,
-            sceneTarget: sceneTarget,
-            targets: targets
-        )
-
-        switch completion {
-        case .success:
-            break
-
-        case let .failure(description):
+        do {
+            try await commit(
+                commandBuffer,
+                frame: frame,
+                sceneTarget: sceneTarget,
+                targets: targets
+            )
+        } catch {
             let failure = OffscreenRenderFailure(
                 stage: .gpuExecution,
-                backendDescription: description
+                backendDescription: error.backendDescription
             )
-            terminalGPUFailure = failure
+            renderingState = .failed(failure)
             return .failed(failure)
         }
 
@@ -317,7 +298,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
 
         let image: RenderedBGRA8SRGBImage
         do {
-            image = try targets.readback(after: completion)
+            image = try targets.readback()
         } catch {
             return failure(at: .readback, causedBy: error)
         }
@@ -325,7 +306,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         return .completed(
             OffscreenRenderResult(
                 requestID: request.id,
-                sourceCursor: sourceCursor,
+                sourceCursor: request.presentationSnapshot.cursor,
                 viewpoint: request.viewpoint,
                 settings: request.settings,
                 image: image
@@ -342,8 +323,8 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         frame: FrameResources,
         sceneTarget: MetalHDRSceneTarget,
         targets: MetalOffscreenRenderTargets
-    ) async -> MetalOffscreenCompletion {
-        await withCheckedContinuation { continuation in
+    ) async throws(MetalOffscreenSubmissionError) {
+        try await withCheckedThrowingContinuation { continuation in
             let submission = MetalOffscreenSubmission(
                 resources: resources,
                 encoder: frameEncoder,
@@ -365,10 +346,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     }
 
     /// Maps a backend error into a stable accepted-request failure stage.
-    private func failure(
-        at stage: OffscreenRenderFailureStage,
-        causedBy error: any Error
-    ) -> OffscreenRenderOutcome {
+    private func failure(at stage: OffscreenRenderFailureStage, causedBy error: any Error) -> OffscreenRenderOutcome {
         .failed(
             OffscreenRenderFailure(
                 stage: stage,

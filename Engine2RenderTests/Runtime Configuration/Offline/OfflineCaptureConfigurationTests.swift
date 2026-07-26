@@ -7,7 +7,6 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct OfflineCaptureConfigurationTests {
-    @MainActor
     @Test
     func composesSimulationMetalAndImageArtifactsAcrossCaptures() async throws {
         let sessionID = SimulationSessionID(
@@ -15,7 +14,9 @@ struct OfflineCaptureConfigurationTests {
                 uuidString: "40000000-0000-0000-0000-000000000001"
             )!
         )
-        let assembly = try OfflineCaptureConfiguration().makeAssembly(
+        let assembly = try OfflineCaptureConfiguration(
+            renderLimits: .conservative
+        ).makeAssembly(
             gameContent: BasicGameContent(),
             sessionID: sessionID
         )
@@ -31,7 +32,9 @@ struct OfflineCaptureConfigurationTests {
             revision: RenderViewpointRevision(rawValue: 7),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(0, 0, 8)
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let firstRenderSettings = OffscreenRenderSettings(
@@ -45,7 +48,8 @@ struct OfflineCaptureConfigurationTests {
         let firstRequest = OfflineCaptureRequest(
             advanceRequest: SimulationAdvanceRequest(
                 expectedCursor: assembly.initialCursor,
-                stepCount: .one
+                stepCount: .one,
+                inputAssignment: .none
             ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
@@ -92,7 +96,9 @@ struct OfflineCaptureConfigurationTests {
             revision: firstViewpoint.revision.advanced(),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(1, 0.5, 8)
+                from: SIMD3<Float>(1, 0.5, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let secondRenderSettings = OffscreenRenderSettings(
@@ -104,7 +110,8 @@ struct OfflineCaptureConfigurationTests {
         let secondRequest = OfflineCaptureRequest(
             advanceRequest: SimulationAdvanceRequest(
                 expectedCursor: firstResult.advanceResult.finalCursor,
-                stepCount: SimulationStepCount(rawValue: 2)
+                stepCount: SimulationStepCount(rawValue: 2),
+                inputAssignment: .none
             ),
             renderRequestID: OffscreenRenderRequestID(
                 rawValue: UUID(
@@ -167,9 +174,7 @@ struct OfflineCaptureConfigurationTests {
         )
     }
 
-    private func completedResult(
-        from outcome: OfflineCaptureOutcome
-    ) throws -> OfflineCaptureResult {
+    private func completedResult(from outcome: OfflineCaptureOutcome) throws -> OfflineCaptureResult {
         guard case let .completed(result) = outcome else {
             Issue.record("Expected completed offline capture, received \(outcome)")
             throw UnexpectedOutcome()

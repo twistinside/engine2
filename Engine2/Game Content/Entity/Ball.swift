@@ -8,9 +8,14 @@ import simd
 /// state. Its mesh and material identities are backend-neutral and owned by
 /// Game Content.
 class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
+    /// Creates a Ball with an explicitly authored material identity.
+    ///
+    /// Position, motion, orientation, and selection defaults are neutral per-instance
+    /// seed values. Omitting them cannot establish shared Simulation policy, while the
+    /// required material identity prevents an authored presentation choice from being hidden.
     convenience init(
         in world: World,
-        materialID: MaterialID = .warmDielectric,
+        materialID: MaterialID,
         position: SIMD3<Float> = .zero,
         velocity: SIMD3<Float> = .zero,
         accelerationIntent: CMotion.AccelerationIntent = .idle,
@@ -22,23 +27,21 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
         selectionState: CSelectable.SelectionState = .unselected
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
-        world.add(
-            self,
-            from: Entity.InitialState(
-                position: position,
-                velocity: velocity,
-                accelerationIntent: accelerationIntent,
-                impulse: impulse,
-                rotation: rotation,
-                angularVelocity: angularVelocity,
-                angularAcceleration: angularAcceleration,
-                angularImpulse: angularImpulse,
-                selectionState: selectionState
-            ),
-            renderable: RenderableInitialState(
-                meshID: .ball,
-                materialID: materialID
-            )
+        let initialState = Entity.InitialState(
+            position: position,
+            velocity: velocity,
+            accelerationIntent: accelerationIntent,
+            impulse: impulse,
+            rotation: rotation,
+            angularVelocity: angularVelocity,
+            angularAcceleration: angularAcceleration,
+            angularImpulse: angularImpulse,
+            selectionState: selectionState
         )
+        let renderableState = RenderableInitialState(
+            meshID: .ball,
+            materialID: materialID
+        )
+        world.add(self, from: initialState, renderable: renderableState)
     }
 }

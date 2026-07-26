@@ -4,7 +4,6 @@ import Testing
 @testable import Engine2
 
 struct InputMetalViewTests {
-    @MainActor
     @Test func acceptsKeyboardFocusAndTranslatesKeyTransitions() throws {
         let view = InputMetalView(frame: .zero, device: nil)
         // InputMetalView deliberately retains its sink weakly, so the host
@@ -35,7 +34,6 @@ struct InputMetalViewTests {
         #expect(upKey == downKey)
     }
 
-    @MainActor
     @Test func repeatedKeyDownIsIgnored() throws {
         let view = InputMetalView(frame: .zero, device: nil)
         let inputSink = RecordingInputEventSink()
@@ -49,7 +47,6 @@ struct InputMetalViewTests {
         #expect(inputSink.receivedEvents.isEmpty)
     }
 
-    @MainActor
     @Test func platformEventsPublishDirectlyThroughInputRuntime() throws {
         let view = InputMetalView(frame: .zero, device: nil)
         let inputRuntime = InputRuntime()
@@ -77,7 +74,6 @@ struct InputMetalViewTests {
         inputRuntime.stop()
     }
 
-    @MainActor
     @Test func dragAndScrollPublishTheirExactDeltasThroughInputRuntime() throws {
         let view = InputMetalView(frame: .zero, device: nil)
         let inputRuntime = InputRuntime()
@@ -117,11 +113,7 @@ struct InputMetalViewTests {
         )
     }
 
-    @MainActor
-    private func makeKeyEvent(
-        type: NSEvent.EventType,
-        isRepeat: Bool
-    ) -> NSEvent? {
+    private func makeKeyEvent(type: NSEvent.EventType, isRepeat: Bool) -> NSEvent? {
         NSEvent.keyEvent(
             with: type,
             location: .zero,
@@ -136,12 +128,7 @@ struct InputMetalViewTests {
         )
     }
 
-    @MainActor
-    private func makeLeftDragEvent(
-        location: CGPoint,
-        deltaX: Int64,
-        deltaY: Int64
-    ) throws -> NSEvent {
+    private func makeLeftDragEvent(location: CGPoint, deltaX: Int64, deltaY: Int64) throws -> NSEvent {
         let baseEvent = try #require(
             NSEvent.mouseEvent(
                 with: .leftMouseDragged,
@@ -161,11 +148,7 @@ struct InputMetalViewTests {
         return try #require(NSEvent(cgEvent: cgEvent))
     }
 
-    @MainActor
-    private func makePixelScrollEvent(
-        horizontal: Int32,
-        vertical: Int32
-    ) throws -> NSEvent {
+    private func makePixelScrollEvent(horizontal: Int32, vertical: Int32) throws -> NSEvent {
         let cgEvent = try #require(
             CGEvent(
                 scrollWheelEvent2Source: nil,

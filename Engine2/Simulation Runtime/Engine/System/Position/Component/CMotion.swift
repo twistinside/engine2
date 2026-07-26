@@ -22,11 +22,12 @@ struct CMotion: PComponent {
         accumulator.impulse
     }
 
-    init(
-        velocity: SIMD3<Float> = .zero,
-        accelerationIntent: AccelerationIntent = .idle,
-        impulse: SIMD3<Float> = .zero
-    ) {
+    /// Creates motion state while normalizing accumulated acceleration to zero.
+    ///
+    /// Velocity, intent, and impulse defaults are neutral per-entity seeds. Persistent
+    /// acceleration intent first contributes through `SAccelerationIntent`, preserving
+    /// the invariant that the accumulator contains only work emitted for the current tick.
+    init(velocity: SIMD3<Float> = .zero, accelerationIntent: AccelerationIntent = .idle, impulse: SIMD3<Float> = .zero) {
         self.velocity = velocity
         self.accelerationIntent = accelerationIntent
         self.accumulator = Accumulator(

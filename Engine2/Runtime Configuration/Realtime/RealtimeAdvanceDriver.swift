@@ -6,7 +6,6 @@ import Observation
 /// Simulation advance requests. It owns playback policy and polling lifecycle;
 /// the target owns authoritative session state, exact step execution, and
 /// publication of completed results.
-@MainActor
 @Observable
 final class RealtimeAdvanceDriver {
     /// Factory that creates a fresh elapsed-time sampler for each driver run.
@@ -21,12 +20,18 @@ final class RealtimeAdvanceDriver {
     /// Weakly resolving source used by the polling task between wake cycles.
     typealias DriverSource = @MainActor () -> RealtimeAdvanceDriver?
 
-    let fixedTimeStep: Duration
-    let pollInterval: Duration
-    let catchUpPolicy: RealtimeCatchUpPolicy
+    var fixedTimeStep: Duration {
+        stepAccumulator.fixedTimeStep
+    }
 
-    /// Whether elapsed time may currently become authoritative Simulation work.
-    private(set) var isAdvancementEnabled: Bool
+    let pollInterval: Duration
+
+    var catchUpPolicy: RealtimeCatchUpPolicy {
+        stepAccumulator.catchUpPolicy
+    }
+
+    /// User policy or authority fault controlling whether elapsed time advances.
+    private(set) var advancementState: RealtimeAdvancementState
 
     /// Whether lifecycle policy currently permits this driver to poll.
     private(set) var isRunning = false
@@ -34,8 +39,18 @@ final class RealtimeAdvanceDriver {
     /// Whether no exact request issued by this connection remains unsettled.
     private(set) var isQuiescent = true
 
+    /// Whether elapsed time may currently become authoritative Simulation work.
+    var isAdvancementEnabled: Bool {
+        advancementState == .enabled
+    }
+
     /// Latest authority fault. App coordination must synchronize before resume.
-    private(set) var fault: RealtimeAdvanceDriverFault?
+    var fault: RealtimeAdvanceDriverFault? {
+        guard case let .faulted(fault) = advancementState else {
+            return nil
+        }
+        return fault
+    }
 
     @ObservationIgnored
     private let advanceTarget: any PSimulationAdvanceTarget
@@ -56,13 +71,13 @@ final class RealtimeAdvanceDriver {
     private var clock: SystemClock?
 
     @ObservationIgnored
-    private var elapsedRemainder = Duration.zero
+    private var stepAccumulator: RealtimeStepAccumulator
 
     @ObservationIgnored
     private var expectedCursor: SimulationCursor
 
     @ObservationIgnored
-    private var transitionInputBaseline: InputSnapshot?
+    private var inputAssignmentState = RealtimeInputAssignmentState()
 
     @ObservationIgnored
     private var discardNextElapsedSample = false
@@ -80,43 +95,62 @@ final class RealtimeAdvanceDriver {
     private var synchronizationGeneration: UInt64 = 0
 
     @ObservationIgnored
-    private var inputPolicyGeneration: UInt64 = 0
-
-    @ObservationIgnored
     private var advanceDrainWaiters: [CheckedContinuation<Void, Never>] = []
 
-    init(
+    /// Creates the production cadence connection using suspending-clock timing.
+    convenience init(
         advanceTarget: any PSimulationAdvanceTarget,
-        inputSource: (any PInputSnapshotSource)? = nil,
+        inputSource: (any PInputSnapshotSource)?,
         initialCursor: SimulationCursor,
         fixedTimeStep: Duration,
-        pollInterval: Duration? = nil,
-        catchUpPolicy: RealtimeCatchUpPolicy = .interactive,
-        isAdvancementEnabled: Bool = true,
-        clockFactory: @escaping ClockFactory = { SystemClock() },
-        scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
-        sleeper: @escaping Sleeper = { deadline in
-            try await SuspendingClock().sleep(until: deadline)
-        }
+        pollInterval: Duration,
+        catchUpPolicy: RealtimeCatchUpPolicy,
+        isAdvancementEnabled: Bool
     ) {
-        precondition(
-            fixedTimeStep > .zero,
-            "Real-time advancement requires a positive fixed time step."
+        self.init(
+            advanceTarget: advanceTarget,
+            inputSource: inputSource,
+            initialCursor: initialCursor,
+            fixedTimeStep: fixedTimeStep,
+            pollInterval: pollInterval,
+            catchUpPolicy: catchUpPolicy,
+            isAdvancementEnabled: isAdvancementEnabled,
+            clockFactory: { SystemClock() },
+            scheduleTimeSource: { SuspendingClock().now },
+            sleeper: { deadline in
+                try await SuspendingClock().sleep(until: deadline)
+            }
         )
+    }
 
-        let resolvedPollInterval = pollInterval ?? fixedTimeStep
-        precondition(
-            resolvedPollInterval > .zero,
-            "Real-time advancement requires a positive poll interval."
-        )
+    /// Creates a cadence connection with every time dependency injected.
+    ///
+    /// Tests and specialized hosts use this path to control elapsed samples,
+    /// absolute scheduling, and suspension independently.
+    init(
+        advanceTarget: any PSimulationAdvanceTarget,
+        inputSource: (any PInputSnapshotSource)?,
+        initialCursor: SimulationCursor,
+        fixedTimeStep: Duration,
+        pollInterval: Duration,
+        catchUpPolicy: RealtimeCatchUpPolicy,
+        isAdvancementEnabled: Bool,
+        clockFactory: @escaping ClockFactory,
+        scheduleTimeSource: @escaping TimeSource,
+        sleeper: @escaping Sleeper
+    ) {
+        precondition(fixedTimeStep > .zero, "Real-time advancement requires a positive fixed time step.")
+        precondition(pollInterval > .zero, "Real-time advancement requires a positive poll interval.")
 
         self.advanceTarget = advanceTarget
         self.inputSource = inputSource
         self.expectedCursor = initialCursor
-        self.fixedTimeStep = fixedTimeStep
-        self.pollInterval = resolvedPollInterval
-        self.catchUpPolicy = catchUpPolicy
-        self.isAdvancementEnabled = isAdvancementEnabled
+        self.pollInterval = pollInterval
+        self.stepAccumulator = RealtimeStepAccumulator(
+            fixedTimeStep: fixedTimeStep,
+            catchUpPolicy: catchUpPolicy
+        )
+        self.advancementState = isAdvancementEnabled ? .enabled : .paused
         self.clockFactory = clockFactory
         self.scheduleTimeSource = scheduleTimeSource
         self.sleeper = sleeper
@@ -148,7 +182,7 @@ final class RealtimeAdvanceDriver {
     func stop() {
         guard isRunning else {
             clock = nil
-            elapsedRemainder = .zero
+            stepAccumulator.reset()
             return
         }
 
@@ -157,7 +191,7 @@ final class RealtimeAdvanceDriver {
         advanceRunID()
         updateTask?.cancel()
         clock = nil
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         discardNextElapsedSample = false
     }
 
@@ -187,12 +221,12 @@ final class RealtimeAdvanceDriver {
 
     /// Allows future elapsed samples to produce Simulation advances.
     func resumeAdvancement() {
-        guard isAdvancementEnabled == false, fault == nil else {
+        guard advancementState == .paused else {
             return
         }
 
-        isAdvancementEnabled = true
-        elapsedRemainder = .zero
+        advancementState = .enabled
+        stepAccumulator.reset()
         captureTransitionInputBaseline()
 
         // A resume that occurs before the next disabled wake must still drop
@@ -204,12 +238,12 @@ final class RealtimeAdvanceDriver {
 
     /// Prevents future advances and permanently drops any partial-step backlog.
     func pauseAdvancement() {
-        guard isAdvancementEnabled else {
+        guard advancementState == .enabled else {
             return
         }
 
-        isAdvancementEnabled = false
-        elapsedRemainder = .zero
+        advancementState = .paused
+        stepAccumulator.reset()
         setTransitionInputBaseline(nil)
 
         // If pause and resume both occur before another wake, that wake must
@@ -223,22 +257,18 @@ final class RealtimeAdvanceDriver {
     /// Synchronizing clears any prior authority fault but deliberately preserves
     /// the user's enabled/paused preference. A faulted driver therefore remains
     /// paused until the App explicitly resumes it.
-    func synchronize(
-        to cursor: SimulationCursor,
-        inputBaseline: InputSnapshot? = nil
-    ) {
-        precondition(
-            synchronizationGeneration < .max,
-            "Real-time synchronization generation exhausted."
-        )
+    func synchronize(to cursor: SimulationCursor, inputBaseline: InputSnapshot?) {
+        precondition(synchronizationGeneration < .max, "Real-time synchronization generation exhausted.")
         synchronizationGeneration += 1
         expectedCursor = cursor
         setTransitionInputBaseline(
             inputBaseline ?? inputSource?.latestInputSnapshot
         )
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         discardNextElapsedSample = true
-        fault = nil
+        if case .faulted = advancementState {
+            advancementState = .paused
+        }
     }
 
     /// Launches the one polling task after any retiring request has settled.
@@ -247,7 +277,7 @@ final class RealtimeAdvanceDriver {
 
         // A fresh clock discards all wall time outside this lifecycle run.
         clock = clockFactory()
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         discardNextElapsedSample = false
         advanceRunID()
 
@@ -310,10 +340,7 @@ final class RealtimeAdvanceDriver {
     }
 
     /// Processes one elapsed-time sample and optionally issues one exact batch.
-    private func processWake(
-        runID: UInt64,
-        previousDeadline: SystemClock.Instant
-    ) async -> SystemClock.Instant? {
+    private func processWake(runID: UInt64, previousDeadline: SystemClock.Instant) async -> SystemClock.Instant? {
         // Cancellation-insensitive test or platform sleepers may return after
         // stop/restart. Revalidate this run before sampling or asking the
         // authoritative target to do any work.
@@ -330,37 +357,22 @@ final class RealtimeAdvanceDriver {
 
         if isAdvancementEnabled == false || discardNextElapsedSample {
             // Paused time and any pre-pause fractional step are not debt.
-            elapsedRemainder = .zero
+            stepAccumulator.reset()
             discardNextElapsedSample = false
             return advancedDeadline(after: previousDeadline)
         }
 
-        elapsedRemainder += elapsed
-
-        guard let stepCount = consumeReadyStepCount() else {
+        guard let stepCount = stepAccumulator.consumeSteps(adding: elapsed) else {
             return advancedDeadline(after: previousDeadline)
         }
 
         // Read the latest-value source once so input and step count remain one
         // immutable, attributable request across the async boundary.
         let inputSnapshot = inputSource?.latestInputSnapshot
-        let inputAssignment: SimulationInputAssignment
-        switch (transitionInputBaseline, inputSnapshot) {
-        case let (.some(baseline), .some(snapshot)):
-            inputAssignment = .rebaseThenIngest(
-                baseline: baseline,
-                snapshot: snapshot
-            )
-
-        case let (.some(baseline), .none):
-            inputAssignment = .rebase(baseline)
-
-        case let (.none, .some(snapshot)):
-            inputAssignment = .ingest(snapshot)
-
-        case (.none, .none):
-            inputAssignment = .none
-        }
+        let requestInputAssignmentState = inputAssignmentState
+        let inputAssignment = requestInputAssignmentState.assignment(
+            ingesting: inputSnapshot
+        )
 
         let request = SimulationAdvanceRequest(
             expectedCursor: expectedCursor,
@@ -368,7 +380,6 @@ final class RealtimeAdvanceDriver {
             inputAssignment: inputAssignment
         )
         let requestSynchronizationGeneration = synchronizationGeneration
-        let requestInputPolicyGeneration = inputPolicyGeneration
 
         // No suspension occurs between the wake validation above and this
         // request, but keep the authority check adjacent to the mutation
@@ -389,9 +400,9 @@ final class RealtimeAdvanceDriver {
             if requestSynchronizationGeneration == synchronizationGeneration {
                 expectedCursor = result.finalCursor
             }
-            if requestInputPolicyGeneration == inputPolicyGeneration {
-                transitionInputBaseline = nil
-            }
+            inputAssignmentState.retireTransitionBaseline(
+                ifUnchangedSince: requestInputAssignmentState
+            )
         }
 
         // A stopped task may still receive a result from a target that did not
@@ -416,10 +427,9 @@ final class RealtimeAdvanceDriver {
             // understands the target timeline. Surface the fault and stop
             // rather than silently adopting potentially unrelated state. The
             // App may synchronize after coordinating the cause.
-            fault = .cursorMismatch(expected: expected, current: current)
-            isAdvancementEnabled = false
+            advancementState = .faulted(.cursorMismatch(expected: expected, current: current))
             isRunning = false
-            elapsedRemainder = .zero
+            stepAccumulator.reset()
             setTransitionInputBaseline(nil)
             return nil
         }
@@ -440,36 +450,8 @@ final class RealtimeAdvanceDriver {
         }
     }
 
-    /// Removes at most one configured wake budget from elapsed-time debt.
-    private func consumeReadyStepCount() -> SimulationStepCount? {
-        guard elapsedRemainder >= fixedTimeStep else {
-            return nil
-        }
-
-        var rawStepCount: UInt32 = 0
-        let maximumStepCount = catchUpPolicy.maximumStepsPerWake.rawValue
-        while elapsedRemainder >= fixedTimeStep,
-              rawStepCount < maximumStepCount {
-            elapsedRemainder -= fixedTimeStep
-            rawStepCount += 1
-        }
-
-        if elapsedRemainder >= fixedTimeStep,
-           catchUpPolicy.backlogTreatment == .discardOverflow {
-            // Once at least one additional whole step overflows the cap, real-
-            // time responsiveness wins over wall-clock catch-up. Cursor space
-            // remains contiguous because no Simulation step was requested or
-            // skipped; only external elapsed-time debt is discarded.
-            elapsedRemainder = .zero
-        }
-
-        return SimulationStepCount(rawValue: rawStepCount)
-    }
-
     /// Returns the first configured deadline strictly after the current time.
-    private func advancedDeadline(
-        after previousDeadline: SystemClock.Instant
-    ) -> SystemClock.Instant {
+    private func advancedDeadline(after previousDeadline: SystemClock.Instant) -> SystemClock.Instant {
         var nextWakeDeadline = previousDeadline.advanced(by: pollInterval)
         let currentTime = scheduleTimeSource()
 
@@ -493,12 +475,7 @@ final class RealtimeAdvanceDriver {
 
     /// Changes input policy while superseding any in-flight request bookkeeping.
     private func setTransitionInputBaseline(_ baseline: InputSnapshot?) {
-        precondition(
-            inputPolicyGeneration < .max,
-            "Real-time input policy generation exhausted."
-        )
-        inputPolicyGeneration += 1
-        transitionInputBaseline = baseline
+        inputAssignmentState.replaceTransitionBaseline(baseline)
     }
 
     /// Releases lifecycle waiters after one accepted target request settles.

@@ -8,7 +8,6 @@ import MetalKit
 /// frame-slot arbitration, drawable ownership, queue submission, presentation,
 /// source sampling, and terminal-error policy remain with the caller so the
 /// same exact encoder can serve screen and offscreen configurations.
-@MainActor
 final class MetalFrameEncoder {
     /// Linear half-float scene format retained until presentation.
     static let sceneColorPixelFormat = MTLPixelFormat.rgba16Float
@@ -31,16 +30,15 @@ final class MetalFrameEncoder {
     private let hdrFramePass: MetalHDRFramePass
 
     /// Creates an encoder backed by the store's eagerly prepared Metal state.
-    init(resources: MetalResourceStore) throws {
+    init(resources: MetalResourceStore) {
+        let requiredResources = resources.requiredResources
         self.resources = resources
-        self.pbrPipelineState = try resources.renderPipelineState(for: .modelPBR)
-        self.normalDiagnosticPipelineState = try resources.renderPipelineState(
-            for: .modelNormalDiagnostic
-        )
-        self.depthStencilState = try resources.depthStencilState(for: .opaque)
-        self.modelArgumentTable = try resources.argumentTable(for: .model)
-        self.pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
-        self.hdrFramePass = try MetalHDRFramePass(resources: resources)
+        self.pbrPipelineState = requiredResources.modelPBRPipeline
+        self.normalDiagnosticPipelineState = requiredResources.modelNormalDiagnosticPipeline
+        self.depthStencilState = requiredResources.opaqueDepthStencilState
+        self.modelArgumentTable = requiredResources.modelArgumentTable
+        self.pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        self.hdrFramePass = MetalHDRFramePass(resources: resources)
     }
 
     /// Resolves every authored resource in the exact writable instance prefix.
@@ -61,7 +59,7 @@ final class MetalFrameEncoder {
         _ prepared: MetalPreparedFrame,
         inputs: MetalFrameEncodingInputs,
         into commandBuffer: any MTL4CommandBuffer
-    ) throws {
+    ) throws(MetalFrameEncoderError) {
         let frameResources = inputs.frameResources
         frameResources.write(
             prepared,
@@ -98,9 +96,7 @@ final class MetalFrameEncoder {
     }
 
     /// Resolves a closed output mode to an eagerly compiled pipeline.
-    private func renderPipelineState(
-        for outputMode: RenderOutputMode
-    ) -> any MTLRenderPipelineState {
+    private func renderPipelineState(for outputMode: RenderOutputMode) -> any MTLRenderPipelineState {
         switch outputMode {
         case .surface:
             pbrPipelineState
@@ -111,15 +107,11 @@ final class MetalFrameEncoder {
     }
 
     /// Emits ordered model draws for the exact set packed into this frame slot.
-    private func draw(
-        _ prepared: MetalPreparedFrame,
-        frame: FrameResources,
-        with renderEncoder: any MTL4RenderCommandEncoder
-    ) {
+    private func draw(_ prepared: MetalPreparedFrame, frame: FrameResources, with renderEncoder: any MTL4RenderCommandEncoder) {
         for (instanceIndex, instance) in prepared.instances.enumerated() {
             // Missing model content makes only this live-screen instance
-            // unrenderable. Exact offscreen work proves model coverage before
-            // preparing the frame and cannot reach this branch.
+            // unrenderable. Exact offscreen work validates the models retained
+            // by its prepared frame and cannot reach this branch.
             guard let model = instance.model else {
                 continue
             }

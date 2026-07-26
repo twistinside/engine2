@@ -18,7 +18,8 @@ struct PSimulationAdvanceTargetTests {
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: expected,
-            stepCount: .one
+            stepCount: .one,
+            inputAssignment: .none
         )
 
         let outcome = await target.advance(request)
@@ -27,14 +28,16 @@ struct PSimulationAdvanceTargetTests {
     }
 }
 
-private actor RejectionAdvanceTarget: PSimulationAdvanceTarget {
-    let rejection: SimulationAdvanceRejection
+private extension PSimulationAdvanceTargetTests {
+    private actor RejectionAdvanceTarget: PSimulationAdvanceTarget {
+        let rejection: SimulationAdvanceRejection
 
-    init(rejection: SimulationAdvanceRejection) {
-        self.rejection = rejection
-    }
+        init(rejection: SimulationAdvanceRejection) {
+            self.rejection = rejection
+        }
 
-    func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
-        .rejected(rejection)
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
+            .rejected(rejection)
+        }
     }
 }

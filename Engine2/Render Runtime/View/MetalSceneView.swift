@@ -8,7 +8,6 @@ import SwiftUI
 /// coordinator-owned `MetalRenderer` and connects an input sink to the platform
 /// view. Rendering therefore samples completed values instead of reading live
 /// `World` state or directly calling the Simulation Runtime.
-@MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
     var presentationSource: any PSimulationPresentationSource
@@ -58,20 +57,16 @@ struct MetalSceneView: NSViewRepresentable {
     /// cannot construct the required Metal resources; the host view remains
     /// safe to create and submits no render work. `latestRenderError` retains
     /// the concrete construction failure for App diagnostics.
-    @MainActor
     final class Coordinator {
-        var renderer: MetalRenderer?
+        let rendererAvailability: MetalSceneRendererAvailability
 
-        /// Store/renderer construction failure retained for App diagnostics.
-        ///
-        /// A missing authored material intentionally prevents rendering. Keep
-        /// that concrete preflight error observable instead of turning it into
-        /// an unexplained renderer-less view through `try?`.
-        private var initializationError: (any Error)?
+        var renderer: MetalRenderer? {
+            rendererAvailability.renderer
+        }
 
         /// Latest construction or asynchronous rendering failure.
         var latestRenderError: (any Error)? {
-            initializationError ?? renderer?.latestRenderError
+            rendererAvailability.initializationError ?? renderer?.latestRenderError
         }
 
         init(
@@ -79,23 +74,23 @@ struct MetalSceneView: NSViewRepresentable {
             presentationSource: any PSimulationPresentationSource,
             outputMode: RenderOutputMode
         ) {
-            self.renderer = nil
-            self.initializationError = nil
-
             // Construct one device-scoped store before the view begins drawing.
             // It eagerly compiles required pipelines, resolves Game Content
             // assets, and commits the static/frame residency sets.
             do {
                 let resources = try MetalResourceStore(
-                    renderAssetCatalog: renderAssetCatalog
+                    renderAssetCatalog: renderAssetCatalog,
+                    frameCount: MetalResourceStore.defaultFrameCount
                 )
-                renderer = try MetalRenderer(
-                    resources: resources,
-                    presentationSource: presentationSource,
-                    outputMode: outputMode
+                rendererAvailability = .available(
+                    try MetalRenderer(
+                        resources: resources,
+                        presentationSource: presentationSource,
+                        outputMode: outputMode
+                    )
                 )
             } catch {
-                initializationError = error
+                rendererAvailability = .unavailable(error)
             }
         }
     }

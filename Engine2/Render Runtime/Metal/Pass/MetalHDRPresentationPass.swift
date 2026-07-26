@@ -6,22 +6,16 @@ import Metal
 /// use the sibling linear pipeline so their 0...1 meanings remain intact. Both
 /// pipelines write display-linear values to the sRGB drawable, which performs
 /// the only transfer encoding in the visible pathway.
-@MainActor
 final class MetalHDRPresentationPass {
     private let toneMappedPipeline: any MTLRenderPipelineState
     private let linearPipeline: any MTLRenderPipelineState
     private let argumentTable: any MTL4ArgumentTable
 
-    init(resources: MetalResourceStore) throws {
-        self.toneMappedPipeline = try resources.renderPipelineState(
-            for: .hdrToneMappedPresentation
-        )
-        self.linearPipeline = try resources.renderPipelineState(
-            for: .linearPresentation
-        )
-        self.argumentTable = try resources.argumentTable(
-            for: .hdrPresentation
-        )
+    init(resources: MetalResourceStore) {
+        let requiredResources = resources.requiredResources
+        self.toneMappedPipeline = requiredResources.hdrToneMappedPresentationPipeline
+        self.linearPipeline = requiredResources.linearPresentationPipeline
+        self.argumentTable = requiredResources.hdrPresentationArgumentTable
     }
 
     /// Encodes the full-screen presentation pass.
@@ -29,23 +23,21 @@ final class MetalHDRPresentationPass {
     /// The caller establishes the fragment-to-fragment producer barrier at the
     /// end of the scene encoder before invoking this method. Keeping exactly
     /// one synchronization point makes the two-phase dependency inspectable.
-    /// Returning `false` means no encoder was created and no presentation work
-    /// was recorded; the caller must abandon rather than submit a partial frame.
     func encode(
         sceneColorTexture: any MTLTexture,
         destinationTexture: any MTLTexture,
         parametersBuffer: any MTLBuffer,
         outputMode: RenderOutputMode,
         into commandBuffer: any MTL4CommandBuffer
-    ) -> Bool {
-        let renderPass = Self.makeRenderPassDescriptor(
+    ) throws(MetalFrameEncoderError) {
+        let renderPass = makeRenderPassDescriptor(
             destinationTexture: destinationTexture
         )
         guard let encoder = commandBuffer.makeRenderCommandEncoder(
             descriptor: renderPass,
             options: []
         ) else {
-            return false
+            throw .missingPresentationEncoder
         }
 
         encoder.setRenderPipelineState(pipeline(for: outputMode))
@@ -62,14 +54,13 @@ final class MetalHDRPresentationPass {
             vertexCount: 3
         )
         encoder.endEncoding()
-        return true
     }
 
-    /// Descriptor factory kept visible to tests because the resulting encoder
-    /// does not expose which attachment policy created it.
-    static func makeRenderPassDescriptor(
-        destinationTexture: any MTLTexture
-    ) -> MTL4RenderPassDescriptor {
+    /// Builds the descriptor for this pass's output attachment policy.
+    ///
+    /// The method remains visible to tests because the resulting encoder does
+    /// not expose which attachment policy created it.
+    func makeRenderPassDescriptor(destinationTexture: any MTLTexture) -> MTL4RenderPassDescriptor {
         let descriptor = MTL4RenderPassDescriptor()
         descriptor.colorAttachments[0].texture = destinationTexture
         descriptor.colorAttachments[0].loadAction = .clear
@@ -83,9 +74,7 @@ final class MetalHDRPresentationPass {
         return descriptor
     }
 
-    private func pipeline(
-        for outputMode: RenderOutputMode
-    ) -> any MTLRenderPipelineState {
+    private func pipeline(for outputMode: RenderOutputMode) -> any MTLRenderPipelineState {
         switch outputMode {
         case .surface:
             toneMappedPipeline

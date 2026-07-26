@@ -6,9 +6,12 @@ struct CameraTests {
     @Test func orthographicViewProjectionCentersCameraPosition() async throws {
         let camera = Camera(
             position: SIMD3<Float>(2, -1, 0),
-            orthographicHeight: 4,
-            nearPlane: 1,
-            farPlane: 21
+            rotation: Transform.identityRotation,
+            projection: .orthographic(
+                height: 4,
+                near: 1,
+                far: 21
+            )
         )
 
         let matrix = camera.viewProjectionMatrix(aspectRatio: 2)
@@ -30,9 +33,12 @@ struct CameraTests {
         let far: Float = 21
         let camera = Camera(
             position: .zero,
-            orthographicHeight: 4,
-            nearPlane: near,
-            farPlane: far
+            rotation: Transform.identityRotation,
+            projection: .orthographic(
+                height: 4,
+                near: near,
+                far: far
+            )
         )
         let projection = camera.projectionMatrix(aspectRatio: 1)
         let nearDepth = projectedDepth(ofViewZ: -near, through: projection)
@@ -53,6 +59,7 @@ struct CameraTests {
         let camera = Camera.lookingAt(
             .zero,
             from: SIMD3<Float>(0, 0, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
                 near: 1,
@@ -76,6 +83,7 @@ struct CameraTests {
         let far: Float = 21
         let camera = Camera(
             position: .zero,
+            rotation: Transform.identityRotation,
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
                 near: near,
@@ -100,6 +108,8 @@ struct CameraTests {
 
     @Test func projectionUsesUnitAspectRatioForInvalidDrawableShapes() {
         let camera = Camera(
+            position: SIMD3<Float>(0, 0, 8),
+            rotation: Transform.identityRotation,
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
                 near: 0.1,
@@ -123,15 +133,19 @@ struct CameraTests {
     }
 
     @Test func viewTransformSupportRejectsInvalidCameraState() {
-        #expect(Camera().supportsViewTransform)
+        #expect(Camera.standard.supportsViewTransform)
         #expect(
             Camera(
-                position: SIMD3<Float>(.nan, 0, 8)
+                position: SIMD3<Float>(.nan, 0, 8),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
             ).supportsViewTransform == false
         )
         #expect(
             Camera(
-                rotation: simd_quatf(vector: .zero)
+                position: SIMD3<Float>(0, 0, 8),
+                rotation: simd_quatf(vector: .zero),
+                projection: .standardPerspective
             ).supportsViewTransform == false
         )
         #expect(
@@ -144,18 +158,30 @@ struct CameraTests {
                 rotation: simd_quatf(
                     angle: .pi / 4,
                     axis: SIMD3<Float>(0, 1, 0)
-                )
+                ),
+                projection: .standardPerspective
             ).supportsViewTransform == false
+        )
+    }
+
+    @Test func standardCameraNamesTheCompleteNeutralView() {
+        #expect(
+            Camera.standard == Camera(
+                position: SIMD3<Float>(0, 0, 8),
+                rotation: Transform.identityRotation,
+                projection: .perspective(
+                    verticalFieldOfView: .pi / 3,
+                    near: 0.1,
+                    far: 100
+                )
+            )
         )
     }
 }
 
 /// Applies homogeneous division so projection tests assert the depth value
 /// consumed by Metal rather than an intermediate clip-space coordinate.
-private func projectedDepth(
-    ofViewZ viewZ: Float,
-    through projection: simd_float4x4
-) -> Float {
+private func projectedDepth(ofViewZ viewZ: Float, through projection: simd_float4x4) -> Float {
     let clipPosition = projection * SIMD4<Float>(0, 0, viewZ, 1)
     return clipPosition.z / clipPosition.w
 }
@@ -167,10 +193,7 @@ private extension Float {
 }
 
 private extension simd_float4x4 {
-    func isApproximately(
-        _ other: simd_float4x4,
-        tolerance: Float = 0.0001
-    ) -> Bool {
+    func isApproximately(_ other: simd_float4x4, tolerance: Float = 0.0001) -> Bool {
         simd_length(columns.0 - other.columns.0) <= tolerance
             && simd_length(columns.1 - other.columns.1) <= tolerance
             && simd_length(columns.2 - other.columns.2) <= tolerance

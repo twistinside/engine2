@@ -7,21 +7,24 @@
 nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
     let renderLimits: OffscreenRenderLimits
 
-    /// Creates offline allocation and readback policy.
-    init(
-        renderLimits: OffscreenRenderLimits = .conservative
-    ) {
-        self.renderLimits = renderLimits
+    /// Constructs one isolated production assembly with a fresh Simulation
+    /// session identity.
+    @MainActor
+    func makeAssembly(gameContent: BasicGameContent) throws -> OfflineCaptureAssembly {
+        try makeAssembly(
+            gameContent: gameContent,
+            sessionID: SimulationSessionID()
+        )
     }
 
-    /// Constructs one isolated production assembly from consumer Game Content.
+    /// Constructs one isolated production assembly with a caller-supplied
+    /// Simulation identity for restoration or external correlation.
     @MainActor
-    func makeAssembly(
-        gameContent: BasicGameContent,
-        sessionID: SimulationSessionID = SimulationSessionID()
-    ) throws -> OfflineCaptureAssembly {
+    func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID) throws -> OfflineCaptureAssembly {
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil,
             sessionID: sessionID
         )
         let renderRuntime = try MetalOffscreenRenderRuntime(
@@ -33,7 +36,8 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
         let coordinator = OfflineCaptureCoordinator(
             advanceTarget: simulationRuntime,
             initialPresentationSnapshot: initialPresentationSnapshot,
-            renderTarget: renderRuntime
+            renderTarget: renderRuntime,
+            artifactEncoder: try ImageIOArtifactEncoder()
         )
 
         // Only immutable initial identity and the coordinator's narrow workflow

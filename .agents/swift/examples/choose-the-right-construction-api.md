@@ -28,6 +28,41 @@ not call them designated initializers.
 Keep a one-off combination at its composition site when it has no stable domain
 meaning. Do not add a named preset merely because the initializer is long.
 
+### Name Meaningful Nested Construction
+
+A substantial constructed value remains a separate decision even when another
+object immediately owns it. Do not bury that decision inside a second
+multiline initializer:
+
+```swift
+// Avoid: the Simulation Runtime disappears inside assembly punctuation.
+ManualAssembly(
+    simulationRuntime: SimulationRuntime(
+        worldBuilder: gameContent.worldBuilder,
+        configuration: gameContent.simulationConfiguration,
+        inputBaseline: nil,
+        sessionID: sessionID
+    )
+)
+```
+
+Bind the inner value to a role-named local, then construct the owner:
+
+```swift
+let simulationRuntime = SimulationRuntime(
+    worldBuilder: gameContent.worldBuilder,
+    configuration: gameContent.simulationConfiguration,
+    inputBaseline: nil,
+    sessionID: sessionID
+)
+return ManualAssembly(simulationRuntime: simulationRuntime)
+```
+
+This exposes both construction boundaries and gives later validation,
+configuration, or debugging a natural seam. Keep tiny value projections, enum
+cases, and declarative builder or modifier values inline when extracting them
+would merely replace a clear label with a redundant local name.
+
 ### Let Swift Synthesize Plain Memberwise Construction
 
 Choosing a full initializer at the call site does not mean hand-writing one in
@@ -78,28 +113,38 @@ It is appropriate when callers must still provide identity, ownership, or
 connection values while the class supplies ordinary state that each instance
 may safely choose independently.
 
-```swift
-final class Ball {
-    let world: World
-    var position: SIMD3<Float>
+The current `SimulationRuntime` uses this distinction directly:
 
-    init(in world: World, position: SIMD3<Float>) {
-        self.world = world
-        self.position = position
+```swift
+final class SimulationRuntime {
+    init(
+        worldBuilder: any PWorldBuilder,
+        configuration: SimulationConfiguration,
+        inputBaseline: InputSnapshot?,
+        sessionID: SimulationSessionID
+    ) {
+        // Construct the authoritative session.
     }
 
-    /// Spawns this Ball at the neutral origin. Position belongs only to this
-    /// Ball, so choosing the origin does not establish policy for other entities.
-    convenience init(in world: World) {
-        self.init(in: world, position: .zero)
+    /// Starts a fresh authoritative timeline.
+    convenience init(
+        worldBuilder: any PWorldBuilder,
+        configuration: SimulationConfiguration,
+        inputBaseline: InputSnapshot?
+    ) {
+        self.init(
+            worldBuilder: worldBuilder,
+            configuration: configuration,
+            inputBaseline: inputBaseline,
+            sessionID: SimulationSessionID()
+        )
     }
 }
 ```
 
-The owning `World` remains required. The omitted position is local to this Ball
-and has a natural neutral value, so it does not establish policy for other
-objects. The convenience initializer delegates instead of duplicating setup,
-and its documentation explains why the omitted value is safe.
+The builder, Simulation behavior policy, and optional Input baseline remain
+explicit. Only the new session identity is supplied locally, and the
+convenience initializer delegates instead of duplicating authoritative setup.
 
 A commonly used backing store or handler can fit the same pattern only when
 each object may independently own or select another implementation. If the
@@ -114,24 +159,25 @@ Do not use a convenience initializer to hide sensitivity, tick duration, or
 another value that should remain consistent across instances:
 
 ```swift
-final class CameraInputController {
-    let mapper: DefaultInputDirectiveMapper
-
-    init(mapper: DefaultInputDirectiveMapper) {
-        self.mapper = mapper
-    }
-
-    // Avoid: this silently lets one controller select application-wide policy.
-    convenience init() {
-        self.init(mapper: DefaultInputDirectiveMapper(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04))
+extension SimulationRuntime {
+    // Avoid: this hypothetical overload silently selects Game Content policy.
+    convenience init(
+        worldBuilder: any PWorldBuilder,
+        inputBaseline: InputSnapshot?
+    ) {
+        self.init(
+            worldBuilder: worldBuilder,
+            configuration: .basicGame,
+            inputBaseline: inputBaseline
+        )
     }
 }
 ```
 
-Orbit and zoom sensitivities will normally need to agree throughout the
-application. Omitting them from a call site makes inconsistent construction
-easy, regardless of whether the omission uses default arguments or a real
-convenience initializer.
+Camera sensitivities and orbit constraints belong to the required
+`SimulationConfiguration`. Omitting that value from a call site makes
+inconsistent construction easy, regardless of whether the omission uses
+default arguments or a real convenience initializer.
 
 The Swift Book's `RecipeIngredient` example follows the same shape: callers
 still provide the ingredient's name, while a convenience initializer supplies
@@ -213,9 +259,11 @@ initializer choice. Prefer `static let` when the value is stable, immutable,
 and reusable.
 
 The declaration belongs with the domain that owns its contents. In this
-example, define the extension with Basic Game Content even though Swift exposes
-the member through `RenderAssetCatalog`. The Render Runtime owns the catalog
-contract; it does not own this game's authored assets.
+example, define the extension in `BasicGameContent.swift` even though Swift
+exposes the member through `RenderAssetCatalog`. Do not create a
+`RenderAssetCatalog+BasicGameContent.swift` file solely to hold this one static
+value. The Render Runtime owns the catalog contract; it does not own this
+game's authored assets.
 
 The name must remain truthful. If optional asset packs or runtime-discovered
 content make "everything" contextual, use a narrower name such as `.core` or
@@ -229,7 +277,7 @@ merely to hide arguments, provide defaults, or make construction look more
 descriptive.
 
 ```swift
-extension DefaultInputDirectiveMapper {
+extension SInputMapping {
     /// Test-only camera binding with fixed values chosen for deterministic
     /// fixture setup. Production composition must inject shared configuration.
     static func testFixture() -> Self {
@@ -251,7 +299,7 @@ Swift convenience initializer. The wrapper is harmful because it:
 Prefer explicit construction:
 
 ```swift
-let mapper = DefaultInputDirectiveMapper(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04)
+let inputMapping = SInputMapping(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04)
 ```
 
 Keep fixture construction in the fixture setup so the selected values remain
@@ -267,7 +315,7 @@ construction process. Document that reason; do not use a factory as an
 initializer alias.
 
 ```swift
-let catalog = try RenderAssetCatalog.load(from: manifestURL)
+let models = try USDRenderModel.load(catalog: renderAssetCatalog, device: device)
 ```
 
 Do not spell a fixed distinguished value as a function:
@@ -309,7 +357,7 @@ policy, and behave differently from the rest of the application.
 
 ```swift
 // Avoid: these defaults can silently create inconsistent input behavior.
-struct DefaultInputDirectiveMapper {
+struct SInputMapping {
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
 
@@ -328,14 +376,9 @@ same deliberately selected values.
 Require the composition root to provide coordinated values:
 
 ```swift
-struct DefaultInputDirectiveMapper {
-    let pointerOrbitSensitivity: Float
-    let scrollZoomSensitivity: Float
-}
-
-let mapper = DefaultInputDirectiveMapper(
-    pointerOrbitSensitivity: inputConfiguration.pointerOrbitSensitivity,
-    scrollZoomSensitivity: inputConfiguration.scrollZoomSensitivity
+let inputMapping = SInputMapping(
+    pointerOrbitSensitivity: simulationConfiguration.pointerOrbitSensitivity,
+    scrollZoomSensitivity: simulationConfiguration.scrollZoomSensitivity
 )
 ```
 

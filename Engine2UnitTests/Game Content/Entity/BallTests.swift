@@ -50,7 +50,7 @@ struct BallTests {
 
     @Test func initDefaultsMissingStateToZeroAndIdentity() async throws {
         let world = World()
-        let ball = Ball(in: world)
+        let ball = Ball(in: world, materialID: .warmDielectric)
         let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
 
         #expect(ball.position == .zero)

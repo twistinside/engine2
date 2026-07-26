@@ -2,7 +2,6 @@ import Testing
 @testable import Engine2
 
 struct EntityMotionPaneTests {
-    @MainActor
     @Test func rowsExtractPositionSpeedAndDisplayText() throws {
         let world = World()
         let stationary = EntityID(index: 0, generation: 0)
