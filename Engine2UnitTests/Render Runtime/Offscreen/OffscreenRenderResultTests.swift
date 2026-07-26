@@ -5,40 +5,44 @@ import Testing
 
 struct OffscreenRenderResultTests {
     @Test func echoesExactRequestAttributionAndDetachedImage() throws {
-        let requestID = OffscreenRenderRequestID(
-            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000111")!
-        )
+        let requestUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000111"
+        )!
+        let requestID = OffscreenRenderRequestID(rawValue: requestUUID)
+        let sessionUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000112"
+        )!
+        let sessionID = SimulationSessionID(rawValue: sessionUUID)
+        let tick = SimulationTick(rawValue: 19)
         let cursor = SimulationCursor(
-            sessionID: SimulationSessionID(
-                rawValue: UUID(
-                    uuidString: "00000000-0000-0000-0000-000000000112"
-                )!
-            ),
-            tick: SimulationTick(rawValue: 19)
+            sessionID: sessionID,
+            tick: tick
+        )
+        let viewpointUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000113"
+        )!
+        let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
+        let viewpointRevision = RenderViewpointRevision(rawValue: 23)
+        let cameraPosition = SIMD3<Float>(7, 8, 9)
+        let camera = Camera(
+            position: cameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
         )
         let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(
-                rawValue: UUID(
-                    uuidString: "00000000-0000-0000-0000-000000000113"
-                )!
-            ),
-            revision: RenderViewpointRevision(rawValue: 23),
-            camera: Camera(
-                position: SIMD3<Float>(7, 8, 9),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            id: viewpointID,
+            revision: viewpointRevision,
+            camera: camera
         )
         let size = try RenderPixelSize(width: 2, height: 1)
+        let exposure = ManualExposure(multiplier: 1.5)
         let settings = OffscreenRenderSettings(
             size: size,
             outputMode: .surface,
-            exposure: ManualExposure(multiplier: 1.5)
+            exposure: exposure
         )
-        let image = try RenderedBGRA8SRGBImage(
-            size: size,
-            bytes: Data([0, 1, 2, 3, 4, 5, 6, 7])
-        )
+        let bytes = Data([0, 1, 2, 3, 4, 5, 6, 7])
+        let image = try RenderedBGRA8SRGBImage(size: size, bytes: bytes)
 
         let result = OffscreenRenderResult(
             requestID: requestID,

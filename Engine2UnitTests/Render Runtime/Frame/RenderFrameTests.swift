@@ -5,18 +5,31 @@ import Testing
 struct RenderFrameTests {
     @Test func projectionCreatesInstancesFromPublishedPresentationFacts() async throws {
         let world = World()
-        let cursor = cursor(at: SimulationTick(rawValue: 7))
+        let tick = SimulationTick(rawValue: 7)
+        let cursor = cursor(at: tick)
         let first = EntityID(index: 0, generation: 0)
         let second = EntityID(index: 1, generation: 0)
 
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: first)
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(-1, 3, 0)), for: second)
-        world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
-            for: first
+        let firstPosition = SIMD3<Float>(2, -4, 0)
+        let firstPositionComponent = CPosition(position: firstPosition)
+        world.positionComponents.insert(firstPositionComponent, for: first)
+        let secondPosition = SIMD3<Float>(-1, 3, 0)
+        let secondPositionComponent = CPosition(position: secondPosition)
+        world.positionComponents.insert(secondPositionComponent, for: second)
+        let firstRenderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
         )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .goldMetal),
+            firstRenderable,
+            for: first
+        )
+        let secondRenderable = CRenderable(
+            meshID: .ball,
+            materialID: .goldMetal
+        )
+        world.renderableComponents.insert(
+            secondRenderable,
             for: second
         )
 
@@ -25,25 +38,23 @@ struct RenderFrameTests {
 
         #expect(frame.provenance == .simulation(sourceCursor: cursor))
         #expect(frame.sourceCursor == cursor)
-        #expect(frame.sourceTick == SimulationTick(rawValue: 7))
+        #expect(frame.sourceTick == tick)
         #expect(frame.viewpointID == nil)
         #expect(frame.viewpointRevision == nil)
         #expect(frame.instances.map(\.meshID) == [.ball, .ball])
         #expect(frame.instances.map(\.materialID) == [.warmDielectric, .goldMetal])
-        #expect(
-            frame.instances.map(\.transform) == [
-                Transform(
-                    position: SIMD3<Float>(2, -4, 0),
-                    rotation: Transform.identityRotation,
-                    scale: RenderInstance.defaultScale
-                ),
-                Transform(
-                    position: SIMD3<Float>(-1, 3, 0),
-                    rotation: Transform.identityRotation,
-                    scale: RenderInstance.defaultScale
-                )
-            ]
+        let firstTransform = Transform(
+            position: firstPosition,
+            rotation: Transform.identityRotation,
+            scale: RenderInstance.defaultScale
         )
+        let secondTransform = Transform(
+            position: secondPosition,
+            rotation: Transform.identityRotation,
+            scale: RenderInstance.defaultScale
+        )
+        let expectedTransforms = [firstTransform, secondTransform]
+        #expect(frame.instances.map(\.transform) == expectedTransforms)
         for instance in frame.instances {
             #expect(
                 instance.modelViewMatrix
@@ -56,14 +67,23 @@ struct RenderFrameTests {
         let world = World()
         let sessionID = SimulationSessionID()
         let entity = EntityID(index: 0, generation: 0)
-        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        let positionComponent = CPosition(position: .zero)
+        world.positionComponents.insert(positionComponent, for: entity)
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
 
+        let initialCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
+        )
         let snapshot = world.presentationSnapshot(
-            at: SimulationCursor(sessionID: sessionID, tick: .zero)
+            at: initialCursor
         )
         let frame = RenderFrame(projecting: snapshot)
         let didUpdateMaterial = world.renderableComponents.update(for: entity) {
@@ -73,14 +93,13 @@ struct RenderFrameTests {
             snapshot.entityPresentations.first
         )
         let frameInstance = try #require(frame.instances.first)
-        let laterEntity = try #require(
-            world.presentationSnapshot(
-                at: SimulationCursor(
-                    sessionID: sessionID,
-                    tick: SimulationTick(rawValue: 1)
-                )
-            ).entityPresentations.first
+        let laterTick = SimulationTick(rawValue: 1)
+        let laterCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: laterTick
         )
+        let laterSnapshot = world.presentationSnapshot(at: laterCursor)
+        let laterEntity = try #require(laterSnapshot.entityPresentations.first)
 
         #expect(didUpdateMaterial)
         #expect(snapshotEntity.materialID == .warmDielectric)
@@ -92,36 +111,46 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
 
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: entity)
+        let position = SIMD3<Float>(2, -4, 0)
+        let positionComponent = CPosition(position: position)
+        world.positionComponents.insert(positionComponent, for: entity)
 
         let snapshot = world.presentationSnapshot(at: cursor())
+        let frame = RenderFrame(projecting: snapshot)
 
         #expect(snapshot.entityPresentations.isEmpty)
-        #expect(RenderFrame(projecting: snapshot).instances.isEmpty)
+        #expect(frame.instances.isEmpty)
     }
 
     @Test func projectionIgnoresRenderableEntitiesWithoutPositions() {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
 
         let snapshot = world.presentationSnapshot(at: cursor())
+        let frame = RenderFrame(projecting: snapshot)
 
         #expect(snapshot.entityPresentations.map(\.id) == [entity])
-        #expect(RenderFrame(projecting: snapshot).instances.isEmpty)
+        #expect(frame.instances.isEmpty)
     }
 
     @Test func projectionIncludesCameraRotationAndScale() async throws {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
-        let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
+        let rotationAxis = SIMD3<Float>(0, 0, 1)
+        let rotation = simd_quatf(angle: .pi / 2, axis: rotationAxis)
         let scale = SIMD3<Float>(2, 3, 4)
 
+        let cameraPosition = SIMD3<Float>(1, 2, 3)
         world.camera = Camera(
-            position: SIMD3<Float>(1, 2, 3),
+            position: cameraPosition,
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 12,
@@ -129,13 +158,21 @@ struct RenderFrameTests {
                 far: 100
             )
         )
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(3, 4, 5)), for: entity)
+        let position = SIMD3<Float>(3, 4, 5)
+        let positionComponent = CPosition(position: position)
+        world.positionComponents.insert(positionComponent, for: entity)
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
-        world.rotationComponents.insert(CRotation(rotation: rotation), for: entity)
-        world.scaleComponents.insert(CScale(scale: scale), for: entity)
+        let rotationComponent = CRotation(rotation: rotation)
+        world.rotationComponents.insert(rotationComponent, for: entity)
+        let scaleComponent = CScale(scale: scale)
+        world.scaleComponents.insert(scaleComponent, for: entity)
 
         let snapshot = world.presentationSnapshot(at: cursor())
         let frame = RenderFrame(projecting: snapshot)
@@ -147,13 +184,12 @@ struct RenderFrameTests {
         #expect(frame.instances.count == 1)
         #expect(instance.meshID == .ball)
         #expect(instance.materialID == .warmDielectric)
-        #expect(
-            instance.transform == Transform(
-                position: SIMD3<Float>(3, 4, 5),
-                rotation: rotation,
-                scale: scale
-            )
+        let expectedTransform = Transform(
+            position: position,
+            rotation: rotation,
+            scale: scale
         )
+        #expect(instance.transform == expectedTransform)
         #expect(
             instance.modelViewMatrix
                 == frame.camera.viewMatrix * instance.transform.matrix
@@ -162,35 +198,47 @@ struct RenderFrameTests {
 
     @Test func exactProjectionCanApplyDistinctExplicitViewpointsToTheSameSnapshot() throws {
         let world = World()
-        let cursor = cursor(at: SimulationTick(rawValue: 11))
+        let tick = SimulationTick(rawValue: 11)
+        let cursor = cursor(at: tick)
         let entity = EntityID(index: 0, generation: 0)
+        let position = SIMD3<Float>(2, 3, 4)
+        let positionComponent = CPosition(position: position)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(2, 3, 4)),
+            positionComponent,
             for: entity
         )
+        let renderable = CRenderable(meshID: .ball, materialID: .goldMetal)
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .goldMetal),
+            renderable,
             for: entity
         )
 
         let snapshot = world.presentationSnapshot(at: cursor)
+        let firstViewpointID = RenderViewpointID()
+        let firstViewpointRevision = RenderViewpointRevision(rawValue: 2)
+        let firstCameraPosition = SIMD3<Float>(0, 0, 6)
+        let firstCamera = Camera(
+            position: firstCameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let firstViewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 2),
-            camera: Camera(
-                position: SIMD3<Float>(0, 0, 6),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            id: firstViewpointID,
+            revision: firstViewpointRevision,
+            camera: firstCamera
+        )
+        let secondViewpointID = RenderViewpointID()
+        let secondViewpointRevision = RenderViewpointRevision(rawValue: 9)
+        let secondCameraPosition = SIMD3<Float>(6, 2, 0)
+        let secondCamera = Camera(
+            position: secondCameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
         )
         let secondViewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 9),
-            camera: Camera(
-                position: SIMD3<Float>(6, 2, 0),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            id: secondViewpointID,
+            revision: secondViewpointRevision,
+            camera: secondCamera
         )
 
         let firstFrame = try RenderFrame(
@@ -243,37 +291,55 @@ struct RenderFrameTests {
         let nonfinitePositionEntity = EntityID(index: 1, generation: 0)
 
         for entity in [zeroScaleEntity, nonfinitePositionEntity] {
+            let renderable = CRenderable(
+                meshID: .ball,
+                materialID: .warmDielectric
+            )
             world.renderableComponents.insert(
-                CRenderable(meshID: .ball, materialID: .warmDielectric),
+                renderable,
                 for: entity
             )
         }
+        let zeroPosition = CPosition(position: .zero)
         world.positionComponents.insert(
-            CPosition(position: .zero),
+            zeroPosition,
             for: zeroScaleEntity
         )
+        let zeroScale = SIMD3<Float>(1, 0, 1)
+        let zeroScaleComponent = CScale(scale: zeroScale)
         world.scaleComponents.insert(
-            CScale(scale: SIMD3<Float>(1, 0, 1)),
+            zeroScaleComponent,
             for: zeroScaleEntity
         )
+        let nonfinitePosition = SIMD3<Float>(.nan, 0, 0)
+        let nonfinitePositionComponent = CPosition(
+            position: nonfinitePosition
+        )
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(.nan, 0, 0)),
+            nonfinitePositionComponent,
             for: nonfinitePositionEntity
         )
 
         let snapshot = world.presentationSnapshot(at: cursor())
+        let frame = RenderFrame(projecting: snapshot)
 
         #expect(snapshot.entityPresentations.count == 2)
-        #expect(RenderFrame(projecting: snapshot).instances.isEmpty)
+        #expect(frame.instances.isEmpty)
     }
 
     @Test func projectionProducesNoInstancesForAnInvalidCameraTransform() {
         let world = World()
-        let cursor = cursor(at: SimulationTick(rawValue: 3))
+        let tick = SimulationTick(rawValue: 3)
+        let cursor = cursor(at: tick)
         let entity = EntityID(index: 0, generation: 0)
-        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        let positionComponent = CPosition(position: .zero)
+        world.positionComponents.insert(positionComponent, for: entity)
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
         world.camera.position = SIMD3<Float>(.infinity, 0, 8)
@@ -282,7 +348,7 @@ struct RenderFrameTests {
         let frame = RenderFrame(projecting: snapshot)
 
         #expect(frame.sourceCursor == cursor)
-        #expect(frame.sourceTick == SimulationTick(rawValue: 3))
+        #expect(frame.sourceTick == tick)
         #expect(frame.camera == snapshot.camera)
         #expect(frame.instances.isEmpty)
     }
@@ -292,41 +358,47 @@ struct RenderFrameTests {
         let snapshot = world.presentationSnapshot(at: cursor())
         var camera = Camera.standard
         camera.position = SIMD3<Float>(.infinity, 0, 8)
+        let viewpointID = RenderViewpointID()
         let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
+            id: viewpointID,
             revision: .zero,
             camera: camera
         )
 
         #expect(throws: RenderFrameProjectionError.invalidSelectedCamera) {
-            try RenderFrame(
-                exactlyProjecting: snapshot,
-                viewpoint: viewpoint
-            )
+            try exactFrame(projecting: snapshot, viewpoint: viewpoint)
         }
     }
 
     @Test func exactProjectionPreservesTheCompleteValidProjection() throws {
         let world = World()
-        let cursor = cursor(at: SimulationTick(rawValue: 13))
+        let tick = SimulationTick(rawValue: 13)
+        let cursor = cursor(at: tick)
         let entity = EntityID(index: 5, generation: 1)
+        let position = SIMD3<Float>(1, 2, 3)
+        let positionComponent = CPosition(position: position)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(1, 2, 3)),
+            positionComponent,
             for: entity
         )
+        let renderable = CRenderable(meshID: .ball, materialID: .goldMetal)
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .goldMetal),
+            renderable,
             for: entity
         )
         let snapshot = world.presentationSnapshot(at: cursor)
+        let viewpointID = RenderViewpointID()
+        let viewpointRevision = RenderViewpointRevision(rawValue: 6)
+        let cameraPosition = SIMD3<Float>(0, 0, 10)
+        let camera = Camera(
+            position: cameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 6),
-            camera: Camera(
-                position: SIMD3<Float>(0, 0, 10),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            id: viewpointID,
+            revision: viewpointRevision,
+            camera: camera
         )
 
         let exact = try RenderFrame(
@@ -342,13 +414,12 @@ struct RenderFrameTests {
         #expect(exact.instances.count == 1)
         #expect(instance.meshID == .ball)
         #expect(instance.materialID == .goldMetal)
-        #expect(
-            instance.transform == Transform(
-                position: SIMD3<Float>(1, 2, 3),
-                rotation: Transform.identityRotation,
-                scale: RenderInstance.defaultScale
-            )
+        let expectedTransform = Transform(
+            position: position,
+            rotation: Transform.identityRotation,
+            scale: RenderInstance.defaultScale
         )
+        #expect(instance.transform == expectedTransform)
         #expect(
             instance.modelViewMatrix
                 == viewpoint.camera.viewMatrix * instance.transform.matrix
@@ -358,20 +429,25 @@ struct RenderFrameTests {
     @Test func exactProjectionIdentifiesAnEntityWithoutPosition() {
         let world = World()
         let entity = EntityID(index: 17, generation: 3)
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
         let snapshot = world.presentationSnapshot(at: cursor())
+        let selectedViewpoint = viewpoint(camera: .standard)
 
         #expect(
             throws: RenderFrameProjectionError.missingPosition(
                 entityID: entity
             )
         ) {
-            try RenderFrame(
-                exactlyProjecting: snapshot,
-                viewpoint: viewpoint(camera: .standard)
+            try exactFrame(
+                projecting: snapshot,
+                viewpoint: selectedViewpoint
             )
         }
     }
@@ -379,25 +455,33 @@ struct RenderFrameTests {
     @Test func exactProjectionIdentifiesAnUnsupportedNormalTransform() {
         let world = World()
         let entity = EntityID(index: 23, generation: 4)
-        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        let positionComponent = CPosition(position: .zero)
+        world.positionComponents.insert(positionComponent, for: entity)
+        let invalidScale = SIMD3<Float>(1, 0, 1)
+        let scaleComponent = CScale(scale: invalidScale)
         world.scaleComponents.insert(
-            CScale(scale: SIMD3<Float>(1, 0, 1)),
+            scaleComponent,
             for: entity
         )
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
         let snapshot = world.presentationSnapshot(at: cursor())
+        let selectedViewpoint = viewpoint(camera: .standard)
 
         #expect(
             throws: RenderFrameProjectionError.unsupportedNormalTransform(
                 entityID: entity
             )
         ) {
-            try RenderFrame(
-                exactlyProjecting: snapshot,
-                viewpoint: viewpoint(camera: .standard)
+            try exactFrame(
+                projecting: snapshot,
+                viewpoint: selectedViewpoint
             )
         }
     }
@@ -405,25 +489,33 @@ struct RenderFrameTests {
     @Test func exactProjectionRejectsANormalMatrixThatUnderflows() {
         let world = World()
         let entity = EntityID(index: 24, generation: 4)
-        world.positionComponents.insert(CPosition(position: .zero), for: entity)
+        let positionComponent = CPosition(position: .zero)
+        world.positionComponents.insert(positionComponent, for: entity)
+        let underflowingScale = SIMD3<Float>(repeating: 1e-20)
+        let scaleComponent = CScale(scale: underflowingScale)
         world.scaleComponents.insert(
-            CScale(scale: SIMD3<Float>(repeating: 1e-20)),
+            scaleComponent,
             for: entity
         )
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
         let snapshot = world.presentationSnapshot(at: cursor())
+        let selectedViewpoint = viewpoint(camera: .standard)
 
         #expect(
             throws: RenderFrameProjectionError.unsupportedNormalTransform(
                 entityID: entity
             )
         ) {
-            try RenderFrame(
-                exactlyProjecting: snapshot,
-                viewpoint: viewpoint(camera: .standard)
+            try exactFrame(
+                projecting: snapshot,
+                viewpoint: selectedViewpoint
             )
         }
     }
@@ -431,60 +523,83 @@ struct RenderFrameTests {
     @Test func exactProjectionIdentifiesNonfiniteCombinedModelViewTransform() {
         let world = World()
         let entity = EntityID(index: 29, generation: 5)
+        let entityPosition = SIMD3<Float>(
+            .greatestFiniteMagnitude,
+            0,
+            0
+        )
+        let positionComponent = CPosition(position: entityPosition)
         world.positionComponents.insert(
-            CPosition(
-                position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)
-            ),
+            positionComponent,
             for: entity
         )
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
         let snapshot = world.presentationSnapshot(at: cursor())
-        let viewpoint = viewpoint(
-            camera: Camera(
-                position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+        let cameraPosition = SIMD3<Float>(
+            -.greatestFiniteMagnitude,
+            0,
+            0
         )
+        let camera = Camera(
+            position: cameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
+        let viewpoint = viewpoint(camera: camera)
 
         #expect(
             throws: RenderFrameProjectionError.nonfiniteModelViewTransform(
                 entityID: entity
             )
         ) {
-            try RenderFrame(
-                exactlyProjecting: snapshot,
-                viewpoint: viewpoint
-            )
+            try exactFrame(projecting: snapshot, viewpoint: viewpoint)
         }
     }
 
     @Test func projectionOmitsFiniteTransformsWhoseCombinationOverflows() {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
+        let entityPosition = SIMD3<Float>(
+            .greatestFiniteMagnitude,
+            0,
+            0
+        )
+        let positionComponent = CPosition(position: entityPosition)
         world.positionComponents.insert(
-            CPosition(
-                position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)
-            ),
+            positionComponent,
             for: entity
+        )
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
         )
         world.renderableComponents.insert(
-            CRenderable(meshID: .ball, materialID: .warmDielectric),
+            renderable,
             for: entity
         )
+        let cameraPosition = SIMD3<Float>(
+            -.greatestFiniteMagnitude,
+            0,
+            0
+        )
         world.camera = Camera(
-            position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0),
+            position: cameraPosition,
             rotation: Transform.identityRotation,
             projection: .standardPerspective
         )
 
         let snapshot = world.presentationSnapshot(at: cursor())
+        let frame = RenderFrame(projecting: snapshot)
 
         #expect(snapshot.camera.supportsViewTransform)
-        #expect(RenderFrame(projecting: snapshot).instances.isEmpty)
+        #expect(frame.instances.isEmpty)
     }
 
     @Test func emptyFrameDoesNotFabricateSimulationProvenance() {
@@ -496,14 +611,23 @@ struct RenderFrameTests {
     }
 
     private func cursor(at tick: SimulationTick = .zero) -> SimulationCursor {
-        SimulationCursor(sessionID: SimulationSessionID(), tick: tick)
+        let sessionID = SimulationSessionID()
+        return SimulationCursor(sessionID: sessionID, tick: tick)
     }
 
     private func viewpoint(camera: Camera) -> RenderViewpoint {
-        RenderViewpoint(
-            id: RenderViewpointID(),
+        let viewpointID = RenderViewpointID()
+        return RenderViewpoint(
+            id: viewpointID,
             revision: .zero,
             camera: camera
         )
+    }
+
+    private func exactFrame(
+        projecting snapshot: SimulationPresentationSnapshot,
+        viewpoint: RenderViewpoint
+    ) throws -> RenderFrame {
+        try RenderFrame(exactlyProjecting: snapshot, viewpoint: viewpoint)
     }
 }

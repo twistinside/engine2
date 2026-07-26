@@ -4,10 +4,15 @@ import Testing
 struct PScalableTests {
     @Test func scaleReadsFromWorldStore() async throws {
         let world = World()
-        let entity = TestScalableEntity(unregisteredID: EntityID(index: 0, generation: 0), in: world)
+        let entityID = EntityID(index: 0, generation: 0)
+        let entity = TestScalableEntity(
+            unregisteredID: entityID,
+            in: world
+        )
         let expectedScale = SIMD3<Float>(1.5, 2, 0.5)
+        let scale = CScale(scale: expectedScale)
 
-        world.scaleComponents.insert(CScale(scale: expectedScale), for: entity.id)
+        world.scaleComponents.insert(scale, for: entity.id)
 
         #expect(entity.scale == expectedScale)
     }

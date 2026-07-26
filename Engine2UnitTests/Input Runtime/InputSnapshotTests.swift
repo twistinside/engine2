@@ -16,19 +16,23 @@ struct InputSnapshotTests {
     @Test func equalityUsesSetValuesRatherThanInsertionOrder() {
         let firstKey = KeyboardKey(keyCode: 1, displayName: "A")
         let secondKey = KeyboardKey(keyCode: 2, displayName: "B")
+        let revision = InputRevision(session: 1, sequence: 2)
+        let pointerPosition = SIMD2<Float>(3, 4)
+        let pointerMotionTotal = SIMD2<Float>(5, 6)
+        let scrollTotal = SIMD2<Float>(7, 8)
         let first = InputSnapshot(
-            revision: InputRevision(session: 1, sequence: 2),
-            pointerPosition: SIMD2<Float>(3, 4),
-            pointerMotionTotal: SIMD2<Float>(5, 6),
-            scrollTotal: SIMD2<Float>(7, 8),
+            revision: revision,
+            pointerPosition: pointerPosition,
+            pointerMotionTotal: pointerMotionTotal,
+            scrollTotal: scrollTotal,
             pressedMouseButtons: [.left, .other(4)],
             pressedKeys: [firstKey, secondKey]
         )
         let second = InputSnapshot(
-            revision: InputRevision(session: 1, sequence: 2),
-            pointerPosition: SIMD2<Float>(3, 4),
-            pointerMotionTotal: SIMD2<Float>(5, 6),
-            scrollTotal: SIMD2<Float>(7, 8),
+            revision: revision,
+            pointerPosition: pointerPosition,
+            pointerMotionTotal: pointerMotionTotal,
+            scrollTotal: scrollTotal,
             pressedMouseButtons: [.other(4), .left],
             pressedKeys: [secondKey, firstKey]
         )
@@ -37,16 +41,18 @@ struct InputSnapshotTests {
     }
 
     @Test func revisionRemainsPartOfSnapshotValueIdentity() {
+        let firstRevision = InputRevision(session: 1, sequence: 1)
         let first = InputSnapshot(
-            revision: InputRevision(session: 1, sequence: 1),
+            revision: firstRevision,
             pointerPosition: .zero,
             pointerMotionTotal: .zero,
             scrollTotal: .zero,
             pressedMouseButtons: [],
             pressedKeys: []
         )
+        let secondRevision = InputRevision(session: 1, sequence: 2)
         let second = InputSnapshot(
-            revision: InputRevision(session: 1, sequence: 2),
+            revision: secondRevision,
             pointerPosition: .zero,
             pointerMotionTotal: .zero,
             scrollTotal: .zero,

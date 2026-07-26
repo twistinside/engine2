@@ -7,19 +7,32 @@ struct SRotationTests {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)
 
+        let initialRotationAxis = SIMD3<Float>(0, 0, 1)
+        let initialRotationValue = simd_quatf(
+            angle: 0,
+            axis: initialRotationAxis
+        )
+        let initialRotation = CRotation(rotation: initialRotationValue)
         world.rotationComponents.insert(
-            CRotation(rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))),
+            initialRotation,
             for: entity
+        )
+        let initialAngularVelocityValue = SIMD3<Float>(0, 0, 1)
+        let initialAngularVelocity = CAngularVelocity(
+            angularVelocity: initialAngularVelocityValue
         )
         world.angularVelocityComponents.insert(
-            CAngularVelocity(angularVelocity: SIMD3<Float>(0, 0, 1)),
+            initialAngularVelocity,
             for: entity
         )
+        let initialAngularAcceleration = SIMD3<Float>(0, 0, 2)
+        let initialAngularImpulse = SIMD3<Float>(0, 0, 0.5)
+        let initialAccumulator = CAngularMotionAccumulator(
+            angularAcceleration: initialAngularAcceleration,
+            angularImpulse: initialAngularImpulse
+        )
         world.angularMotionAccumulatorComponents.insert(
-            CAngularMotionAccumulator(
-                angularAcceleration: SIMD3<Float>(0, 0, 2),
-                angularImpulse: SIMD3<Float>(0, 0, 0.5)
-            ),
+            initialAccumulator,
             for: entity
         )
         let expectedRotationEntities = world.rotationComponents.entities
@@ -36,7 +49,10 @@ struct SRotationTests {
         system.update(world: &world, deltaTime: 0.5)
 
         let expectedAngularVelocity = SIMD3<Float>(0, 0, 2.5)
-        let expectedRotation = simd_quatf(angle: 1.25, axis: SIMD3<Float>(0, 0, 1))
+        let expectedRotation = simd_quatf(
+            angle: 1.25,
+            axis: initialRotationAxis
+        )
 
         #expect(world.angularVelocityComponents[entity]?.angularVelocity == expectedAngularVelocity)
         #expect(quaternionVectorsApproximatelyEqual(
@@ -60,21 +76,34 @@ struct SRotationTests {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)
 
+        let rotationAxis = SIMD3<Float>(0, 1, 0)
+        let initialRotationValue = simd_quatf(
+            angle: .pi / 6,
+            axis: rotationAxis
+        )
+        let initialRotation = CRotation(rotation: initialRotationValue)
         world.rotationComponents.insert(
-            CRotation(rotation: simd_quatf(angle: .pi / 6, axis: SIMD3<Float>(0, 1, 0))),
+            initialRotation,
             for: entity
         )
+        let angularVelocityValue = SIMD3<Float>(0, 2, 0)
+        let angularVelocity = CAngularVelocity(
+            angularVelocity: angularVelocityValue
+        )
         world.angularVelocityComponents.insert(
-            CAngularVelocity(angularVelocity: SIMD3<Float>(0, 2, 0)),
+            angularVelocity,
             for: entity
         )
 
         var system = SRotation()
         system.update(world: &world, deltaTime: 0.25)
 
-        let expectedRotation = simd_quatf(angle: .pi / 6 + 0.5, axis: SIMD3<Float>(0, 1, 0))
+        let expectedRotation = simd_quatf(
+            angle: .pi / 6 + 0.5,
+            axis: rotationAxis
+        )
 
-        #expect(world.angularVelocityComponents[entity]?.angularVelocity == SIMD3<Float>(0, 2, 0))
+        #expect(world.angularVelocityComponents[entity]?.angularVelocity == angularVelocityValue)
         #expect(quaternionVectorsApproximatelyEqual(
             world.rotationComponents[entity]?.rotation.vector,
             expectedRotation.vector
@@ -88,12 +117,15 @@ struct SRotationTests {
     @Test func incompleteEntityWithoutRotationIsLeftUnchanged() {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)
+        let expectedAngularVelocity = SIMD3<Float>(1, 2, 3)
         let expectedVelocity = CAngularVelocity(
-            angularVelocity: SIMD3<Float>(1, 2, 3)
+            angularVelocity: expectedAngularVelocity
         )
+        let expectedAngularAcceleration = SIMD3<Float>(4, 5, 6)
+        let expectedAngularImpulse = SIMD3<Float>(7, 8, 9)
         let expectedAccumulator = CAngularMotionAccumulator(
-            angularAcceleration: SIMD3<Float>(4, 5, 6),
-            angularImpulse: SIMD3<Float>(7, 8, 9)
+            angularAcceleration: expectedAngularAcceleration,
+            angularImpulse: expectedAngularImpulse
         )
         world.angularVelocityComponents.insert(expectedVelocity, for: entity)
         world.angularMotionAccumulatorComponents.insert(

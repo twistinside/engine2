@@ -5,8 +5,9 @@ import Testing
 struct SimulationTickTests {
     @Test func advancedReturnsNextStronglyTypedIdentity() {
         let tick = SimulationTick(rawValue: 41)
+        let expected = SimulationTick(rawValue: 42)
 
-        #expect(tick.advanced() == SimulationTick(rawValue: 42))
+        #expect(tick.advanced() == expected)
         #expect(SimulationTick.zero < tick)
     }
 
@@ -17,13 +18,14 @@ struct SimulationTickTests {
             SimulationTick(rawValue: .max - 1),
             SimulationTick(rawValue: 1)
         ]
-
-        #expect(values.sorted() == [
-            .zero,
+        let expected = [
+            SimulationTick.zero,
             SimulationTick(rawValue: 1),
             SimulationTick(rawValue: .max - 1),
             SimulationTick(rawValue: .max)
-        ])
+        ]
+
+        #expect(values.sorted() == expected)
         requireRawRepresentable(SimulationTick.zero)
     }
 
@@ -33,12 +35,16 @@ struct SimulationTickTests {
         let data = try JSONEncoder().encode(tick)
         let decoded = try JSONDecoder().decode(SimulationTick.self, from: data)
 
+        let expected = SimulationTick(rawValue: .max)
+
         #expect(decoded == tick)
-        #expect(decoded.advanced() == SimulationTick(rawValue: .max))
+        #expect(decoded.advanced() == expected)
     }
 
     @Test func tickIsSafeToTransferAsAnImmutableBoundaryValue() {
-        requireSendable(SimulationTick(rawValue: 8))
+        let tick = SimulationTick(rawValue: 8)
+
+        requireSendable(tick)
     }
 
     private func requireSendable(_ value: some Sendable) {}

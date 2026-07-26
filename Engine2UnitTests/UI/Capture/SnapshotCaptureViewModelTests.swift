@@ -119,7 +119,8 @@ struct SnapshotCaptureViewModelTests {
             return
         }
 
-        model.exportCompleted(.failure(SyntheticSaveError()))
+        let saveError = SyntheticSaveError()
+        model.exportCompleted(.failure(saveError))
 
         guard case let .exportFailure(message, retainedDocument, retainedFilename) = model.presentedModal else {
             Issue.record("Expected a failed save to retain retryable export state.")
@@ -138,9 +139,8 @@ struct SnapshotCaptureViewModelTests {
         )
         #expect(target.requests.count == 1)
 
-        model.exportCompleted(
-            .success(URL(fileURLWithPath: "/tmp/Engine2-tick-73.jpeg"))
-        )
+        let savedURL = URL(fileURLWithPath: "/tmp/Engine2-tick-73.jpeg")
+        model.exportCompleted(.success(savedURL))
 
         #expect(model.presentedModal == nil)
         #expect(target.requests.count == 1)
@@ -354,10 +354,11 @@ struct SnapshotCaptureViewModelTests {
         ]
 
         for scenario in scenarios {
+            let presentation = SnapshotCapturePresentation(
+                jpegCaptureOutcome: scenario.outcome
+            )
             #expect(
-                SnapshotCapturePresentation(
-                    jpegCaptureOutcome: scenario.outcome
-                )
+                presentation
                     == .captureFailure(message: scenario.expectedMessage)
             )
         }
@@ -383,34 +384,45 @@ struct SnapshotCaptureViewModelTests {
         snapshot: SimulationPresentationSnapshot,
         artifact: RenderedImageArtifact
     ) {
+        let sessionID = SimulationSessionID()
+        let simulationTick = SimulationTick(rawValue: tick)
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: simulationTick
+        )
+        let cameraPosition = SIMD3<Float>(0, 0, 8)
+        let cameraUp = SIMD3<Float>(0, 1, 0)
+        let camera = Camera.lookingAt(
+            .zero,
+            from: cameraPosition,
+            up: cameraUp,
+            projection: .standardPerspective
+        )
         let snapshot = SimulationPresentationSnapshot(
-            cursor: SimulationCursor(
-                sessionID: SimulationSessionID(),
-                tick: SimulationTick(rawValue: tick)
-            ),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(0, 0, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: .standardPerspective
-            ),
+            cursor: cursor,
+            camera: camera,
             entityPresentations: []
+        )
+        let encodedData = Data([0xFF, 0xD8, 0xFF, 0xD9])
+        let sourceRequestID = OffscreenRenderRequestID()
+        let viewpointID = RenderViewpointID()
+        let viewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: .zero,
+            camera: snapshot.camera
+        )
+        let renderSettings = OffscreenRenderSettings(
+            size: size,
+            outputMode: .surface,
+            exposure: .validation
         )
         let artifact = RenderedImageArtifact(
             encoding: .jpeg(quality: .maximum),
-            encodedData: Data([0xFF, 0xD8, 0xFF, 0xD9]),
-            sourceRequestID: OffscreenRenderRequestID(),
+            encodedData: encodedData,
+            sourceRequestID: sourceRequestID,
             sourceCursor: snapshot.cursor,
-            viewpoint: RenderViewpoint(
-                id: RenderViewpointID(),
-                revision: .zero,
-                camera: snapshot.camera
-            ),
-            renderSettings: OffscreenRenderSettings(
-                size: size,
-                outputMode: .surface,
-                exposure: .validation
-            )
+            viewpoint: viewpoint,
+            renderSettings: renderSettings
         )
         return (snapshot, artifact)
     }
@@ -419,15 +431,14 @@ struct SnapshotCaptureViewModelTests {
         artifact: RenderedImageArtifact,
         size: RenderPixelSize
     ) throws -> OffscreenRenderResult {
-        OffscreenRenderResult(
+        let bytes = Data(repeating: 0xFF, count: size.bgra8ByteCount)
+        let image = try RenderedBGRA8SRGBImage(size: size, bytes: bytes)
+        return OffscreenRenderResult(
             requestID: artifact.sourceRequestID,
             sourceCursor: artifact.sourceCursor,
             viewpoint: artifact.viewpoint,
             settings: artifact.renderSettings,
-            image: try RenderedBGRA8SRGBImage(
-                size: size,
-                bytes: Data(repeating: 0xFF, count: size.bgra8ByteCount)
-            )
+            image: image
         )
     }
 }

@@ -41,9 +41,12 @@ struct OffscreenRenderLimitsTests {
             maxDimension: 10,
             maxPixelCount: 50
         )
+        let boundary = try RenderPixelSize(width: 10, height: 5)
+        let excessivePixels = try RenderPixelSize(width: 10, height: 6)
+        let excessiveDimension = try RenderPixelSize(width: 11, height: 1)
 
-        #expect(limits.permits(try RenderPixelSize(width: 10, height: 5)))
-        #expect(!limits.permits(try RenderPixelSize(width: 10, height: 6)))
-        #expect(!limits.permits(try RenderPixelSize(width: 11, height: 1)))
+        #expect(limits.permits(boundary))
+        #expect(!limits.permits(excessivePixels))
+        #expect(!limits.permits(excessiveDimension))
     }
 }

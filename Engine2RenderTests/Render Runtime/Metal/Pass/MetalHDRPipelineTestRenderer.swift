@@ -15,8 +15,10 @@ final class MetalHDRPipelineTestRenderer {
     static let width = 65
     static let height = 65
 
+    private static let cameraPosition = SIMD3<Float>(0, 0, 1)
+
     private static let camera = Camera(
-        position: SIMD3<Float>(0, 0, 1),
+        position: cameraPosition,
         rotation: Transform.identityRotation,
         projection: .orthographic(
             height: 2,
@@ -42,12 +44,14 @@ final class MetalHDRPipelineTestRenderer {
         // Reuse the actual Game Content-authored material descriptions while
         // leaving model resolution empty: this harness supplies one analytic
         // triangle buffer and exercises only the production material pathway.
-        let authoredMaterials = BasicGameContent().renderAssetCatalog.materials
+        let gameContent = BasicGameContent()
+        let authoredMaterials = gameContent.renderAssetCatalog.materials
+        let catalog = RenderAssetCatalog(
+            models: [:],
+            materials: authoredMaterials
+        )
         let resources = try MetalResourceStore(
-            renderAssetCatalog: RenderAssetCatalog(
-                models: [:],
-                materials: authoredMaterials
-            ),
+            renderAssetCatalog: catalog,
             frameCount: 1
         )
         guard let frame = resources.frames.first else {
@@ -107,10 +111,11 @@ final class MetalHDRPipelineTestRenderer {
         right: SIMD4<Float>
     ) {
         precondition(materialIDs.count == 2, "The paired material proof requires exactly two identities.")
+        let normal = SIMD3<Float>(0, 0, 1)
         let results = try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
-            normal: SIMD3<Float>(0, 0, 1),
+            normal: normal,
             exposure: .validation,
             materialIDs: materialIDs,
             scissorRects: [Self.leftScissorRect, Self.rightScissorRect],
@@ -130,10 +135,11 @@ final class MetalHDRPipelineTestRenderer {
     /// while continuing to use production frame packing and argument binding.
     func renderAuthoredMaterialScene(_ materialIDs: [MaterialID]) throws -> [MetalHDRPipelineTestResult] {
         let layout = centeredStripLayout(drawCount: materialIDs.count)
+        let normal = SIMD3<Float>(0, 0, 1)
         return try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
-            normal: SIMD3<Float>(0, 0, 1),
+            normal: normal,
             exposure: .validation,
             materialIDs: materialIDs,
             scissorRects: layout.scissorRects,
@@ -152,13 +158,14 @@ final class MetalHDRPipelineTestRenderer {
         }
 
         let layout = centeredStripLayout(drawCount: materialIDs.count)
+        let normal = SIMD3<Float>(0, 0, 1)
         let results = try render(
             scenePipeline: pipeline,
             // Factor and contribution assertions inspect the raw HDR scene
             // samples. Linear presentation keeps the unused presented result
             // from applying the surface exposure/tone-map policy.
             presentationOutputMode: .viewSpaceNormals,
-            normal: SIMD3<Float>(0, 0, 1),
+            normal: normal,
             exposure: .validation,
             materialIDs: materialIDs,
             scissorRects: layout.scissorRects,
@@ -212,32 +219,38 @@ final class MetalHDRPipelineTestRenderer {
         )
 
         frame.commandAllocator.reset()
+        let sessionID = SimulationSessionID()
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
+        )
+        let instanceScale = SIMD3<Float>(repeating: 1)
+        let entityPresentations = materialIDs.enumerated().map {
+            index, materialID in
+            let id = EntityID(index: index, generation: 0)
+            return EntityPresentationSnapshot(
+                id: id,
+                position: .zero,
+                rotation: Transform.identityRotation,
+                scale: instanceScale,
+                meshID: .ball,
+                materialID: materialID
+            )
+        }
+        let snapshot = SimulationPresentationSnapshot(
+            cursor: cursor,
+            camera: Self.camera,
+            entityPresentations: entityPresentations
+        )
+        let renderFrame = RenderFrame(projecting: snapshot)
         let preparedFrame = MetalPreparedFrame(
-            renderFrame: RenderFrame(
-                projecting: SimulationPresentationSnapshot(
-                    cursor: SimulationCursor(
-                        sessionID: SimulationSessionID(),
-                        tick: .zero
-                    ),
-                    camera: Self.camera,
-                    entityPresentations: materialIDs.enumerated().map {
-                        index, materialID in
-                        EntityPresentationSnapshot(
-                            id: EntityID(index: index, generation: 0),
-                            position: .zero,
-                            rotation: Transform.identityRotation,
-                            scale: SIMD3<Float>(repeating: 1),
-                            meshID: .ball,
-                            materialID: materialID
-                        )
-                    }
-                )
-            ),
+            renderFrame: renderFrame,
             resources: resources
         )
+        let drawableSize = CGSize(width: Self.width, height: Self.height)
         frame.write(
             preparedFrame,
-            drawableSize: CGSize(width: Self.width, height: Self.height),
+            drawableSize: drawableSize,
             exposure: exposure
         )
         precondition(
@@ -258,11 +271,12 @@ final class MetalHDRPipelineTestRenderer {
         // Use the production frame-pass orchestration. The test supplies only
         // its analytic geometry, so attachment policy, the Metal 4 producer
         // barrier, and presentation ordering cannot drift from the app path.
+        let clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         try hdrFramePass.encode(
             sceneColorTexture: sceneTexture,
             depthTexture: depthTexture,
             destinationTexture: presentedTexture,
-            clearColor: MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1),
+            clearColor: clearColor,
             presentationParametersBuffer: frame.hdrPresentationParametersBuffer,
             outputMode: presentationOutputMode,
             into: commandBuffer
@@ -334,15 +348,17 @@ final class MetalHDRPipelineTestRenderer {
         }
 
         return sampleRegions.map { region in
-            MetalHDRPipelineTestResult(
-                sceneLinearRGBA: readScenePixel(
-                    from: sceneTexture,
-                    region: region
-                ),
-                presentedBGRA8: readPresentedPixel(
-                    from: presentedTexture,
-                    region: region
-                )
+            let sceneLinearRGBA = readScenePixel(
+                from: sceneTexture,
+                region: region
+            )
+            let presentedBGRA8 = readPresentedPixel(
+                from: presentedTexture,
+                region: region
+            )
+            return MetalHDRPipelineTestResult(
+                sceneLinearRGBA: sceneLinearRGBA,
+                presentedBGRA8: presentedBGRA8
             )
         }
     }
@@ -420,22 +436,20 @@ final class MetalHDRPipelineTestRenderer {
                 + availableWidth * (drawIndex + 1) / drawCount
             let regionWidth = endX - startX
 
-            scissorRects.append(
-                MTLScissorRect(
-                    x: startX,
-                    y: 0,
-                    width: regionWidth,
-                    height: Self.height
-                )
+            let scissorRect = MTLScissorRect(
+                x: startX,
+                y: 0,
+                width: regionWidth,
+                height: Self.height
             )
-            sampleRegions.append(
-                MTLRegionMake2D(
-                    startX + regionWidth / 2,
-                    Self.height / 2,
-                    1,
-                    1
-                )
+            scissorRects.append(scissorRect)
+            let sampleRegion = MTLRegionMake2D(
+                startX + regionWidth / 2,
+                Self.height / 2,
+                1,
+                1
             )
+            sampleRegions.append(sampleRegion)
         }
 
         return (scissorRects, sampleRegions)
@@ -543,11 +557,15 @@ final class MetalHDRPipelineTestRenderer {
                 mipmapLevel: 0
             )
         }
+        let red = Float(components[0])
+        let green = Float(components[1])
+        let blue = Float(components[2])
+        let alpha = Float(components[3])
         return SIMD4<Float>(
-            Float(components[0]),
-            Float(components[1]),
-            Float(components[2]),
-            Float(components[3])
+            red,
+            green,
+            blue,
+            alpha
         )
     }
 

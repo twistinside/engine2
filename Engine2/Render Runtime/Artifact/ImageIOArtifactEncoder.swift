@@ -50,8 +50,9 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
         // With 32-bit little-endian words, logical XRGB is stored as BGRX.
         // That matches the source BGRA byte order while deliberately ignoring
         // its guaranteed-opaque alpha byte.
+        let alphaInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue)
         let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(
-            CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue)
+            alphaInfo
         )
         guard let image = CGImage(
             width: result.image.size.width,

@@ -11,7 +11,8 @@ struct BasicGameContent {
 
     /// Selects the complete example content used by the App.
     init() {
-        self.init(worldBuilder: BasicWorldBuilder())
+        let worldBuilder = BasicWorldBuilder()
+        self.init(worldBuilder: worldBuilder)
     }
 
     /// Uses a caller-supplied world construction path with the complete

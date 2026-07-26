@@ -6,8 +6,9 @@ struct EntityIDTests {
         let firstGeneration = EntityID(index: 5, generation: 0)
         let nextGeneration = EntityID(index: 5, generation: 1)
         let otherIndex = EntityID(index: 6, generation: 0)
+        let identities = Set([firstGeneration, nextGeneration, otherIndex])
 
         #expect(firstGeneration != nextGeneration)
-        #expect(Set([firstGeneration, nextGeneration, otherIndex]).count == 3)
+        #expect(identities.count == 3)
     }
 }

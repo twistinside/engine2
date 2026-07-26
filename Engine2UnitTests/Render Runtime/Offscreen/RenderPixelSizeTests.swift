@@ -38,19 +38,19 @@ struct RenderPixelSizeTests {
 
     @Test func rejectsZeroAndNegativeWidths() {
         #expect(throws: RenderPixelSizeError.nonpositiveWidth(0)) {
-            try RenderPixelSize(width: 0, height: 1)
+            try size(width: 0, height: 1)
         }
         #expect(throws: RenderPixelSizeError.nonpositiveWidth(-1)) {
-            try RenderPixelSize(width: -1, height: 1)
+            try size(width: -1, height: 1)
         }
     }
 
     @Test func rejectsZeroAndNegativeHeights() {
         #expect(throws: RenderPixelSizeError.nonpositiveHeight(0)) {
-            try RenderPixelSize(width: 1, height: 0)
+            try size(width: 1, height: 0)
         }
         #expect(throws: RenderPixelSizeError.nonpositiveHeight(-1)) {
-            try RenderPixelSize(width: 1, height: -1)
+            try size(width: 1, height: -1)
         }
     }
 
@@ -63,7 +63,7 @@ struct RenderPixelSizeTests {
                 height: 2
             )
         ) {
-            try RenderPixelSize(width: width, height: 2)
+            try size(width: width, height: 2)
         }
     }
 
@@ -73,7 +73,7 @@ struct RenderPixelSizeTests {
         #expect(
             throws: RenderPixelSizeError.bytesPerRowOverflow(width: width)
         ) {
-            try RenderPixelSize(width: width, height: 1)
+            try size(width: width, height: 1)
         }
     }
 
@@ -87,7 +87,11 @@ struct RenderPixelSizeTests {
                 height: 3
             )
         ) {
-            try RenderPixelSize(width: width, height: 3)
+            try size(width: width, height: 3)
         }
+    }
+
+    private func size(width: Int, height: Int) throws -> RenderPixelSize {
+        try RenderPixelSize(width: width, height: height)
     }
 }

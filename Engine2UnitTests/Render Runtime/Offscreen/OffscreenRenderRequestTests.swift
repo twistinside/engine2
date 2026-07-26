@@ -5,9 +5,10 @@ import Testing
 
 struct OffscreenRenderRequestTests {
     @Test func requestIdentitySupportsFreshRawAndCodableRoundTrips() throws {
-        let rawValue = try #require(
-            UUID(uuidString: "00000000-0000-0000-0000-000000000100")
+        let parsedRawValue = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000100"
         )
+        let rawValue = try #require(parsedRawValue)
         let fixed = OffscreenRenderRequestID(rawValue: rawValue)
         let firstFresh = OffscreenRenderRequestID()
         let secondFresh = OffscreenRenderRequestID()
@@ -25,24 +26,29 @@ struct OffscreenRenderRequestTests {
     }
 
     @Test func preservesExactIdentitySnapshotViewpointAndSettings() throws {
-        let requestID = OffscreenRenderRequestID(
-            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000101")!
-        )
+        let requestUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000101"
+        )!
+        let requestID = OffscreenRenderRequestID(rawValue: requestUUID)
         let cursor = cursor(tick: 12)
+        let snapshotCameraPosition = SIMD3<Float>(1, 2, 3)
+        let snapshotCamera = Camera(
+            position: snapshotCameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let snapshot = SimulationPresentationSnapshot(
             cursor: cursor,
-            camera: Camera(
-                position: SIMD3<Float>(1, 2, 3),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            ),
+            camera: snapshotCamera,
             entityPresentations: []
         )
         let viewpoint = viewpoint(revision: 7)
+        let renderSize = try RenderPixelSize(width: 640, height: 480)
+        let exposure = ManualExposure(multiplier: 2)
         let settings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 640, height: 480),
+            size: renderSize,
             outputMode: .viewSpaceNormals,
-            exposure: ManualExposure(multiplier: 2)
+            exposure: exposure
         )
 
         let request = OffscreenRenderRequest(
@@ -60,29 +66,33 @@ struct OffscreenRenderRequestTests {
     }
 
     private func cursor(tick: UInt64) -> SimulationCursor {
-        SimulationCursor(
-            sessionID: SimulationSessionID(
-                rawValue: UUID(
-                    uuidString: "00000000-0000-0000-0000-000000000102"
-                )!
-            ),
-            tick: SimulationTick(rawValue: tick)
+        let sessionUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000102"
+        )!
+        let sessionID = SimulationSessionID(rawValue: sessionUUID)
+        let simulationTick = SimulationTick(rawValue: tick)
+        return SimulationCursor(
+            sessionID: sessionID,
+            tick: simulationTick
         )
     }
 
     private func viewpoint(revision: UInt64) -> RenderViewpoint {
-        RenderViewpoint(
-            id: RenderViewpointID(
-                rawValue: UUID(
-                    uuidString: "00000000-0000-0000-0000-000000000103"
-                )!
-            ),
-            revision: RenderViewpointRevision(rawValue: revision),
-            camera: Camera(
-                position: SIMD3<Float>(4, 5, 6),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+        let viewpointUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000103"
+        )!
+        let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
+        let viewpointRevision = RenderViewpointRevision(rawValue: revision)
+        let cameraPosition = SIMD3<Float>(4, 5, 6)
+        let camera = Camera(
+            position: cameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
+        return RenderViewpoint(
+            id: viewpointID,
+            revision: viewpointRevision,
+            camera: camera
         )
     }
 

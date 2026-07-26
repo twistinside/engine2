@@ -64,11 +64,12 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         configuration: SimulationConfiguration,
         inputBaseline: InputSnapshot?
     ) {
+        let sessionID = SimulationSessionID()
         self.init(
             worldBuilder: worldBuilder,
             configuration: configuration,
             inputBaseline: inputBaseline,
-            sessionID: SimulationSessionID()
+            sessionID: sessionID
         )
     }
 

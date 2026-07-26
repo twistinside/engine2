@@ -10,7 +10,8 @@ nonisolated struct SimulationSessionID: Codable, Hashable, RawRepresentable, Sen
 
     /// Creates a fresh identity for a new authoritative Simulation timeline.
     init() {
-        self.init(rawValue: UUID())
+        let rawValue = UUID()
+        self.init(rawValue: rawValue)
     }
 
     /// Restores or injects an already established session identity.

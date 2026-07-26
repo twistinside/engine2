@@ -9,35 +9,46 @@ struct BasicWorldBuilder: PWorldBuilder {
         let world = World()
         world.camera = .standard
 
+        let warmDielectricSmoothPosition = SIMD3<Float>(-1.75, 1.10, 0)
         _ = Ball(
             in: world,
             materialID: .warmDielectricSmooth,
-            position: SIMD3<Float>(-1.75, 1.10, 0)
+            position: warmDielectricSmoothPosition
         )
+
+        let warmDielectricPosition = SIMD3<Float>(0, 1.10, 0)
         _ = Ball(
             in: world,
             materialID: .warmDielectric,
-            position: SIMD3<Float>(0, 1.10, 0)
+            position: warmDielectricPosition
         )
+
+        let warmDielectricRoughPosition = SIMD3<Float>(1.75, 1.10, 0)
         _ = Ball(
             in: world,
             materialID: .warmDielectricRough,
-            position: SIMD3<Float>(1.75, 1.10, 0)
+            position: warmDielectricRoughPosition
         )
+
+        let goldMetalSmoothPosition = SIMD3<Float>(-1.75, -1.10, 0)
         _ = Ball(
             in: world,
             materialID: .goldMetalSmooth,
-            position: SIMD3<Float>(-1.75, -1.10, 0)
+            position: goldMetalSmoothPosition
         )
+
+        let goldMetalPosition = SIMD3<Float>(0, -1.10, 0)
         _ = Ball(
             in: world,
             materialID: .goldMetal,
-            position: SIMD3<Float>(0, -1.10, 0)
+            position: goldMetalPosition
         )
+
+        let goldMetalRoughPosition = SIMD3<Float>(1.75, -1.10, 0)
         _ = Ball(
             in: world,
             materialID: .goldMetalRough,
-            position: SIMD3<Float>(1.75, -1.10, 0)
+            position: goldMetalRoughPosition
         )
 
         return world

@@ -93,7 +93,8 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                 viewpoint: request.viewpoint
             )
         } catch {
-            return .rejected(OffscreenRenderRejection(error))
+            let rejection = OffscreenRenderRejection(error)
+            return .rejected(rejection)
         }
 
         // Projection shape is output-specific. Camera construction validates
@@ -303,15 +304,14 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
             return failure(at: .readback, causedBy: error)
         }
 
-        return .completed(
-            OffscreenRenderResult(
-                requestID: request.id,
-                sourceCursor: request.presentationSnapshot.cursor,
-                viewpoint: request.viewpoint,
-                settings: request.settings,
-                image: image
-            )
+        let result = OffscreenRenderResult(
+            requestID: request.id,
+            sourceCursor: request.presentationSnapshot.cursor,
+            viewpoint: request.viewpoint,
+            settings: request.settings,
+            image: image
         )
+        return .completed(result)
     }
 
     /// Commits one closed buffer and waits for real queue feedback.
@@ -347,11 +347,11 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
 
     /// Maps a backend error into a stable accepted-request failure stage.
     private func failure(at stage: OffscreenRenderFailureStage, causedBy error: any Error) -> OffscreenRenderOutcome {
-        .failed(
-            OffscreenRenderFailure(
-                stage: stage,
-                backendDescription: String(describing: error)
-            )
+        let backendDescription = String(describing: error)
+        let failure = OffscreenRenderFailure(
+            stage: stage,
+            backendDescription: backendDescription
         )
+        return .failed(failure)
     }
 }

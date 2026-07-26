@@ -9,12 +9,12 @@ import UniformTypeIdentifiers
 struct AgentSessionConfigurationTests {
     @Test
     func freshConstructionOwnsSessionIdentitiesAndStartsAtTheFirstRequest() throws {
-        let assembly = try AgentSessionConfiguration(
+        let configuration = AgentSessionConfiguration(
             renderLimits: .conservative,
             sessionLimits: .conservative
-        ).makeAssembly(
-            gameContent: BasicGameContent()
         )
+        let gameContent = BasicGameContent()
+        let assembly = try configuration.makeAssembly(gameContent: gameContent)
 
         #expect(assembly.initialCursor.tick == .zero)
         #expect(assembly.firstRequestID.sessionID == assembly.sessionID)
@@ -23,21 +23,25 @@ struct AgentSessionConfigurationTests {
 
     @Test
     func executesReplaysAndContinuesThroughTheClosedAssemblyBoundary() async throws {
+        let agentSessionUUID = UUID(
+            uuidString: "50000000-0000-0000-0000-000000000001"
+        )!
         let agentSessionID = AgentSessionID(
-            rawValue: UUID(
-                uuidString: "50000000-0000-0000-0000-000000000001"
-            )!
+            rawValue: agentSessionUUID
         )
+        let simulationSessionUUID = UUID(
+            uuidString: "50000000-0000-0000-0000-000000000002"
+        )!
         let simulationSessionID = SimulationSessionID(
-            rawValue: UUID(
-                uuidString: "50000000-0000-0000-0000-000000000002"
-            )!
+            rawValue: simulationSessionUUID
         )
-        let assembly = try AgentSessionConfiguration(
+        let configuration = AgentSessionConfiguration(
             renderLimits: .conservative,
             sessionLimits: .conservative
-        ).makeAssembly(
-            gameContent: BasicGameContent(),
+        )
+        let gameContent = BasicGameContent()
+        let assembly = try configuration.makeAssembly(
+            gameContent: gameContent,
             agentSessionID: agentSessionID,
             simulationSessionID: simulationSessionID
         )
@@ -56,28 +60,41 @@ struct AgentSessionConfigurationTests {
         #expect(initialCursor.sessionID == simulationSessionID)
         #expect(initialCursor.tick == .zero)
 
+        let viewpointUUID = UUID(
+            uuidString: "50000000-0000-0000-0000-000000000003"
+        )!
         let viewpointID = RenderViewpointID(
-            rawValue: UUID(
-                uuidString: "50000000-0000-0000-0000-000000000003"
-            )!
+            rawValue: viewpointUUID
+        )
+        let firstViewpointRevision = RenderViewpointRevision(rawValue: 11)
+        let firstCameraPosition = SIMD3<Float>(0, 0, 8)
+        let cameraUp = SIMD3<Float>(0, 1, 0)
+        let firstCamera = Camera.lookingAt(
+            .zero,
+            from: firstCameraPosition,
+            up: cameraUp,
+            projection: .standardPerspective
         )
         let firstViewpoint = RenderViewpoint(
             id: viewpointID,
-            revision: RenderViewpointRevision(rawValue: 11),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(0, 0, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: .standardPerspective
-            )
+            revision: firstViewpointRevision,
+            camera: firstCamera
         )
+        let firstRenderSize = try RenderPixelSize(width: 64, height: 48)
         let firstRenderSettings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 64, height: 48),
+            size: firstRenderSize,
             outputMode: .surface,
             exposure: .validation
         )
+        let firstJPEGQuality = try JPEGQuality(0.72)
         let firstEncoding = ImageArtifactEncoding.jpeg(
-            quality: try JPEGQuality(0.72)
+            quality: firstJPEGQuality
+        )
+        let firstRenderRequestUUID = UUID(
+            uuidString: "50000000-0000-0000-0000-000000000004"
+        )!
+        let firstRenderRequestID = OffscreenRenderRequestID(
+            rawValue: firstRenderRequestUUID
         )
         let firstRequest = AgentCaptureRequest(
             id: firstRequestID,
@@ -85,11 +102,7 @@ struct AgentSessionConfigurationTests {
                 expectedCursor: initialCursor,
                 stepCount: .one
             ),
-            renderRequestID: OffscreenRenderRequestID(
-                rawValue: UUID(
-                    uuidString: "50000000-0000-0000-0000-000000000004"
-                )!
-            ),
+            renderRequestID: firstRenderRequestID,
             viewpoint: firstViewpoint,
             renderSettings: firstRenderSettings,
             encoding: firstEncoding
@@ -126,30 +139,36 @@ struct AgentSessionConfigurationTests {
             sessionID: sessionID,
             sequence: secondSequence
         )
+        let secondCameraPosition = SIMD3<Float>(0.75, 0.25, 8)
+        let secondCamera = Camera.lookingAt(
+            .zero,
+            from: secondCameraPosition,
+            up: cameraUp,
+            projection: .standardPerspective
+        )
         let secondViewpoint = RenderViewpoint(
             id: viewpointID,
             revision: firstViewpoint.revision.advanced(),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(0.75, 0.25, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: .standardPerspective
-            )
+            camera: secondCamera
         )
+        let secondRenderSize = try RenderPixelSize(width: 48, height: 36)
+        let secondExposure = ManualExposure(multiplier: 1.1)
         let secondRenderSettings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 48, height: 36),
+            size: secondRenderSize,
             outputMode: .viewSpaceNormals,
-            exposure: ManualExposure(multiplier: 1.1)
+            exposure: secondExposure
         )
         let secondEncoding = ImageArtifactEncoding.png
+        let secondRenderRequestUUID = UUID(
+            uuidString: "50000000-0000-0000-0000-000000000005"
+        )!
+        let secondRenderRequestID = OffscreenRenderRequestID(
+            rawValue: secondRenderRequestUUID
+        )
         let secondRequest = AgentCaptureRequest(
             id: secondRequestID,
             source: .current(expectedCursor: firstResponse.knownCursor),
-            renderRequestID: OffscreenRenderRequestID(
-                rawValue: UUID(
-                    uuidString: "50000000-0000-0000-0000-000000000005"
-                )!
-            ),
+            renderRequestID: secondRenderRequestID,
             viewpoint: secondViewpoint,
             renderSettings: secondRenderSettings,
             encoding: secondEncoding
@@ -170,7 +189,8 @@ struct AgentSessionConfigurationTests {
             firstResponse.knownCursor
         )
         #expect(secondResponse.knownCursor == firstResponse.knownCursor)
-        #expect(secondResponse.knownCursor.tick == SimulationTick(rawValue: 1))
+        let expectedSecondTick = SimulationTick(rawValue: 1)
+        #expect(secondResponse.knownCursor.tick == expectedSecondTick)
         #expect(secondResponse.knownCursor.sessionID == simulationSessionID)
         try assertArtifact(
             secondResult.artifact,
@@ -201,15 +221,23 @@ struct AgentSessionConfigurationTests {
             sessionID: sessionID,
             sequence: thirdSequence
         )
+        let thirdCameraPosition = SIMD3<Float>(-0.5, 0.5, 8)
+        let thirdCamera = Camera.lookingAt(
+            .zero,
+            from: thirdCameraPosition,
+            up: cameraUp,
+            projection: .standardPerspective
+        )
         let thirdViewpoint = RenderViewpoint(
             id: viewpointID,
             revision: secondViewpoint.revision.advanced(),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(-0.5, 0.5, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: .standardPerspective
-            )
+            camera: thirdCamera
+        )
+        let thirdRenderRequestUUID = UUID(
+            uuidString: "50000000-0000-0000-0000-000000000006"
+        )!
+        let thirdRenderRequestID = OffscreenRenderRequestID(
+            rawValue: thirdRenderRequestUUID
         )
         let thirdRequest = AgentCaptureRequest(
             id: thirdRequestID,
@@ -217,11 +245,7 @@ struct AgentSessionConfigurationTests {
                 expectedCursor: secondResponse.knownCursor,
                 stepCount: .one
             ),
-            renderRequestID: OffscreenRenderRequestID(
-                rawValue: UUID(
-                    uuidString: "50000000-0000-0000-0000-000000000006"
-                )!
-            ),
+            renderRequestID: thirdRenderRequestID,
             viewpoint: thirdViewpoint,
             renderSettings: secondRenderSettings,
             encoding: secondEncoding
@@ -243,7 +267,8 @@ struct AgentSessionConfigurationTests {
             firstResponse.knownCursor.advanced()
         )
         #expect(thirdResponse.knownCursor == thirdResult.advanceResult.finalCursor)
-        #expect(thirdResponse.knownCursor.tick == SimulationTick(rawValue: 2))
+        let expectedThirdTick = SimulationTick(rawValue: 2)
+        #expect(thirdResponse.knownCursor.tick == expectedThirdTick)
         #expect(thirdResult.advanceResult.completedStepCount.rawValue == 1)
         try assertArtifact(
             thirdResult.artifact,
@@ -314,13 +339,19 @@ struct AgentSessionConfigurationTests {
         switch encoding {
         case .jpeg:
             expectedType = .jpeg
-            #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
-            #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
+            let filePrefix = Array(artifact.encodedData.prefix(2))
+            let fileSuffix = Array(artifact.encodedData.suffix(2))
+            #expect(filePrefix == [0xFF, 0xD8])
+            #expect(fileSuffix == [0xFF, 0xD9])
         case .png:
             expectedType = .png
+            let filePrefix = Array(artifact.encodedData.prefix(8))
             #expect(
-                Array(artifact.encodedData.prefix(8))
-                    == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+                filePrefix
+                    == [
+                        0x89, 0x50, 0x4E, 0x47,
+                        0x0D, 0x0A, 0x1A, 0x0A
+                    ]
             )
         }
         let source = try #require(

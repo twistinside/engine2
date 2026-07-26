@@ -4,14 +4,16 @@ import Testing
 struct SimulationRuntimeTests {
     @Test func constructionDistinguishesFreshAndInjectedSessionIdentity() {
         let injectedSessionID = SimulationSessionID()
+        let injectedWorldBuilder = BasicWorldBuilder()
         let injected = SimulationRuntime(
-            worldBuilder: BasicWorldBuilder(),
+            worldBuilder: injectedWorldBuilder,
             configuration: .basicGame,
             inputBaseline: nil,
             sessionID: injectedSessionID
         )
+        let freshWorldBuilder = BasicWorldBuilder()
         let fresh = SimulationRuntime(
-            worldBuilder: BasicWorldBuilder(),
+            worldBuilder: freshWorldBuilder,
             configuration: .basicGame,
             inputBaseline: nil
         )
@@ -23,7 +25,8 @@ struct SimulationRuntimeTests {
     }
 
     @Test func initBuildsEngineWorldFromBuilder() async throws {
-        let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
+        let expectedPosition = SIMD3<Float>(3, 4, 5)
+        let builder = TestWorldBuilder(position: expectedPosition)
 
         let simulation = SimulationRuntime(
             worldBuilder: builder,
@@ -33,12 +36,12 @@ struct SimulationRuntimeTests {
         let presentationSource: any PSimulationPresentationSource = simulation
 
         let entity = try #require(simulation.world.positionComponents.entities.first)
-        #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Float>(3, 4, 5))
+        #expect(simulation.world.positionComponents[entity]?.position == expectedPosition)
         #expect(SimulationRuntime.fixedTimeStep == .seconds(1.0 / 60.0))
         #expect(presentationSource.latestPresentationSnapshot.tick == .zero)
         #expect(
             presentationSource.latestPresentationSnapshot.entityPresentations.first?.position ==
-                SIMD3<Float>(3, 4, 5)
+                expectedPosition
         )
     }
 
@@ -52,35 +55,39 @@ struct SimulationRuntimeTests {
         )
         let firstWorld = simulation.world
         let firstEntity = try #require(firstWorld.positionComponents.entities.first)
+        let firstExpectedPosition = SIMD3<Float>(1, 0, 0)
 
-        #expect(firstWorld.positionComponents[firstEntity]?.position == SIMD3<Float>(1, 0, 0))
+        #expect(firstWorld.positionComponents[firstEntity]?.position == firstExpectedPosition)
         #expect(builder.buildCount == 1)
 
         simulation.rebuildWorld(inputBaseline: nil)
 
         let secondEntity = try #require(simulation.world.positionComponents.entities.first)
+        let secondExpectedPosition = SIMD3<Float>(2, 0, 0)
 
         #expect(builder.buildCount == 2)
         #expect(simulation.world !== firstWorld)
-        #expect(simulation.world.positionComponents[secondEntity]?.position == SIMD3<Float>(2, 0, 0))
+        #expect(simulation.world.positionComponents[secondEntity]?.position == secondExpectedPosition)
         #expect(simulation.latestPresentationSnapshot.tick == .zero)
         #expect(
             simulation.latestPresentationSnapshot.entityPresentations.first?.position ==
-                SIMD3<Float>(2, 0, 0)
+                secondExpectedPosition
         )
     }
 
     @Test func replacingBuilderCanDeferWorldReconstruction() throws {
+        let initialPosition = SIMD3<Float>(1, 0, 0)
+        let initialBuilder = TestWorldBuilder(position: initialPosition)
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0)),
+            worldBuilder: initialBuilder,
             configuration: .basicGame,
             inputBaseline: nil
         )
         let originalWorld = simulation.world
 
-        simulation.replaceWorldBuilder(
-            TestWorldBuilder(position: SIMD3<Float>(9, 0, 0))
-        )
+        let replacementPosition = SIMD3<Float>(9, 0, 0)
+        let replacementBuilder = TestWorldBuilder(position: replacementPosition)
+        simulation.replaceWorldBuilder(replacementBuilder)
 
         #expect(simulation.world === originalWorld)
 
@@ -92,20 +99,24 @@ struct SimulationRuntimeTests {
         #expect(simulation.world !== originalWorld)
         #expect(
             simulation.world.positionComponents[entity]?.position ==
-            SIMD3<Float>(9, 0, 0)
+            replacementPosition
         )
     }
 
     @Test func namedBuilderReplacementAndRebuildStartsANewWorldImmediately() throws {
+        let initialPosition = SIMD3<Float>(1, 0, 0)
+        let initialBuilder = TestWorldBuilder(position: initialPosition)
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0)),
+            worldBuilder: initialBuilder,
             configuration: .basicGame,
             inputBaseline: nil
         )
         let originalWorld = simulation.world
 
+        let replacementPosition = SIMD3<Float>(5, 0, 0)
+        let replacementBuilder = TestWorldBuilder(position: replacementPosition)
         simulation.replaceWorldBuilderAndRebuild(
-            TestWorldBuilder(position: SIMD3<Float>(5, 0, 0)),
+            replacementBuilder,
             inputBaseline: nil
         )
 
@@ -115,7 +126,7 @@ struct SimulationRuntimeTests {
         #expect(simulation.world !== originalWorld)
         #expect(
             simulation.world.positionComponents[entity]?.position ==
-            SIMD3<Float>(5, 0, 0)
+            replacementPosition
         )
     }
 
@@ -124,21 +135,26 @@ struct SimulationRuntimeTests {
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )
+        let revision = InputRevision(session: 2, sequence: 4)
+        let pointerPosition = SIMD2<Float>(20, 30)
+        let pointerMotionTotal = SIMD2<Float>(8, -3)
+        let scrollTotal = SIMD2<Float>(0, 5)
         let inputBaseline = InputSnapshot(
-            revision: InputRevision(session: 2, sequence: 4),
-            pointerPosition: SIMD2<Float>(20, 30),
-            pointerMotionTotal: SIMD2<Float>(8, -3),
-            scrollTotal: SIMD2<Float>(0, 5),
+            revision: revision,
+            pointerPosition: pointerPosition,
+            pointerMotionTotal: pointerMotionTotal,
+            scrollTotal: scrollTotal,
             pressedMouseButtons: [.left],
             pressedKeys: [key]
         )
+        let worldBuilder = TestWorldBuilder(position: .zero)
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: .zero),
+            worldBuilder: worldBuilder,
             configuration: .basicGame,
             inputBaseline: inputBaseline
         )
 
-        #expect(simulation.world.input.mouse.position == SIMD2<Float>(20, 30))
+        #expect(simulation.world.input.mouse.position == pointerPosition)
         #expect(simulation.world.input.mouse.buttons == [.left])
         #expect(simulation.world.input.keyboard.keys == [key])
         #expect(simulation.world.input.mouse.delta == .zero)
@@ -146,7 +162,7 @@ struct SimulationRuntimeTests {
 
         simulation.rebuildWorld(inputBaseline: inputBaseline)
 
-        #expect(simulation.world.input.mouse.position == SIMD2<Float>(20, 30))
+        #expect(simulation.world.input.mouse.position == pointerPosition)
         #expect(simulation.world.input.mouse.buttons == [.left])
         #expect(simulation.world.input.keyboard.keys == [key])
         #expect(simulation.world.input.mouse.delta == .zero)
@@ -172,10 +188,12 @@ private extension SimulationRuntimeTests {
             buildCount += 1
 
             let world = World()
+            let positionX = Float(buildCount)
+            let position = SIMD3<Float>(positionX, 0, 0)
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,
-                position: SIMD3<Float>(Float(buildCount), 0, 0)
+                position: position
             )
             return world
         }

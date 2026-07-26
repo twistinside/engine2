@@ -15,9 +15,13 @@ struct BasicWorldBuilderTests {
             world.renderableComponents.dense.map(\.materialID) ==
                 Self.expectedMaterialIDs
         )
+        let expectedMeshIDs = Array(
+            repeating: MeshID.ball,
+            count: Self.expectedEntityIDs.count
+        )
         #expect(
             world.renderableComponents.dense.map(\.meshID) ==
-                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+                expectedMeshIDs
         )
         #expect(world.scaleComponents.entities.isEmpty)
         #expect(world.scaleComponents.dense.isEmpty)
@@ -29,8 +33,12 @@ struct BasicWorldBuilderTests {
     @Test func materialSphereSceneRemainsQuiescentAcrossFixedSteps() {
         let initialWorld = BasicWorldBuilder().buildWorld()
         let sessionID = SimulationSessionID()
+        let initialCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
+        )
         let initialSnapshot = initialWorld.presentationSnapshot(
-            at: SimulationCursor(sessionID: sessionID, tick: .zero)
+            at: initialCursor
         )
         let engine = Engine(
             world: initialWorld,
@@ -44,14 +52,16 @@ struct BasicWorldBuilderTests {
             engine.step()
         }
 
+        let laterCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: engine.completedTick
+        )
         let laterSnapshot = engine.world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: sessionID,
-                tick: engine.completedTick
-            )
+            at: laterCursor
         )
 
-        #expect(engine.completedTick == SimulationTick(rawValue: 120))
+        let expectedCompletedTick = SimulationTick(rawValue: 120)
+        #expect(engine.completedTick == expectedCompletedTick)
         #expect(
             laterSnapshot.entityPresentations ==
                 initialSnapshot.entityPresentations
@@ -120,7 +130,8 @@ struct BasicWorldBuilderTests {
     /// Freezes the independently documented M5 camera rather than asking the
     /// named production standard to serve as its own test expectation.
     private func expectReferenceCamera(_ camera: Camera) {
-        #expect(camera.position == SIMD3<Float>(0, 0, 8))
+        let expectedPosition = SIMD3<Float>(0, 0, 8)
+        #expect(camera.position == expectedPosition)
         #expect(camera.rotation.vector == Self.identityRotation.vector)
 
         switch camera.projection {
@@ -156,8 +167,10 @@ struct BasicWorldBuilderTests {
         .goldMetalRough
     ]
 
+    private static let identityRotationAxis = SIMD3<Float>(0, 0, 1)
+
     private static let identityRotation = simd_quatf(
         angle: 0,
-        axis: SIMD3<Float>(0, 0, 1)
+        axis: identityRotationAxis
     )
 }

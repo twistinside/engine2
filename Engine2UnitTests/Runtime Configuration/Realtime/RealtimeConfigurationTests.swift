@@ -3,15 +3,19 @@ import Testing
 
 struct RealtimeConfigurationTests {
     @Test func makeAssemblyUsesConfigurationAndGameContent() throws {
+        let maximumStepsPerWake = SimulationStepCount(rawValue: 2)
+        let catchUpPolicy = RealtimeCatchUpPolicy(
+            maximumStepsPerWake: maximumStepsPerWake,
+            backlogTreatment: .preserve
+        )
         let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
-            catchUpPolicy: RealtimeCatchUpPolicy(
-                maximumStepsPerWake: SimulationStepCount(rawValue: 2),
-                backlogTreatment: .preserve
-            )
+            catchUpPolicy: catchUpPolicy
         )
+        let expectedPosition = SIMD3<Float>(3, 4, 5)
+        let worldBuilder = RealtimeTestWorldBuilder(position: expectedPosition)
         let gameContent = BasicGameContent(
-            worldBuilder: RealtimeTestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
+            worldBuilder: worldBuilder
         )
 
         let assembly = configuration.makeAssembly(gameContent: gameContent)
@@ -24,7 +28,7 @@ struct RealtimeConfigurationTests {
         #expect(assembly.advanceDriver.catchUpPolicy == configuration.catchUpPolicy)
         #expect(
             assembly.simulationRuntime.world.positionComponents[entity]?.position ==
-            SIMD3<Float>(3, 4, 5)
+            expectedPosition
         )
         #expect(assembly.inputRuntime.isRunning == false)
         #expect(assembly.advanceDriver.isRunning == false)
@@ -39,8 +43,9 @@ struct RealtimeConfigurationTests {
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
         )
+        let worldBuilder = RealtimeTestWorldBuilder(position: .zero)
         let gameContent = BasicGameContent(
-            worldBuilder: RealtimeTestWorldBuilder(position: .zero)
+            worldBuilder: worldBuilder
         )
 
         let first = configuration.makeAssembly(gameContent: gameContent)
@@ -59,7 +64,8 @@ struct RealtimeConfigurationTests {
             catchUpPolicy: .interactive
         )
 
-        let assembly = configuration.makeAssembly(gameContent: BasicGameContent())
+        let gameContent = BasicGameContent()
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
 
         #expect(assembly.advanceDriver.pollInterval == SimulationRuntime.fixedTimeStep)
     }

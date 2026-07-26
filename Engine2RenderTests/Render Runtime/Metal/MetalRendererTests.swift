@@ -137,13 +137,14 @@ struct MetalRendererTests {
             decodedMeshCounts.append(model.meshes.count)
         }
 
+        let expectedVisitedIndices = Array(prepared.instances.indices)
         #expect(prepared.instances.count == 6)
         #expect(
             prepared.instances.allSatisfy {
                 $0.renderInstance.meshID == .ball
             }
         )
-        #expect(visitedIndices == Array(prepared.instances.indices))
+        #expect(visitedIndices == expectedVisitedIndices)
         #expect(visitedMaterialIDs == scene.materialIDs)
         #expect(decodedMeshCounts.allSatisfy { $0 > 0 })
     }
@@ -157,13 +158,14 @@ struct MetalRendererTests {
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: MetalResourceStore.defaultFrameCount
         )
+        let simulation = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil
+        )
         let renderer = try MetalRenderer(
             resources: resources,
-            presentationSource: SimulationRuntime(
-                worldBuilder: gameContent.worldBuilder,
-                configuration: gameContent.simulationConfiguration,
-                inputBaseline: nil
-            ),
+            presentationSource: simulation,
             outputMode: .surface
         )
 
@@ -370,21 +372,22 @@ struct MetalRendererTests {
         )
         let frame = try #require(resources.frames.first)
         let encoder = MetalFrameEncoder(resources: resources)
-        let empty = encoder.prepare(makeRenderFrame(instanceCount: 0))
-        let maximum = encoder.prepare(
-            makeRenderFrame(
-                instanceCount: FrameResources.maximumInstanceCount
-            )
+        let emptyRenderFrame = makeRenderFrame(instanceCount: 0)
+        let maximumRenderFrame = makeRenderFrame(
+            instanceCount: FrameResources.maximumInstanceCount
         )
+        let empty = encoder.prepare(emptyRenderFrame)
+        let maximum = encoder.prepare(maximumRenderFrame)
+        let drawableSize = CGSize(width: 1_920, height: 1_080)
 
         frame.write(
             empty,
-            drawableSize: CGSize(width: 1_920, height: 1_080),
+            drawableSize: drawableSize,
             exposure: .validation
         )
         frame.write(
             maximum,
-            drawableSize: CGSize(width: 1_920, height: 1_080),
+            drawableSize: drawableSize,
             exposure: .validation
         )
 
@@ -395,32 +398,38 @@ struct MetalRendererTests {
             capacity: FrameResources.maximumInstanceCount
         )
         let last = writtenInstances[FrameResources.maximumInstanceCount - 1]
+        let expectedLastX = Float(FrameResources.maximumInstanceCount - 1)
         #expect(
             last.modelViewMatrix.columns.3.x
-                == Float(FrameResources.maximumInstanceCount - 1)
+                == expectedLastX
         )
     }
 
     private func makeRenderFrame(instanceCount: Int) -> RenderFrame {
-        RenderFrame(
-            projecting: SimulationPresentationSnapshot(
-                cursor: SimulationCursor(
-                    sessionID: SimulationSessionID(),
-                    tick: .zero
-                ),
-                camera: .standard,
-                entityPresentations: (0..<instanceCount).map { index in
-                    EntityPresentationSnapshot(
-                        id: EntityID(index: index, generation: 0),
-                        position: SIMD3<Float>(Float(index), 0, 0),
-                        rotation: nil,
-                        scale: nil,
-                        meshID: .ball,
-                        materialID: .warmDielectric
-                    )
-                }
-            )
+        let sessionID = SimulationSessionID()
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
         )
+        let entityPresentations = (0..<instanceCount).map { index in
+            let id = EntityID(index: index, generation: 0)
+            let xPosition = Float(index)
+            let position = SIMD3<Float>(xPosition, 0, 0)
+            return EntityPresentationSnapshot(
+                id: id,
+                position: position,
+                rotation: nil,
+                scale: nil,
+                meshID: .ball,
+                materialID: .warmDielectric
+            )
+        }
+        let snapshot = SimulationPresentationSnapshot(
+            cursor: cursor,
+            camera: .standard,
+            entityPresentations: entityPresentations
+        )
+        return RenderFrame(projecting: snapshot)
     }
 
     private func makeTexture(

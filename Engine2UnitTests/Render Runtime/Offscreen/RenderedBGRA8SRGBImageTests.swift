@@ -16,6 +16,8 @@ struct RenderedBGRA8SRGBImageTests {
 
     @Test func rejectsShortAndLongPayloads() throws {
         let size = try RenderPixelSize(width: 2, height: 2)
+        let shortBytes = Data(repeating: 0, count: 15)
+        let longBytes = Data(repeating: 0, count: 17)
 
         #expect(
             throws: RenderedBGRA8SRGBImageError.unexpectedByteCount(
@@ -23,10 +25,7 @@ struct RenderedBGRA8SRGBImageTests {
                 actual: 15
             )
         ) {
-            try RenderedBGRA8SRGBImage(
-                size: size,
-                bytes: Data(repeating: 0, count: 15)
-            )
+            try image(size: size, bytes: shortBytes)
         }
         #expect(
             throws: RenderedBGRA8SRGBImageError.unexpectedByteCount(
@@ -34,10 +33,7 @@ struct RenderedBGRA8SRGBImageTests {
                 actual: 17
             )
         ) {
-            try RenderedBGRA8SRGBImage(
-                size: size,
-                bytes: Data(repeating: 0, count: 17)
-            )
+            try image(size: size, bytes: longBytes)
         }
     }
 
@@ -53,5 +49,12 @@ struct RenderedBGRA8SRGBImageTests {
         extractedCopy[1] = 88
         #expect(image.bytes[1] == 1)
         #expect(extractedCopy[1] == 88)
+    }
+
+    private func image(
+        size: RenderPixelSize,
+        bytes: Data
+    ) throws -> RenderedBGRA8SRGBImage {
+        try RenderedBGRA8SRGBImage(size: size, bytes: bytes)
     }
 }

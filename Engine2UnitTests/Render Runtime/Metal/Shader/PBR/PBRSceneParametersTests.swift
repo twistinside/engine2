@@ -24,44 +24,52 @@ struct PBRSceneParametersTests {
     @Test func validationConstantsMatchTheProvenDirectionalLight() {
         // This light supplies incident radiance (8, 4, 2) at normal incidence.
         // Material factors are deliberately absent from the scene input.
+        let expectedDirection = SIMD3<Float>(0, 0, 1)
+        let expectedColor = SIMD3<Float>(1, 0.5, 0.25)
         #expect(
             PBRSceneParameters.validationDirectionToLightWorld
-                == SIMD3<Float>(0, 0, 1)
+                == expectedDirection
         )
         #expect(
             PBRSceneParameters.validationLightColor
-                == SIMD3<Float>(1, 0.5, 0.25)
+                == expectedColor
         )
         #expect(PBRSceneParameters.validationLightIntensity == 8)
     }
 
     @Test func identityCameraPacksLightWithoutChangingDirection() {
         let parameters = PBRSceneParameters(camera: .standard)
+        let expectedDirection = SIMD4<Float>(0, 0, 1, 0)
+        let expectedColorIntensity = SIMD4<Float>(1, 0.5, 0.25, 8)
 
         #expect(
             parameters.directionToLightPadding
-                == SIMD4<Float>(0, 0, 1, 0)
+                == expectedDirection
         )
         #expect(
             parameters.lightColorIntensity
-                == SIMD4<Float>(1, 0.5, 0.25, 8)
+                == expectedColorIntensity
         )
     }
 
     @Test func cameraTranslationDoesNotAffectTheViewSpaceLightDirection() {
+        let firstPosition = SIMD3<Float>(0, 0, 8)
+        let firstCamera = Camera(
+            position: firstPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let first = PBRSceneParameters(
-            camera: Camera(
-                position: SIMD3<Float>(0, 0, 8),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            camera: firstCamera
+        )
+        let translatedPosition = SIMD3<Float>(37, -12, 4)
+        let translatedCamera = Camera(
+            position: translatedPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
         )
         let translated = PBRSceneParameters(
-            camera: Camera(
-                position: SIMD3<Float>(37, -12, 4),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            camera: translatedCamera
         )
 
         // Direction vectors use w=0 semantics. The camera translation can move
@@ -74,12 +82,15 @@ struct PBRSceneParametersTests {
     }
 
     @Test func inverseCameraRotationTransformsWorldLightIntoViewSpace() {
+        let position = SIMD3<Float>(19, -7, 3)
+        let rotationAxis = SIMD3<Float>(0, 1, 0)
+        let rotation = simd_quatf(
+            angle: .pi / 2,
+            axis: rotationAxis
+        )
         let camera = Camera(
-            position: SIMD3<Float>(19, -7, 3),
-            rotation: simd_quatf(
-                angle: .pi / 2,
-                axis: SIMD3<Float>(0, 1, 0)
-            ),
+            position: position,
+            rotation: rotation,
             projection: .standardPerspective
         )
         let parameters = PBRSceneParameters(camera: camera)
@@ -92,7 +103,8 @@ struct PBRSceneParametersTests {
         // A +90-degree camera rotation about +Y applies its inverse to world
         // vectors, mapping the validation world's +Z surface-to-light direction
         // to view-space -X. Checking the sign catches a camera-to-world mix-up.
-        #expect(simd_distance(direction, SIMD3<Float>(-1, 0, 0)) < 0.0001)
+        let expectedDirection = SIMD3<Float>(-1, 0, 0)
+        #expect(simd_distance(direction, expectedDirection) < 0.0001)
         #expect(abs(simd_length(direction) - 1) < 0.0001)
         #expect(parameters.directionToLightPadding.w == 0)
     }

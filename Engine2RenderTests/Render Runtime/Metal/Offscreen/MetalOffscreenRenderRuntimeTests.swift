@@ -27,8 +27,9 @@ struct MetalOffscreenRenderRuntimeTests {
             outputMode: .surface,
             exposure: .validation
         )
+        let requestID = OffscreenRenderRequestID()
         let request = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: requestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: settings
@@ -66,15 +67,17 @@ struct MetalOffscreenRenderRuntimeTests {
             limits: limits
         )
         let excessiveSize = try RenderPixelSize(width: 320, height: 240)
+        let excessiveSettings = OffscreenRenderSettings(
+            size: excessiveSize,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let excessiveRequestID = OffscreenRenderRequestID()
         let excessiveRequest = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: excessiveRequestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
-            settings: OffscreenRenderSettings(
-                size: excessiveSize,
-                outputMode: .surface,
-                exposure: .validation
-            )
+            settings: excessiveSettings
         )
 
         let rejected = await runtime.render(excessiveRequest)
@@ -86,15 +89,18 @@ struct MetalOffscreenRenderRuntimeTests {
             )
         )
 
+        let acceptedSize = try RenderPixelSize(width: 96, height: 64)
+        let acceptedSettings = OffscreenRenderSettings(
+            size: acceptedSize,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let acceptedRequestID = OffscreenRenderRequestID()
         let acceptedRequest = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: acceptedRequestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
-            settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64),
-                outputMode: .surface,
-                exposure: .validation
-            )
+            settings: acceptedSettings
         )
         let result = try completedResult(
             from: await runtime.render(acceptedRequest)
@@ -111,19 +117,22 @@ struct MetalOffscreenRenderRuntimeTests {
             catalog: fixture.content.renderAssetCatalog,
             limits: .conservative
         )
+        let size = try RenderPixelSize(width: 640, height: 480)
         let settings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 640, height: 480),
+            size: size,
             outputMode: .surface,
             exposure: .validation
         )
+        let firstRequestID = OffscreenRenderRequestID()
         let firstRequest = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: firstRequestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: settings
         )
+        let overlappingRequestID = OffscreenRenderRequestID()
         let overlappingRequest = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: overlappingRequestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: settings
@@ -152,24 +161,30 @@ struct MetalOffscreenRenderRuntimeTests {
             catalog: fixture.content.renderAssetCatalog,
             limits: .conservative
         )
-        let invalidViewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: .zero,
-            camera: Camera(
-                position: SIMD3<Float>(.nan, 0, 8),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+        let invalidPosition = SIMD3<Float>(.nan, 0, 8)
+        let invalidCamera = Camera(
+            position: invalidPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
         )
+        let invalidViewpointID = RenderViewpointID()
+        let invalidViewpoint = RenderViewpoint(
+            id: invalidViewpointID,
+            revision: .zero,
+            camera: invalidCamera
+        )
+        let requestSize = try RenderPixelSize(width: 96, height: 64)
+        let settings = OffscreenRenderSettings(
+            size: requestSize,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let requestID = OffscreenRenderRequestID()
         let request = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: requestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: invalidViewpoint,
-            settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64),
-                outputMode: .surface,
-                exposure: .validation
-            )
+            settings: settings
         )
 
         let outcome = await runtime.render(request)
@@ -181,33 +196,40 @@ struct MetalOffscreenRenderRuntimeTests {
         let fixture = makeFixture()
         let seed = try #require(fixture.snapshot.entityPresentations.first)
         let entityID = EntityID(index: 900, generation: 2)
+        let overflowingPosition = SIMD3<Float>(
+            .greatestFiniteMagnitude,
+            0,
+            0
+        )
+        let entityPresentation = EntityPresentationSnapshot(
+            id: entityID,
+            position: overflowingPosition,
+            rotation: seed.rotation,
+            scale: seed.scale,
+            meshID: seed.meshID,
+            materialID: seed.materialID
+        )
         let snapshot = SimulationPresentationSnapshot(
             cursor: fixture.snapshot.cursor,
             camera: fixture.snapshot.camera,
-            entityPresentations: [
-                EntityPresentationSnapshot(
-                    id: entityID,
-                    position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0),
-                    rotation: seed.rotation,
-                    scale: seed.scale,
-                    meshID: seed.meshID,
-                    materialID: seed.materialID
-                )
-            ]
+            entityPresentations: [entityPresentation]
         )
         let runtime = try MetalOffscreenRenderRuntime(
             catalog: fixture.content.renderAssetCatalog,
             limits: .conservative
         )
+        let requestSize = try RenderPixelSize(width: 96, height: 64)
+        let settings = OffscreenRenderSettings(
+            size: requestSize,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let requestID = OffscreenRenderRequestID()
         let request = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: requestID,
             presentationSnapshot: snapshot,
             viewpoint: fixture.viewpoint,
-            settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64),
-                outputMode: .surface,
-                exposure: .validation
-            )
+            settings: settings
         )
 
         let outcome = await runtime.render(request)
@@ -228,8 +250,9 @@ struct MetalOffscreenRenderRuntimeTests {
         let seed = try #require(fixture.snapshot.entityPresentations.first)
         let excessiveCount = FrameResources.maximumInstanceCount + 1
         let presentations = (0..<excessiveCount).map { index in
-            EntityPresentationSnapshot(
-                id: EntityID(index: index, generation: 0),
+            let id = EntityID(index: index, generation: 0)
+            return EntityPresentationSnapshot(
+                id: id,
                 position: seed.position,
                 rotation: seed.rotation,
                 scale: seed.scale,
@@ -246,15 +269,18 @@ struct MetalOffscreenRenderRuntimeTests {
             catalog: fixture.content.renderAssetCatalog,
             limits: .conservative
         )
+        let requestSize = try RenderPixelSize(width: 96, height: 64)
+        let settings = OffscreenRenderSettings(
+            size: requestSize,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let requestID = OffscreenRenderRequestID()
         let request = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: requestID,
             presentationSnapshot: excessiveSnapshot,
             viewpoint: fixture.viewpoint,
-            settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64),
-                outputMode: .surface,
-                exposure: .validation
-            )
+            settings: settings
         )
 
         let outcome = await runtime.render(request)
@@ -281,29 +307,35 @@ struct MetalOffscreenRenderRuntimeTests {
             revision: .zero,
             camera: fixture.snapshot.camera
         )
+        let secondCameraPosition = SIMD3<Float>(1, 0, 8)
+        let secondCameraUp = SIMD3<Float>(0, 1, 0)
+        let secondCamera = Camera.lookingAt(
+            .zero,
+            from: secondCameraPosition,
+            up: secondCameraUp,
+            projection: fixture.snapshot.camera.projection
+        )
         let secondViewpoint = RenderViewpoint(
             id: viewpointID,
             revision: RenderViewpointRevision.zero.advanced(),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(1, 0, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: fixture.snapshot.camera.projection
-            )
+            camera: secondCamera
         )
+        let size = try RenderPixelSize(width: 160, height: 120)
         let settings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 160, height: 120),
+            size: size,
             outputMode: .surface,
             exposure: .validation
         )
+        let firstRequestID = OffscreenRenderRequestID()
         let firstRequest = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: firstRequestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: firstViewpoint,
             settings: settings
         )
+        let secondRequestID = OffscreenRenderRequestID()
         let secondRequest = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: secondRequestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: secondViewpoint,
             settings: settings
@@ -330,15 +362,18 @@ struct MetalOffscreenRenderRuntimeTests {
 
     @Test func missingModelFailsExactPreflightWithoutAffectingValidRuntime() async throws {
         let fixture = makeFixture()
+        let size = try RenderPixelSize(width: 96, height: 64)
+        let settings = OffscreenRenderSettings(
+            size: size,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let requestID = OffscreenRenderRequestID()
         let request = OffscreenRenderRequest(
-            id: OffscreenRenderRequestID(),
+            id: requestID,
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
-            settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64),
-                outputMode: .surface,
-                exposure: .validation
-            )
+            settings: settings
         )
         let incompleteRuntime = try MetalOffscreenRenderRuntime(
             catalog: .materialOnlyTestCatalog,
@@ -375,15 +410,18 @@ struct MetalOffscreenRenderRuntimeTests {
     ) {
         let content = BasicGameContent()
         let world = content.worldBuilder.buildWorld()
-        let snapshot = world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: SimulationSessionID(),
-                tick: SimulationTick(rawValue: 7)
-            )
+        let sessionID = SimulationSessionID()
+        let tick = SimulationTick(rawValue: 7)
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: tick
         )
+        let snapshot = world.presentationSnapshot(at: cursor)
+        let viewpointID = RenderViewpointID()
+        let viewpointRevision = RenderViewpointRevision(rawValue: 11)
         let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
-            revision: RenderViewpointRevision(rawValue: 11),
+            id: viewpointID,
+            revision: viewpointRevision,
             camera: snapshot.camera
         )
         return (content, snapshot, viewpoint)

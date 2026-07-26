@@ -30,7 +30,8 @@ struct InputMetalViewTests {
             return
         }
 
-        #expect(downKey == KeyboardKey(keyCode: 13, displayName: "W"))
+        let expectedKey = KeyboardKey(keyCode: 13, displayName: "W")
+        #expect(downKey == expectedKey)
         #expect(upKey == downKey)
     }
 
@@ -62,10 +63,11 @@ struct InputMetalViewTests {
 
         view.keyDown(with: keyDown)
 
+        let expectedKey = KeyboardKey(keyCode: 13, displayName: "W")
         #expect(inputRuntime.latestInputSnapshot.revision != startingRevision)
         #expect(
             inputRuntime.latestInputSnapshot.pressedKeys
-                == [KeyboardKey(keyCode: 13, displayName: "W")]
+                == [expectedKey]
         )
 
         view.keyUp(with: keyUp)
@@ -81,20 +83,23 @@ struct InputMetalViewTests {
         defer { inputRuntime.stop() }
         view.inputSink = inputRuntime
 
+        let dragLocation = CGPoint(x: 30, y: 40)
         let dragEvent = try makeLeftDragEvent(
-            location: CGPoint(x: 30, y: 40),
+            location: dragLocation,
             deltaX: 7,
             deltaY: -9
         )
         view.mouseDragged(with: dragEvent)
 
+        let expectedPointerPosition = SIMD2<Float>(30, 40)
+        let expectedPointerMotionTotal = SIMD2<Float>(7, -9)
         #expect(
             inputRuntime.latestInputSnapshot.pointerPosition
-                == SIMD2<Float>(30, 40)
+                == expectedPointerPosition
         )
         #expect(
             inputRuntime.latestInputSnapshot.pointerMotionTotal
-                == SIMD2<Float>(7, -9)
+                == expectedPointerMotionTotal
         )
 
         let scrollEvent = try makePixelScrollEvent(
@@ -107,9 +112,10 @@ struct InputMetalViewTests {
 
         view.scrollWheel(with: scrollEvent)
 
+        let expectedScrollTotal = SIMD2<Float>(5, -7)
         #expect(
             inputRuntime.latestInputSnapshot.scrollTotal
-                == SIMD2<Float>(5, -7)
+                == expectedScrollTotal
         )
     }
 
@@ -145,20 +151,21 @@ struct InputMetalViewTests {
         let cgEvent = try #require(baseEvent.cgEvent)
         cgEvent.setIntegerValueField(.mouseEventDeltaX, value: deltaX)
         cgEvent.setIntegerValueField(.mouseEventDeltaY, value: deltaY)
-        return try #require(NSEvent(cgEvent: cgEvent))
+        let event = NSEvent(cgEvent: cgEvent)
+        return try #require(event)
     }
 
     private func makePixelScrollEvent(horizontal: Int32, vertical: Int32) throws -> NSEvent {
-        let cgEvent = try #require(
-            CGEvent(
-                scrollWheelEvent2Source: nil,
-                units: .pixel,
-                wheelCount: 2,
-                wheel1: vertical,
-                wheel2: horizontal,
-                wheel3: 0
-            )
+        let scrollEvent = CGEvent(
+            scrollWheelEvent2Source: nil,
+            units: .pixel,
+            wheelCount: 2,
+            wheel1: vertical,
+            wheel2: horizontal,
+            wheel3: 0
         )
-        return try #require(NSEvent(cgEvent: cgEvent))
+        let cgEvent = try #require(scrollEvent)
+        let event = NSEvent(cgEvent: cgEvent)
+        return try #require(event)
     }
 }

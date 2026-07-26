@@ -5,19 +5,17 @@ import simd
 
 struct CRotationTests {
     @Test func identityUsesNeutralQuaternion() {
-        #expect(
-            CRotation.identity.rotation.vector
-                == simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1)).vector
-        )
+        let identityAxis = SIMD3<Float>(0, 0, 1)
+        let expectedRotation = simd_quatf(angle: 0, axis: identityAxis)
+
+        #expect(CRotation.identity.rotation.vector == expectedRotation.vector)
     }
 
     @Test func codableRoundTripsQuaternion() throws {
-        let original = CRotation(
-            rotation: simd_quatf(
-                angle: .pi / 3,
-                axis: simd_normalize(SIMD3<Float>(1, 2, 3))
-            )
-        )
+        let axis = SIMD3<Float>(1, 2, 3)
+        let normalizedAxis = simd_normalize(axis)
+        let rotation = simd_quatf(angle: .pi / 3, axis: normalizedAxis)
+        let original = CRotation(rotation: rotation)
 
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(CRotation.self, from: data)
@@ -27,14 +25,18 @@ struct CRotationTests {
     }
 
     @Test func equalityUsesQuaternionVector() async throws {
+        let axis = SIMD3<Float>(0, 1, 1)
+        let normalizedAxis = simd_normalize(axis)
         let rotation = simd_quatf(
             angle: .pi / 4,
-            axis: simd_normalize(SIMD3<Float>(0, 1, 1))
+            axis: normalizedAxis
         )
         let identical = CRotation(rotation: rotation)
-        let sameRotationOppositeSign = CRotation(rotation: simd_quatf(vector: -rotation.vector))
+        let oppositeSignRotation = simd_quatf(vector: -rotation.vector)
+        let sameRotationOppositeSign = CRotation(rotation: oppositeSignRotation)
+        let equivalent = CRotation(rotation: rotation)
 
-        #expect(CRotation(rotation: rotation) == identical)
-        #expect(CRotation(rotation: rotation) != sameRotationOppositeSign)
+        #expect(equivalent == identical)
+        #expect(equivalent != sameRotationOppositeSign)
     }
 }

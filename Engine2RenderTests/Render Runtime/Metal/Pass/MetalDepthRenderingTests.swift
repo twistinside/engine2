@@ -14,17 +14,19 @@ struct MetalDepthRenderingTests {
             frameCount: 1
         )
 
+        let orthographicPosition = SIMD3<Float>(0, 0, 8)
+        let orthographicCamera = Camera(
+            position: orthographicPosition,
+            rotation: Transform.identityRotation,
+            projection: .orthographic(
+                height: 8,
+                near: 1,
+                far: 20
+            )
+        )
         let cameras = [
             .standard,
-            Camera(
-                position: SIMD3<Float>(0, 0, 8),
-                rotation: Transform.identityRotation,
-                projection: .orthographic(
-                    height: 8,
-                    near: 1,
-                    far: 20
-                )
-            )
+            orthographicCamera
         ]
 
         for camera in cameras {
@@ -43,9 +45,10 @@ struct MetalDepthRenderingTests {
             )
 
             #expect(nearThenFar == farThenNear)
+            let expectedColor = SIMD4<Float>(1, 0.5, 0.5, 1)
             expectLinearRGBA(
                 nearThenFar,
-                approximately: SIMD4<Float>(1, 0.5, 0.5, 1)
+                approximately: expectedColor
             )
         }
     }
@@ -57,9 +60,10 @@ struct MetalDepthRenderingTests {
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
+        let nearNormal = SIMD3<Float>(1, 0, 0)
         let pixel = try renderCenterPixel(
             drawOrder: [0],
-            nearNormal: SIMD3<Float>(1, 0, 0),
+            nearNormal: nearNormal,
             camera: .standard,
             resources: resources
         )
@@ -67,9 +71,10 @@ struct MetalDepthRenderingTests {
         // View-space +X maps directly to linear RGBA (1, 0.5, 0.5, 1) in the
         // scene target. Presentation transfer is tested separately so this
         // diagnostic remains focused on the model fragment's normalization.
+        let expectedColor = SIMD4<Float>(1, 0.5, 0.5, 1)
         expectLinearRGBA(
             pixel,
-            approximately: SIMD4<Float>(1, 0.5, 0.5, 1)
+            approximately: expectedColor
         )
     }
 }
@@ -109,8 +114,9 @@ private func renderCenterPixel(
         normal: nearNormal,
         device: resources.device
     )
+    let farNormal = SIMD3<Float>(0, 1, 0)
     let farVertexBuffer = try makeTriangleBuffer(
-        normal: SIMD3<Float>(0, 1, 0),
+        normal: farNormal,
         device: resources.device
     )
     let vertexBuffers = [nearVertexBuffer, farVertexBuffer]
@@ -134,46 +140,52 @@ private func renderCenterPixel(
     }
     residencySet.commit()
 
-    let transforms = [
-        Transform(
-            position: SIMD3<Float>(0, 0, 0),
-            rotation: Transform.identityRotation,
-            scale: SIMD3<Float>(4, 4, 1)
-        ),
-        Transform(
-            position: SIMD3<Float>(0, 0, -2),
-            rotation: Transform.identityRotation,
-            scale: SIMD3<Float>(4, 4, 1)
-        )
-    ]
+    let sharedScale = SIMD3<Float>(4, 4, 1)
+    let nearPosition = SIMD3<Float>(0, 0, 0)
+    let nearTransform = Transform(
+        position: nearPosition,
+        rotation: Transform.identityRotation,
+        scale: sharedScale
+    )
+    let farPosition = SIMD3<Float>(0, 0, -2)
+    let farTransform = Transform(
+        position: farPosition,
+        rotation: Transform.identityRotation,
+        scale: sharedScale
+    )
+    let transforms = [nearTransform, farTransform]
     let frame = try #require(resources.frames.first)
     frame.commandAllocator.reset()
+    let sessionID = SimulationSessionID()
+    let cursor = SimulationCursor(
+        sessionID: sessionID,
+        tick: .zero
+    )
+    let entityPresentations = transforms.enumerated().map { index, transform in
+        let id = EntityID(index: index, generation: 0)
+        return EntityPresentationSnapshot(
+            id: id,
+            position: transform.position,
+            rotation: transform.rotation,
+            scale: transform.scale,
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
+    }
+    let snapshot = SimulationPresentationSnapshot(
+        cursor: cursor,
+        camera: camera,
+        entityPresentations: entityPresentations
+    )
+    let renderFrame = RenderFrame(projecting: snapshot)
     let preparedFrame = MetalPreparedFrame(
-        renderFrame: RenderFrame(
-            projecting: SimulationPresentationSnapshot(
-                cursor: SimulationCursor(
-                    sessionID: SimulationSessionID(),
-                    tick: .zero
-                ),
-                camera: camera,
-                entityPresentations: transforms.enumerated().map {
-                    index, transform in
-                    EntityPresentationSnapshot(
-                        id: EntityID(index: index, generation: 0),
-                        position: transform.position,
-                        rotation: transform.rotation,
-                        scale: transform.scale,
-                        meshID: .ball,
-                        materialID: .warmDielectric
-                    )
-                }
-            )
-        ),
+        renderFrame: renderFrame,
         resources: resources
     )
+    let drawableSize = CGSize(width: textureSize, height: textureSize)
     frame.write(
         preparedFrame,
-        drawableSize: CGSize(width: textureSize, height: textureSize),
+        drawableSize: drawableSize,
         exposure: .validation
     )
     #expect(preparedFrame.instances.count == transforms.count)
@@ -215,9 +227,12 @@ private func renderCenterPixel(
             vertexBuffers[instanceIndex].gpuAddress,
             index: 0
         )
+        let instanceOffset = UInt64(
+            instanceIndex * MemoryLayout<GPUInstance>.stride
+        )
+        let instanceAddress = frame.instanceBuffer.gpuAddress + instanceOffset
         argumentTable.setAddress(
-            frame.instanceBuffer.gpuAddress
-                + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride),
+            instanceAddress,
             index: 1
         )
         encoder.setArgumentTable(argumentTable, stages: .vertex)
@@ -262,11 +277,15 @@ private func renderCenterPixel(
             mipmapLevel: 0
         )
     }
+    let red = Float(pixel[0])
+    let green = Float(pixel[1])
+    let blue = Float(pixel[2])
+    let alpha = Float(pixel[3])
     return SIMD4<Float>(
-        Float(pixel[0]),
-        Float(pixel[1]),
-        Float(pixel[2]),
-        Float(pixel[3])
+        red,
+        green,
+        blue,
+        alpha
     )
 }
 
@@ -306,9 +325,9 @@ private func expectLinearRGBA(_ actual: SIMD4<Float>, approximately expected: SI
     for componentIndex in 0..<4 {
         let actualHalf = Float16(actual[componentIndex])
         let expectedHalf = Float16(expected[componentIndex])
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
 }

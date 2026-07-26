@@ -16,9 +16,11 @@ struct EntityTests {
         let world = World()
         let first = Entity(in: world, from: .empty)
         let second = Entity(in: world, from: .empty)
+        let firstID = EntityID(index: 0, generation: 0)
+        let secondID = EntityID(index: 1, generation: 0)
 
-        #expect(first.id == EntityID(index: 0, generation: 0))
-        #expect(second.id == EntityID(index: 1, generation: 0))
+        #expect(first.id == firstID)
+        #expect(second.id == secondID)
         #expect(componentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 

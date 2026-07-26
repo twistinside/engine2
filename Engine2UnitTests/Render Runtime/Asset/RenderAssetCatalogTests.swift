@@ -3,9 +3,10 @@ import Testing
 
 struct RenderAssetCatalogTests {
     @Test func completeMaterialVocabularyPassesCoverageValidation() throws {
+        let content = BasicGameContent()
         let catalog = RenderAssetCatalog(
             models: [:],
-            materials: BasicGameContent().renderAssetCatalog.materials
+            materials: content.renderAssetCatalog.materials
         )
 
         try catalog.validateMaterialCoverage()
@@ -46,8 +47,10 @@ struct RenderAssetCatalogTests {
         }
     }
 
+    private static let goldMetalBaseColor = SIMD3<Float>(1, 0.766, 0.336)
+
     private static let goldMetal = PBRMaterialDescription(
-        baseColor: SIMD3<Float>(1, 0.766, 0.336),
+        baseColor: goldMetalBaseColor,
         metallic: 1,
         perceptualRoughness: 0.35
     )

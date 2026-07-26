@@ -25,10 +25,11 @@ struct OffscreenRenderOutcomeTests {
             requestID: completedResult.requestID
         )
         let invalidViewpoint = OffscreenRenderOutcome.rejected(.invalidViewpoint)
+        let missingEntityID = EntityID(index: 19, generation: 2)
         let invalidPresentation = OffscreenRenderOutcome.rejected(
             .invalidPresentation(
                 .missingPosition(
-                    entityID: EntityID(index: 19, generation: 2)
+                    entityID: missingEntityID
                 )
             )
         )
@@ -53,7 +54,7 @@ struct OffscreenRenderOutcomeTests {
             invalidPresentation == .rejected(
                 .invalidPresentation(
                     .missingPosition(
-                        entityID: EntityID(index: 19, generation: 2)
+                        entityID: missingEntityID
                     )
                 )
             )
@@ -82,42 +83,48 @@ struct OffscreenRenderOutcomeTests {
 
     private func result() throws -> OffscreenRenderResult {
         let size = try RenderPixelSize(width: 1, height: 1)
+        let requestUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000121"
+        )!
+        let requestID = OffscreenRenderRequestID(rawValue: requestUUID)
+        let sessionUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000122"
+        )!
+        let sessionID = SimulationSessionID(rawValue: sessionUUID)
+        let tick = SimulationTick(rawValue: 3)
+        let sourceCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: tick
+        )
+        let viewpointUUID = UUID(
+            uuidString: "00000000-0000-0000-0000-000000000123"
+        )!
+        let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
+        let viewpointRevision = RenderViewpointRevision(rawValue: 4)
+        let cameraPosition = SIMD3<Float>(0, 0, 5)
+        let camera = Camera(
+            position: cameraPosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
+        let viewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: viewpointRevision,
+            camera: camera
+        )
+        let settings = OffscreenRenderSettings(
+            size: size,
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let bytes = Data([0, 0, 0, 255])
+        let image = try RenderedBGRA8SRGBImage(size: size, bytes: bytes)
         return OffscreenRenderResult(
-            requestID: OffscreenRenderRequestID(
-                rawValue: UUID(
-                    uuidString: "00000000-0000-0000-0000-000000000121"
-                )!
-            ),
-            sourceCursor: SimulationCursor(
-                sessionID: SimulationSessionID(
-                    rawValue: UUID(
-                        uuidString: "00000000-0000-0000-0000-000000000122"
-                    )!
-                ),
-                tick: SimulationTick(rawValue: 3)
-            ),
-            viewpoint: RenderViewpoint(
-                id: RenderViewpointID(
-                    rawValue: UUID(
-                        uuidString: "00000000-0000-0000-0000-000000000123"
-                    )!
-                ),
-                revision: RenderViewpointRevision(rawValue: 4),
-                camera: Camera(
-                    position: SIMD3<Float>(0, 0, 5),
-                    rotation: Transform.identityRotation,
-                    projection: .standardPerspective
-                )
-            ),
-            settings: OffscreenRenderSettings(
-                size: size,
-                outputMode: .surface,
-                exposure: .validation
-            ),
-            image: try RenderedBGRA8SRGBImage(
-                size: size,
-                bytes: Data([0, 0, 0, 255])
-            )
+            requestID: requestID,
+            sourceCursor: sourceCursor,
+            viewpoint: viewpoint,
+            settings: settings,
+            image: image
         )
     }
 

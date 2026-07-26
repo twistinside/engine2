@@ -21,18 +21,20 @@ struct InputHistoryTests {
         var history = InputHistory(maximumEntryCount: 60)
         let key = KeyboardKey(keyCode: 13, charactersIgnoringModifiers: "w")
 
-        input.ingest(
-            snapshot(session: 1, sequence: 1, pressedKeys: [key])
+        let firstSnapshot = snapshot(
+            session: 1,
+            sequence: 1,
+            pressedKeys: [key]
         )
+        input.ingest(firstSnapshot)
         history.record(input: input)
-        input.ingest(
-            snapshot(
-                session: 1,
-                sequence: 2,
-                pressedMouseButtons: [.left],
-                pressedKeys: [key]
-            )
+        let secondSnapshot = snapshot(
+            session: 1,
+            sequence: 2,
+            pressedMouseButtons: [.left],
+            pressedKeys: [key]
         )
+        input.ingest(secondSnapshot)
         history.record(input: input)
 
         #expect(history.entries.count == 2)
@@ -43,13 +45,12 @@ struct InputHistoryTests {
     @Test func identicalHeldInputIncrementsDuration() {
         var input = InputState()
         var history = InputHistory(maximumEntryCount: 60)
-        input.ingest(
-            snapshot(
-                session: 1,
-                sequence: 1,
-                pressedMouseButtons: [.left]
-            )
+        let heldInputSnapshot = snapshot(
+            session: 1,
+            sequence: 1,
+            pressedMouseButtons: [.left]
         )
+        input.ingest(heldInputSnapshot)
 
         history.record(input: input)
         history.record(input: input)
@@ -81,14 +82,16 @@ struct InputHistoryTests {
         var pointerMotionTotal = SIMD2<Float>.zero
 
         for index in 0..<5 {
-            pointerMotionTotal += SIMD2<Float>(Float(index + 1), 0)
-            input.ingest(
-                snapshot(
-                    session: 1,
-                    sequence: UInt64(index + 1),
-                    pointerMotionTotal: pointerMotionTotal
-                )
+            let pointerMotionX = Float(index + 1)
+            let pointerMotion = SIMD2<Float>(pointerMotionX, 0)
+            pointerMotionTotal += pointerMotion
+            let sequence = UInt64(index + 1)
+            let publication = snapshot(
+                session: 1,
+                sequence: sequence,
+                pointerMotionTotal: pointerMotionTotal
             )
+            input.ingest(publication)
             history.record(input: input)
             input.clearTransientInput()
         }
@@ -115,16 +118,17 @@ struct InputHistoryTests {
         let aKey = KeyboardKey(keyCode: 0, charactersIgnoringModifiers: "a")
         let zKey = KeyboardKey(keyCode: 6, charactersIgnoringModifiers: "z")
 
-        input.ingest(
-            snapshot(
-                session: 1,
-                sequence: 1,
-                pointerMotionTotal: SIMD2<Float>(1.6, -1.6),
-                scrollTotal: SIMD2<Float>(0, 0.4),
-                pressedMouseButtons: [.other(5), .middle, .right, .left],
-                pressedKeys: [zKey, aKey]
-            )
+        let pointerMotionTotal = SIMD2<Float>(1.6, -1.6)
+        let scrollTotal = SIMD2<Float>(0, 0.4)
+        let publication = snapshot(
+            session: 1,
+            sequence: 1,
+            pointerMotionTotal: pointerMotionTotal,
+            scrollTotal: scrollTotal,
+            pressedMouseButtons: [.other(5), .middle, .right, .left],
+            pressedKeys: [zKey, aKey]
         )
+        input.ingest(publication)
         history.record(input: input)
 
         #expect(
@@ -168,8 +172,9 @@ struct InputHistoryTests {
         pressedMouseButtons: Set<MouseButton> = [],
         pressedKeys: Set<KeyboardKey> = []
     ) -> InputSnapshot {
-        InputSnapshot(
-            revision: InputRevision(session: session, sequence: sequence),
+        let revision = InputRevision(session: session, sequence: sequence)
+        return InputSnapshot(
+            revision: revision,
             pointerPosition: .zero,
             pointerMotionTotal: pointerMotionTotal,
             scrollTotal: scrollTotal,

@@ -22,24 +22,23 @@ struct PBRSceneParameters {
         // it. Extract only the linear world-to-view rotation and normalize the
         // result once per frame rather than once per fragment.
         let viewMatrix = camera.viewMatrix
+        let xColumn = SIMD3<Float>(
+            viewMatrix.columns.0.x,
+            viewMatrix.columns.0.y,
+            viewMatrix.columns.0.z
+        )
+        let yColumn = SIMD3<Float>(
+            viewMatrix.columns.1.x,
+            viewMatrix.columns.1.y,
+            viewMatrix.columns.1.z
+        )
+        let zColumn = SIMD3<Float>(
+            viewMatrix.columns.2.x,
+            viewMatrix.columns.2.y,
+            viewMatrix.columns.2.z
+        )
         let worldToViewRotation = simd_float3x3(
-            columns: (
-                SIMD3<Float>(
-                    viewMatrix.columns.0.x,
-                    viewMatrix.columns.0.y,
-                    viewMatrix.columns.0.z
-                ),
-                SIMD3<Float>(
-                    viewMatrix.columns.1.x,
-                    viewMatrix.columns.1.y,
-                    viewMatrix.columns.1.z
-                ),
-                SIMD3<Float>(
-                    viewMatrix.columns.2.x,
-                    viewMatrix.columns.2.y,
-                    viewMatrix.columns.2.z
-                )
-            )
+            columns: (xColumn, yColumn, zColumn)
         )
         let directionToLightView = simd_normalize(
             worldToViewRotation * Self.validationDirectionToLightWorld

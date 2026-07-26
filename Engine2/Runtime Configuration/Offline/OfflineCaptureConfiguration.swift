@@ -11,9 +11,10 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
     /// session identity.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent) throws -> OfflineCaptureAssembly {
-        try makeAssembly(
+        let sessionID = SimulationSessionID()
+        return try makeAssembly(
             gameContent: gameContent,
-            sessionID: SimulationSessionID()
+            sessionID: sessionID
         )
     }
 
@@ -33,11 +34,12 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
         )
         let initialPresentationSnapshot =
             simulationRuntime.latestPresentationSnapshot
+        let artifactEncoder = try ImageIOArtifactEncoder()
         let coordinator = OfflineCaptureCoordinator(
             advanceTarget: simulationRuntime,
             initialPresentationSnapshot: initialPresentationSnapshot,
             renderTarget: renderRuntime,
-            artifactEncoder: try ImageIOArtifactEncoder()
+            artifactEncoder: artifactEncoder
         )
 
         // Only immutable initial identity and the coordinator's narrow workflow

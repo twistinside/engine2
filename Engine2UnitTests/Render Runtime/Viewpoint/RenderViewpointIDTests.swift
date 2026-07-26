@@ -8,7 +8,8 @@ struct RenderViewpointIDTests {
         let second = RenderViewpointID()
 
         #expect(first != second)
-        #expect(RenderViewpointID(rawValue: first.rawValue) == first)
+        let restored = RenderViewpointID(rawValue: first.rawValue)
+        #expect(restored == first)
         #expect(rawRoundTrip(first) == first)
 
         let data = try JSONEncoder().encode(first)

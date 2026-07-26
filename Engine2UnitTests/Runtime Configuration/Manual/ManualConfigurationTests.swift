@@ -4,11 +4,13 @@ import Testing
 
 struct ManualConfigurationTests {
     @Test func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
-        let sessionID = SimulationSessionID(
-            rawValue: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
-        )
+        let sessionUUID = UUID(
+            uuidString: "20000000-0000-0000-0000-000000000001"
+        )!
+        let sessionID = SimulationSessionID(rawValue: sessionUUID)
+        let gameContent = BasicGameContent()
         let assembly = ManualConfiguration().makeAssembly(
-            gameContent: BasicGameContent(),
+            gameContent: gameContent,
             sessionID: sessionID
         )
 
@@ -19,28 +21,30 @@ struct ManualConfigurationTests {
     }
 
     @Test func exactCallerAloneDeterminesProgress() async throws {
+        let gameContent = BasicGameContent()
         let assembly = ManualConfiguration().makeAssembly(
-            gameContent: BasicGameContent()
+            gameContent: gameContent
         )
         let initialCursor = assembly.simulationRuntime.currentCursor
 
         await Task.yield()
         #expect(assembly.simulationRuntime.currentCursor == initialCursor)
 
-        let outcome = await assembly.advanceTarget.advance(
-            SimulationAdvanceRequest(
-                expectedCursor: initialCursor,
-                stepCount: SimulationStepCount(rawValue: 4),
-                inputAssignment: .none
-            )
+        let stepCount = SimulationStepCount(rawValue: 4)
+        let request = SimulationAdvanceRequest(
+            expectedCursor: initialCursor,
+            stepCount: stepCount,
+            inputAssignment: .none
         )
+        let outcome = await assembly.advanceTarget.advance(request)
         guard case let .completed(result) = outcome else {
             Issue.record("Expected a completed manual advance")
             return
         }
 
         #expect(result.initialCursor == initialCursor)
-        #expect(result.finalCursor.tick == SimulationTick(rawValue: 4))
+        let expectedFinalTick = SimulationTick(rawValue: 4)
+        #expect(result.finalCursor.tick == expectedFinalTick)
         #expect(result.completedStepCount.rawValue == 4)
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(assembly.simulationRuntime.latestPresentationSnapshot == result.finalPresentationSnapshot)
@@ -49,21 +53,20 @@ struct ManualConfigurationTests {
     }
 
     @Test func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
+        let worldBuilder = ManualMovingWorldBuilder()
+        let gameContent = BasicGameContent(worldBuilder: worldBuilder)
         let assembly = ManualConfiguration().makeAssembly(
-            gameContent: BasicGameContent(
-                worldBuilder: ManualMovingWorldBuilder()
-            )
+            gameContent: gameContent
         )
         let initialCursor = assembly.simulationRuntime.currentCursor
         let stepCount = SimulationStepCount(rawValue: 10_000)
 
-        let outcome = await assembly.advanceTarget.advance(
-            SimulationAdvanceRequest(
-                expectedCursor: initialCursor,
-                stepCount: stepCount,
-                inputAssignment: .none
-            )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: initialCursor,
+            stepCount: stepCount,
+            inputAssignment: .none
         )
+        let outcome = await assembly.advanceTarget.advance(request)
         guard case let .completed(result) = outcome else {
             Issue.record("Expected the large manual advance to complete")
             return
@@ -82,7 +85,8 @@ struct ManualConfigurationTests {
 
         #expect(result.initialCursor == initialCursor)
         #expect(result.completedStepCount.rawValue == 10_000)
-        #expect(result.finalCursor.tick == SimulationTick(rawValue: 10_000))
+        let expectedFinalTick = SimulationTick(rawValue: 10_000)
+        #expect(result.finalCursor.tick == expectedFinalTick)
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(presentation.position == worldPosition)
         #expect(abs(worldPosition.x - 10_000) < 1)
@@ -92,8 +96,10 @@ struct ManualConfigurationTests {
 
     @Test func assembliesOwnIndependentSessionsAndWorlds() {
         let configuration = ManualConfiguration()
-        let first = configuration.makeAssembly(gameContent: BasicGameContent())
-        let second = configuration.makeAssembly(gameContent: BasicGameContent())
+        let firstContent = BasicGameContent()
+        let first = configuration.makeAssembly(gameContent: firstContent)
+        let secondContent = BasicGameContent()
+        let second = configuration.makeAssembly(gameContent: secondContent)
 
         #expect(first !== second)
         #expect(first.simulationRuntime !== second.simulationRuntime)
@@ -106,15 +112,16 @@ private extension ManualConfigurationTests {
     private struct ManualMovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()
+            let velocity = SIMD3<Float>(
+                1 / SimulationRuntime.fixedTimeStep.seconds,
+                0,
+                0
+            )
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: SIMD3<Float>(
-                    1 / SimulationRuntime.fixedTimeStep.seconds,
-                    0,
-                    0
-                )
+                velocity: velocity
             )
             return world
         }

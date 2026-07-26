@@ -20,6 +20,7 @@ struct ManualExposureTests {
         #expect(black.multiplier == 0)
         #expect(half.multiplier == 0.5)
         #expect(bright.multiplier == 2)
-        #expect(half == ManualExposure(multiplier: 0.5))
+        let expectedHalf = ManualExposure(multiplier: 0.5)
+        #expect(half == expectedHalf)
     }
 }

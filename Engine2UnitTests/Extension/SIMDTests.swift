@@ -3,10 +3,18 @@ import Testing
 
 struct SIMDTests {
     @Test func finiteAndNormalRequireEveryScalar() {
-        #expect(SIMD4<Double>(1, -2, .leastNormalMagnitude, -Double.leastNormalMagnitude).isFinite)
-        #expect(SIMD4<Double>(1, -2, .leastNormalMagnitude, -Double.leastNormalMagnitude).isNormal)
-        #expect(SIMD2<Float>(1, .infinity).isFinite == false)
-        #expect(SIMD2<Float>(1, 0).isNormal == false)
+        let normal = SIMD4<Double>(
+            1,
+            -2,
+            .leastNormalMagnitude,
+            -Double.leastNormalMagnitude
+        )
+        let infinite = SIMD2<Float>(1, .infinity)
+        let includesZero = SIMD2<Float>(1, 0)
+        #expect(normal.isFinite)
+        #expect(normal.isNormal)
+        #expect(infinite.isFinite == false)
+        #expect(includesZero.isNormal == false)
     }
 
     @Test func exceptionalClassificationsDetectAnyScalar() {
@@ -23,9 +31,13 @@ struct SIMDTests {
     }
 
     @Test func zeroRequiresEveryScalarAndSubnormalDetectsAnyScalar() {
-        #expect(SIMD2<Double>(0, -0.0).isZero)
-        #expect(SIMD2<Double>(0, 1).isZero == false)
-        #expect(SIMD3<Float>(1, .leastNonzeroMagnitude, 0).isSubnormal)
-        #expect(SIMD3<Float>(1, .leastNormalMagnitude, 0).isSubnormal == false)
+        let zeros = SIMD2<Double>(0, -0.0)
+        let nonzero = SIMD2<Double>(0, 1)
+        let subnormal = SIMD3<Float>(1, .leastNonzeroMagnitude, 0)
+        let normal = SIMD3<Float>(1, .leastNormalMagnitude, 0)
+        #expect(zeros.isZero)
+        #expect(nonzero.isZero == false)
+        #expect(subnormal.isSubnormal)
+        #expect(normal.isSubnormal == false)
     }
 }

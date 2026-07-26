@@ -91,16 +91,18 @@ struct MetalFrameEncoderTests {
         commandBuffer.useResidencySet(sceneTarget.residencySet)
         commandBuffer.useResidencySet(targetResidency)
 
+        let clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
         let inputs = try MetalFrameEncodingInputs(
             frameResources: frame,
             sceneColorTexture: sceneTarget.texture,
             depthTexture: depthTexture,
             destinationTexture: destinationTexture,
-            clearColor: MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1),
+            clearColor: clearColor,
             outputMode: .surface,
             exposure: .validation
         )
-        #expect(inputs.drawableSize == CGSize(width: width, height: height))
+        let expectedDrawableSize = CGSize(width: width, height: height)
+        #expect(inputs.drawableSize == expectedDrawableSize)
 
         try encoder.encode(prepared, inputs: inputs, into: commandBuffer)
         commandBuffer.endCommandBuffer()
@@ -173,9 +175,8 @@ struct MetalFrameEncoderTests {
             FrameResources.maximumInstanceCount,
             FrameResources.maximumInstanceCount + 10
         ] {
-            let prepared = encoder.prepare(
-                makeRenderFrame(instanceCount: requestedCount)
-            )
+            let renderFrame = makeRenderFrame(instanceCount: requestedCount)
+            let prepared = encoder.prepare(renderFrame)
             let expectedCount = min(
                 requestedCount,
                 FrameResources.maximumInstanceCount
@@ -226,22 +227,28 @@ struct MetalFrameEncoderTests {
             usage: .renderTarget
         )
 
-        #expect(throws: MetalFrameEncoderError.mismatchedTargetDimensions) {
-            try MetalFrameEncodingInputs(
+        let clearColor = MTLClearColor(
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 1
+        )
+        let constructInputs: () throws -> Void = {
+            let inputs = try MetalFrameEncodingInputs(
                 frameResources: frame,
                 sceneColorTexture: sceneColor,
                 depthTexture: depth,
                 destinationTexture: destination,
-                clearColor: MTLClearColor(
-                    red: 0,
-                    green: 0,
-                    blue: 0,
-                    alpha: 1
-                ),
+                clearColor: clearColor,
                 outputMode: .surface,
                 exposure: .validation
             )
+            withExtendedLifetime(inputs) {}
         }
+        #expect(
+            throws: MetalFrameEncoderError.mismatchedTargetDimensions,
+            performing: constructInputs
+        )
     }
 
     @Test func encodingInputsRejectUnexpectedTargetFormats() throws {
@@ -276,47 +283,55 @@ struct MetalFrameEncoderTests {
             usage: .renderTarget
         )
 
-        #expect(
-            throws: MetalFrameEncoderError.unexpectedTargetPixelFormats(
-                sceneColor: wrongSceneFormat,
-                depth: MetalFrameEncoder.depthPixelFormat,
-                destination: MetalFrameEncoder.destinationColorPixelFormat
-            )
-        ) {
-            try MetalFrameEncodingInputs(
+        let clearColor = MTLClearColor(
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 1
+        )
+        let constructInputs: () throws -> Void = {
+            let inputs = try MetalFrameEncodingInputs(
                 frameResources: frame,
                 sceneColorTexture: sceneColor,
                 depthTexture: depth,
                 destinationTexture: destination,
-                clearColor: MTLClearColor(
-                    red: 0,
-                    green: 0,
-                    blue: 0,
-                    alpha: 1
-                ),
+                clearColor: clearColor,
                 outputMode: .surface,
                 exposure: .validation
             )
+            withExtendedLifetime(inputs) {}
         }
+        let expectedError = MetalFrameEncoderError.unexpectedTargetPixelFormats(
+            sceneColor: wrongSceneFormat,
+            depth: MetalFrameEncoder.depthPixelFormat,
+            destination: MetalFrameEncoder.destinationColorPixelFormat
+        )
+        #expect(throws: expectedError, performing: constructInputs)
     }
 
     private func makeRenderFrame(instanceCount: Int) -> RenderFrame {
+        let sessionID = SimulationSessionID()
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
+        )
+        let entityPresentations = (0..<instanceCount).map { index in
+            let id = EntityID(index: index, generation: 0)
+            let xPosition = Float(index)
+            let position = SIMD3<Float>(xPosition, 0, 0)
+            return EntityPresentationSnapshot(
+                id: id,
+                position: position,
+                rotation: nil,
+                scale: nil,
+                meshID: .ball,
+                materialID: .warmDielectric
+            )
+        }
         let snapshot = SimulationPresentationSnapshot(
-            cursor: SimulationCursor(
-                sessionID: SimulationSessionID(),
-                tick: .zero
-            ),
+            cursor: cursor,
             camera: .standard,
-            entityPresentations: (0..<instanceCount).map { index in
-                EntityPresentationSnapshot(
-                    id: EntityID(index: index, generation: 0),
-                    position: SIMD3<Float>(Float(index), 0, 0),
-                    rotation: nil,
-                    scale: nil,
-                    meshID: .ball,
-                    materialID: .warmDielectric
-                )
-            }
+            entityPresentations: entityPresentations
         )
         return RenderFrame(projecting: snapshot)
     }

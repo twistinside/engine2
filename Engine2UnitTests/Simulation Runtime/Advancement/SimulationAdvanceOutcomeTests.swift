@@ -4,20 +4,23 @@ import Testing
 
 struct SimulationAdvanceOutcomeTests {
     @Test func completedAndRejectedRemainDistinct() {
+        let rawSessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000014")!
         let sessionID = SimulationSessionID(
-            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000014")!
+            rawValue: rawSessionID
         )
         let initialCursor = SimulationCursor(sessionID: sessionID, tick: .zero)
         let finalCursor = initialCursor.advanced()
+        let completedStepCount = SimulationCompletedStepCount(rawValue: 1)
+        let finalPresentationSnapshot = SimulationPresentationSnapshot(
+            cursor: finalCursor,
+            camera: .standard,
+            entityPresentations: []
+        )
         let result = SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: finalCursor,
-            completedStepCount: SimulationCompletedStepCount(rawValue: 1),
-            finalPresentationSnapshot: SimulationPresentationSnapshot(
-                cursor: finalCursor,
-                camera: .standard,
-                entityPresentations: []
-            )
+            completedStepCount: completedStepCount,
+            finalPresentationSnapshot: finalPresentationSnapshot
         )
         let rejection = SimulationAdvanceRejection.cursorMismatch(
             expected: initialCursor,

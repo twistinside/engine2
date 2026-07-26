@@ -76,12 +76,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
         let response = await executeAcceptedRequest(request)
 
-        replayCache.retain(
-            AgentSessionReplayEntry(
-                request: request,
-                response: response
-            )
-        )
+        let replayEntry = AgentSessionReplayEntry(request: request, response: response)
+        replayCache.retain(replayEntry)
         activeRequest = nil
         resumeDrainWaiters()
         return .executed(response)
@@ -204,12 +200,11 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
     /// Forms a non-consuming rejection at the currently known cursor.
     private func rejected(_ reason: AgentSessionRequestRejectionReason) -> AgentSessionSubmissionOutcome {
-        .rejected(
-            AgentSessionRequestRejection(
-                reason: reason,
-                knownCursor: knownCursor
-            )
+        let rejection = AgentSessionRequestRejection(
+            reason: reason,
+            knownCursor: knownCursor
         )
+        return .rejected(rejection)
     }
 
     /// Resumes every closer only after accepted work reaches a terminal value.

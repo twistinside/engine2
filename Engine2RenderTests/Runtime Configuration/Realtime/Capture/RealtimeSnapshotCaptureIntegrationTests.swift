@@ -9,10 +9,11 @@ struct RealtimeSnapshotCaptureIntegrationTests {
     @Test
     func capturesLivePresentationThroughMetalWithoutAdvancingSimulation() async throws {
         let gameContent = BasicGameContent()
-        let assembly = RealtimeConfiguration(
+        let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: gameContent)
+        )
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
         let sourceSnapshot =
             assembly.simulationRuntime.latestPresentationSnapshot
         let sourceCursor = assembly.simulationRuntime.currentCursor
@@ -24,13 +25,15 @@ struct RealtimeSnapshotCaptureIntegrationTests {
             presentationSource: assembly.simulationRuntime,
             renderTarget: renderRuntime
         )
+        let renderSize = try RenderPixelSize(width: 96, height: 64)
         let renderSettings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 96, height: 64),
+            size: renderSize,
             outputMode: .surface,
             exposure: .validation
         )
+        let renderRequestID = OffscreenRenderRequestID()
         let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
+            renderRequestID: renderRequestID,
             renderSettings: renderSettings,
             encoding: .png
         )
@@ -47,8 +50,9 @@ struct RealtimeSnapshotCaptureIntegrationTests {
         #expect(artifact.sourceRequestID == request.renderRequestID)
         #expect(artifact.renderSettings == renderSettings)
         #expect(artifact.encoding == .png)
+        let filePrefix = Array(artifact.encodedData.prefix(8))
         #expect(
-            Array(artifact.encodedData.prefix(8))
+            filePrefix
                 == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
         )
         #expect(artifact.viewpoint.revision == .zero)

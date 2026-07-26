@@ -10,7 +10,8 @@ nonisolated struct RenderViewpointID: Codable, Hashable, RawRepresentable, Senda
 
     /// Creates a fresh identity for a newly owned viewpoint.
     init() {
-        self.init(rawValue: UUID())
+        let rawValue = UUID()
+        self.init(rawValue: rawValue)
     }
 
     /// Restores or injects an already established viewpoint identity.

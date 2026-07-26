@@ -4,12 +4,14 @@ import Testing
 struct SimulationCursorTests {
     @Test func sessionQualificationDistinguishesEqualTickValues() {
         let tick = SimulationTick(rawValue: 42)
+        let firstSessionID = SimulationSessionID()
         let first = SimulationCursor(
-            sessionID: SimulationSessionID(),
+            sessionID: firstSessionID,
             tick: tick
         )
+        let secondSessionID = SimulationSessionID()
         let second = SimulationCursor(
-            sessionID: SimulationSessionID(),
+            sessionID: secondSessionID,
             tick: tick
         )
 
@@ -19,16 +21,17 @@ struct SimulationCursorTests {
 
     @Test func advancedPreservesSessionAndAdvancesOnlyTheTick() {
         let sessionID = SimulationSessionID()
+        let initialTick = SimulationTick(rawValue: 41)
         let cursor = SimulationCursor(
             sessionID: sessionID,
-            tick: SimulationTick(rawValue: 41)
+            tick: initialTick
+        )
+        let expectedTick = SimulationTick(rawValue: 42)
+        let expected = SimulationCursor(
+            sessionID: sessionID,
+            tick: expectedTick
         )
 
-        #expect(
-            cursor.advanced() == SimulationCursor(
-                sessionID: sessionID,
-                tick: SimulationTick(rawValue: 42)
-            )
-        )
+        #expect(cursor.advanced() == expected)
     }
 }

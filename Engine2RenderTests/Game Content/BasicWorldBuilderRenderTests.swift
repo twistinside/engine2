@@ -6,12 +6,21 @@ struct BasicWorldBuilderRenderTests {
     @Test func materialSphereSceneUsesOrdinarySnapshotAndRenderFramePath() {
         let world = BasicWorldBuilder().buildWorld()
         let tick = SimulationTick(rawValue: 41)
+        let sessionID = SimulationSessionID()
         let cursor = SimulationCursor(
-            sessionID: SimulationSessionID(),
+            sessionID: sessionID,
             tick: tick
         )
         let snapshot = world.presentationSnapshot(at: cursor)
         let frame = RenderFrame(projecting: snapshot)
+        let expectedMeshIDs = Array(
+            repeating: MeshID.ball,
+            count: Self.expectedEntityIDs.count
+        )
+        let expectedScales = Array(
+            repeating: Self.expectedProjectedScale,
+            count: Self.expectedEntityIDs.count
+        )
 
         #expect(snapshot.tick == tick)
         #expect(snapshot.cursor == cursor)
@@ -27,7 +36,7 @@ struct BasicWorldBuilderRenderTests {
         )
         #expect(
             snapshot.entityPresentations.map(\.meshID) ==
-                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+                expectedMeshIDs
         )
         #expect(snapshot.entityPresentations.allSatisfy { $0.scale == nil })
 
@@ -38,14 +47,11 @@ struct BasicWorldBuilderRenderTests {
         #expect(frame.instances.map(\.materialID) == Self.expectedMaterialIDs)
         #expect(
             frame.instances.map(\.meshID) ==
-                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+                expectedMeshIDs
         )
         #expect(
             frame.instances.map(\.transform.scale) ==
-                Array(
-                    repeating: Self.expectedProjectedScale,
-                    count: Self.expectedEntityIDs.count
-                )
+                expectedScales
         )
         for instance in frame.instances {
             #expect(
@@ -78,7 +84,9 @@ struct BasicWorldBuilderRenderTests {
     }
 
     private func expectReferenceCamera(_ camera: Camera) {
-        #expect(camera.position == SIMD3<Float>(0, 0, 8))
+        let expectedPosition = SIMD3<Float>(0, 0, 8)
+
+        #expect(camera.position == expectedPosition)
         #expect(camera.rotation.vector == Self.identityRotation.vector)
 
         switch camera.projection {
@@ -116,8 +124,10 @@ struct BasicWorldBuilderRenderTests {
 
     private static let expectedProjectedScale = SIMD3<Float>(repeating: 0.5)
 
+    private static let identityRotationAxis = SIMD3<Float>(0, 0, 1)
+
     private static let identityRotation = simd_quatf(
         angle: 0,
-        axis: SIMD3<Float>(0, 0, 1)
+        axis: identityRotationAxis
     )
 }

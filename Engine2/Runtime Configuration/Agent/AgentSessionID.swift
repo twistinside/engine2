@@ -10,7 +10,8 @@ nonisolated struct AgentSessionID: Codable, Hashable, RawRepresentable, Sendable
 
     /// Creates a fresh live-process agent session identity.
     init() {
-        self.init(rawValue: UUID())
+        let rawValue = UUID()
+        self.init(rawValue: rawValue)
     }
 
     /// Restores or injects an already established session identity.

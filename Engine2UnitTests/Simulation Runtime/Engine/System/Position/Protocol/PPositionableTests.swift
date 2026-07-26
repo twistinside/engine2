@@ -4,14 +4,16 @@ import Testing
 struct PPositionableTests {
     @Test func positionReadsFromWorldStore() {
         let world = World()
+        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestPositionableEntity(
-            unregisteredID: EntityID(index: 0, generation: 0),
+            unregisteredID: entityID,
             in: world
         )
         let expectedPosition = SIMD3<Float>(4, 5, 6)
+        let position = CPosition(position: expectedPosition)
 
         world.positionComponents.insert(
-            CPosition(position: expectedPosition),
+            position,
             for: entity.id
         )
 

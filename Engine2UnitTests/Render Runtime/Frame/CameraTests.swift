@@ -4,8 +4,9 @@ import Testing
 
 struct CameraTests {
     @Test func orthographicViewProjectionCentersCameraPosition() async throws {
+        let position = SIMD3<Float>(2, -1, 0)
         let camera = Camera(
-            position: SIMD3<Float>(2, -1, 0),
+            position: position,
             rotation: Transform.identityRotation,
             projection: .orthographic(
                 height: 4,
@@ -56,10 +57,12 @@ struct CameraTests {
     }
 
     @Test func perspectiveProjectionCentersLookAtTarget() async throws {
+        let position = SIMD3<Float>(0, 0, 8)
+        let up = SIMD3<Float>(0, 1, 0)
         let camera = Camera.lookingAt(
             .zero,
-            from: SIMD3<Float>(0, 0, 8),
-            up: SIMD3<Float>(0, 1, 0),
+            from: position,
+            up: up,
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
                 near: 1,
@@ -107,8 +110,9 @@ struct CameraTests {
     }
 
     @Test func projectionUsesUnitAspectRatioForInvalidDrawableShapes() {
+        let position = SIMD3<Float>(0, 0, 8)
         let camera = Camera(
-            position: SIMD3<Float>(0, 0, 8),
+            position: position,
             rotation: Transform.identityRotation,
             projection: .perspective(
                 verticalFieldOfView: .pi / 2,
@@ -134,48 +138,48 @@ struct CameraTests {
 
     @Test func viewTransformSupportRejectsInvalidCameraState() {
         #expect(Camera.standard.supportsViewTransform)
-        #expect(
-            Camera(
-                position: SIMD3<Float>(.nan, 0, 8),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            ).supportsViewTransform == false
+        let nonfinitePosition = SIMD3<Float>(.nan, 0, 8)
+        let nonfiniteCamera = Camera(
+            position: nonfinitePosition,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
         )
-        #expect(
-            Camera(
-                position: SIMD3<Float>(0, 0, 8),
-                rotation: simd_quatf(vector: .zero),
-                projection: .standardPerspective
-            ).supportsViewTransform == false
+        let standardPosition = SIMD3<Float>(0, 0, 8)
+        let invalidRotation = simd_quatf(vector: .zero)
+        let invalidOrientationCamera = Camera(
+            position: standardPosition,
+            rotation: invalidRotation,
+            projection: .standardPerspective
         )
-        #expect(
-            Camera(
-                position: SIMD3<Float>(
-                    .greatestFiniteMagnitude,
-                    0,
-                    -.greatestFiniteMagnitude
-                ),
-                rotation: simd_quatf(
-                    angle: .pi / 4,
-                    axis: SIMD3<Float>(0, 1, 0)
-                ),
-                projection: .standardPerspective
-            ).supportsViewTransform == false
+        let extremePosition = SIMD3<Float>(
+            .greatestFiniteMagnitude,
+            0,
+            -.greatestFiniteMagnitude
         )
+        let rotationAxis = SIMD3<Float>(0, 1, 0)
+        let rotation = simd_quatf(angle: .pi / 4, axis: rotationAxis)
+        let overflowingCamera = Camera(
+            position: extremePosition,
+            rotation: rotation,
+            projection: .standardPerspective
+        )
+        #expect(nonfiniteCamera.supportsViewTransform == false)
+        #expect(invalidOrientationCamera.supportsViewTransform == false)
+        #expect(overflowingCamera.supportsViewTransform == false)
     }
 
     @Test func standardCameraNamesTheCompleteNeutralView() {
-        #expect(
-            Camera.standard == Camera(
-                position: SIMD3<Float>(0, 0, 8),
-                rotation: Transform.identityRotation,
-                projection: .perspective(
-                    verticalFieldOfView: .pi / 3,
-                    near: 0.1,
-                    far: 100
-                )
+        let position = SIMD3<Float>(0, 0, 8)
+        let expected = Camera(
+            position: position,
+            rotation: Transform.identityRotation,
+            projection: .perspective(
+                verticalFieldOfView: .pi / 3,
+                near: 0.1,
+                far: 100
             )
         )
+        #expect(Camera.standard == expected)
     }
 }
 

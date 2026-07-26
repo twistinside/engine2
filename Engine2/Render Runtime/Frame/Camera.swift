@@ -28,11 +28,14 @@ nonisolated struct Camera: Sendable {
     /// Finite neutral camera used by a new World and safe renderer fallbacks.
     ///
     /// Game Content may replace this complete value with an authored camera.
-    static let standard = Camera(
-        position: SIMD3<Float>(0, 0, 8),
-        rotation: Transform.identityRotation,
-        projection: .standardPerspective
-    )
+    static let standard: Self = {
+        let position = SIMD3<Float>(0, 0, 8)
+        return Self(
+            position: position,
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
+    }()
 
     var position: SIMD3<Float>
     var rotation: simd_quatf

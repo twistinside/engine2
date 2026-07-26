@@ -17,18 +17,21 @@ struct HDRPresentationParametersTests {
     }
 
     @Test func initializerPacksOnlyTheExposureMultiplier() {
+        let exposure = ManualExposure(multiplier: 2)
         let parameters = HDRPresentationParameters(
-            exposure: ManualExposure(multiplier: 2)
+            exposure: exposure
         )
 
         // Padding stays deterministically zero so captures and tests do not
         // mistake uninitialized bytes for an additional presentation control.
-        #expect(parameters.exposurePadding == SIMD4<Float>(2, 0, 0, 0))
+        let expectedPadding = SIMD4<Float>(2, 0, 0, 0)
+        #expect(parameters.exposurePadding == expectedPadding)
     }
 
     @Test func validationExposurePacksAsTheIdentityMultiplier() {
         let parameters = HDRPresentationParameters(exposure: .validation)
 
-        #expect(parameters.exposurePadding == SIMD4<Float>(1, 0, 0, 0))
+        let expectedPadding = SIMD4<Float>(1, 0, 0, 0)
+        #expect(parameters.exposurePadding == expectedPadding)
     }
 }

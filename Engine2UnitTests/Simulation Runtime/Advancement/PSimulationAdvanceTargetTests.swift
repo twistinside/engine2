@@ -4,8 +4,9 @@ import Testing
 
 struct PSimulationAdvanceTargetTests {
     @Test func asyncCapabilityCanBeImplementedByAnIsolatedTarget() async {
+        let rawSessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000015")!
         let sessionID = SimulationSessionID(
-            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000015")!
+            rawValue: rawSessionID
         )
         let expected = SimulationCursor(sessionID: sessionID, tick: .zero)
         let current = expected.advanced()

@@ -4,9 +4,10 @@ import Testing
 
 struct SimulationAdvanceRequestTests {
     @Test func preservesExplicitUnconditionalAdvanceWithoutInput() {
+        let stepCount = SimulationStepCount(rawValue: 3)
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
-            stepCount: SimulationStepCount(rawValue: 3),
+            stepCount: stepCount,
             inputAssignment: .none
         )
 
@@ -20,11 +21,12 @@ struct SimulationAdvanceRequestTests {
     }
 
     @Test func preservesExpectedSessionQualifiedCursor() {
+        let rawSessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000011")!
+        let sessionID = SimulationSessionID(rawValue: rawSessionID)
+        let tick = SimulationTick(rawValue: 9)
         let cursor = SimulationCursor(
-            sessionID: SimulationSessionID(
-                rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000011")!
-            ),
-            tick: SimulationTick(rawValue: 9)
+            sessionID: sessionID,
+            tick: tick
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: cursor,

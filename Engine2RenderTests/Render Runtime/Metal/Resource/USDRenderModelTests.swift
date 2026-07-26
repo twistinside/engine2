@@ -14,9 +14,10 @@ struct USDRenderModelTests {
 
     @Test func emptyCatalogResolvesToNoBackendModels() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let emptyCatalog = RenderAssetCatalog(models: [:], materials: [:])
 
         let models = try USDRenderModel.load(
-            catalog: RenderAssetCatalog(models: [:], materials: [:]),
+            catalog: emptyCatalog,
             device: device
         )
 
@@ -46,8 +47,9 @@ struct USDRenderModelTests {
 
     @Test func packagedSphereDecodesInterleavedUnitNormalsForEveryMesh() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let gameContent = BasicGameContent()
         let models = try USDRenderModel.load(
-            catalog: BasicGameContent().renderAssetCatalog,
+            catalog: gameContent.renderAssetCatalog,
             device: device
         )
         let model = try #require(models[.ball])
@@ -134,8 +136,9 @@ struct USDRenderModelTests {
 
     @Test func packagedSphereMaintainsAuthoredGeometryDensity() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let gameContent = BasicGameContent()
         let models = try USDRenderModel.load(
-            catalog: BasicGameContent().renderAssetCatalog,
+            catalog: gameContent.renderAssetCatalog,
             device: device
         )
         let model = try #require(models[.ball])

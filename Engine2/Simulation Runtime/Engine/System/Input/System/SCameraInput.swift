@@ -71,10 +71,11 @@ struct SCameraInput: PSystem {
             return
         }
 
+        let worldUp = SIMD3<Float>(0, 1, 0)
         let nextCamera = Camera.lookingAt(
             target,
             from: nextPosition,
-            up: SIMD3<Float>(0, 1, 0),
+            up: worldUp,
             projection: currentCamera.projection
         )
         guard nextCamera.supportsViewTransform else {

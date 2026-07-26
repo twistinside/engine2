@@ -3,12 +3,12 @@ import Testing
 
 struct RealtimeCatchUpPolicyTests {
     @Test func interactiveDefaultBoundsWorkAndDiscardsOverflow() {
-        #expect(
-            RealtimeCatchUpPolicy.interactive == RealtimeCatchUpPolicy(
-                maximumStepsPerWake: SimulationStepCount(rawValue: 4),
-                backlogTreatment: .discardOverflow
-            )
+        let maximumStepsPerWake = SimulationStepCount(rawValue: 4)
+        let expected = RealtimeCatchUpPolicy(
+            maximumStepsPerWake: maximumStepsPerWake,
+            backlogTreatment: .discardOverflow
         )
+        #expect(RealtimeCatchUpPolicy.interactive == expected)
         requireSendable(RealtimeCatchUpPolicy.interactive)
     }
 

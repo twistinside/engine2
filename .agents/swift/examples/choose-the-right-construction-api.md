@@ -28,11 +28,11 @@ not call them designated initializers.
 Keep a one-off combination at its composition site when it has no stable domain
 meaning. Do not add a named preset merely because the initializer is long.
 
-### Name Meaningful Nested Construction
+### Name Every Constructed Argument
 
-A substantial constructed value remains a separate decision even when another
-object immediately owns it. Do not bury that decision inside a second
-multiline initializer:
+A constructed value remains a separate decision even when another call
+immediately consumes it. Do not place an explicit initializer inside another
+initializer, method, enum case, macro, or modifier's argument list:
 
 ```swift
 // Avoid: the Simulation Runtime disappears inside assembly punctuation.
@@ -59,9 +59,21 @@ return ManualAssembly(simulationRuntime: simulationRuntime)
 ```
 
 This exposes both construction boundaries and gives later validation,
-configuration, or debugging a natural seam. Keep tiny value projections, enum
-cases, and declarative builder or modifier values inline when extracting them
-would merely replace a clear label with a redundant local name.
+configuration, or debugging a natural seam. The rule applies to one-line values
+too:
+
+```swift
+// Avoid: constructing the rejection inside the outcome case.
+return .rejected(OffscreenRenderRejection(error))
+
+let rejection = OffscreenRenderRejection(error)
+return .rejected(rejection)
+```
+
+Existing values, literals, and enum cases are not constructions and may remain
+inline. A construction that is itself the surrounding expression's result is
+also not nested. In a SwiftUI result builder, declare a constructed modifier
+input before the builder call when Swift permits it, then pass the named value.
 
 ### Let Swift Synthesize Plain Memberwise Construction
 
@@ -205,46 +217,53 @@ struct RenderAssetCatalog {
     ///
     /// Callers may still construct a curated catalog with
     /// `init(models:materials:)`.
-    static let everything = Self(
-        models: [
-            .ball: ModelAssetReference(
-                resourceName: "Ball",
-                format: .usdz
-            )
-        ],
-        materials: [
-            .warmDielectricSmooth: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-                metallic: 0,
-                perceptualRoughness: 0.2
-            ),
-            .warmDielectric: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-                metallic: 0,
-                perceptualRoughness: 0.5
-            ),
-            .warmDielectricRough: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-                metallic: 0,
-                perceptualRoughness: 0.8
-            ),
-            .goldMetalSmooth: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
-                metallic: 1,
-                perceptualRoughness: 0.2
-            ),
-            .goldMetal: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
-                metallic: 1,
-                perceptualRoughness: 0.35
-            ),
-            .goldMetalRough: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
-                metallic: 1,
-                perceptualRoughness: 0.8
-            )
-        ]
-    )
+    static let everything: Self = {
+        let ballModel = ModelAssetReference(resourceName: "Ball", format: .usdz)
+        let warmBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
+        let warmDielectricSmooth = PBRMaterialDescription(
+            baseColor: warmBaseColor,
+            metallic: 0,
+            perceptualRoughness: 0.2
+        )
+        let warmDielectric = PBRMaterialDescription(
+            baseColor: warmBaseColor,
+            metallic: 0,
+            perceptualRoughness: 0.5
+        )
+        let warmDielectricRough = PBRMaterialDescription(
+            baseColor: warmBaseColor,
+            metallic: 0,
+            perceptualRoughness: 0.8
+        )
+        let goldBaseColor = SIMD3<Float>(1, 0.766, 0.336)
+        let goldMetalSmooth = PBRMaterialDescription(
+            baseColor: goldBaseColor,
+            metallic: 1,
+            perceptualRoughness: 0.2
+        )
+        let goldMetal = PBRMaterialDescription(
+            baseColor: goldBaseColor,
+            metallic: 1,
+            perceptualRoughness: 0.35
+        )
+        let goldMetalRough = PBRMaterialDescription(
+            baseColor: goldBaseColor,
+            metallic: 1,
+            perceptualRoughness: 0.8
+        )
+
+        return Self(
+            models: [.ball: ballModel],
+            materials: [
+                .warmDielectricSmooth: warmDielectricSmooth,
+                .warmDielectric: warmDielectric,
+                .warmDielectricRough: warmDielectricRough,
+                .goldMetalSmooth: goldMetalSmooth,
+                .goldMetal: goldMetal,
+                .goldMetalRough: goldMetalRough
+            ]
+        )
+    }()
 }
 ```
 

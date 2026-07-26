@@ -12,14 +12,15 @@ struct MetalHDRPipelineTests {
         // warm dielectric and incident radiance (8, 4, 2). Reproducing M3's
         // exact output proves the transitional renderer material was removed
         // without changing the established HDR pathway.
+        let expectedSceneLinearRGBA = SIMD4<Float>(
+            1.62974664,
+            0.5092958,
+            0.17825354,
+            1
+        )
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
-            approximately: SIMD4<Float>(
-                1.62974664,
-                0.5092958,
-                0.17825354,
-                1
-            )
+            approximately: expectedSceneLinearRGBA
         )
         #expect(result.sceneLinearRGBA.x > 1)
 
@@ -28,7 +29,8 @@ struct MetalHDRPipelineTests {
         // The `_srgb` attachment then performs the sole transfer encoding; CPU
         // `getBytes` exposes those encoded BGRA bytes without a shader read.
         let sceneRGB = result.sceneLinearRGBA.xyz
-        let reinhard = sceneRGB / (SIMD3<Float>(repeating: 1) + sceneRGB)
+        let one = SIMD3<Float>(repeating: 1)
+        let reinhard = sceneRGB / (one + sceneRGB)
         let expectedOnceEncoded = srgbEncodedBGRA8(from: reinhard)
         expectBGRA8(
             result.presentedBGRA8,
@@ -58,14 +60,15 @@ struct MetalHDRPipelineTests {
         // incident radiance (8, 4, 2). This differs strongly from the warm
         // dielectric and proves the authored factors reach the production
         // surface fragment rather than a retained renderer fallback.
+        let expectedSceneLinearRGBA = SIMD4<Float>(
+            42.42364164,
+            16.24825475,
+            3.5635859,
+            1
+        )
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
-            approximately: SIMD4<Float>(
-                42.42364164,
-                16.24825475,
-                3.5635859,
-                1
-            )
+            approximately: expectedSceneLinearRGBA
         )
     }
 
@@ -119,25 +122,31 @@ struct MetalHDRPipelineTests {
         // therefore catch order, address, packing, and fragment-lane mistakes.
         for index in materialIDs.indices {
             let description = descriptions[index]
-            expectStoredHalfRGBA(
-                baseColors[index],
-                approximately: SIMD4<Float>(description.baseColor, 1)
+            let expectedBaseColor = SIMD4<Float>(
+                description.baseColor,
+                1
             )
             expectStoredHalfRGBA(
+                baseColors[index],
+                approximately: expectedBaseColor
+            )
+            let expectedMetallic = SIMD4<Float>(
+                repeating: description.metallic
+            ).replacingW(with: 1)
+            expectStoredHalfRGBA(
                 metallicValues[index],
-                approximately: SIMD4<Float>(
-                    repeating: description.metallic
-                ).replacingW(with: 1)
+                approximately: expectedMetallic
             )
             let effectiveRoughness = max(
                 description.perceptualRoughness,
                 0.089
             )
+            let expectedRoughness = SIMD4<Float>(
+                repeating: effectiveRoughness
+            ).replacingW(with: 1)
             expectStoredHalfRGBA(
                 roughnessValues[index],
-                approximately: SIMD4<Float>(
-                    repeating: effectiveRoughness
-                ).replacingW(with: 1)
+                approximately: expectedRoughness
             )
         }
     }
@@ -165,9 +174,10 @@ struct MetalHDRPipelineTests {
             let specularRGB = specular[index].xyz
 
             if descriptions[index].metallic == 1 {
+                let expectedDiffuse = SIMD4<Float>(0, 0, 0, 1)
                 expectStoredHalfRGBA(
                     diffuse[index],
-                    approximately: SIMD4<Float>(0, 0, 0, 1)
+                    approximately: expectedDiffuse
                 )
             } else {
                 #expect(diffuseRGB.x > 0)
@@ -210,8 +220,9 @@ struct MetalHDRPipelineTests {
             // Derive final bytes from this draw's already-quantized HDR sample,
             // proving each stored material result uses the expected presentation
             // mapping rather than a separate factor or transfer assumption.
+            let one = SIMD3<Float>(repeating: 1)
             let reinhard = sceneRGB
-                / (SIMD3<Float>(repeating: 1) + sceneRGB)
+                / (one + sceneRGB)
             expectBGRA8(
                 result.presentedBGRA8,
                 approximately: srgbEncodedBGRA8(from: reinhard)
@@ -221,12 +232,14 @@ struct MetalHDRPipelineTests {
 
     @Test func normalDiagnosticBypassesExposureAndReinhard() throws {
         let renderer = try MetalHDRPipelineTestRenderer()
+        let normal = SIMD3<Float>(1, 0, 0)
+        let exposure = ManualExposure(multiplier: 8)
         let result = try renderer.render(
             outputMode: .viewSpaceNormals,
-            normal: SIMD3<Float>(1, 0, 0),
+            normal: normal,
             // A deliberately large exposure makes accidental use of the
             // surface presentation pipeline unmistakable.
-            exposure: ManualExposure(multiplier: 8)
+            exposure: exposure
         )
 
         let expectedLinear = SIMD4<Float>(1, 0.5, 0.5, 1)
@@ -239,8 +252,9 @@ struct MetalHDRPipelineTests {
             approximately: srgbEncodedBGRA8(from: expectedLinear.xyz)
         )
 
+        let one = SIMD3<Float>(repeating: 1)
         let accidentallyToneMapped = expectedLinear.xyz * 8
-            / (SIMD3<Float>(repeating: 1) + expectedLinear.xyz * 8)
+            / (one + expectedLinear.xyz * 8)
         let wrongSurfaceBytes = srgbEncodedBGRA8(
             from: accidentallyToneMapped
         )
@@ -249,16 +263,18 @@ struct MetalHDRPipelineTests {
 
     @Test func maximumFiniteExposureRollsOverflowingProductsToWhite() throws {
         let renderer = try MetalHDRPipelineTestRenderer()
+        let exposure = ManualExposure(multiplier: .greatestFiniteMagnitude)
         let result = try renderer.render(
             outputMode: .surface,
-            exposure: ManualExposure(multiplier: .greatestFiniteMagnitude)
+            exposure: exposure
         )
 
         // The largest accepted finite exposure pushes every positive channel
         // toward Reinhard's limiting value; the brightest product overflows.
         // The shader must produce white without `inf / inf` NaNs or subnormal
         // reciprocal behavior leaking into fixed-function conversion.
-        #expect(result.presentedBGRA8 == SIMD4<UInt8>(repeating: 255))
+        let expectedPresentedBGRA8 = SIMD4<UInt8>(repeating: 255)
+        #expect(result.presentedBGRA8 == expectedPresentedBGRA8)
     }
 }
 
@@ -269,9 +285,9 @@ private func expectStoredHalfRGBA(_ actual: SIMD4<Float>, approximately expected
     for componentIndex in 0..<4 {
         let actualHalf = Float16(actual[componentIndex])
         let expectedHalf = Float16(expected[componentIndex])
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
 }
@@ -281,8 +297,10 @@ private func expectBGRA8(_ actual: SIMD4<UInt8>, approximately expected: SIMD4<U
     // step across GPUs, while any missing or duplicate transfer differs by
     // dozens of byte values in the selected validation colors.
     for componentIndex in 0..<4 {
+        let actualComponent = Int(actual[componentIndex])
+        let expectedComponent = Int(expected[componentIndex])
         #expect(
-            abs(Int(actual[componentIndex]) - Int(expected[componentIndex]))
+            abs(actualComponent - expectedComponent)
                 <= maximumByteDistance
         )
     }
@@ -299,9 +317,9 @@ private func expectStoredHalfRGBSum(
         let expectedHalf = Float16(
             first[componentIndex] + second[componentIndex]
         )
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
     #expect(actual.w == 1)
@@ -327,7 +345,9 @@ private func quantizedUNorm8(_ value: Float) -> UInt8 {
 
 private func byteDistance(_ lhs: SIMD4<UInt8>, _ rhs: SIMD4<UInt8>) -> Int {
     (0..<4).reduce(into: 0) { distance, componentIndex in
-        distance += abs(Int(lhs[componentIndex]) - Int(rhs[componentIndex]))
+        let lhsComponent = Int(lhs[componentIndex])
+        let rhsComponent = Int(rhs[componentIndex])
+        distance += abs(lhsComponent - rhsComponent)
     }
 }
 

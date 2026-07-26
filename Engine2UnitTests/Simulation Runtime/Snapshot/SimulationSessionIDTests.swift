@@ -4,13 +4,15 @@ import Testing
 
 struct SimulationSessionIDTests {
     @Test func defaultInitializationCreatesOpaqueUniqueIdentities() {
-        #expect(SimulationSessionID() != SimulationSessionID())
+        let first = SimulationSessionID()
+        let second = SimulationSessionID()
+
+        #expect(first != second)
     }
 
     @Test func rawIdentitySupportsDeterministicRestorationAndCoding() throws {
-        let rawValue = try #require(
-            UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
-        )
+        let optionalRawValue = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+        let rawValue = try #require(optionalRawValue)
         let sessionID = SimulationSessionID(rawValue: rawValue)
 
         let data = try JSONEncoder().encode(sessionID)
@@ -25,15 +27,15 @@ struct SimulationSessionIDTests {
     }
 
     @Test func rawIdentityPreservesZeroAndMaximumUUIDBitPatterns() throws {
-        let zero = try #require(
-            UUID(uuidString: "00000000-0000-0000-0000-000000000000")
-        )
-        let maximum = try #require(
-            UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")
-        )
+        let optionalZero = UUID(uuidString: "00000000-0000-0000-0000-000000000000")
+        let optionalMaximum = UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")
+        let zero = try #require(optionalZero)
+        let maximum = try #require(optionalMaximum)
+        let zeroSessionID = SimulationSessionID(rawValue: zero)
+        let maximumSessionID = SimulationSessionID(rawValue: maximum)
 
-        #expect(SimulationSessionID(rawValue: zero).rawValue == zero)
-        #expect(SimulationSessionID(rawValue: maximum).rawValue == maximum)
+        #expect(zeroSessionID.rawValue == zero)
+        #expect(maximumSessionID.rawValue == maximum)
     }
 
     private func requireRawRepresentable(_ value: some RawRepresentable) {}

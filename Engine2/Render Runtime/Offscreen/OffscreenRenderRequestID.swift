@@ -10,7 +10,8 @@ nonisolated struct OffscreenRenderRequestID: Codable, Hashable, RawRepresentable
 
     /// Creates a fresh identity for a newly issued request.
     init() {
-        self.init(rawValue: UUID())
+        let rawValue = UUID()
+        self.init(rawValue: rawValue)
     }
 
     /// Restores or injects an already established request identity.

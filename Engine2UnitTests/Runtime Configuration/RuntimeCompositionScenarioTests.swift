@@ -8,8 +8,9 @@ import Testing
 struct RuntimeCompositionScenarioTests {
     @Test
     func clockDrivenSimulationRunsOneSecondWithoutInputOrRenderPeers() async throws {
+        let stepCount = SimulationStepCount(rawValue: 60)
         let runtime = await runClockDrivenSimulation(
-            stepCount: SimulationStepCount(rawValue: 60)
+            stepCount: stepCount
         )
 
         let entityID = try #require(
@@ -29,35 +30,41 @@ struct RuntimeCompositionScenarioTests {
 
     @Test
     func clockManualAndOfflineTopologiesReachEquivalentTickTwentyState() async throws {
+        let worldBuilder = MovingWorldBuilder()
         let gameContent = BasicGameContent(
-            worldBuilder: MovingWorldBuilder()
+            worldBuilder: worldBuilder
         )
+        let twentySteps = SimulationStepCount(rawValue: 20)
         let clockDriven = await runClockDrivenSimulation(
-            stepCount: SimulationStepCount(rawValue: 20)
+            stepCount: twentySteps
         )
-        let manual = ManualConfiguration().makeAssembly(
+        let manualConfiguration = ManualConfiguration()
+        let manual = manualConfiguration.makeAssembly(
             gameContent: gameContent
         )
+        let manualRequest = SimulationAdvanceRequest(
+            expectedCursor: manual.simulationRuntime.currentCursor,
+            stepCount: twentySteps,
+            inputAssignment: .none
+        )
         let manualOutcome = await manual.advanceTarget.advance(
-            SimulationAdvanceRequest(
-                expectedCursor: manual.simulationRuntime.currentCursor,
-                stepCount: SimulationStepCount(rawValue: 20),
-                inputAssignment: .none
-            )
+            manualRequest
         )
         guard case let .completed(manualResult) = manualOutcome else {
             Issue.record("Manual composition did not complete twenty exact ticks.")
             return
         }
 
-        let offline = try OfflineCaptureConfiguration(
+        let offlineConfiguration = OfflineCaptureConfiguration(
             renderLimits: .conservative
-        ).makeAssembly(
+        )
+        let offline = try offlineConfiguration.makeAssembly(
             gameContent: gameContent
         )
         let size = try RenderPixelSize(width: 64, height: 64)
+        let viewpointID = RenderViewpointID()
         let viewpoint = RenderViewpoint(
-            id: RenderViewpointID(),
+            id: viewpointID,
             revision: .zero,
             camera: .standard
         )
@@ -67,58 +74,69 @@ struct RuntimeCompositionScenarioTests {
             exposure: .validation
         )
 
+        let tenSteps = SimulationStepCount(rawValue: 10)
+        let firstAdvanceRequest = SimulationAdvanceRequest(
+            expectedCursor: offline.initialCursor,
+            stepCount: tenSteps,
+            inputAssignment: .none
+        )
+        let firstRenderRequestID = OffscreenRenderRequestID()
+        let firstRequest = OfflineCaptureRequest(
+            advanceRequest: firstAdvanceRequest,
+            renderRequestID: firstRenderRequestID,
+            viewpoint: viewpoint,
+            renderSettings: settings,
+            encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
+        )
         let firstOutcome = await offline.captureTarget.capture(
-            OfflineCaptureRequest(
-                advanceRequest: SimulationAdvanceRequest(
-                    expectedCursor: offline.initialCursor,
-                    stepCount: SimulationStepCount(rawValue: 10),
-                    inputAssignment: .none
-                ),
-                renderRequestID: OffscreenRenderRequestID(),
-                viewpoint: viewpoint,
-                renderSettings: settings,
-                encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
-            )
+            firstRequest
         )
         guard case let .completed(firstResult) = firstOutcome else {
             Issue.record("The first ten-tick offline capture did not complete.")
             return
         }
 
+        let secondAdvanceRequest = SimulationAdvanceRequest(
+            expectedCursor: firstResult.advanceResult.finalCursor,
+            stepCount: tenSteps,
+            inputAssignment: .none
+        )
+        let secondRenderRequestID = OffscreenRenderRequestID()
+        let secondRequest = OfflineCaptureRequest(
+            advanceRequest: secondAdvanceRequest,
+            renderRequestID: secondRenderRequestID,
+            viewpoint: viewpoint,
+            renderSettings: settings,
+            encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
+        )
         let secondOutcome = await offline.captureTarget.capture(
-            OfflineCaptureRequest(
-                advanceRequest: SimulationAdvanceRequest(
-                    expectedCursor: firstResult.advanceResult.finalCursor,
-                    stepCount: SimulationStepCount(rawValue: 10),
-                    inputAssignment: .none
-                ),
-                renderRequestID: OffscreenRenderRequestID(),
-                viewpoint: viewpoint,
-                renderSettings: settings,
-                encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
-            )
+            secondRequest
         )
         guard case let .completed(secondResult) = secondOutcome else {
             Issue.record("The second ten-tick offline capture did not complete.")
             return
         }
 
+        let currentRenderRequestID = OffscreenRenderRequestID()
+        let currentRequest = OfflineCurrentCaptureRequest(
+            expectedCursor: secondResult.advanceResult.finalCursor,
+            renderRequestID: currentRenderRequestID,
+            viewpoint: viewpoint,
+            renderSettings: settings,
+            encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
+        )
         let currentOutcome = await offline.captureTarget.captureCurrent(
-            OfflineCurrentCaptureRequest(
-                expectedCursor: secondResult.advanceResult.finalCursor,
-                renderRequestID: OffscreenRenderRequestID(),
-                viewpoint: viewpoint,
-                renderSettings: settings,
-                encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
-            )
+            currentRequest
         )
         guard case let .completed(currentResult) = currentOutcome else {
             Issue.record("The non-advancing current capture did not complete.")
             return
         }
 
-        #expect(firstResult.advanceResult.finalCursor.tick == SimulationTick(rawValue: 10))
-        #expect(secondResult.advanceResult.finalCursor.tick == SimulationTick(rawValue: 20))
+        let expectedFirstTick = SimulationTick(rawValue: 10)
+        let expectedSecondTick = SimulationTick(rawValue: 20)
+        #expect(firstResult.advanceResult.finalCursor.tick == expectedFirstTick)
+        #expect(secondResult.advanceResult.finalCursor.tick == expectedSecondTick)
         #expect(
             currentResult.sourceSnapshot
                 == secondResult.advanceResult.finalPresentationSnapshot
@@ -146,8 +164,9 @@ struct RuntimeCompositionScenarioTests {
     }
 
     private func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
+        let worldBuilder = MovingWorldBuilder()
         let runtime = SimulationRuntime(
-            worldBuilder: MovingWorldBuilder(),
+            worldBuilder: worldBuilder,
             configuration: .basicGame,
             inputBaseline: nil
         )
@@ -164,16 +183,17 @@ struct RuntimeCompositionScenarioTests {
             ]
         )
         let sleeper = ControlledSleeper()
+        let catchUpPolicy = RealtimeCatchUpPolicy(
+            maximumStepsPerWake: stepCount,
+            backlogTreatment: .preserve
+        )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: runtime,
             inputSource: nil,
             initialCursor: runtime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
-            catchUpPolicy: RealtimeCatchUpPolicy(
-                maximumStepsPerWake: stepCount,
-                backlogTreatment: .preserve
-            ),
+            catchUpPolicy: catchUpPolicy,
             isAdvancementEnabled: true,
             clockFactory: {
                 SystemClock(timeSource: elapsedSource.next)
@@ -186,8 +206,9 @@ struct RuntimeCompositionScenarioTests {
         await sleeper.waitForPendingCount(1)
         await sleeper.resumeNext()
 
+        let expectedRawTick = UInt64(stepCount.rawValue)
         let expectedTick = SimulationTick(
-            rawValue: UInt64(stepCount.rawValue)
+            rawValue: expectedRawTick
         )
         let didAdvance = await eventually {
             runtime.currentCursor.tick == expectedTick
@@ -234,11 +255,12 @@ struct RuntimeCompositionScenarioTests {
     private struct MovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()
+            let velocity = SIMD3<Float>(1, 0, 0)
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: SIMD3<Float>(1, 0, 0)
+                velocity: velocity
             )
             return world
         }
@@ -272,7 +294,8 @@ struct RuntimeCompositionScenarioTests {
 
         func sleep(until deadline: SuspendingClock.Instant) async throws {
             try await withCheckedThrowingContinuation { continuation in
-                waiters.append(Waiter(continuation: continuation))
+                let waiter = Waiter(continuation: continuation)
+                waiters.append(waiter)
                 resumeSatisfiedCountWaiters()
             }
         }

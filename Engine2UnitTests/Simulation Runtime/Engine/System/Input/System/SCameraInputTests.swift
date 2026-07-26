@@ -11,10 +11,13 @@ struct SCameraInputTests {
             far: 200
         )
         var world = World()
+        let cameraOffset = SIMD3<Float>(0, 4, 8)
+        let cameraPosition = target + cameraOffset
+        let cameraUp = SIMD3<Float>(0, 1, 0)
         world.camera = Camera.lookingAt(
             target,
-            from: target + SIMD3<Float>(0, 4, 8),
-            up: SIMD3<Float>(0, 1, 0),
+            from: cameraPosition,
+            up: cameraUp,
             projection: projection
         )
         world.input.actions.cameraOrbitYawDelta = .pi / 2
@@ -27,11 +30,10 @@ struct SCameraInputTests {
 
         system.update(world: &world, deltaTime: 1)
 
-        #expect(
-            world.camera.position.isApproximately(
-                target + SIMD3<Float>(6, 4, 0)
-            )
-        )
+        let expectedOffset = SIMD3<Float>(6, 4, 0)
+        let expectedPosition = target + expectedOffset
+
+        #expect(world.camera.position.isApproximately(expectedPosition))
         #expect(world.camera.projection == projection)
 
         let targetInViewSpace = world.camera.viewMatrix * SIMD4<Float>(target, 1)
@@ -50,15 +52,13 @@ struct SCameraInputTests {
 
         world.input.actions.cameraOrbitYawDelta = .pi / 2
         system.update(world: &world, deltaTime: 1)
-        #expect(
-            world.camera.position.isApproximately(SIMD3<Float>(8, 0, 0))
-        )
+        let positiveOrbitPosition = SIMD3<Float>(8, 0, 0)
+        #expect(world.camera.position.isApproximately(positiveOrbitPosition))
 
         world.input.actions.cameraOrbitYawDelta = -.pi
         system.update(world: &world, deltaTime: 1)
-        #expect(
-            world.camera.position.isApproximately(SIMD3<Float>(-8, 0, 0))
-        )
+        let negativeOrbitPosition = SIMD3<Float>(-8, 0, 0)
+        #expect(world.camera.position.isApproximately(negativeOrbitPosition))
     }
 
     @Test func hugeZoomCommandsClampAndRepeatedBlockedInputIsANoOp() {
@@ -71,9 +71,8 @@ struct SCameraInputTests {
 
         world.input.actions.cameraZoomDelta = .greatestFiniteMagnitude
         system.update(world: &world, deltaTime: 1)
-        #expect(
-            world.camera.position.isApproximately(SIMD3<Float>(0, 0, 4))
-        )
+        let minimumPosition = SIMD3<Float>(0, 0, 4)
+        #expect(world.camera.position.isApproximately(minimumPosition))
 
         let minimumCamera = world.camera
         system.update(world: &world, deltaTime: 1)
@@ -81,9 +80,8 @@ struct SCameraInputTests {
 
         world.input.actions.cameraZoomDelta = -.greatestFiniteMagnitude
         system.update(world: &world, deltaTime: 1)
-        #expect(
-            world.camera.position.isApproximately(SIMD3<Float>(0, 0, 10))
-        )
+        let maximumPosition = SIMD3<Float>(0, 0, 10)
+        #expect(world.camera.position.isApproximately(maximumPosition))
 
         let maximumCamera = world.camera
         system.update(world: &world, deltaTime: 1)

@@ -70,7 +70,8 @@ struct SRotation: PSystem {
         let angle = simd_length(angularStep)
 
         guard angle > 0 else {
-            return simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
+            let neutralAxis = SIMD3<Float>(0, 0, 1)
+            return simd_quatf(angle: 0, axis: neutralAxis)
         }
 
         let axis = angularStep / angle

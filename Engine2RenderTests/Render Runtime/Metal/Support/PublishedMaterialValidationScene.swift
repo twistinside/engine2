@@ -13,12 +13,12 @@ struct PublishedMaterialValidationScene {
     init() {
         let gameContent = BasicGameContent()
         let world = gameContent.worldBuilder.buildWorld()
-        let snapshot = world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: SimulationSessionID(),
-                tick: .zero
-            )
+        let sessionID = SimulationSessionID()
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
         )
+        let snapshot = world.presentationSnapshot(at: cursor)
 
         self.catalog = gameContent.renderAssetCatalog
         self.renderFrame = RenderFrame(projecting: snapshot)

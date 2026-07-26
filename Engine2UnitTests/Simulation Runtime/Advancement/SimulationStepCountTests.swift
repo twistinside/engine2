@@ -14,11 +14,13 @@ struct SimulationStepCountTests {
     }
 
     @Test func validatingInitializerRejectsZeroWithoutTrapping() {
-        #expect(SimulationStepCount(validating: 0) == nil)
-        #expect(SimulationStepCount(validating: 1) == .one)
-        #expect(
-            SimulationStepCount(validating: .max)?.rawValue == UInt32.max
-        )
+        let zero = SimulationStepCount(validating: 0)
+        let one = SimulationStepCount(validating: 1)
+        let maximum = SimulationStepCount(validating: .max)
+
+        #expect(zero == nil)
+        #expect(one == .one)
+        #expect(maximum?.rawValue == UInt32.max)
     }
 
     private func requireRawRepresentable(_ value: some RawRepresentable) {}

@@ -3,10 +3,12 @@ import Testing
 
 struct RealtimeAssemblyTests {
     @Test func lifecycleStartsAndStopsTheOwnedRuntimes() async {
-        let assembly = RealtimeConfiguration(
+        let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
+        let gameContent = BasicGameContent()
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
 
         assembly.start()
 
@@ -22,10 +24,12 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func lifecycleIsIdempotent() async {
-        let assembly = RealtimeConfiguration(
+        let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
+        let gameContent = BasicGameContent()
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
 
         assembly.start()
         let startedRevision = assembly.inputRuntime.latestInputSnapshot.revision
@@ -43,10 +47,12 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func userPauseSurvivesAppLifecycleAndLeavesInputLive() async {
-        let assembly = RealtimeConfiguration(
+        let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
+        let gameContent = BasicGameContent()
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
 
         assembly.start()
         assembly.pauseAdvancement()
@@ -69,10 +75,12 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func rebuildCoordinatesSessionCursorAndDriverLifecycle() async {
-        let assembly = RealtimeConfiguration(
+        let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
+        let gameContent = BasicGameContent()
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
         assembly.start()
         let initialCursor = assembly.simulationRuntime.currentCursor
 
@@ -87,10 +95,12 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func pausedInputPublishesWithoutBypassingSimulation() async {
-        let assembly = RealtimeConfiguration(
+        let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
+        let gameContent = BasicGameContent()
+        let assembly = configuration.makeAssembly(gameContent: gameContent)
 
         // Disable advancement before activation so no cadence request can race
         // the invariant this test is proving.
@@ -103,13 +113,16 @@ struct RealtimeAssemblyTests {
         let hostSink: any PInputEventSink = assembly.inputRuntime
         let heldKey = KeyboardKey(keyCode: 13, displayName: "W")
 
+        let pointerDelta = SIMD2<Float>(50, 0)
+        let pointerPosition = SIMD2<Float>(10, 20)
         hostSink.receive(
             .mouseDragged(
-                delta: SIMD2<Float>(50, 0),
-                position: SIMD2<Float>(10, 20)
+                delta: pointerDelta,
+                position: pointerPosition
             )
         )
-        hostSink.receive(.scroll(delta: SIMD2<Float>(0, 25)))
+        let scrollDelta = SIMD2<Float>(0, 25)
+        hostSink.receive(.scroll(delta: scrollDelta))
         hostSink.receive(.keyDown(heldKey))
 
         #expect(assembly.simulationRuntime.currentCursor == cursor)
@@ -122,11 +135,11 @@ struct RealtimeAssemblyTests {
         )
         #expect(
             assembly.inputRuntime.latestInputSnapshot.pointerMotionTotal ==
-            SIMD2<Float>(50, 0)
+            pointerDelta
         )
         #expect(
             assembly.inputRuntime.latestInputSnapshot.scrollTotal
-                == SIMD2<Float>(0, 25)
+                == scrollDelta
         )
 
         let pausedFrame = RenderFrame(

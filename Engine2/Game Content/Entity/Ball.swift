@@ -20,7 +20,7 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
         velocity: SIMD3<Float> = .zero,
         accelerationIntent: CMotion.AccelerationIntent = .idle,
         impulse: SIMD3<Float> = .zero,
-        rotation: simd_quatf = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1)),
+        rotation: simd_quatf = CRotation.identity.rotation,
         angularVelocity: SIMD3<Float> = .zero,
         angularAcceleration: SIMD3<Float> = .zero,
         angularImpulse: SIMD3<Float> = .zero,
