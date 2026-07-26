@@ -136,17 +136,21 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
             )
         }
 
+        // Resolve all authored content before acquiring the mutable frame slot,
+        // resetting its allocator, or creating request-scoped GPU targets.
+        let preparedFrame = frameEncoder.prepare(renderFrame)
+
         // The live screen may deliberately omit an instance whose optional
         // model is unavailable. Exact offline work cannot silently produce a
-        // partial image, so prove complete model and indexed-geometry coverage
-        // during preflight.
-        for instance in renderFrame.instances {
-            guard let model = resources.model(for: instance.meshID) else {
+        // partial image, so validate the exact prepared model values that
+        // encoding will consume rather than repeating store lookups.
+        for instance in preparedFrame.instances {
+            let meshID = instance.renderInstance.meshID
+
+            guard let model = instance.model else {
                 return failure(
                     at: .preparation,
-                    causedBy: MetalOffscreenRenderTargetError.missingModel(
-                        instance.meshID
-                    )
+                    causedBy: MetalOffscreenRenderTargetError.missingModel(meshID)
                 )
             }
 
@@ -155,15 +159,11 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                     at: .preparation,
                     causedBy: MetalOffscreenRenderTargetError
                         .modelHasIncompleteDrawableIndexedGeometry(
-                            instance.meshID
+                            meshID
                         )
                 )
             }
         }
-
-        // Resolve all authored content before acquiring the mutable frame slot,
-        // resetting its allocator, or creating request-scoped GPU targets.
-        let preparedFrame = frameEncoder.prepare(renderFrame)
 
         guard !Task.isCancelled else {
             return .rejected(.cancelledBeforeSubmission)

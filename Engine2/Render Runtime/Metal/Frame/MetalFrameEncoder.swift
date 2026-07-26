@@ -110,8 +110,8 @@ final class MetalFrameEncoder {
     private func draw(_ prepared: MetalPreparedFrame, frame: FrameResources, with renderEncoder: any MTL4RenderCommandEncoder) {
         for (instanceIndex, instance) in prepared.instances.enumerated() {
             // Missing model content makes only this live-screen instance
-            // unrenderable. Exact offscreen work proves model coverage before
-            // preparing the frame and cannot reach this branch.
+            // unrenderable. Exact offscreen work validates the models retained
+            // by its prepared frame and cannot reach this branch.
             guard let model = instance.model else {
                 continue
             }
