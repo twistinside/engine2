@@ -157,7 +157,7 @@ struct MetalRendererTests {
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: MetalResourceStore.defaultFrameCount
         )
-        let renderer = MetalRenderer(
+        let renderer = try MetalRenderer(
             resources: resources,
             presentationSource: SimulationRuntime(
                 worldBuilder: gameContent.worldBuilder,

@@ -32,7 +32,7 @@ struct Engine2App: App {
                 catalog: gameContent.renderAssetCatalog,
                 limits: .conservative
             )
-            let captureConnection = RealtimeSnapshotCaptureConnection(
+            let captureConnection = try RealtimeSnapshotCaptureConnection(
                 presentationSource: realtimeAssembly.simulationRuntime,
                 renderTarget: offscreenRenderRuntime
             )
@@ -43,7 +43,7 @@ struct Engine2App: App {
         } catch {
             snapshotCaptureViewModel = SnapshotCaptureViewModel(
                 unavailableReason:
-                    "The offline Metal renderer could not start. \(error)",
+                    "Snapshot output could not start. \(error)",
                 renderSize: .uhd4K
             )
         }

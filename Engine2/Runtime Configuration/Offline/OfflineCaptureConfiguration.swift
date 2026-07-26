@@ -37,7 +37,7 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
             advanceTarget: simulationRuntime,
             initialPresentationSnapshot: initialPresentationSnapshot,
             renderTarget: renderRuntime,
-            artifactEncoder: ImageIOArtifactEncoder()
+            artifactEncoder: try ImageIOArtifactEncoder()
         )
 
         // Only immutable initial identity and the coordinator's narrow workflow

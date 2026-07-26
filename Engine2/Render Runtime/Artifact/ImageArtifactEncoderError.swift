@@ -1,9 +1,9 @@
-/// Failures while deriving an encoded artifact from completed offscreen pixels.
+/// Failures while preparing or deriving an encoded artifact from completed pixels.
 ///
 /// Every case is local to CPU-side artifact construction. Retrying with the
 /// same render result does not advance Simulation, submit GPU work, or rerender.
 nonisolated enum ImageArtifactEncoderError: Error, Equatable, Sendable {
-    /// The platform could not provide the required standard sRGB color space.
+    /// Encoder construction could not resolve the required standard sRGB color space.
     case couldNotCreateSRGBColorSpace
 
     /// Core Graphics could not expose the detached source bytes as image data.
