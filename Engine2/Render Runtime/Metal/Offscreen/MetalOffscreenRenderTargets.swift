@@ -61,16 +61,8 @@ final class MetalOffscreenRenderTargets {
         self.residencySet = residencySet
     }
 
-    /// Detaches tightly packed pixels only after successful queue feedback.
-    ///
-    /// Requiring the completion value at this boundary prevents callers from
-    /// reading shared storage while the GPU can still be writing it.
-    func readback(after completion: MetalOffscreenCompletion) throws -> RenderedBGRA8SRGBImage {
-        guard completion == .success else {
-            throw MetalOffscreenRenderTargetError
-                .readbackRequiresSuccessfulCompletion
-        }
-
+    /// Detaches tightly packed pixels after the owning workflow awaits feedback.
+    func readback() throws -> RenderedBGRA8SRGBImage {
         let (bytesPerRow, rowOverflowed) = size.width
             .multipliedReportingOverflow(by: 4)
         guard !rowOverflowed else {

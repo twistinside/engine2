@@ -275,21 +275,17 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         // deliberately does not short-circuit the continuation or resource
         // retention: Metal 4 command buffers do not retain this object graph.
         runtimeOwnsFrame = false
-        let completion = await commit(
-            commandBuffer,
-            frame: frame,
-            sceneTarget: sceneTarget,
-            targets: targets
-        )
-
-        switch completion {
-        case .success:
-            break
-
-        case let .failure(description):
+        do {
+            try await commit(
+                commandBuffer,
+                frame: frame,
+                sceneTarget: sceneTarget,
+                targets: targets
+            )
+        } catch {
             let failure = OffscreenRenderFailure(
                 stage: .gpuExecution,
-                backendDescription: description
+                backendDescription: error.backendDescription
             )
             renderingState = .failed(failure)
             return .failed(failure)
@@ -304,7 +300,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
 
         let image: RenderedBGRA8SRGBImage
         do {
-            image = try targets.readback(after: completion)
+            image = try targets.readback()
         } catch {
             return failure(at: .readback, causedBy: error)
         }
@@ -329,8 +325,8 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         frame: FrameResources,
         sceneTarget: MetalHDRSceneTarget,
         targets: MetalOffscreenRenderTargets
-    ) async -> MetalOffscreenCompletion {
-        await withCheckedContinuation { continuation in
+    ) async throws(MetalOffscreenSubmissionError) {
+        try await withCheckedThrowingContinuation { continuation in
             let submission = MetalOffscreenSubmission(
                 resources: resources,
                 encoder: frameEncoder,

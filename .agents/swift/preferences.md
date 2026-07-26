@@ -34,7 +34,8 @@ When working in Swift:
   request, response, result, outcome, or completion types merely to carry local success and failure between adjacent
   calls. Keep explicit value-shaped outcomes at real runtime, actor, protocol, persistence, replay, or transport
   boundaries when admission, cancellation, provenance, partial commitment, or exhaustive handling is part of the
-  contract.
+  contract. Use typed throws when the implementation has one closed error domain and its dependencies can preserve that
+  type without artificial wrapping. Swift calls this feature "typed throws," not "checked exceptions."
 
 - Resolve required fallible resources at their owning construction boundary. Convert string or external identities into
   validated typed handles once, retain them, and make downstream access nonthrowing when successful construction proves
