@@ -1,9 +1,10 @@
 /// Bounded FIFO storage for exact live-process agent response replay.
 ///
-/// The cache owns entry-count and raw/encoded image-byte accounting. A response
-/// larger than the complete byte budget is deliberately not retained; accepted
-/// request high-water remains outside this value so the coordinator can still
-/// distinguish that unretained identity from fresh work.
+/// The cache owns entry-count bounds and aggregate raw/encoded image-byte
+/// accounting over the exact footprint cached by each entry. A response larger
+/// than the complete byte budget is deliberately not retained; accepted request
+/// high-water remains outside this value so the coordinator can still distinguish
+/// that unretained identity from fresh work.
 nonisolated struct AgentSessionReplayCache: Sendable {
     private let maximumResultCount: Int
     private let maximumImageBytes: Int
@@ -30,7 +31,7 @@ nonisolated struct AgentSessionReplayCache: Sendable {
     mutating func retain(_ entry: AgentSessionReplayEntry) {
         precondition(entries[entry.requestID] == nil, "An accepted agent request identity can enter replay storage only once.")
 
-        let imageBytes = retainedImageByteCount(in: entry.response.outcome)
+        let imageBytes = entry.retainedImageByteCount
         guard imageBytes <= maximumImageBytes else {
             return
         }
@@ -41,7 +42,7 @@ nonisolated struct AgentSessionReplayCache: Sendable {
             guard let evictedEntry = entries.removeValue(forKey: oldestID) else {
                 preconditionFailure("Agent replay retention order must reference a retained entry.")
             }
-            retainedImageBytes -= retainedImageByteCount(in: evictedEntry.response.outcome)
+            retainedImageBytes -= evictedEntry.retainedImageByteCount
         }
 
         entries[entry.requestID] = entry
@@ -49,65 +50,4 @@ nonisolated struct AgentSessionReplayCache: Sendable {
         retainedImageBytes += imageBytes
     }
 
-    /// Counts only retained encoded or raw image payloads by declared policy.
-    private func retainedImageByteCount(in outcome: AgentSessionExecutionOutcome) -> Int {
-        switch outcome {
-        case let .capture(captureOutcome):
-            return switch captureOutcome {
-            case let .completed(result):
-                result.artifact.encodedData.count
-
-            case let .renderResultMismatch(_, renderResult),
-                 let .cancelledAfterRender(_, renderResult),
-                 let .artifactEncodingFailed(_, renderResult, _):
-                renderResult.image.bytes.count
-
-            case let .artifactResultMismatch(_, renderResult, artifact):
-                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
-
-            case .coordinatorBusy,
-                 .cancelledBeforeAdvance,
-                 .advanceRejected,
-                 .advanceResultMismatch,
-                 .cancelledAfterAdvance,
-                 .renderRejected,
-                 .renderFailed,
-                 .renderCancellationRequestIDMismatch,
-                 .renderCancelledAfterSubmission:
-                0
-            }
-
-        case let .currentCapture(captureOutcome):
-            return switch captureOutcome {
-            case let .completed(result):
-                result.artifact.encodedData.count
-
-            case let .renderResultMismatch(_, renderResult),
-                 let .cancelledAfterRender(_, renderResult),
-                 let .artifactEncodingFailed(_, renderResult, _):
-                renderResult.image.bytes.count
-
-            case let .artifactResultMismatch(_, renderResult, artifact):
-                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
-
-            case .coordinatorBusy,
-                 .cancelledBeforeRender,
-                 .cursorMismatch,
-                 .renderRejected,
-                 .renderFailed,
-                 .renderCancellationRequestIDMismatch,
-                 .renderCancelledAfterSubmission:
-                0
-            }
-
-        case .stepLimitExceeded:
-            return 0
-        }
-    }
-
-    /// Adds two retained payload sizes without allowing integer wraparound.
-    private func combinedImageByteCount(_ first: Int, _ second: Int) -> Int {
-        let (sum, overflowed) = first.addingReportingOverflow(second)
-        return overflowed ? .max : sum
-    }
 }
