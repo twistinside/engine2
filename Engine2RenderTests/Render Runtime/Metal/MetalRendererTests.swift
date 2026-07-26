@@ -62,7 +62,10 @@ struct MetalRendererTests {
                 )
             ]
         )
-        let simulation = SimulationRuntime()
+        let simulation = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
+            inputBaseline: nil
+        )
 
         let coordinator = MetalSceneView.Coordinator(
             renderAssetCatalog: incompleteCatalog,
@@ -133,7 +136,10 @@ struct MetalRendererTests {
         )
         let renderer = try MetalRenderer(
             resources: resources,
-            presentationSource: SimulationRuntime(),
+            presentationSource: SimulationRuntime(
+                worldBuilder: BasicWorldBuilder(),
+                inputBaseline: nil
+            ),
             outputMode: .surface
         )
 

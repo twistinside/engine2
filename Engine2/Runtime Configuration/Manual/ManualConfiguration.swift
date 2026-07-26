@@ -4,12 +4,24 @@
 /// test, turn-based host, or future tool coordinator advances the resulting
 /// assembly only through the Simulation Runtime's exact capability.
 nonisolated struct ManualConfiguration: Equatable, Sendable {
-    /// Constructs one isolated, initially idle manual assembly.
+    /// Constructs an initially idle manual assembly with a fresh Simulation
+    /// session identity.
     @MainActor
-    func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID = SimulationSessionID()) -> ManualAssembly {
+    func makeAssembly(gameContent: BasicGameContent) -> ManualAssembly {
+        makeAssembly(
+            gameContent: gameContent,
+            sessionID: SimulationSessionID()
+        )
+    }
+
+    /// Constructs an initially idle manual assembly with a caller-supplied
+    /// Simulation identity for restoration or external correlation.
+    @MainActor
+    func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID) -> ManualAssembly {
         ManualAssembly(
             simulationRuntime: SimulationRuntime(
                 worldBuilder: gameContent.worldBuilder,
+                inputBaseline: nil,
                 sessionID: sessionID
             )
         )

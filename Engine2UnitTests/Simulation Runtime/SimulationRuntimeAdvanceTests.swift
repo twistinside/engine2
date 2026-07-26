@@ -353,6 +353,7 @@ struct SimulationRuntimeAdvanceTests {
     private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
+            inputBaseline: nil,
             sessionID: sessionID
         )
     }

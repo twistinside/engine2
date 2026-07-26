@@ -147,7 +147,8 @@ struct RuntimeCompositionScenarioTests {
 
     private func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
         let runtime = SimulationRuntime(
-            worldBuilder: MovingWorldBuilder()
+            worldBuilder: MovingWorldBuilder(),
+            inputBaseline: nil
         )
         let baseInstant = SuspendingClock().now
         let elapsed = (0..<stepCount.rawValue).reduce(Duration.zero) {
