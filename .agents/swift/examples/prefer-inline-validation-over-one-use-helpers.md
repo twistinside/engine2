@@ -8,17 +8,11 @@ optional, or make the call site artificially concise.
 ## Avoid
 
 ```swift
-if let yawDelta = Self.finiteProduct(
-    pointerMotion.x,
-    pointerOrbitSensitivity
-), yawDelta != 0 {
+if let yawDelta = Self.finiteProduct(pointerMotion.x, pointerOrbitSensitivity), yawDelta != 0 {
     directives.append(.orbitCamera(yawDelta: yawDelta))
 }
 
-private static func finiteProduct(
-    _ lhs: Float,
-    _ rhs: Float
-) -> Float? {
+private static func finiteProduct(_ lhs: Float, _ rhs: Float) -> Float? {
     let product = lhs * rhs
     return product.isFinite ? product : nil
 }
@@ -52,3 +46,10 @@ is reused enough that a name clarifies intent. Prefer an extension when the
 operation naturally belongs to another type and is useful in more than this
 single call site. Otherwise, favor clear inline code and an ordinary guard or
 `if` statement.
+
+Static is not the default home for implementation helpers. When a reusable
+helper supports one instance's behavior, prefer an instance method even if the
+current implementation reads only its arguments. Reserve a static method for
+behavior callers should conceptually invoke on the type itself. See
+[genuine static processes](choose-the-right-construction-api.md#use-a-static-function-for-a-genuine-process)
+for one such exception.

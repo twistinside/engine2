@@ -6,7 +6,7 @@ them merely by which form makes a call site shortest.
 
 | Intent | Swift form |
 | --- | --- |
-| Construct a caller-selected combination of values | Full `init` |
+| Construct a caller-selected combination of values | Full initializer call; synthesized when sufficient |
 | Give a class a secondary path that supplies ordinary local state | `convenience init` |
 | Expose a distinguished, complete value | `static let` |
 | Perform a named loading, caching, or implementation-selection process | `static func` |
@@ -18,10 +18,7 @@ The full initializer is the baseline construction surface. It lets the caller
 state the complete value it wants without hiding a choice.
 
 ```swift
-let catalog = RenderAssetCatalog(
-    models: selectedModels,
-    materials: selectedMaterials
-)
+let catalog = RenderAssetCatalog(models: selectedModels, materials: selectedMaterials)
 ```
 
 For a class, this complete initialization path is normally a designated
@@ -30,6 +27,45 @@ not call them designated initializers.
 
 Keep a one-off combination at its composition site when it has no stable domain
 meaning. Do not add a named preset merely because the initializer is long.
+
+### Let Swift Synthesize Plain Memberwise Construction
+
+Choosing a full initializer at the call site does not mean hand-writing one in
+the type. For a structure, use the synthesized memberwise initializer when its
+stored properties already define exactly the intended internal construction
+surface.
+
+Avoid an initializer that only repeats property names and assignments:
+
+```swift
+struct AgentSessionRequestID {
+    let sessionID: AgentSessionID
+    let sequence: AgentSessionRequestSequence
+
+    init(sessionID: AgentSessionID, sequence: AgentSessionRequestSequence) {
+        self.sessionID = sessionID
+        self.sequence = sequence
+    }
+}
+```
+
+Prefer the equivalent synthesized construction:
+
+```swift
+struct AgentSessionRequestID {
+    let sessionID: AgentSessionID
+    let sequence: AgentSessionRequestSequence
+}
+
+let requestID = AgentSessionRequestID(sessionID: sessionID, sequence: sequence)
+```
+
+Write an explicit initializer when it validates or normalizes input, delegates,
+changes argument labels, exposes different access, supplies deliberate defaults,
+or satisfies a protocol requirement. An explicit initializer may also be needed
+when another initializer suppresses memberwise synthesis. Classes and actors do
+not receive a synthesized memberwise initializer, and a public construction API
+may require an explicitly public initializer.
 
 ## Use a Convenience Initializer for a Class's Secondary Path
 
@@ -47,10 +83,7 @@ final class Ball {
     let world: World
     var position: SIMD3<Float>
 
-    init(
-        in world: World,
-        position: SIMD3<Float>
-    ) {
+    init(in world: World, position: SIMD3<Float>) {
         self.world = world
         self.position = position
     }
@@ -58,10 +91,7 @@ final class Ball {
     /// Spawns this Ball at the neutral origin. Position belongs only to this
     /// Ball, so choosing the origin does not establish policy for other entities.
     convenience init(in world: World) {
-        self.init(
-            in: world,
-            position: .zero
-        )
+        self.init(in: world, position: .zero)
     }
 }
 ```
@@ -93,12 +123,7 @@ final class CameraInputController {
 
     // Avoid: this silently lets one controller select application-wide policy.
     convenience init() {
-        self.init(
-            mapper: DefaultInputDirectiveMapper(
-                pointerOrbitSensitivity: 0.01,
-                scrollZoomSensitivity: 0.04
-            )
-        )
+        self.init(mapper: DefaultInputDirectiveMapper(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04))
     }
 }
 ```
@@ -208,10 +233,7 @@ extension DefaultInputDirectiveMapper {
     /// Test-only camera binding with fixed values chosen for deterministic
     /// fixture setup. Production composition must inject shared configuration.
     static func testFixture() -> Self {
-        Self(
-            pointerOrbitSensitivity: 0.01,
-            scrollZoomSensitivity: 0.04
-        )
+        Self(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04)
     }
 }
 ```
@@ -229,10 +251,7 @@ Swift convenience initializer. The wrapper is harmful because it:
 Prefer explicit construction:
 
 ```swift
-let mapper = DefaultInputDirectiveMapper(
-    pointerOrbitSensitivity: 0.01,
-    scrollZoomSensitivity: 0.04
-)
+let mapper = DefaultInputDirectiveMapper(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04)
 ```
 
 Keep fixture construction in the fixture setup so the selected values remain
@@ -248,9 +267,7 @@ construction process. Document that reason; do not use a factory as an
 initializer alias.
 
 ```swift
-let catalog = try RenderAssetCatalog.load(
-    from: manifestURL
-)
+let catalog = try RenderAssetCatalog.load(from: manifestURL)
 ```
 
 Do not spell a fixed distinguished value as a function:
@@ -277,9 +294,7 @@ Do not use a default argument to select a distinguished value:
 
 ```swift
 // Avoid: selecting every asset is now implicit.
-init(
-    renderAssetCatalog: RenderAssetCatalog = .everything
-) {
+init(renderAssetCatalog: RenderAssetCatalog = .everything) {
     self.renderAssetCatalog = renderAssetCatalog
 }
 ```
@@ -298,10 +313,7 @@ struct DefaultInputDirectiveMapper {
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
 
-    init(
-        pointerOrbitSensitivity: Float = 0.01,
-        scrollZoomSensitivity: Float = 0.04
-    ) {
+    init(pointerOrbitSensitivity: Float = 0.01, scrollZoomSensitivity: Float = 0.04) {
         self.pointerOrbitSensitivity = pointerOrbitSensitivity
         self.scrollZoomSensitivity = scrollZoomSensitivity
     }
@@ -319,14 +331,6 @@ Require the composition root to provide coordinated values:
 struct DefaultInputDirectiveMapper {
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
-
-    init(
-        pointerOrbitSensitivity: Float,
-        scrollZoomSensitivity: Float
-    ) {
-        self.pointerOrbitSensitivity = pointerOrbitSensitivity
-        self.scrollZoomSensitivity = scrollZoomSensitivity
-    }
 }
 
 let mapper = DefaultInputDirectiveMapper(
