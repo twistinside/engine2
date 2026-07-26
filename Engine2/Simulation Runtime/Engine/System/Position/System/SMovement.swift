@@ -2,13 +2,13 @@ import OSLog
 
 /// Applies one frame of accumulated motion by first updating velocity and then
 /// advancing position from the new velocity.
-class SMovement: PSystem {
+struct SMovement: PSystem {
     private static let signposter = OSSignposter(
         subsystem: "Engine2",
         category: "SMovement"
     )
 
-    func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Float) {
         let signpostState = Self.signposter.beginInterval("SMovement.update")
         defer {
             Self.signposter.endInterval("SMovement.update", signpostState)

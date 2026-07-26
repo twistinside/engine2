@@ -14,7 +14,7 @@ struct SMovementTests {
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(1, 2, 3)), for: entity)
         world.motionComponents.insert(motion, for: entity)
 
-        let system = SMovement()
+        var system = SMovement()
         system.update(world: &world, deltaTime: 0.5)
 
         #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
@@ -33,7 +33,8 @@ struct SMovementTests {
         expectedMotion.accumulator.acceleration = SIMD3<Float>(7, 8, 9)
         world.motionComponents.insert(expectedMotion, for: entity)
 
-        SMovement().update(world: &world, deltaTime: 0.5)
+        var system = SMovement()
+        system.update(world: &world, deltaTime: 0.5)
 
         #expect(world.motionComponents[entity] == expectedMotion)
         #expect(world.positionComponents[entity] == nil)
