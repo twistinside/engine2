@@ -64,7 +64,7 @@ struct Engine2App: App {
                     realtimeAssembly.isAdvancementActive
                 },
                 inputHistory: {
-                    realtimeAssembly.simulationRuntime.world.input.history
+                    realtimeAssembly.simulationRuntime.world.inputHistory.entries
                 },
                 toggleSimulation: {
                     if realtimeAssembly.isAdvancementActive {

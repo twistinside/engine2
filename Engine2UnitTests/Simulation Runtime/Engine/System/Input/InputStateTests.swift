@@ -205,58 +205,6 @@ struct InputStateTests {
         #expect(input.mouse.position == SIMD2<Float>(8, 9))
     }
 
-    @Test func historyTokensHaveStableOrderingAndRoundedDeltas() {
-        var input = InputState()
-        let aKey = KeyboardKey(
-            keyCode: 0,
-            charactersIgnoringModifiers: "a"
-        )
-        let zKey = KeyboardKey(
-            keyCode: 6,
-            charactersIgnoringModifiers: "z"
-        )
-
-        input.ingest(
-            snapshot(
-                session: 1,
-                sequence: 1,
-                pointerMotionTotal: SIMD2<Float>(1.6, -1.6),
-                scrollTotal: SIMD2<Float>(0, 0.4),
-                pressedMouseButtons: [.other(5), .middle, .right, .left],
-                pressedKeys: [zKey, aKey]
-            )
-        )
-
-        #expect(
-            input.currentHistoryTokens() == [
-                "LMB",
-                "RMB",
-                "MMB",
-                "M5",
-                "Mouse dx:+2 dy:-2",
-                "Wheel:+0",
-                "A",
-                "Z"
-            ]
-        )
-    }
-
-    @Test func historyFormattingHandlesNonfiniteAndVeryLargeDeltas() {
-        var input = InputState()
-        input.mouse.delta = SIMD2<Float>(.nan, .infinity)
-        input.mouse.scrollDelta = SIMD2<Float>(
-            0,
-            -.greatestFiniteMagnitude
-        )
-
-        #expect(
-            input.currentHistoryTokens() == [
-                "Mouse dx:+nan dy:+inf",
-                "Wheel:-\(Float.greatestFiniteMagnitude)"
-            ]
-        )
-    }
-
     @Test func cleanupClearsDeltasButPreservesHeldState() {
         var input = InputState()
         let key = KeyboardKey(keyCode: 49, charactersIgnoringModifiers: " ")

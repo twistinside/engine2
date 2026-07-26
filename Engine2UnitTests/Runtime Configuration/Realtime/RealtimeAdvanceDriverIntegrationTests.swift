@@ -81,7 +81,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
                 projecting: simulationRuntime.latestPresentationSnapshot
             ).camera == simulationRuntime.world.camera
         )
-        #expect(simulationRuntime.world.input.history.first?.tokens == ["Mouse dx:+5 dy:+0"])
+        #expect(simulationRuntime.world.inputHistory.entries.first?.tokens == ["Mouse dx:+5 dy:+0"])
     }
 
     @Test
@@ -199,7 +199,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
             simulationRuntime.world.camera
         )
         #expect(
-            simulationRuntime.world.input.history.first?.tokens ==
+            simulationRuntime.world.inputHistory.entries.first?.tokens ==
             ["Mouse dx:+10 dy:+0"]
         )
     }

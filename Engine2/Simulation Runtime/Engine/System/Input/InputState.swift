@@ -3,9 +3,9 @@ import simd
 /// Authoritative simulation-facing input imported at fixed-step boundaries.
 ///
 /// `InputState` rebases or derives transients from immutable Input Runtime
-/// snapshots, then lets ordered input systems map, record, consume, and clear
-/// them inside the Simulation Runtime. It never exposes mutable platform input
-/// state across the runtime boundary.
+/// snapshots, then lets ordered input systems map, consume, and clear them
+/// inside the Simulation Runtime. Diagnostic retention belongs to the
+/// World-owned ``InputHistory`` resource rather than this authoritative value.
 struct InputState {
     /// Imported pointer state, including per-tick motion and scroll transients.
     struct Mouse {
@@ -32,11 +32,7 @@ struct InputState {
     var mouse = Mouse()
     var keyboard = Keyboard()
     var actions = Actions()
-    var history: [InputHistoryEntry] = []
-    var historyLimit = 60
 
-    private var frameIndex = 0
-    private var nextHistoryID = 0
     private var consumptionBaseline = InputConsumptionBaseline.uninitialized
 
     /// Incorporates a newer immutable publication at a fixed-step boundary.
@@ -88,64 +84,9 @@ struct InputState {
         )
     }
 
-    mutating func recordHistoryFrame() {
-        frameIndex += 1
-
-        let tokens = currentHistoryTokens()
-        guard !tokens.isEmpty else {
-            return
-        }
-
-        if history.first?.tokens == tokens {
-            history[0].frameCount += 1
-            return
-        }
-
-        let entry = InputHistoryEntry(
-            id: nextHistoryID,
-            frameIndex: frameIndex,
-            frameCount: 1,
-            tokens: tokens
-        )
-        nextHistoryID += 1
-
-        history.insert(entry, at: 0)
-        if history.count > historyLimit {
-            history.removeLast(history.count - historyLimit)
-        }
-    }
-
     mutating func clearTransientInput() {
         mouse.delta = .zero
         mouse.scrollDelta = .zero
         actions = Actions()
-    }
-
-    func currentHistoryTokens() -> [String] {
-        var tokens: [String] = []
-
-        tokens += mouse.buttons.sorted().map(\.displayName)
-
-        if mouse.delta != .zero {
-            tokens.append("Mouse dx:\(format(signed: mouse.delta.x)) dy:\(format(signed: mouse.delta.y))")
-        }
-
-        if mouse.scrollDelta != .zero {
-            tokens.append("Wheel:\(format(signed: mouse.scrollDelta.y))")
-        }
-
-        tokens += keyboard.keys.sorted().map(\.displayName)
-
-        return tokens
-    }
-
-    private func format(signed value: Float) -> String {
-        let rounded = value.rounded()
-        guard let integer = Int(exactly: rounded) else {
-            let text = String(value)
-            return value.sign == .minus ? text : "+\(text)"
-        }
-
-        return integer >= 0 ? "+\(integer)" : "\(integer)"
     }
 }
