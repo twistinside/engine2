@@ -19,7 +19,7 @@ extension RenderInstance {
     ///
     /// The initializer lives in an extension so Swift can still synthesize the
     /// direct memberwise initializer used for already-projected Render values.
-    init(projecting entity: EntityPresentationSnapshot, viewMatrix: simd_float4x4) throws {
+    init(projecting entity: EntityPresentationSnapshot, viewMatrix: simd_float4x4) throws(RenderFrameProjectionError) {
         guard let position = entity.position else {
             throw RenderFrameProjectionError.missingPosition(
                 entityID: entity.id

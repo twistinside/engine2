@@ -90,19 +90,8 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                 exactlyProjecting: request.presentationSnapshot,
                 viewpoint: request.viewpoint
             )
-        } catch let projectionError as RenderFrameProjectionError {
-            switch projectionError {
-            case .invalidSelectedCamera:
-                return .rejected(.invalidViewpoint)
-
-            case .missingPosition,
-                 .unsupportedNormalTransform,
-                 .nonfiniteModelViewTransform,
-                 .nonfiniteModelViewProjectionTransform:
-                return .rejected(.invalidPresentation(projectionError))
-            }
         } catch {
-            return failure(at: .preparation, causedBy: error)
+            return .rejected(OffscreenRenderRejection(error))
         }
 
         // Projection shape is output-specific. Camera construction validates
