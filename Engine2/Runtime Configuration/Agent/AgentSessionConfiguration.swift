@@ -7,12 +7,6 @@ nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
     let renderLimits: OffscreenRenderLimits
     let sessionLimits: AgentSessionLimits
 
-    /// Creates render and agent-session policy.
-    init(renderLimits: OffscreenRenderLimits = .conservative, sessionLimits: AgentSessionLimits = .conservative) {
-        self.renderLimits = renderLimits
-        self.sessionLimits = sessionLimits
-    }
-
     /// Constructs one closed agent assembly from consumer Game Content.
     @MainActor
     func makeAssembly(

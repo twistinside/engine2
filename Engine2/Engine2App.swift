@@ -19,7 +19,10 @@ struct Engine2App: App {
 
     init() {
         let gameContent = BasicGameContent()
-        let realtimeAssembly = RealtimeConfiguration().makeAssembly(
+        let realtimeAssembly = RealtimeConfiguration(
+            pollInterval: nil,
+            catchUpPolicy: .interactive
+        ).makeAssembly(
             gameContent: gameContent
         )
         let snapshotCaptureViewModel: SnapshotCaptureViewModel

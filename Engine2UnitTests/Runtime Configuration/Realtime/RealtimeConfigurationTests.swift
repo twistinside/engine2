@@ -35,7 +35,10 @@ struct RealtimeConfigurationTests {
     }
 
     @Test func assembliesOwnIsolatedRuntimeInstances() {
-        let configuration = RealtimeConfiguration(pollInterval: .seconds(60))
+        let configuration = RealtimeConfiguration(
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
+        )
         let gameContent = BasicGameContent(
             worldBuilder: RealtimeTestWorldBuilder(position: .zero)
         )

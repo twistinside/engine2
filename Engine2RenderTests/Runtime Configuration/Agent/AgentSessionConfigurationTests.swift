@@ -19,7 +19,10 @@ struct AgentSessionConfigurationTests {
                 uuidString: "50000000-0000-0000-0000-000000000002"
             )!
         )
-        let assembly = try AgentSessionConfiguration().makeAssembly(
+        let assembly = try AgentSessionConfiguration(
+            renderLimits: .conservative,
+            sessionLimits: .conservative
+        ).makeAssembly(
             gameContent: BasicGameContent(),
             agentSessionID: agentSessionID,
             simulationSessionID: simulationSessionID
