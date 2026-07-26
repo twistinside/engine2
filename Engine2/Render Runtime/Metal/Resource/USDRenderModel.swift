@@ -27,7 +27,7 @@ struct USDRenderModel {
 
         return meshes.allSatisfy { mesh in
             guard let vertexBuffer = mesh.vertexBuffers.first,
-                  Self.containsUsableBytes(vertexBuffer, minimumByteCount: 1),
+                  containsUsableBytes(vertexBuffer, minimumByteCount: 1),
                   !mesh.submeshes.isEmpty
             else {
                 return false
@@ -35,14 +35,14 @@ struct USDRenderModel {
 
             return mesh.submeshes.allSatisfy { submesh in
                 guard submesh.indexCount > 0,
-                      let requiredByteCount = Self.requiredIndexByteCount(
+                      let requiredByteCount = requiredIndexByteCount(
                         for: submesh
                       )
                 else {
                     return false
                 }
 
-                return Self.containsUsableBytes(
+                return containsUsableBytes(
                     submesh.indexBuffer,
                     minimumByteCount: requiredByteCount
                 )
@@ -163,7 +163,7 @@ struct USDRenderModel {
 
     /// Computes the byte range consumed by one indexed draw without allowing
     /// malformed counts to overflow into an apparently small buffer request.
-    private static func requiredIndexByteCount(for submesh: MTKSubmesh) -> Int? {
+    private func requiredIndexByteCount(for submesh: MTKSubmesh) -> Int? {
         let bytesPerIndex: Int
         switch submesh.indexType {
         case .uint16:
@@ -183,7 +183,7 @@ struct USDRenderModel {
     }
 
     /// Proves the MetalKit slice contains the bytes the encoder will address.
-    private static func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
+    private func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
         guard minimumByteCount > 0,
               meshBuffer.offset >= 0,
               meshBuffer.length >= minimumByteCount
