@@ -25,7 +25,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 8, height: 6),
-                outputMode: .viewSpaceNormals
+                outputMode: .viewSpaceNormals,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .maximum)
         )
@@ -83,14 +84,18 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 8, height: 6)
+                size: try RenderPixelSize(width: 8, height: 6),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .png
         )
@@ -161,14 +166,18 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 6, height: 6)
+                size: try RenderPixelSize(width: 6, height: 6),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -203,14 +212,18 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let firstRequest = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 6, height: 6)
+                size: try RenderPixelSize(width: 6, height: 6),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -256,7 +269,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -286,7 +301,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -321,7 +338,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -360,7 +379,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -445,7 +466,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .jpeg(quality: .observation)
         )
@@ -479,7 +502,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4)
+                size: try RenderPixelSize(width: 4, height: 4),
+                outputMode: .surface,
+                exposure: .validation
             ),
             encoding: .png
         )

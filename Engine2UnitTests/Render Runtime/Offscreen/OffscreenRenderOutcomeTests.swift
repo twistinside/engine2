@@ -105,7 +105,11 @@ struct OffscreenRenderOutcomeTests {
                 revision: RenderViewpointRevision(rawValue: 4),
                 camera: Camera(position: SIMD3<Float>(0, 0, 5))
             ),
-            settings: OffscreenRenderSettings(size: size),
+            settings: OffscreenRenderSettings(
+                size: size,
+                outputMode: .surface,
+                exposure: .validation
+            ),
             image: try RenderedBGRA8SRGBImage(
                 size: size,
                 bytes: Data([0, 0, 0, 255])

@@ -175,7 +175,8 @@ private func renderCenterPixel(
     )
     frame.write(
         preparedFrame,
-        drawableSize: CGSize(width: textureSize, height: textureSize)
+        drawableSize: CGSize(width: textureSize, height: textureSize),
+        exposure: .validation
     )
     #expect(preparedFrame.instances.count == instances.count)
 

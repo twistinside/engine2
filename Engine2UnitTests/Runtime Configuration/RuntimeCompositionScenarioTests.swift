@@ -59,7 +59,11 @@ struct RuntimeCompositionScenarioTests {
             revision: .zero,
             camera: Camera()
         )
-        let settings = OffscreenRenderSettings(size: size)
+        let settings = OffscreenRenderSettings(
+            size: size,
+            outputMode: .surface,
+            exposure: .validation
+        )
 
         let firstOutcome = await offline.captureTarget.capture(
             OfflineCaptureRequest(

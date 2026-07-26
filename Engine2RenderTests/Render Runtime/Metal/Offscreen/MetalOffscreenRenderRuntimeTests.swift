@@ -6,7 +6,8 @@ struct MetalOffscreenRenderRuntimeTests {
     @Test func rendersExactMaterialSceneIntoDetachedOpaquePixels() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
-            catalog: fixture.content.renderAssetCatalog
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
         )
         let size = try RenderPixelSize(width: 320, height: 240)
         let settings = OffscreenRenderSettings(
@@ -57,7 +58,11 @@ struct MetalOffscreenRenderRuntimeTests {
             id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
-            settings: OffscreenRenderSettings(size: excessiveSize)
+            settings: OffscreenRenderSettings(
+                size: excessiveSize,
+                outputMode: .surface,
+                exposure: .validation
+            )
         )
 
         let rejected = await runtime.render(excessiveRequest)
@@ -73,7 +78,9 @@ struct MetalOffscreenRenderRuntimeTests {
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64)
+                size: try RenderPixelSize(width: 96, height: 64),
+                outputMode: .surface,
+                exposure: .validation
             )
         )
         let result = try completedResult(
@@ -87,7 +94,8 @@ struct MetalOffscreenRenderRuntimeTests {
     @Test func invalidExplicitCameraIsRejectedBeforeSubmission() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
-            catalog: fixture.content.renderAssetCatalog
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
         )
         let invalidViewpoint = RenderViewpoint(
             id: RenderViewpointID(),
@@ -99,7 +107,9 @@ struct MetalOffscreenRenderRuntimeTests {
             presentationSnapshot: fixture.snapshot,
             viewpoint: invalidViewpoint,
             settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64)
+                size: try RenderPixelSize(width: 96, height: 64),
+                outputMode: .surface,
+                exposure: .validation
             )
         )
 
@@ -127,14 +137,17 @@ struct MetalOffscreenRenderRuntimeTests {
             ]
         )
         let runtime = try MetalOffscreenRenderRuntime(
-            catalog: fixture.content.renderAssetCatalog
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
         )
         let request = OffscreenRenderRequest(
             id: OffscreenRenderRequestID(),
             presentationSnapshot: snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64)
+                size: try RenderPixelSize(width: 96, height: 64),
+                outputMode: .surface,
+                exposure: .validation
             )
         )
 
@@ -171,14 +184,17 @@ struct MetalOffscreenRenderRuntimeTests {
             entityPresentations: presentations
         )
         let runtime = try MetalOffscreenRenderRuntime(
-            catalog: fixture.content.renderAssetCatalog
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
         )
         let request = OffscreenRenderRequest(
             id: OffscreenRenderRequestID(),
             presentationSnapshot: excessiveSnapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64)
+                size: try RenderPixelSize(width: 96, height: 64),
+                outputMode: .surface,
+                exposure: .validation
             )
         )
 
@@ -197,7 +213,8 @@ struct MetalOffscreenRenderRuntimeTests {
     @Test func sequentialViewpointRevisionsPreserveExactSourceCursor() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
-            catalog: fixture.content.renderAssetCatalog
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
         )
         let viewpointID = RenderViewpointID()
         let firstViewpoint = RenderViewpoint(
@@ -215,7 +232,9 @@ struct MetalOffscreenRenderRuntimeTests {
             )
         )
         let settings = OffscreenRenderSettings(
-            size: try RenderPixelSize(width: 160, height: 120)
+            size: try RenderPixelSize(width: 160, height: 120),
+            outputMode: .surface,
+            exposure: .validation
         )
         let firstRequest = OffscreenRenderRequest(
             id: OffscreenRenderRequestID(),
@@ -256,11 +275,14 @@ struct MetalOffscreenRenderRuntimeTests {
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 96, height: 64)
+                size: try RenderPixelSize(width: 96, height: 64),
+                outputMode: .surface,
+                exposure: .validation
             )
         )
         let incompleteRuntime = try MetalOffscreenRenderRuntime(
-            catalog: .materialOnlyTestCatalog
+            catalog: .materialOnlyTestCatalog,
+            limits: .conservative
         )
 
         let incompleteOutcome = await incompleteRuntime.render(request)
@@ -273,7 +295,8 @@ struct MetalOffscreenRenderRuntimeTests {
         #expect(failure.backendDescription.contains("missingModel"))
 
         let validRuntime = try MetalOffscreenRenderRuntime(
-            catalog: fixture.content.renderAssetCatalog
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
         )
         let result = try completedResult(
             from: await validRuntime.render(request)

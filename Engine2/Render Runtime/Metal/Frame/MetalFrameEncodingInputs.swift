@@ -32,7 +32,7 @@ struct MetalFrameEncodingInputs {
         destinationTexture: any MTLTexture,
         clearColor: MTLClearColor,
         outputMode: RenderOutputMode,
-        exposure: ManualExposure = .validation
+        exposure: ManualExposure
     ) throws {
         guard sceneColorTexture.width == depthTexture.width,
               sceneColorTexture.height == depthTexture.height,

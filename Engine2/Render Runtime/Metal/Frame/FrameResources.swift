@@ -56,7 +56,7 @@ final class FrameResources: @unchecked Sendable {
     /// Keeping resolution outside this method lets content preparation finish
     /// before mutable GPU state is touched, while this method remains
     /// responsible only for stable packing.
-    func write(_ preparedFrame: MetalPreparedFrame, drawableSize: CGSize, exposure: ManualExposure = .validation) {
+    func write(_ preparedFrame: MetalPreparedFrame, drawableSize: CGSize, exposure: ManualExposure) {
         precondition(preparedFrame.instances.count <= Self.maximumInstanceCount, "Prepared frames must fit the reusable instance buffer.")
         let camera = preparedFrame.renderFrame.camera
         let aspectRatio = Float(
