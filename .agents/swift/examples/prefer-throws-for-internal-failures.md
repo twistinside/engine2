@@ -64,12 +64,12 @@ The sequential call site now states the safety order directly: a successful `com
 arrived, so readback may begin. A throwing continuation can carry the asynchronous failure without constructing a
 parallel success/failure result vocabulary.
 
-`MetalResourceStore` already demonstrates this shape for synchronous internal work:
+`MetalResourceStore` demonstrates this shape for synchronous internal work. Its construction boundary asks focused
+throwing operations to produce required resources and dynamic frame storage:
 
 ```swift
+let requiredResources = try MetalRequiredResources(device: device, compiler: compiler)
 try makeFrameResources(count: frameCount)
-try loadShaderLibrary(.engine)
-try loadRenderPipeline(.modelPBR)
 try loadModels(from: renderAssetCatalog)
 ```
 

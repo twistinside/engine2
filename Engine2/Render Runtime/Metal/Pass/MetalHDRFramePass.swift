@@ -9,10 +9,8 @@ import Metal
 final class MetalHDRFramePass {
     private let presentationPass: MetalHDRPresentationPass
 
-    init(resources: MetalResourceStore) throws {
-        self.presentationPass = try MetalHDRPresentationPass(
-            resources: resources
-        )
+    init(resources: MetalResourceStore) {
+        self.presentationPass = MetalHDRPresentationPass(resources: resources)
     }
 
     /// Encodes scene geometry followed by full-screen presentation.

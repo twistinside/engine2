@@ -43,7 +43,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
 
         self.resources = resources
         self.limits = limits
-        self.frameEncoder = try MetalFrameEncoder(resources: resources)
+        self.frameEncoder = MetalFrameEncoder(resources: resources)
     }
 
     /// Transports an immutable request into the Runtime's serialized actor.

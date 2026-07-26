@@ -11,16 +11,11 @@ final class MetalHDRPresentationPass {
     private let linearPipeline: any MTLRenderPipelineState
     private let argumentTable: any MTL4ArgumentTable
 
-    init(resources: MetalResourceStore) throws {
-        self.toneMappedPipeline = try resources.renderPipelineState(
-            for: .hdrToneMappedPresentation
-        )
-        self.linearPipeline = try resources.renderPipelineState(
-            for: .linearPresentation
-        )
-        self.argumentTable = try resources.argumentTable(
-            for: .hdrPresentation
-        )
+    init(resources: MetalResourceStore) {
+        let requiredResources = resources.requiredResources
+        self.toneMappedPipeline = requiredResources.hdrToneMappedPresentationPipeline
+        self.linearPipeline = requiredResources.linearPresentationPipeline
+        self.argumentTable = requiredResources.hdrPresentationArgumentTable
     }
 
     /// Encodes the full-screen presentation pass.

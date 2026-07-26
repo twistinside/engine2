@@ -12,21 +12,14 @@ struct MetalRendererTests {
             renderAssetCatalog: .materialOnlyTestCatalog
         )
 
-        let pbrPipeline = try resources.renderPipelineState(for: .modelPBR)
-        let normalPipeline = try resources.renderPipelineState(
-            for: .modelNormalDiagnostic
-        )
-        let toneMappedPresentationPipeline = try resources.renderPipelineState(
-            for: .hdrToneMappedPresentation
-        )
-        let linearPresentationPipeline = try resources.renderPipelineState(
-            for: .linearPresentation
-        )
-        let modelArgumentTable = try resources.argumentTable(for: .model)
-        let pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
-        let presentationArgumentTable = try resources.argumentTable(
-            for: .hdrPresentation
-        )
+        let requiredResources = resources.requiredResources
+        let pbrPipeline = requiredResources.modelPBRPipeline
+        let normalPipeline = requiredResources.modelNormalDiagnosticPipeline
+        let toneMappedPresentationPipeline = requiredResources.hdrToneMappedPresentationPipeline
+        let linearPresentationPipeline = requiredResources.linearPresentationPipeline
+        let modelArgumentTable = requiredResources.modelArgumentTable
+        let pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        let presentationArgumentTable = requiredResources.hdrPresentationArgumentTable
 
         // The scene phase has one lit surface pipeline and one diagnostic
         // sibling. Presentation is a separate phase with tone-mapped and
@@ -123,7 +116,7 @@ struct MetalRendererTests {
             renderAssetCatalog: scene.catalog,
             frameCount: 1
         )
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
         let prepared = encoder.prepare(scene.renderFrame)
         var visitedIndices: [Int] = []
         var visitedMaterialIDs: [MaterialID] = []
@@ -162,7 +155,7 @@ struct MetalRendererTests {
             device: device,
             renderAssetCatalog: .materialOnlyTestCatalog
         )
-        let renderer = try MetalRenderer(
+        let renderer = MetalRenderer(
             resources: resources,
             presentationSource: SimulationRuntime(
                 worldBuilder: gameContent.worldBuilder,
@@ -362,7 +355,7 @@ struct MetalRendererTests {
             frameCount: 1
         )
         let frame = try #require(resources.frames.first)
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
         let empty = encoder.prepare(makeRenderFrame(instanceCount: 0))
         let maximum = encoder.prepare(
             makeRenderFrame(

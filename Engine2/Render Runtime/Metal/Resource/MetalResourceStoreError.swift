@@ -4,10 +4,7 @@ nonisolated enum MetalResourceStoreError: Error, Equatable {
     case missingCommandQueue
     case invalidFrameCount(Int)
     case missingDefaultShaderLibrary
-    case missingShaderLibrary(MetalShaderLibraryID)
-    case missingRenderPipeline(MetalRenderPipelineID)
-    case missingDepthStencilState(MetalDepthStencilStateID)
-    case missingArgumentTable(MetalArgumentTableID)
+    case missingOpaqueDepthStencilState
     case missingFrameResource
     case missingHDRSceneTarget
 }

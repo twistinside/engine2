@@ -30,16 +30,15 @@ final class MetalFrameEncoder {
     private let hdrFramePass: MetalHDRFramePass
 
     /// Creates an encoder backed by the store's eagerly prepared Metal state.
-    init(resources: MetalResourceStore) throws {
+    init(resources: MetalResourceStore) {
+        let requiredResources = resources.requiredResources
         self.resources = resources
-        self.pbrPipelineState = try resources.renderPipelineState(for: .modelPBR)
-        self.normalDiagnosticPipelineState = try resources.renderPipelineState(
-            for: .modelNormalDiagnostic
-        )
-        self.depthStencilState = try resources.depthStencilState(for: .opaque)
-        self.modelArgumentTable = try resources.argumentTable(for: .model)
-        self.pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
-        self.hdrFramePass = try MetalHDRFramePass(resources: resources)
+        self.pbrPipelineState = requiredResources.modelPBRPipeline
+        self.normalDiagnosticPipelineState = requiredResources.modelNormalDiagnosticPipeline
+        self.depthStencilState = requiredResources.opaqueDepthStencilState
+        self.modelArgumentTable = requiredResources.modelArgumentTable
+        self.pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        self.hdrFramePass = MetalHDRFramePass(resources: resources)
     }
 
     /// Resolves every authored resource in the exact writable instance prefix.

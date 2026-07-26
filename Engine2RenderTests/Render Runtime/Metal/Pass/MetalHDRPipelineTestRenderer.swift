@@ -56,17 +56,15 @@ final class MetalHDRPipelineTestRenderer {
 
         self.resources = resources
         self.frame = frame
-        self.pbrPipeline = try resources.renderPipelineState(for: .modelPBR)
-        self.normalPipeline = try resources.renderPipelineState(
-            for: .modelNormalDiagnostic
-        )
+        self.pbrPipeline = resources.requiredResources.modelPBRPipeline
+        self.normalPipeline = resources.requiredResources.modelNormalDiagnosticPipeline
         self.diagnosticPipelines = try Self.makeDiagnosticPipelines(
             resources: resources
         )
-        self.depthStencilState = try resources.depthStencilState(for: .opaque)
-        self.modelArgumentTable = try resources.argumentTable(for: .model)
-        self.pbrSceneArgumentTable = try resources.argumentTable(for: .pbrScene)
-        self.hdrFramePass = try MetalHDRFramePass(resources: resources)
+        self.depthStencilState = resources.requiredResources.opaqueDepthStencilState
+        self.modelArgumentTable = resources.requiredResources.modelArgumentTable
+        self.pbrSceneArgumentTable = resources.requiredResources.pbrSceneArgumentTable
+        self.hdrFramePass = MetalHDRFramePass(resources: resources)
     }
 
     /// Executes the visible two-phase path and returns its center samples.
@@ -360,7 +358,7 @@ final class MetalHDRPipelineTestRenderer {
     private static func makeDiagnosticPipelines(
         resources: MetalResourceStore
     ) throws -> [ModelPBRDiagnosticOutput: any MTLRenderPipelineState] {
-        let library = try resources.shaderLibrary(for: .engine)
+        let library = resources.requiredResources.engineLibrary
         var pipelines: [
             ModelPBRDiagnosticOutput: any MTLRenderPipelineState
         ] = [:]
