@@ -14,4 +14,6 @@ struct POrientableTests {
     }
 }
 
-private final class TestRotatableEntity: Entity, POrientable {}
+private extension POrientableTests {
+    private final class TestRotatableEntity: Entity, POrientable {}
+}

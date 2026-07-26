@@ -16,4 +16,6 @@ struct PSelectableTests {
     }
 }
 
-private final class TestSelectableEntity: Entity, PSelectable {}
+private extension PSelectableTests {
+    private final class TestSelectableEntity: Entity, PSelectable {}
+}
