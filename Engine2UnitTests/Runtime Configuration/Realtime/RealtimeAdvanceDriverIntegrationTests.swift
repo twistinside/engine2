@@ -7,6 +7,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: IntegrationMovingWorldBuilder(),
+            configuration: .basicGame,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let initialCamera = simulationRuntime.world.camera
@@ -86,6 +87,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: BasicWorldBuilder(),
+            configuration: .basicGame,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let initialCamera = simulationRuntime.world.camera
@@ -224,6 +226,7 @@ private extension RealtimeAdvanceDriverIntegrationTests {
             let world = World()
             _ = Ball(
                 in: world,
+                materialID: .warmDielectric,
                 position: .zero,
                 velocity: SIMD3<Float>(1, 0, 0)
             )

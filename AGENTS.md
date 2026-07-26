@@ -23,10 +23,11 @@ Use these terms consistently:
 
 Current types implement part of this direction:
 - `InputRuntime` owns platform input state and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`; platform adapters submit `InputEvent` values through `PInputEventSink`.
-- `SimulationRuntime` owns one authoritative session, `Engine`, and `World`; it accepts exact cursor-qualified advance requests and does not own wall-clock cadence or a live Input source.
+- `SimulationRuntime` owns one authoritative session, `Engine`, and `World`; construction requires one validated `SimulationConfiguration`, and the Runtime accepts exact cursor-qualified advance requests without owning wall-clock cadence or a live Input source.
 - `RealtimeAdvanceDriver` is an App-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`.
 - `RealtimeConfiguration` composes Input, Simulation, and the real-time driver. `ManualConfiguration` composes caller-driven Simulation without Input or an automatic cadence.
 - `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level configurations cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
+- `SimulationConfiguration` is the immutable Simulation-owned behavior policy used to construct the invariant schedule. Basic Game Content deliberately selects `.basicGame`; individual systems do not choose sensitivity or orbit-radius defaults.
 - `InputMetalView` submits host `InputEvent` values directly to `InputRuntime` through `PInputEventSink`; it does not call the Simulation Runtime or mutate `World`.
 - `SInputMapping` converts imported pointer and scroll transients into semantic camera commands at the start of a complete tick. `SCameraInput` then derives orbit state from the current `World.camera`, applies those commands, and publishes no separate controller state. Both run before `SInputCleanup`.
 - `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value. Its camera is the exact camera used by the real-time screen path.
@@ -144,10 +145,12 @@ Current example ownership:
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
 - `Engine2/Simulation Runtime/Engine/*.swift`
-  - `Engine` owns exact fixed-step execution and one complete ordered system schedule.
+  - `Engine` owns exact fixed-step execution and one complete ordered system schedule. Production construction derives that invariant schedule from an explicit `SimulationConfiguration`; the full initializer requires an explicit `World`, fixed step, and complete injected system list for focused integration tests.
   - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, movement, and rotation are invariant members of every completed tick. The real-time screen camera can change only through a completed Simulation publication; deliberate exact output requests may still carry a separate viewpoint.
 - `Engine2/Simulation Runtime/SimulationRuntime.swift`
-  - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit input-baseline application, and completed presentation publication above `Engine`.
+  - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
+- `Engine2/Simulation Runtime/SimulationConfiguration.swift`
+  - Validated immutable policy for pointer-orbit sensitivity, scroll-zoom sensitivity, orbit target, and minimum/maximum orbit radius.
 - `Engine2/Runtime Configuration/Realtime/*.swift`
   - `RealtimeConfiguration` constructs independently owned Input and Simulation Runtimes plus one `RealtimeAdvanceDriver`.
   - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, and lifecycle-generation protection for coordinated Simulation cutovers. It is not an input router; the App supplies its `InputRuntime` to `InputMetalView` through the narrow `PInputEventSink` capability.
@@ -180,6 +183,8 @@ Current example ownership:
   - The current `InputEvent` is host ingress, not a published ordered runtime event lane. Ordered discrete transitions and retained replay remain future work.
 - `Engine2/Game Content/BasicWorldBuilder.swift`
   - Example Game Content builder that seeds a deterministic six-Ball PBR material grid. Every Ball is quiescent, shares `MeshID.ball`, and selects one smooth, baseline, or rough warm-dielectric or gold-metal `MaterialID`.
+- `Engine2/Game Content/BasicGameContent.swift`
+  - Selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
 - `Engine2/Game Content/Model/MeshID.swift`
   - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
 - `Engine2/Game Content/Material/MaterialID.swift`

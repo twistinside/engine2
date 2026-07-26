@@ -5,6 +5,8 @@
 struct BasicGameContent {
     let worldBuilder: any PWorldBuilder
 
+    let simulationConfiguration: SimulationConfiguration
+
     let renderAssetCatalog: RenderAssetCatalog
 
     /// Selects the complete example content used by the App.
@@ -16,6 +18,7 @@ struct BasicGameContent {
     /// authored catalog owned by this Game Content.
     init(worldBuilder: any PWorldBuilder) {
         self.worldBuilder = worldBuilder
+        self.simulationConfiguration = .basicGame
         self.renderAssetCatalog = .everything
     }
 }

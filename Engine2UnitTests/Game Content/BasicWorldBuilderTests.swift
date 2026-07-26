@@ -34,7 +34,8 @@ struct BasicWorldBuilderTests {
         )
         let engine = Engine(
             world: initialWorld,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
 
         // Exercise the actual invariant schedule long enough for any unintended

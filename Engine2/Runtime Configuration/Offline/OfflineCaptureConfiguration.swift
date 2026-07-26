@@ -23,6 +23,7 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
     func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID) throws -> OfflineCaptureAssembly {
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
             inputBaseline: nil,
             sessionID: sessionID
         )

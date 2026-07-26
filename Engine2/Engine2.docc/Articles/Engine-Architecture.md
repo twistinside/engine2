@@ -13,10 +13,18 @@ At the moment, its exact path:
 schedule. Wall-time accumulation and pause policy belong to
 ``RealtimeAdvanceDriver``; a completed tick always means the complete schedule
 ran once.
+
+Production construction receives one validated ``SimulationConfiguration`` and
+uses it to build the complete invariant schedule. Pointer-orbit sensitivity,
+scroll-zoom sensitivity, orbit target, and radius constraints therefore come
+from one composition-selected value rather than defaults chosen independently
+by ``SInputMapping`` and ``SCameraInput``. The complete injected-systems
+initializer remains available for focused integration tests, but it requires
+the `World`, fixed step, and entire system list explicitly.
 This keeps timing and scheduling logic out of ``World``.
 ### Simulation Runtime and World Builders
-``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, and publication of committed results.
-It accepts a ``PWorldBuilder`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. Its narrow ``PSimulationAdvanceTarget`` capability validates an optional expected ``SimulationCursor``, applies the request's immutable input assignment, executes the requested number of complete steps, and returns a correlated result.
+``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, explicit Simulation behavior configuration, and publication of committed results.
+It accepts a ``PWorldBuilder`` and ``SimulationConfiguration`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. Builder replacement without reconstruction and builder replacement with immediate reconstruction are separately named operations; input baselines are explicit at construction and rebuild call sites. Its narrow ``PSimulationAdvanceTarget`` capability validates an optional expected ``SimulationCursor``, applies the request's immutable input assignment, executes the requested number of complete steps, and returns a correlated result.
 
 Cadence is deliberately outside that boundary. The App-owned ``RealtimeAdvanceDriver`` polls wall time and samples `PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. Future offline, MCP, network, and replay coordinators can use the same exact capability. Simulation retains the fixed-step definition, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
 ``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
@@ -65,6 +73,7 @@ The current engine is still early. Several important behaviors are intentionally
 ## Topics
 ### Core Symbols
 - ``Engine``
+- ``SimulationConfiguration``
 - ``World``
 - ``PSystem``
 - ``Entity``

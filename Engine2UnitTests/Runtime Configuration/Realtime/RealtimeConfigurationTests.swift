@@ -60,7 +60,11 @@ private extension RealtimeConfigurationTests {
 
         func buildWorld() -> World {
             let world = World()
-            _ = Ball(in: world, position: position)
+            _ = Ball(
+                in: world,
+                materialID: .warmDielectric,
+                position: position
+            )
             return world
         }
     }

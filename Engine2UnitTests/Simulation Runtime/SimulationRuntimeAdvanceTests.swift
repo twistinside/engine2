@@ -90,7 +90,7 @@ struct SimulationRuntimeAdvanceTests {
             )
         )
 
-        simulation.rebuildWorld()
+        simulation.rebuildWorld(inputBaseline: nil)
 
         #expect(simulation.currentCursor.sessionID != firstResult.finalCursor.sessionID)
         #expect(simulation.currentCursor.tick == .zero)
@@ -353,6 +353,7 @@ struct SimulationRuntimeAdvanceTests {
     private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
+            configuration: .basicGame,
             inputBaseline: nil,
             sessionID: sessionID
         )
@@ -386,6 +387,7 @@ struct SimulationRuntimeAdvanceTests {
             let world = World()
             _ = Ball(
                 in: world,
+                materialID: .warmDielectric,
                 position: .zero,
                 velocity: SIMD3<Float>(
                     1 / SimulationRuntime.fixedTimeStep.seconds,

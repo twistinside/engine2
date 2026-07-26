@@ -8,12 +8,13 @@ struct EngineTests {
         #expect(SimulationRuntime.fixedTimeStep.seconds.isFinite)
     }
 
-    @Test func defaultScheduleAppliesCameraInputBeforeTransientCleanup() {
+    @Test func productionScheduleAppliesConfiguredCameraInputBeforeTransientCleanup() {
         let world = World()
         let initialCamera = world.camera
         let engine = Engine(
             world: world,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
@@ -60,7 +61,8 @@ struct EngineTests {
         let initialCamera = world.camera
         let engine = Engine(
             world: world,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
@@ -123,6 +125,7 @@ struct EngineTests {
     @Test func eachStepRunsTheEntireScheduleInDeclarationOrder() {
         let recorder = ExecutionRecorder()
         let engine = Engine(
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: [
                 RecordingSystem(name: "input", recorder: recorder),
@@ -164,6 +167,7 @@ struct EngineTests {
 
     @Test func replacingWorldStartsANewTimelineAndAppliesOnlyTheBaseline() {
         let engine = Engine(
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: []
         )
@@ -191,7 +195,8 @@ struct EngineTests {
         let initialWorld = World()
         let engine = Engine(
             world: initialWorld,
-            fixedTimeStep: SimulationRuntime.fixedTimeStep
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame
         )
         engine.step(
             inputSnapshot: InputSnapshot(
@@ -215,7 +220,7 @@ struct EngineTests {
             from: SIMD3<Float>(0, 3, 12),
             projection: replacementProjection
         )
-        engine.replaceWorld(with: replacement)
+        engine.replaceWorld(with: replacement, inputBaseline: nil)
 
         engine.step(
             inputSnapshot: InputSnapshot(
@@ -243,6 +248,7 @@ struct EngineTests {
     @Test func appendedSystemsRunAfterTheFoundationalSchedule() {
         let recorder = ExecutionRecorder()
         let engine = Engine(
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: [RecordingSystem(name: "foundation", recorder: recorder)]
         )

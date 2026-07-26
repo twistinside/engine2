@@ -53,7 +53,8 @@ struct MetalRendererTests {
     }
 
     @Test func sceneCoordinatorRetainsAuthoredContentPreflightFailure() throws {
-        let completeCatalog = BasicGameContent().renderAssetCatalog
+        let gameContent = BasicGameContent()
+        let completeCatalog = gameContent.renderAssetCatalog
         let incompleteCatalog = RenderAssetCatalog(
             models: completeCatalog.models,
             materials: [
@@ -63,7 +64,8 @@ struct MetalRendererTests {
             ]
         )
         let simulation = SimulationRuntime(
-            worldBuilder: BasicWorldBuilder(),
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
             inputBaseline: nil
         )
 
@@ -128,6 +130,7 @@ struct MetalRendererTests {
     }
 
     @Test func renderTargetConfigurationSeparatesHDRSceneFromSRGBPresentation() throws {
+        let gameContent = BasicGameContent()
         let device = try #require(MTLCreateSystemDefaultDevice())
         let view = MTKView(frame: .zero, device: device)
         let resources = try MetalResourceStore(
@@ -137,7 +140,8 @@ struct MetalRendererTests {
         let renderer = try MetalRenderer(
             resources: resources,
             presentationSource: SimulationRuntime(
-                worldBuilder: BasicWorldBuilder(),
+                worldBuilder: gameContent.worldBuilder,
+                configuration: gameContent.simulationConfiguration,
                 inputBaseline: nil
             ),
             outputMode: .surface

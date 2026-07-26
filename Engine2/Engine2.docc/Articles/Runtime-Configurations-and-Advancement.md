@@ -6,7 +6,7 @@ This article proposes how Engine2 can assemble different runtime graphs for inte
 
 Partially implemented direction.
 
-The first configuration and advancement slice is now implemented. ``SimulationSessionID`` and ``SimulationCursor`` qualify resettable tick values and propagate through ``SimulationPresentationSnapshot`` and ``RenderFrame``. ``SimulationRuntime`` exposes the exact ``PSimulationAdvanceTarget`` request/result capability, applies immutable input assignments at the tick boundary, and no longer owns a wall-clock loop or live Input source. ``ManualConfiguration`` and ``ManualAssembly`` prove a caller-driven topology with no automatic cadence.
+The first configuration and advancement slice is now implemented. ``SimulationSessionID`` and ``SimulationCursor`` qualify resettable tick values and propagate through ``SimulationPresentationSnapshot`` and ``RenderFrame``. ``SimulationRuntime`` requires one validated ``SimulationConfiguration``, exposes the exact ``PSimulationAdvanceTarget`` request/result capability, applies immutable input assignments at the tick boundary, and no longer owns a wall-clock loop or live Input source. ``ManualConfiguration`` and ``ManualAssembly`` prove a caller-driven topology with no automatic cadence.
 
 The App-owned ``RealtimeAdvanceDriver`` is now integrated into ``RealtimeConfiguration`` and ``RealtimeAssembly``. It owns wall-clock sampling, elapsed remainder, pause policy, immutable input capture, exact requests, a typed per-wake catch-up cap with explicit overflow treatment, and an async stop-and-drain boundary while Simulation owns execution. The driver captures transition baselines at activation, resume, and synchronization, then carries the baseline plus the later request-time publication through atomic `.rebaseThenIngest`. Assembly lifecycle generations prevent stale asynchronous stop or rebuild completion from applying an older App decision, and polling reacquires the driver weakly between sleeps so an abandoned assembly is not retained by its cadence task. Focused coverage plus scenario-level composition coverage exercise exact mutation, post-activation input, cursor advancement, completed publication, and a clock-driven Simulation with neither Input nor Render peers.
 
@@ -330,6 +330,12 @@ The App-owned ``RealtimeAdvanceDriver`` now performs the application's real-time
 ## A Simulation Tick Is Indivisible
 
 Each tick committed by a Simulation advance executes one complete invariant fixed-step schedule. Configuration chooses whether and when to request that operation; it does not select an arbitrary subset of systems for the operation to run.
+
+The schedule itself is constructed from one explicit ``SimulationConfiguration``.
+Basic Game Content selects its complete named production value once, and every
+Runtime topology passes that same value to Simulation. This keeps orbit and zoom
+behavior consistent without turning the required system list into a
+configuration surface.
 
 Engine2 should not expose a general `step(mode:)`, public system mask, `cameraOnly` tick, or configuration-defined schedule bucket. Partial execution would give ``SimulationTick`` several meanings and make snapshots, events, deterministic replay, MCP results, and system invariants depend on an implicit run mode. A completed cursor must mean that the whole authoritative schedule committed.
 

@@ -21,6 +21,7 @@ nonisolated struct ManualConfiguration: Equatable, Sendable {
         ManualAssembly(
             simulationRuntime: SimulationRuntime(
                 worldBuilder: gameContent.worldBuilder,
+                configuration: gameContent.simulationConfiguration,
                 inputBaseline: nil,
                 sessionID: sessionID
             )

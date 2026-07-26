@@ -148,6 +148,7 @@ struct RuntimeCompositionScenarioTests {
     private func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
         let runtime = SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
+            configuration: .basicGame,
             inputBaseline: nil
         )
         let baseInstant = SuspendingClock().now
@@ -233,6 +234,7 @@ struct RuntimeCompositionScenarioTests {
             let world = World()
             _ = Ball(
                 in: world,
+                materialID: .warmDielectric,
                 position: .zero,
                 velocity: SIMD3<Float>(1, 0, 0)
             )
