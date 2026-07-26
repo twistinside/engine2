@@ -236,23 +236,25 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         commandBuffer.useResidencySet(sceneTarget.residencySet)
         commandBuffer.useResidencySet(targets.residencySet)
 
+        let clearColor = MTLClearColor(
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 1
+        )
         do {
+            let encodingInputs = try MetalFrameEncodingInputs(
+                frameResources: frame,
+                sceneColorTexture: sceneTarget.texture,
+                depthTexture: targets.depthTexture,
+                destinationTexture: targets.destinationTexture,
+                clearColor: clearColor,
+                outputMode: request.settings.outputMode,
+                exposure: request.settings.exposure
+            )
             try frameEncoder.encode(
                 preparedFrame,
-                inputs: MetalFrameEncodingInputs(
-                    frameResources: frame,
-                    sceneColorTexture: sceneTarget.texture,
-                    depthTexture: targets.depthTexture,
-                    destinationTexture: targets.destinationTexture,
-                    clearColor: MTLClearColor(
-                        red: 0,
-                        green: 0,
-                        blue: 0,
-                        alpha: 1
-                    ),
-                    outputMode: request.settings.outputMode,
-                    exposure: request.settings.exposure
-                ),
+                inputs: encodingInputs,
                 into: commandBuffer
             )
         } catch {

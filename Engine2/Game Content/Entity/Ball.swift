@@ -27,23 +27,21 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
         selectionState: CSelectable.SelectionState = .unselected
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
-        world.add(
-            self,
-            from: Entity.InitialState(
-                position: position,
-                velocity: velocity,
-                accelerationIntent: accelerationIntent,
-                impulse: impulse,
-                rotation: rotation,
-                angularVelocity: angularVelocity,
-                angularAcceleration: angularAcceleration,
-                angularImpulse: angularImpulse,
-                selectionState: selectionState
-            ),
-            renderable: RenderableInitialState(
-                meshID: .ball,
-                materialID: materialID
-            )
+        let initialState = Entity.InitialState(
+            position: position,
+            velocity: velocity,
+            accelerationIntent: accelerationIntent,
+            impulse: impulse,
+            rotation: rotation,
+            angularVelocity: angularVelocity,
+            angularAcceleration: angularAcceleration,
+            angularImpulse: angularImpulse,
+            selectionState: selectionState
         )
+        let renderableState = RenderableInitialState(
+            meshID: .ball,
+            materialID: materialID
+        )
+        world.add(self, from: initialState, renderable: renderableState)
     }
 }

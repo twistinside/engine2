@@ -18,13 +18,12 @@ nonisolated struct ManualConfiguration: Equatable, Sendable {
     /// Simulation identity for restoration or external correlation.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID) -> ManualAssembly {
-        ManualAssembly(
-            simulationRuntime: SimulationRuntime(
-                worldBuilder: gameContent.worldBuilder,
-                configuration: gameContent.simulationConfiguration,
-                inputBaseline: nil,
-                sessionID: sessionID
-            )
+        let simulationRuntime = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil,
+            sessionID: sessionID
         )
+        return ManualAssembly(simulationRuntime: simulationRuntime)
     }
 }

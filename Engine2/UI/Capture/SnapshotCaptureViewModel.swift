@@ -78,13 +78,14 @@ final class SnapshotCaptureViewModel {
             isCapturing = false
         }
 
+        let renderSettings = OffscreenRenderSettings(
+            size: renderSize,
+            outputMode: outputMode,
+            exposure: .validation
+        )
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: renderSize,
-                outputMode: outputMode,
-                exposure: .validation
-            ),
+            renderSettings: renderSettings,
             encoding: .jpeg(quality: .maximum)
         )
         let outcome = await captureTarget.capture(request)
