@@ -74,9 +74,11 @@ struct MetalRendererTests {
             presentationSource: simulation,
             outputMode: .surface
         )
-        let error = try #require(
-            coordinator.latestRenderError as? RenderAssetCatalogError
-        )
+        guard case let .unavailable(initializationError) = coordinator.rendererAvailability else {
+            Issue.record("Expected renderer construction to retain an unavailable state.")
+            return
+        }
+        let error = try #require(initializationError as? RenderAssetCatalogError)
 
         // Store construction rejects the complete missing vocabulary before
         // pipelines, models, or a renderer are created. The bridge retains the
@@ -88,6 +90,29 @@ struct MetalRendererTests {
             )
         )
         #expect(coordinator.renderer == nil)
+        #expect(coordinator.latestRenderError as? RenderAssetCatalogError == error)
+    }
+
+    @Test func sceneCoordinatorAvailabilityOwnsTheConstructedRenderer() throws {
+        let gameContent = BasicGameContent()
+        let simulation = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil
+        )
+        let coordinator = MetalSceneView.Coordinator(
+            renderAssetCatalog: gameContent.renderAssetCatalog,
+            presentationSource: simulation,
+            outputMode: .surface
+        )
+
+        guard case let .available(renderer) = coordinator.rendererAvailability else {
+            Issue.record("Expected complete content to construct an available renderer.")
+            return
+        }
+
+        #expect(coordinator.renderer === renderer)
+        #expect(coordinator.latestRenderError == nil)
     }
 
     @Test func publishedMaterialSceneReachesEveryProductionModelDraw() throws {

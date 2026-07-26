@@ -18,8 +18,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     let limits: OffscreenRenderLimits
 
     private let frameEncoder: MetalFrameEncoder
-    private var isRendering = false
-    private var terminalGPUFailure: OffscreenRenderFailure?
+    private(set) var renderingState = MetalOffscreenRenderState.ready
 
     /// Selects the system Metal device and constructs a one-slot offscreen store.
     convenience init(catalog: RenderAssetCatalog, limits: OffscreenRenderLimits) throws {
@@ -56,14 +55,17 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     private func renderOnMainActor(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         // One explicit request may own the sole allocator and mutable frame
         // buffers at a time. Refusal is immediate rather than an implicit queue.
-        guard !isRendering else {
-            return .rejected(.runtimeBusy)
-        }
+        switch renderingState {
+        case .ready:
+            break
 
-        // A driver failure makes allocator and queue state unsafe to reuse.
-        // Preserve and replay the original failure without touching Metal.
-        if let terminalGPUFailure {
-            return .failed(terminalGPUFailure)
+        case .rendering:
+            return .rejected(.runtimeBusy)
+
+        case let .failed(failure):
+            // A driver failure makes allocator and queue state unsafe to reuse.
+            // Preserve and replay the original failure without touching Metal.
+            return .failed(failure)
         }
 
         guard !Task.isCancelled else {
@@ -135,13 +137,6 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                 )
             }
         }
-        guard let sourceCursor = renderFrame.sourceCursor else {
-            return failure(
-                at: .preparation,
-                causedBy: MetalOffscreenRenderTargetError
-                    .missingProjectedSourceCursor
-            )
-        }
         guard renderFrame.instances.count <= FrameResources.maximumInstanceCount
         else {
             return .rejected(
@@ -185,9 +180,11 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
             return .rejected(.cancelledBeforeSubmission)
         }
 
-        isRendering = true
+        renderingState = .rendering
         defer {
-            isRendering = false
+            if renderingState == .rendering {
+                renderingState = .ready
+            }
         }
 
         let targets: MetalOffscreenRenderTargets
@@ -294,7 +291,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                 stage: .gpuExecution,
                 backendDescription: description
             )
-            terminalGPUFailure = failure
+            renderingState = .failed(failure)
             return .failed(failure)
         }
 
@@ -315,7 +312,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         return .completed(
             OffscreenRenderResult(
                 requestID: request.id,
-                sourceCursor: sourceCursor,
+                sourceCursor: request.presentationSnapshot.cursor,
                 viewpoint: request.viewpoint,
                 settings: request.settings,
                 image: image

@@ -24,9 +24,12 @@ struct SnapshotCaptureViewModelTests {
         await model.capture(outputMode: .viewSpaceNormals)
 
         #expect(model.isCapturing == false)
-        #expect(model.isExporterPresented)
-        #expect(model.exportDocument?.encodedData == artifact.encodedData)
-        #expect(model.defaultFilename == "Engine2-tick-42")
+        guard case let .exporter(document, defaultFilename) = model.presentedModal else {
+            Issue.record("Expected a completed capture to present the exporter.")
+            return
+        }
+        #expect(document.encodedData == artifact.encodedData)
+        #expect(defaultFilename == "Engine2-tick-42")
 
         let request = try #require(target.requests.first)
         #expect(request.renderSettings.size == size)
@@ -35,7 +38,7 @@ struct SnapshotCaptureViewModelTests {
         #expect(request.encoding == .jpeg(quality: .maximum))
 
         model.exportCancelled()
-        #expect(model.exportDocument == nil)
+        #expect(model.presentedModal == nil)
     }
 
     @Test
@@ -49,12 +52,9 @@ struct SnapshotCaptureViewModelTests {
         await model.capture(outputMode: .surface)
 
         #expect(model.isCapturing == false)
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == nil)
-        #expect(model.isFailurePresented)
         #expect(
-            model.failureMessage
-                == "Synthetic Metal initialization failure."
+            model.presentedModal
+                == .captureFailure(message: "Synthetic Metal initialization failure.")
         )
     }
 
@@ -77,7 +77,7 @@ struct SnapshotCaptureViewModelTests {
 
         #expect(inactiveTarget.requests.isEmpty)
         #expect(inactiveModel.isCapturing == false)
-        #expect(inactiveModel.isExporterPresented == false)
+        #expect(inactiveModel.presentedModal == nil)
 
         let suspendedTarget = SuspendedRealtimeSnapshotCaptureTarget()
         let activeModel = SnapshotCaptureViewModel(
@@ -114,31 +114,35 @@ struct SnapshotCaptureViewModelTests {
         )
         model.activatePresentation()
         await model.capture(outputMode: .surface)
-        let originalDocument = try #require(model.exportDocument)
+        guard case let .exporter(originalDocument, defaultFilename) = model.presentedModal else {
+            Issue.record("Expected a completed capture to present the exporter.")
+            return
+        }
 
         model.exportCompleted(.failure(SyntheticSaveError()))
 
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == originalDocument)
-        #expect(model.failureAllowsExportRetry)
-        #expect(model.isFailurePresented)
-        #expect(model.failureMessage.contains("Synthetic save failure"))
+        guard case let .exportFailure(message, retainedDocument, retainedFilename) = model.presentedModal else {
+            Issue.record("Expected a failed save to retain retryable export state.")
+            return
+        }
+        #expect(retainedDocument == originalDocument)
+        #expect(retainedFilename == defaultFilename)
+        #expect(message.contains("Synthetic save failure"))
         #expect(target.requests.count == 1)
 
         model.retryExport()
 
-        #expect(model.isExporterPresented)
-        #expect(model.exportDocument == originalDocument)
-        #expect(model.failureAllowsExportRetry == false)
-        #expect(model.isFailurePresented == false)
+        #expect(
+            model.presentedModal
+                == .exporter(document: originalDocument, defaultFilename: defaultFilename)
+        )
         #expect(target.requests.count == 1)
 
         model.exportCompleted(
             .success(URL(fileURLWithPath: "/tmp/Engine2-tick-73.jpeg"))
         )
 
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == nil)
+        #expect(model.presentedModal == nil)
         #expect(target.requests.count == 1)
     }
 
@@ -169,8 +173,7 @@ struct SnapshotCaptureViewModelTests {
         await capture.value
 
         #expect(model.isCapturing == false)
-        #expect(model.isExporterPresented == false)
-        #expect(model.exportDocument == nil)
+        #expect(model.presentedModal == nil)
     }
 
     @Test
@@ -362,15 +365,14 @@ struct SnapshotCaptureViewModelTests {
 
             await model.capture(outputMode: .surface)
 
-            #expect(model.isFailurePresented)
-            #expect(model.failureMessage == scenario.expectedMessage)
-            #expect(model.failureAllowsExportRetry == false)
-            #expect(model.isExporterPresented == false)
-            #expect(model.exportDocument == nil)
+            #expect(
+                model.presentedModal
+                    == .captureFailure(message: scenario.expectedMessage)
+            )
             #expect(target.requests.count == 1)
 
             model.dismissFailure()
-            #expect(model.isFailurePresented == false)
+            #expect(model.presentedModal == nil)
         }
     }
 

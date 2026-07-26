@@ -114,6 +114,18 @@ struct InputStateTests {
         #expect(input.keyboard.keys == [heldKey])
         #expect(input.mouse.delta == .zero)
         #expect(input.mouse.scrollDelta == .zero)
+
+        input.ingest(
+            snapshot(
+                session: 2,
+                sequence: 6,
+                position: SIMD2<Float>(9, 10),
+                pointerMotionTotal: SIMD2<Float>(7, 5)
+            )
+        )
+
+        #expect(input.mouse.position == SIMD2<Float>(9, 10))
+        #expect(input.mouse.delta == SIMD2<Float>(3, 2))
     }
 
     @Test func rebaseImportsPersistentStateWithoutHistoricalTransients() {

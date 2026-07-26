@@ -37,13 +37,19 @@ struct InputState {
 
     private var frameIndex = 0
     private var nextHistoryID = 0
-    private var consumedRevision: InputRevision?
-    private var pointerMotionTotal = SIMD2<Float>.zero
-    private var scrollTotal = SIMD2<Float>.zero
+    private var consumptionBaseline = InputConsumptionBaseline.uninitialized
 
     /// Incorporates a newer immutable publication at a fixed-step boundary.
     mutating func ingest(_ snapshot: InputSnapshot) {
-        if let consumedRevision {
+        switch consumptionBaseline {
+        case .uninitialized:
+            // A newly attached consumer starts at the beginning of the
+            // snapshot's session. Explicit world replacement uses `rebase`
+            // below when historical totals should instead be ignored.
+            mouse.delta += snapshot.pointerMotionTotal
+            mouse.scrollDelta += snapshot.scrollTotal
+
+        case let .consumed(consumedRevision, pointerMotionTotal, scrollTotal):
             // Ignore repeated or stale latest-value reads.
             guard snapshot.revision > consumedRevision else {
                 return
@@ -59,12 +65,6 @@ struct InputState {
                 mouse.delta += snapshot.pointerMotionTotal
                 mouse.scrollDelta += snapshot.scrollTotal
             }
-        } else {
-            // A newly attached consumer starts at the beginning of the
-            // snapshot's session. Explicit world replacement uses `rebase`
-            // below when historical totals should instead be ignored.
-            mouse.delta += snapshot.pointerMotionTotal
-            mouse.scrollDelta += snapshot.scrollTotal
         }
 
         importPersistentState(from: snapshot)
@@ -81,9 +81,11 @@ struct InputState {
         mouse.position = snapshot.pointerPosition
         mouse.buttons = snapshot.pressedMouseButtons
         keyboard.keys = snapshot.pressedKeys
-        pointerMotionTotal = snapshot.pointerMotionTotal
-        scrollTotal = snapshot.scrollTotal
-        consumedRevision = snapshot.revision
+        consumptionBaseline = .consumed(
+            revision: snapshot.revision,
+            pointerMotionTotal: snapshot.pointerMotionTotal,
+            scrollTotal: snapshot.scrollTotal
+        )
     }
 
     mutating func recordHistoryFrame() {

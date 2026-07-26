@@ -3,21 +3,29 @@ import simd
 /// Render Runtime-owned projection for one simulation presentation snapshot.
 struct RenderFrame: Equatable {
     static let empty = RenderFrame(
-        sourceCursor: nil,
-        viewpointID: nil,
-        viewpointRevision: nil,
+        provenance: .empty,
         camera: .standard,
         instances: []
     )
 
-    /// Exact Simulation publication projected into this frame, when present.
-    let sourceCursor: SimulationCursor?
-    /// Explicit Render-owned viewpoint used for exact request projection.
-    let viewpointID: RenderViewpointID?
-    /// Revision of the explicit Render-owned viewpoint used for projection.
-    let viewpointRevision: RenderViewpointRevision?
+    let provenance: RenderFrameProvenance
     let camera: Camera
     let instances: [RenderInstance]
+
+    /// Exact Simulation publication projected into this frame, when present.
+    var sourceCursor: SimulationCursor? {
+        provenance.sourceCursor
+    }
+
+    /// Explicit Render-owned viewpoint used for exact request projection.
+    var viewpointID: RenderViewpointID? {
+        provenance.viewpointID
+    }
+
+    /// Revision of the explicit Render-owned viewpoint used for projection.
+    var viewpointRevision: RenderViewpointRevision? {
+        provenance.viewpointRevision
+    }
 
     /// Tick-only migration view for consumers confined to one known session.
     var sourceTick: SimulationTick? {
@@ -38,9 +46,7 @@ struct RenderFrame: Equatable {
         // normals to the GPU.
         guard camera.supportsViewTransform else {
             self.init(
-                sourceCursor: snapshot.cursor,
-                viewpointID: nil,
-                viewpointRevision: nil,
+                provenance: .simulation(sourceCursor: snapshot.cursor),
                 camera: camera,
                 instances: []
             )
@@ -56,9 +62,7 @@ struct RenderFrame: Equatable {
         }
 
         self.init(
-            sourceCursor: snapshot.cursor,
-            viewpointID: nil,
-            viewpointRevision: nil,
+            provenance: .simulation(sourceCursor: snapshot.cursor),
             camera: camera,
             instances: instances
         )
@@ -80,9 +84,11 @@ struct RenderFrame: Equatable {
         }
 
         self.init(
-            sourceCursor: snapshot.cursor,
-            viewpointID: viewpoint.id,
-            viewpointRevision: viewpoint.revision,
+            provenance: .exact(
+                sourceCursor: snapshot.cursor,
+                viewpointID: viewpoint.id,
+                viewpointRevision: viewpoint.revision
+            ),
             camera: viewpoint.camera,
             instances: instances
         )
@@ -90,15 +96,11 @@ struct RenderFrame: Equatable {
 
     /// Stores an already projected frame without changing its attribution.
     private init(
-        sourceCursor: SimulationCursor?,
-        viewpointID: RenderViewpointID?,
-        viewpointRevision: RenderViewpointRevision?,
+        provenance: RenderFrameProvenance,
         camera: Camera,
         instances: [RenderInstance]
     ) {
-        self.sourceCursor = sourceCursor
-        self.viewpointID = viewpointID
-        self.viewpointRevision = viewpointRevision
+        self.provenance = provenance
         self.camera = camera
         self.instances = instances
     }
