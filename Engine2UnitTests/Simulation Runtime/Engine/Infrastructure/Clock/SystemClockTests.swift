@@ -3,6 +3,12 @@ import Testing
 @testable import Engine2
 
 struct SystemClockTests {
+    @Test func productionClockConsumesNonnegativeMonotonicTime() {
+        var clock = SystemClock()
+
+        #expect(clock.consumeDeltaTime() >= .zero)
+    }
+
     @Test func systemClockUsesInjectedTimeSource() async throws {
         let baseInstant = SuspendingClock().now
         let samples = [

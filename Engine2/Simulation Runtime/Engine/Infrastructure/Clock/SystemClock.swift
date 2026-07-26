@@ -16,7 +16,13 @@ struct SystemClock {
     private let timeSource: TimeSource
     private var lastSample: Instant
 
-    init(timeSource: @escaping TimeSource = { SuspendingClock().now }) {
+    /// Creates a production clock backed by the platform suspending clock.
+    init() {
+        self.init(timeSource: { SuspendingClock().now })
+    }
+
+    /// Creates a clock whose monotonic samples come from an injected source.
+    init(timeSource: @escaping TimeSource) {
         let initialSample = timeSource()
         self.timeSource = timeSource
         self.lastSample = initialSample

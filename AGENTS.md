@@ -115,7 +115,7 @@ Current example ownership:
 - `Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
   - Simulation-owned construction interface for producing fully bootstrapped worlds.
 - `Engine2/Simulation Runtime/Engine/Infrastructure/Clock/SystemClock.swift`
-  - `SystemClock` provides injectable monotonic elapsed-time sampling to `RealtimeAdvanceDriver`, outside exact Simulation execution and system logic.
+  - `SystemClock` has a production suspending-clock initializer and a separate required `timeSource` initializer for deterministic monotonic elapsed-time sampling.
 - `Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.
@@ -154,6 +154,8 @@ Current example ownership:
 - `Engine2/Runtime Configuration/Realtime/*.swift`
   - `RealtimeConfiguration` constructs independently owned Input and Simulation Runtimes plus one `RealtimeAdvanceDriver`.
   - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, and lifecycle-generation protection for coordinated Simulation cutovers. It is not an input router; the App supplies its `InputRuntime` to `InputMetalView` through the narrow `PInputEventSink` capability.
+  - `RealtimeConfiguration` resolves its optional polling interval against `SimulationRuntime.fixedTimeStep` before constructing the driver.
+  - `RealtimeAdvanceDriver` separates its production suspending-clock construction path from a fully injected clock, scheduling-time, and sleeper path. Both require explicit input-source, cadence, catch-up, and initial-enabled choices.
   - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
 - `Engine2/Runtime Configuration/Manual/*.swift`
   - `ManualConfiguration` and `ManualAssembly` expose caller-driven exact advancement without Input or a polling task.

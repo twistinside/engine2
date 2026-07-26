@@ -52,6 +52,17 @@ struct RealtimeConfigurationTests {
         #expect(first.advanceDriver !== second.advanceDriver)
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
     }
+
+    @Test func omittedPollingIntervalSelectsTheSimulationFixedTimeStep() {
+        let configuration = RealtimeConfiguration(
+            pollInterval: nil,
+            catchUpPolicy: .interactive
+        )
+
+        let assembly = configuration.makeAssembly(gameContent: BasicGameContent())
+
+        #expect(assembly.advanceDriver.pollInterval == SimulationRuntime.fixedTimeStep)
+    }
 }
 
 private extension RealtimeConfigurationTests {
