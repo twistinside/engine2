@@ -4,7 +4,9 @@
 /// model beside it, so GPU packing and ordered drawing cannot drift across
 /// parallel arrays or a second resource lookup. Preparing this value resolves
 /// all authored content before a caller resets allocators, writes GPU buffers,
-/// or begins a Metal 4 command buffer.
+/// or begins a Metal 4 command buffer. Exact callers validate these retained
+/// optional model values before encoding; the live screen may omit a missing
+/// model while continuing to present later frames.
 struct MetalPreparedFrame {
     let renderFrame: RenderFrame
     let instances: [(

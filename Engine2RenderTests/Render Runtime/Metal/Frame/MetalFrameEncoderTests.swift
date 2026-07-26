@@ -31,6 +31,11 @@ struct MetalFrameEncoderTests {
             prepared.instances.map { $0.renderInstance.materialID }
                 == scene.materialIDs
         )
+        for instance in prepared.instances {
+            let preparedModel = try #require(instance.model)
+            let storedModel = try #require(resources.model(for: instance.renderInstance.meshID))
+            #expect(preparedModel.meshes.map(ObjectIdentifier.init) == storedModel.meshes.map(ObjectIdentifier.init))
+        }
         #expect(
             prepared.renderFrame.sourceCursor == scene.renderFrame.sourceCursor
         )
