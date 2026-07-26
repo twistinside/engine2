@@ -35,7 +35,7 @@ nonisolated struct RenderPixelSize: Equatable, Hashable, Sendable {
     }
 
     /// Creates a positive extent with representable pixel and BGRA byte counts.
-    init(width: Int, height: Int) throws {
+    init(width: Int, height: Int) throws(RenderPixelSizeError) {
         guard width > 0 else {
             throw RenderPixelSizeError.nonpositiveWidth(width)
         }
