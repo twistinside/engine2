@@ -67,7 +67,7 @@ final class SnapshotCaptureViewModel {
             captureTarget = target
 
         case let .unavailable(reason):
-            presentFailure(reason)
+            presentedModal = .captureFailure(message: reason)
             return
         }
 
@@ -94,7 +94,9 @@ final class SnapshotCaptureViewModel {
         else {
             return
         }
-        handle(outcome)
+        presentedModal = SnapshotCapturePresentation(
+            jpegCaptureOutcome: outcome
+        )
     }
 
     /// Resolves SwiftUI's attempt to write the detached JPEG.
@@ -150,106 +152,4 @@ final class SnapshotCaptureViewModel {
         }
     }
 
-    private func handle(_ outcome: RealtimeSnapshotCaptureOutcome) {
-        switch outcome {
-        case let .completed(sourceSnapshot, artifact):
-            presentedModal = .exporter(
-                document: JPEGArtifactDocument(artifact: artifact),
-                defaultFilename: "Engine2-tick-\(sourceSnapshot.cursor.tick.rawValue)"
-            )
-
-        case .connectionBusy:
-            presentFailure("Another snapshot capture is already in progress.")
-
-        case .cancelledBeforeRender:
-            presentFailure("Snapshot capture was cancelled before rendering.")
-
-        case let .renderRejected(_, rejection):
-            presentFailure(message(for: rejection))
-
-        case let .renderFailed(_, failure):
-            presentFailure(
-                "The offline renderer failed during \(failure.stage). "
-                    + failure.backendDescription
-            )
-
-        case .renderCancellationRequestIDMismatch:
-            presentFailure(
-                "The offline renderer returned cancellation for the wrong request."
-            )
-
-        case .renderCancelledAfterSubmission:
-            presentFailure(
-                "Snapshot capture was cancelled after GPU submission completed."
-            )
-
-        case .renderResultMismatch:
-            presentFailure(
-                "The offline renderer returned an image that did not match "
-                    + "the selected snapshot or output settings."
-            )
-
-        case .artifactResultMismatch:
-            presentFailure(
-                "The image encoder returned an artifact that did not match "
-                    + "the selected snapshot or output settings."
-            )
-
-        case .cancelledAfterRender:
-            presentFailure(
-                "Snapshot capture was cancelled before JPEG encoding began."
-            )
-
-        case let .artifactEncodingFailed(_, _, failure):
-            presentFailure(message(for: failure))
-        }
-    }
-
-    private func message(for rejection: OffscreenRenderRejection) -> String {
-        switch rejection {
-        case .runtimeBusy:
-            "The offline renderer is busy with another request."
-
-        case .cancelledBeforeSubmission:
-            "Snapshot capture was cancelled before GPU submission."
-
-        case .invalidViewpoint:
-            "The selected Simulation camera cannot be rendered offscreen."
-
-        case .invalidPresentation:
-            "The selected Simulation snapshot contains invalid presentation data."
-
-        case let .exceedsLimits(requested, limits):
-            "The requested \(requested.width)×\(requested.height) image exceeds "
-                + "the offline limit of \(limits.maxDimension) pixels per side "
-                + "and \(limits.maxPixelCount) total pixels."
-
-        case let .instanceLimitExceeded(requested, maximum):
-            "The selected snapshot contains \(requested) render instances; "
-                + "the offline renderer supports \(maximum)."
-        }
-    }
-
-    private func message(for failure: ImageArtifactEncoderError) -> String {
-        switch failure {
-        case .couldNotCreateSRGBColorSpace:
-            "The system could not create the sRGB color space for JPEG export."
-
-        case .couldNotCreateDataProvider:
-            "The rendered pixels could not be opened for JPEG export."
-
-        case .couldNotCreateImage:
-            "The rendered pixel layout could not be converted into an image."
-
-        case .couldNotCreateDestination:
-            "The system could not create an in-memory JPEG destination."
-
-        case .destinationFinalizationFailed:
-            "The system could not finish encoding the JPEG."
-        }
-    }
-
-    private func presentFailure(_ message: String) {
-        presentedModal = .captureFailure(message: message)
-    }
 }
