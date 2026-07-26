@@ -15,6 +15,7 @@ struct MetalOffscreenRenderRuntimeTests {
             exposure: .validation
         )
         let request = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: settings
@@ -53,6 +54,7 @@ struct MetalOffscreenRenderRuntimeTests {
         )
         let excessiveSize = try RenderPixelSize(width: 320, height: 240)
         let excessiveRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(size: excessiveSize)
@@ -67,6 +69,7 @@ struct MetalOffscreenRenderRuntimeTests {
         )
 
         let acceptedRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
@@ -92,6 +95,7 @@ struct MetalOffscreenRenderRuntimeTests {
             camera: Camera(position: SIMD3<Float>(.nan, 0, 8))
         )
         let request = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: invalidViewpoint,
             settings: OffscreenRenderSettings(
@@ -126,6 +130,7 @@ struct MetalOffscreenRenderRuntimeTests {
             catalog: fixture.content.renderAssetCatalog
         )
         let request = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
@@ -169,6 +174,7 @@ struct MetalOffscreenRenderRuntimeTests {
             catalog: fixture.content.renderAssetCatalog
         )
         let request = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: excessiveSnapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(
@@ -212,11 +218,13 @@ struct MetalOffscreenRenderRuntimeTests {
             size: try RenderPixelSize(width: 160, height: 120)
         )
         let firstRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: firstViewpoint,
             settings: settings
         )
         let secondRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: secondViewpoint,
             settings: settings
@@ -244,6 +252,7 @@ struct MetalOffscreenRenderRuntimeTests {
     @Test func missingModelFailsExactPreflightWithoutAffectingValidRuntime() async throws {
         let fixture = makeFixture()
         let request = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
             presentationSnapshot: fixture.snapshot,
             viewpoint: fixture.viewpoint,
             settings: OffscreenRenderSettings(

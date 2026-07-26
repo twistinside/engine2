@@ -41,7 +41,8 @@ struct RuntimeCompositionScenarioTests {
         let manualOutcome = await manual.advanceTarget.advance(
             SimulationAdvanceRequest(
                 expectedCursor: manual.simulationRuntime.currentCursor,
-                stepCount: SimulationStepCount(rawValue: 20)
+                stepCount: SimulationStepCount(rawValue: 20),
+                inputAssignment: .none
             )
         )
         guard case let .completed(manualResult) = manualOutcome else {
@@ -64,8 +65,10 @@ struct RuntimeCompositionScenarioTests {
             OfflineCaptureRequest(
                 advanceRequest: SimulationAdvanceRequest(
                     expectedCursor: offline.initialCursor,
-                    stepCount: SimulationStepCount(rawValue: 10)
+                    stepCount: SimulationStepCount(rawValue: 10),
+                    inputAssignment: .none
                 ),
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: settings,
                 encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
@@ -80,8 +83,10 @@ struct RuntimeCompositionScenarioTests {
             OfflineCaptureRequest(
                 advanceRequest: SimulationAdvanceRequest(
                     expectedCursor: firstResult.advanceResult.finalCursor,
-                    stepCount: SimulationStepCount(rawValue: 10)
+                    stepCount: SimulationStepCount(rawValue: 10),
+                    inputAssignment: .none
                 ),
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: settings,
                 encoding: ImageArtifactEncoding.jpeg(quality: .maximum)
@@ -95,6 +100,7 @@ struct RuntimeCompositionScenarioTests {
         let currentOutcome = await offline.captureTarget.captureCurrent(
             OfflineCurrentCaptureRequest(
                 expectedCursor: secondResult.advanceResult.finalCursor,
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: settings,
                 encoding: ImageArtifactEncoding.jpeg(quality: .maximum)

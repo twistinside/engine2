@@ -141,8 +141,10 @@ struct AgentSessionCoordinatorTests {
 
         let changedSource = AgentCaptureRequest(
             id: request.id,
-            expectedCursor: fixture.initialCursor,
-            stepCount: .one,
+            source: .advance(
+                expectedCursor: fixture.initialCursor,
+                stepCount: .one
+            ),
             renderRequestID: request.renderRequestID,
             viewpoint: request.viewpoint,
             renderSettings: request.renderSettings,
@@ -164,8 +166,10 @@ struct AgentSessionCoordinatorTests {
         let currentRequest = fixture.currentRequest(sequence: 0)
         let changedSource = AgentCaptureRequest(
             id: currentRequest.id,
-            expectedCursor: currentRequest.source.expectedCursor,
-            stepCount: .one,
+            source: .advance(
+                expectedCursor: currentRequest.source.expectedCursor,
+                stepCount: .one
+            ),
             renderRequestID: currentRequest.renderRequestID,
             viewpoint: currentRequest.viewpoint,
             renderSettings: currentRequest.renderSettings,
@@ -1230,8 +1234,10 @@ struct AgentSessionCoordinatorTests {
     ) -> AgentCaptureRequest {
         AgentCaptureRequest(
             id: request.id,
-            expectedCursor: request.source.expectedCursor,
-            stepCount: stepCount,
+            source: .advance(
+                expectedCursor: request.source.expectedCursor,
+                stepCount: stepCount
+            ),
             renderRequestID: request.renderRequestID,
             viewpoint: request.viewpoint,
             renderSettings: request.renderSettings,
@@ -1371,8 +1377,10 @@ struct AgentSessionCoordinatorTests {
                     sessionID: sessionID ?? agentSessionID,
                     sequence: AgentSessionRequestSequence(rawValue: sequence)
                 ),
-                expectedCursor: expectedCursor ?? initialCursor,
-                stepCount: stepCount,
+                source: .advance(
+                    expectedCursor: expectedCursor ?? initialCursor,
+                    stepCount: stepCount
+                ),
                 renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: renderSettings,
@@ -1386,12 +1394,12 @@ struct AgentSessionCoordinatorTests {
             expectedCursor: SimulationCursor? = nil,
             viewpoint: RenderViewpoint? = nil
         ) -> AgentCaptureRequest {
-            AgentCaptureRequest.current(
+            AgentCaptureRequest(
                 id: AgentSessionRequestID(
                     sessionID: sessionID ?? agentSessionID,
                     sequence: AgentSessionRequestSequence(rawValue: sequence)
                 ),
-                expectedCursor: expectedCursor ?? initialCursor,
+                source: .current(expectedCursor: expectedCursor ?? initialCursor),
                 renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint ?? self.viewpoint,
                 renderSettings: renderSettings,

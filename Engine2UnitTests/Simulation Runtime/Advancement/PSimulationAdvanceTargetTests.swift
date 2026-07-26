@@ -18,7 +18,8 @@ struct PSimulationAdvanceTargetTests {
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: expected,
-            stepCount: .one
+            stepCount: .one,
+            inputAssignment: .none
         )
 
         let outcome = await target.advance(request)

@@ -81,12 +81,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
             encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 8, height: 6)
             ),
@@ -157,12 +159,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
             encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 6, height: 6)
             ),
@@ -197,12 +201,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: encoder
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
             encoding: .jpeg(quality: .observation)
         )
         let secondRequest = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 6, height: 6)
             ),
@@ -248,6 +254,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
@@ -277,6 +284,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
@@ -311,6 +319,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
@@ -434,6 +443,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),
@@ -467,6 +477,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
                 size: try RenderPixelSize(width: 4, height: 4)
             ),

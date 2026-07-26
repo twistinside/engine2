@@ -3,15 +3,17 @@ import Testing
 @testable import Engine2
 
 struct SimulationAdvanceRequestTests {
-    @Test func defaultsToUnconditionalAdvanceWithoutInput() {
+    @Test func preservesExplicitUnconditionalAdvanceWithoutInput() {
         let request = SimulationAdvanceRequest(
-            stepCount: SimulationStepCount(rawValue: 3)
+            expectedCursor: nil,
+            stepCount: SimulationStepCount(rawValue: 3),
+            inputAssignment: .none
         )
 
         #expect(request.expectedCursor == nil)
         #expect(request.stepCount.rawValue == 3)
         guard case .none = request.inputAssignment else {
-            Issue.record("Expected the default no-input assignment")
+            Issue.record("Expected the explicit no-input assignment")
             return
         }
         requireSendable(request)

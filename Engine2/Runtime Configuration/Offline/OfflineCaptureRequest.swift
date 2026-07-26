@@ -11,19 +11,4 @@ nonisolated struct OfflineCaptureRequest: Sendable {
     let viewpoint: RenderViewpoint
     let renderSettings: OffscreenRenderSettings
     let encoding: ImageArtifactEncoding
-
-    /// Creates one bounded serial capture workflow.
-    init(
-        advanceRequest: SimulationAdvanceRequest,
-        renderRequestID: OffscreenRenderRequestID = OffscreenRenderRequestID(),
-        viewpoint: RenderViewpoint,
-        renderSettings: OffscreenRenderSettings,
-        encoding: ImageArtifactEncoding
-    ) {
-        self.advanceRequest = advanceRequest
-        self.renderRequestID = renderRequestID
-        self.viewpoint = viewpoint
-        self.renderSettings = renderSettings
-        self.encoding = encoding
-    }
 }
