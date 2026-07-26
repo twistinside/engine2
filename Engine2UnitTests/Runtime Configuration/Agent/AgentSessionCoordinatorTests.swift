@@ -722,6 +722,7 @@ struct AgentSessionCoordinatorTests {
                 )
             )
         }
+        #expect(entries.map(\.retainedImageByteCount) == [4, 4, 7])
 
         cache.retain(entries[0])
         cache.retain(entries[1])
@@ -770,12 +771,13 @@ struct AgentSessionCoordinatorTests {
             maximumResultCount: 4,
             maximumImageBytes: 23
         )
-        cache.retain(
-            AgentSessionReplayEntry(
-                request: request,
-                response: response
-            )
+        let entry = AgentSessionReplayEntry(
+            request: request,
+            response: response
         )
+        #expect(entry.retainedImageByteCount == 24)
+
+        cache.retain(entry)
 
         #expect(cache.entry(for: request.id) == nil)
     }

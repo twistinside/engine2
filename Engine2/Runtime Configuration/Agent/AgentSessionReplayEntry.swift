@@ -1,10 +1,13 @@
 /// One inseparable request and terminal response retained for exact replay.
 ///
-/// Construction verifies that both values describe the same request identity,
-/// preventing replay payload and response storage from drifting independently.
+/// Construction verifies that both values describe the same request identity
+/// and caches the immutable response's named image-byte footprint. Replay
+/// payload, response, and budget accounting therefore cannot drift.
 nonisolated struct AgentSessionReplayEntry: Equatable, Sendable {
     let request: AgentCaptureRequest
     let response: AgentSessionResponse
+    /// Exact named-budget footprint computed once with the immutable response.
+    let retainedImageByteCount: Int
 
     /// Pairs one accepted request with the terminal response produced for it.
     init(request: AgentCaptureRequest, response: AgentSessionResponse) {
@@ -12,6 +15,7 @@ nonisolated struct AgentSessionReplayEntry: Equatable, Sendable {
 
         self.request = request
         self.response = response
+        self.retainedImageByteCount = response.outcome.retainedImageByteCount
     }
 
     var requestID: AgentSessionRequestID {
