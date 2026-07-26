@@ -134,24 +134,16 @@ private func renderCenterPixel(
     }
     residencySet.commit()
 
-    let instances = [
-        RenderInstance(
-            meshID: .ball,
-            materialID: .warmDielectric,
-            transform: Transform(
-                position: SIMD3<Float>(0, 0, 0),
-                rotation: Transform.identityRotation,
-                scale: SIMD3<Float>(4, 4, 1)
-            )
+    let transforms = [
+        Transform(
+            position: SIMD3<Float>(0, 0, 0),
+            rotation: Transform.identityRotation,
+            scale: SIMD3<Float>(4, 4, 1)
         ),
-        RenderInstance(
-            meshID: .ball,
-            materialID: .warmDielectric,
-            transform: Transform(
-                position: SIMD3<Float>(0, 0, -2),
-                rotation: Transform.identityRotation,
-                scale: SIMD3<Float>(4, 4, 1)
-            )
+        Transform(
+            position: SIMD3<Float>(0, 0, -2),
+            rotation: Transform.identityRotation,
+            scale: SIMD3<Float>(4, 4, 1)
         )
     ]
     let frame = try #require(resources.frames.first)
@@ -164,15 +156,15 @@ private func renderCenterPixel(
                     tick: .zero
                 ),
                 camera: camera,
-                entityPresentations: instances.enumerated().map {
-                    index, instance in
+                entityPresentations: transforms.enumerated().map {
+                    index, transform in
                     EntityPresentationSnapshot(
                         id: EntityID(index: index, generation: 0),
-                        position: instance.transform.position,
-                        rotation: instance.transform.rotation,
-                        scale: instance.transform.scale,
-                        meshID: instance.meshID,
-                        materialID: instance.materialID
+                        position: transform.position,
+                        rotation: transform.rotation,
+                        scale: transform.scale,
+                        meshID: .ball,
+                        materialID: .warmDielectric
                     )
                 }
             )
@@ -184,7 +176,7 @@ private func renderCenterPixel(
         drawableSize: CGSize(width: textureSize, height: textureSize),
         exposure: .validation
     )
-    #expect(preparedFrame.instances.count == instances.count)
+    #expect(preparedFrame.instances.count == transforms.count)
 
     let renderPass = MTL4RenderPassDescriptor()
     renderPass.colorAttachments[0].texture = colorTexture

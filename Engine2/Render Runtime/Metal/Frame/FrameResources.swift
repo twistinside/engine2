@@ -62,7 +62,6 @@ final class FrameResources: @unchecked Sendable {
         let aspectRatio = Float(
             drawableSize.width / max(drawableSize.height, 1)
         )
-        let viewMatrix = camera.viewMatrix
         let projectionMatrix = camera.projectionMatrix(
             aspectRatio: aspectRatio
         )
@@ -75,7 +74,6 @@ final class FrameResources: @unchecked Sendable {
             destination[index] = GPUInstance(
                 instance.renderInstance,
                 material: instance.materialDescription,
-                viewMatrix: viewMatrix,
                 projectionMatrix: projectionMatrix
             )
         }

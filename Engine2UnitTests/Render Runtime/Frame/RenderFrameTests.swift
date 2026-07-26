@@ -28,28 +28,28 @@ struct RenderFrameTests {
         #expect(frame.sourceTick == SimulationTick(rawValue: 7))
         #expect(frame.viewpointID == nil)
         #expect(frame.viewpointRevision == nil)
+        #expect(frame.instances.map(\.meshID) == [.ball, .ball])
+        #expect(frame.instances.map(\.materialID) == [.warmDielectric, .goldMetal])
         #expect(
-            frame.instances == [
-                RenderInstance(
-                    meshID: .ball,
-                    materialID: .warmDielectric,
-                    transform: Transform(
-                        position: SIMD3<Float>(2, -4, 0),
-                        rotation: Transform.identityRotation,
-                        scale: RenderInstance.defaultScale
-                    )
+            frame.instances.map(\.transform) == [
+                Transform(
+                    position: SIMD3<Float>(2, -4, 0),
+                    rotation: Transform.identityRotation,
+                    scale: RenderInstance.defaultScale
                 ),
-                RenderInstance(
-                    meshID: .ball,
-                    materialID: .goldMetal,
-                    transform: Transform(
-                        position: SIMD3<Float>(-1, 3, 0),
-                        rotation: Transform.identityRotation,
-                        scale: RenderInstance.defaultScale
-                    )
+                Transform(
+                    position: SIMD3<Float>(-1, 3, 0),
+                    rotation: Transform.identityRotation,
+                    scale: RenderInstance.defaultScale
                 )
             ]
         )
+        for instance in frame.instances {
+            #expect(
+                instance.modelViewMatrix
+                    == frame.camera.viewMatrix * instance.transform.matrix
+            )
+        }
     }
 
     @Test func projectionDetachesMaterialIdentityFromLaterECSMutation() throws {
@@ -143,18 +143,20 @@ struct RenderFrameTests {
         #expect(frame.camera == world.camera)
         #expect(frame.viewpointID == nil)
         #expect(frame.viewpointRevision == nil)
+        let instance = try #require(frame.instances.first)
+        #expect(frame.instances.count == 1)
+        #expect(instance.meshID == .ball)
+        #expect(instance.materialID == .warmDielectric)
         #expect(
-            frame.instances == [
-                RenderInstance(
-                    meshID: .ball,
-                    materialID: .warmDielectric,
-                    transform: Transform(
-                        position: SIMD3<Float>(3, 4, 5),
-                        rotation: rotation,
-                        scale: scale
-                    )
-                )
-            ]
+            instance.transform == Transform(
+                position: SIMD3<Float>(3, 4, 5),
+                rotation: rotation,
+                scale: scale
+            )
+        )
+        #expect(
+            instance.modelViewMatrix
+                == frame.camera.viewMatrix * instance.transform.matrix
         )
     }
 
@@ -218,7 +220,12 @@ struct RenderFrameTests {
         )
         #expect(firstFrame.sourceCursor == cursor)
         #expect(secondFrame.sourceCursor == cursor)
-        #expect(firstFrame.instances == secondFrame.instances)
+        let firstInstance = try #require(firstFrame.instances.first)
+        let secondInstance = try #require(secondFrame.instances.first)
+        #expect(firstFrame.instances.count == 1)
+        #expect(secondFrame.instances.count == 1)
+        #expect(firstInstance.transform == secondInstance.transform)
+        #expect(firstInstance.modelViewMatrix != secondInstance.modelViewMatrix)
         #expect(firstFrame.camera == firstViewpoint.camera)
         #expect(secondFrame.camera == secondViewpoint.camera)
         #expect(firstFrame.camera != secondFrame.camera)
@@ -331,18 +338,20 @@ struct RenderFrameTests {
         #expect(exact.camera == viewpoint.camera)
         #expect(exact.viewpointID == viewpoint.id)
         #expect(exact.viewpointRevision == viewpoint.revision)
+        let instance = try #require(exact.instances.first)
+        #expect(exact.instances.count == 1)
+        #expect(instance.meshID == .ball)
+        #expect(instance.materialID == .goldMetal)
         #expect(
-            exact.instances == [
-                RenderInstance(
-                    meshID: .ball,
-                    materialID: .goldMetal,
-                    transform: Transform(
-                        position: SIMD3<Float>(1, 2, 3),
-                        rotation: Transform.identityRotation,
-                        scale: RenderInstance.defaultScale
-                    )
-                )
-            ]
+            instance.transform == Transform(
+                position: SIMD3<Float>(1, 2, 3),
+                rotation: Transform.identityRotation,
+                scale: RenderInstance.defaultScale
+            )
+        )
+        #expect(
+            instance.modelViewMatrix
+                == viewpoint.camera.viewMatrix * instance.transform.matrix
         )
     }
 
