@@ -26,8 +26,8 @@ one-slot resources, explicit residency and queue-feedback lifetime, and raw
 BGRA8-sRGB readback with no view or drawable. This establishes the production
 offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
 artifact persistence, pooled targets, or dedicated Render worker. A separate
-asynchronous ``PImageArtifactEncoder`` boundary, implemented by the stateless
-CPU ``ImageIOArtifactEncoder``, now derives provenance-rich JPEG or PNG
+asynchronous ``PImageArtifactEncoder`` boundary, implemented by the immutable,
+eagerly sRGB-configured CPU ``ImageIOArtifactEncoder``, now derives provenance-rich JPEG or PNG
 artifacts from the completed raw result, and ``OfflineCaptureConfiguration``
 serially coordinates either an exact advance-and-capture or a cursor-checked
 capture of its retained current presentation through the same render and
@@ -330,9 +330,10 @@ material count or draw organization requires them.
 The authored boundary remains deliberately smaller than a general material
 system:
 
-- Game Content owns the exhaustive `MaterialID` vocabulary. Its first two cases
-  are `warmDielectric` and `goldMetal`; both reuse `MeshID.ball` and differ only
-  by authored material intent.
+- Game Content owns the exhaustive `MaterialID` vocabulary. Milestone 4 began
+  with the baseline `warmDielectric` and `goldMetal` identities; Milestone 5
+  added smooth and rough variants for each while all six continue to reuse
+  `MeshID.ball`.
 - Render owns `PBRMaterialDescription`. It accepts finite scene-linear base
   color channels, metallic, and perceptual roughness in `0...1`, rejecting
   invalid authored content instead of clamping it. The shader still owns the
@@ -343,10 +344,12 @@ system:
   material and therefore no partially drawn frame with a substituted surface.
   `MetalSceneView.Coordinator` retains a construction failure for App
   diagnostics instead of silently erasing it when no renderer is created.
-- `CRenderable`, `EntityPresentationSnapshot`, and `RenderInstance` carry only
-  `MaterialID`. They contain no factors, compact GPU indices, buffers, or Metal
-  objects. Snapshot capture copies the identity by value, so a later ECS change
-  cannot alter an already published presentation.
+- With respect to authored materials, `CRenderable`,
+  `EntityPresentationSnapshot`, and `RenderInstance` carry only `MaterialID`,
+  not factors, compact GPU indices, buffers, or Metal objects. Snapshot capture
+  copies the identity by value, so a later ECS change cannot alter an already
+  published presentation. `RenderInstance` separately retains its validated
+  world, model-view, and normal-matrix projections for downstream reuse.
 - `MetalResourceStore` retains the validated CPU descriptions. ``MetalRenderer``
   waits for a screen frame slot and samples the newest completed presentation;
   ``MetalFrameEncoder`` resolves the bounded submitted prefix before the caller
@@ -361,6 +364,9 @@ system:
   malformed presented entity, missing model, unusable vertex slice, empty mesh
   or submesh, or invalid index slice, and never truncates the encoder's bounded
   prefix into a misleading partial image.
+- ``USDRenderModel`` computes and caches its complete drawable-indexed-geometry
+  proof once when immutable model meshes are constructed. Repeated exact
+  requests consume that proof without walking every mesh and submesh again.
 - `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
   directional light is transformed into view space once per frame, while the
   fragment stage reads the current draw's material from its instance record.

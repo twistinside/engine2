@@ -37,7 +37,7 @@ Current types implement part of this direction:
 - `POffscreenRenderTarget` is the backend-neutral exact asynchronous render capability. Its request carries one immutable Simulation presentation snapshot, one explicit viewpoint, and render settings; its outcome preserves expected refusals, accepted-request failures, post-submission cancellation, or a provenance-rich detached image.
 - `MetalOffscreenRenderRuntime` is the first production offscreen Runtime. It owns dedicated one-slot Metal resources, enforces a single-flight busy gate and configurable size limits, and drives `MetalFrameEncoder` without sampling sources, advancing Simulation, or acquiring a view or drawable.
 - `RealtimeSnapshotCaptureConnection` samples one completed Simulation presentation and derives a stable-identity, revision-zero explicit `RenderViewpoint` from that snapshot's camera. This conversion exists only because the exact offscreen request requires a viewpoint value; the connection owns no independently mutable camera state. `RealtimeSnapshotCaptureOutcome` owns exhaustive projection from the shared artifact terminal, while `SnapshotCapturePresentation` owns the JPEG-specific UI projection.
-- `PImageArtifactEncoder` is the asynchronous CPU-transformation boundary above raw Render completion. `ImageIOArtifactEncoder` is its stateless, nonisolated production implementation; it derives JPEG or PNG bytes from one detached result according to `ImageArtifactEncoding` without sampling application state, touching Metal, advancing Simulation, or rerendering.
+- `PImageArtifactEncoder` is the asynchronous CPU-transformation boundary above raw Render completion. `ImageIOArtifactEncoder` is its immutable, nonisolated production implementation; construction resolves its required sRGB color space once, then it derives JPEG or PNG bytes from one detached result according to `ImageArtifactEncoding` without sampling application state, touching Metal, advancing Simulation, or rerendering.
 - `OffscreenImageArtifactDeriver` composes exact offscreen rendering, complete result and cancellation correlation, and one injected `PImageArtifactEncoder` for multiple App workflows. It retains the raw result when post-render cancellation, encoding failure, or artifact-provenance mismatch prevents completion.
 - `OfflineCaptureConfiguration` constructs one deliberately closed serial topology containing Simulation, exact offscreen Render, and `OfflineCaptureCoordinator`. Its assembly exposes only the initial cursor and `POfflineCaptureTarget`; the coordinator is the sole effective advance authority and retains exactly the initial or last completed presentation. The target supports at-most-once advance capture and mandatory-cursor current capture through one gate, shared exact Render validation, and awaited artifact encoding.
 - `SimulationAdvanceResult` enforces one internally coherent completed session, cursor range, positive completed count, and final presentation cursor at construction. `OfflineCaptureCoordinator` additionally correlates that result to its retained starting cursor and submitted expected cursor/count before rendering. A coherent but request-mismatched completion becomes a typed `advanceResultMismatch`; because work may already have committed, its final snapshot becomes the retained current presentation.
@@ -61,7 +61,7 @@ Use these terms and constraints consistently:
 - The Simulation Runtime owns invariant systems and their foundational schedule. Future Game Content behavior must enter through controlled extension points rather than replacing that foundation.
 - The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; Render owns `RenderFrame` and its projection from the publisher-owned `SimulationPresentationSnapshot` contract.
 - Do not make every current type public. Design the smallest coherent extension surface needed by external content while keeping engine storage and backend internals encapsulated.
-- The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
+- The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:renderable:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
 
 Current example ownership:
 - `Ball`, `BasicWorldBuilder`, and `BasicGameContent` are example Game Content.
@@ -85,7 +85,7 @@ Current example ownership:
 - `Engine2/Simulation Runtime/Engine/ECS/World.swift`
   - Central world object.
   - Owns component stores.
-  - `add(_:from:)` translates advertised entity capabilities into component rows and validates that seed values match those capabilities.
+  - `add(_:from:renderable:)` translates advertised entity capabilities into component rows and validates that seed values match those capabilities.
   - `reserveEntityID()` currently allocates monotonically increasing indices with generation `0`; generation reuse/destruction is still future work.
 - `Engine2/Simulation Runtime/Engine/ECS/Entity.swift`
   - Base `Entity` superclass.
@@ -136,9 +136,10 @@ Current example ownership:
   - Selection-state component used by `PSelectable` entities and selection UI.
 - `Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
   - `InputState` is the authoritative simulation-facing input resource stored on `World`, populated from `InputSnapshot` only at fixed-step boundaries.
+  - `InputHistory` is the separate World-owned diagnostic resource. It owns bounded newest-first retention, true fixed-step numbering, consecutive-row coalescing, and display-token formatting without mutating authoritative input.
   - `SInputMapping` converts finite horizontal pointer motion and vertical scroll into transient semantic camera commands.
   - `SCameraInput` consumes those commands before cleanup, derives orbit state from the current authoritative camera, preserves its projection and vertical target offset, and writes `World.camera` only within a complete tick.
-  - `SInputHistory` records compact input history rows for debug UI.
+  - `SInputHistory` projects the current authoritative input into `InputHistory` before cleanup.
   - `SInputCleanup` clears raw and mapped per-tick transient input after input systems have consumed it.
 - `Engine2/Simulation Runtime/Engine/System/Position/System/*.swift`
   - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-tick accumulator.
@@ -154,7 +155,7 @@ Current example ownership:
 - `Engine2/Runtime Configuration/Realtime/*.swift`
   - `RealtimeConfiguration` constructs independently owned Input and Simulation Runtimes plus one `RealtimeAdvanceDriver`.
   - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, and lifecycle-generation protection for coordinated Simulation cutovers. It is not an input router; the App supplies its `InputRuntime` to `InputMetalView` through the narrow `PInputEventSink` capability.
-  - `RealtimeConfiguration` resolves its optional polling interval against `SimulationRuntime.fixedTimeStep` before constructing the driver.
+  - `RealtimeConfiguration` requires an explicit positive polling interval. The App deliberately selects `SimulationRuntime.fixedTimeStep`; other callers must make a cadence choice just as visibly.
   - `RealtimeStepAccumulator` is the driver's value-semantic elapsed-debt and bounded-batching policy. It has no clock, cursor, lifecycle, Input, or Simulation authority.
   - `RealtimeInputAssignmentState` couples one transition baseline to its policy generation, forms the immutable assignment for an exact request, and prevents older completion bookkeeping from clearing newer policy.
   - `RealtimeAdvanceDriver` separates its production suspending-clock construction path from a fully injected clock, scheduling-time, and sleeper path. Both require explicit input-source, cadence, catch-up, and initial-enabled choices.
@@ -178,7 +179,7 @@ Current example ownership:
   - `AgentSessionCoordinator` owns live-process admission and idempotency above `POfflineCaptureTarget`.
   - New unique request admission uses typed throws inside `AgentSessionCoordinator`; the protocol boundary converts refusal into the explicit submission outcome required for replay, transport, and exhaustive handling.
   - `AgentSessionRequestSequenceProgress` couples the exact next sequence to accepted high-water in one value-semantic state transition. Exhaustion preserves an accepted `UInt64.max`, so even an unretained response at that identity retries as `.resultEvicted` after `successor()` becomes `nil`.
-  - `AgentSessionReplayCache` retains inseparable request/response entries under the configured FIFO count and named image-byte budgets. Sequence progress, in-flight work, and lifecycle remain independent coordinator state.
+  - `AgentSessionReplayEntry` computes and retains its immutable terminal response's named image-byte footprint once. `AgentSessionReplayCache` owns FIFO count and aggregate byte-budget policy without re-walking outcomes during insertion or eviction. Sequence progress, in-flight work, and lifecycle remain independent coordinator state.
   - Both source choices use one request identity and retention lane. Identical retained requests replay the exact response and artifact; changing source or any source/render payload under one ID conflicts. In-flight duplicates, overlap, sequence gaps, wrong sessions, eviction, invalid payload, closure, and pre-acceptance cancellation are typed. Session and existing identity status are resolved before validating a new payload's reflexive equality, so a malformed retry still reports cached conflict, in-flight conflict, or eviction instead of being misclassified as new invalid work.
   - `AgentSessionLimits` bounds advancing steps, retained-result count, and retained raw/encoded image bytes. The step bound applies only to `.advance`; the named image-byte budget intentionally excludes snapshots and Swift object/collection overhead.
   - A step-limit violation is an accepted, sequence-consuming terminal response and is retained like capture results. `stopAndDrain()` rejects new unique work immediately, lets accepted work finish, and still permits cached identical replay while the live assembly remains retained.
@@ -208,41 +209,42 @@ Current example ownership:
   - `SimulationTick` identifies completed fixed steps without wall-clock or render-cadence meaning.
   - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
   - `PSimulationPresentationSource` exposes that latest-value publication as a read-only capability without exposing the wider Simulation Runtime API.
-  - Ordinary live publication uses latest-value semantics; retained replay history remains an explicit future recorder concern.
+  - Ordinary live publication uses latest-value semantics; retained publication replay history remains an explicit future recorder concern.
 - `Engine2/Render Runtime/Asset/*.swift`
-  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values.
+  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values. Its coverage and lookup operations expose the closed `RenderAssetCatalogError` domain through typed throws.
 - `Engine2/Render Runtime/Frame/*.swift`
   - `RenderFrame.init(projecting:)` converts a `SimulationPresentationSnapshot` into private real-time screen instances and uses the snapshot camera exactly, with no independent viewpoint input or attribution.
   - `RenderFrame.init(exactlyProjecting:viewpoint:)` is the strict request path. Its typed `RenderFrameProjectionError` rejects a malformed selected camera or any presented entity with missing position, an unusable finite normal-matrix inverse, or a nonfinite model-view transform instead of using the screen path's tolerant omission policy. `OffscreenRenderRejection` owns the exhaustive projection from that internal failure domain into expected boundary refusals. `MetalOffscreenRenderRuntime` additionally validates the requested-aspect model-view-projection products before GPU packing.
-  - `RenderInstance.init(projecting:viewMatrix:)` owns the shared per-entity transform construction and validation used by both frame paths while leaving the direct memberwise initializer synthesized for already-projected values.
+  - `RenderInstance.init(projecting:viewMatrix:)` is the sole construction path. It retains the validated world transform, model-view matrix, and inverse-transpose normal matrix used by both frame paths so GPU packing and exact preflight do not repeat projection or inversion.
 - `Engine2/Render Runtime/Viewpoint/*.swift`
   - `RenderViewpoint` carries one output-specific camera, stable `RenderViewpointID`, and monotonic `RenderViewpointRevision` by value through exact offscreen, offline, and agent requests and results.
 - `Engine2/Render Runtime/Offscreen/*.swift`
   - `POffscreenRenderTarget` accepts an exact immutable `OffscreenRenderRequest` asynchronously and returns an `OffscreenRenderOutcome`; it never implies source sampling or Simulation advancement.
   - Requests require a completed `SimulationPresentationSnapshot`, an explicit `RenderViewpoint`, and `OffscreenRenderSettings`. Successful results carry detached tightly packed top-left BGRA8-sRGB pixels plus the request identity, source cursor, complete viewpoint, and settings.
-  - `RenderPixelSize` validates positive dimensions plus representable pixel, tightly packed BGRA8 row, and total byte counts once. Its aspect ratio and layout projections are nonfailing downstream invariants.
+  - `RenderPixelSize` validates positive dimensions plus representable pixel, tightly packed BGRA8 row, and total byte counts once through typed `RenderPixelSizeError`. Its aspect ratio and layout projections are nonfailing downstream invariants.
+  - `RenderedBGRA8SRGBImage` validates detached byte count through typed `RenderedBGRA8SRGBImageError`.
   - `OffscreenRenderLimits` is caller-selected safety policy. The conservative default may be replaced deliberately by a host prepared for larger allocation, GPU, and readback costs.
 - `Engine2/Render Runtime/Artifact/*.swift`
   - `PImageArtifactEncoder` accepts one completed detached `OffscreenRenderResult` plus explicit `ImageArtifactEncoding` and asynchronously returns a provenance-rich artifact. Implementations own their execution context, keeping scheduling policy out of coordinators.
-  - `ImageIOArtifactEncoder` is the stateless, `Sendable`, nonisolated production implementation. Its `@concurrent` async operation performs synchronous Core Graphics and Image I/O work for `.jpeg(quality:)` or lossless `.png` on Swift's concurrent executor; once encoding begins, completion or typed failure wins over later caller cancellation.
-  - `JPEGQuality` validates the finite closed `0...1` compression-quality domain. `ImageArtifactEncoding` keeps format-specific policy in one closed value, and `RenderedImageArtifact` preserves that encoding beside the source request identity, Simulation cursor, complete viewpoint, render settings, and detached encoded data.
+  - `ImageIOArtifactEncoder` is the immutable, `Sendable`, nonisolated production implementation. Its throwing initializer resolves the required standard sRGB color space before the encoder is usable. Its `@concurrent` async operation performs synchronous Core Graphics and Image I/O work for `.jpeg(quality:)` or lossless `.png` on Swift's concurrent executor; once encoding begins, completion or typed failure wins over later caller cancellation.
+  - `JPEGQuality` validates the finite closed `0...1` compression-quality domain through typed `JPEGQualityError`. `ImageArtifactEncoding` keeps format-specific policy in one closed value, and `RenderedImageArtifact` preserves that encoding beside the source request identity, Simulation cursor, complete viewpoint, render settings, and detached encoded data.
   - Encoding failure has no Runtime-side effect. A caller may retry with the same detached raw result or choose another supported encoding without ticking Simulation or issuing another render request.
 - `Engine2/Render Runtime/Metal/**/*.swift`
-  - `MetalRenderer` is the thin MetalKit screen adapter. It samples the latest Simulation presentation and uses its camera exactly, selects a frame-ring slot and drawable, owns command-buffer submission/presentation and terminal screen error policy, and delegates reusable encoding.
+  - `MetalRenderer` is the thin MetalKit screen adapter. Construction resolves its required presentation sRGB color space. It samples the latest Simulation presentation and uses its camera exactly, selects a frame-ring slot and drawable, owns command-buffer submission/presentation and terminal screen error policy, and delegates reusable encoding.
   - Per-frame state, render passes, backend resources, and Swift/Metal shader contracts live in focused subfolders beneath the Metal backend.
 - `Engine2/Render Runtime/Metal/Frame/MetalFrameEncoder.swift`
-  - `MetalFrameEncoder` owns authored-material preflight, fixed target formats, frame-buffer packing, pipelines and argument tables, the HDR frame pass, and model draws.
+  - `MetalFrameEncoder` owns authored-material preflight, fixed target formats, frame-buffer packing, pipeline and argument-table selection and binding, the HDR frame pass, and model draws. `MetalResourceStore` and `MetalRequiredResources` own the underlying device-scoped handles.
   - Its caller supplies matching scene-color, depth, and destination textures, one `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. Scene and presentation encoder creation use typed throws with `MetalFrameEncoderError`; the encoder does not sample runtime sources, choose a frame slot, acquire a view or drawable, submit or present, or impose terminal-error policy.
 - `Engine2/Render Runtime/Metal/Offscreen/*.swift`
   - `MetalOffscreenRenderRuntime` requires and retains its dedicated `MetalResourceStore`'s sole `FrameResources` slot during construction, then accepts at most one request at a time. It rejects busy, cancelled-before-submit, over-limit, invalid-viewpoint, malformed-presentation, and over-256-instance requests without submission.
-  - Exact model preflight prepares once, then validates the same retained optional models that encoding will consume rather than repeating store lookups. It fails rather than silently omitting a missing model or one without complete drawable indexed geometry. Every encoder-visited mesh must have a usable nonempty first vertex-buffer slice and submeshes whose nonempty UInt16/UInt32 index slices remain in bounds. The live screen remains tolerant.
+  - Exact model preflight prepares once, then validates the same retained optional models that encoding will consume rather than repeating store lookups. `USDRenderModel` proves and caches complete drawable indexed geometry once when its immutable meshes are constructed; exact rendering reads that proof and fails rather than silently omitting incomplete content. Every encoder-visited mesh must have a usable nonempty first vertex-buffer slice and submeshes whose nonempty UInt16/UInt32 index slices remain in bounds. The live screen remains tolerant.
   - `renderOnMainActor(_:)` owns admission and immutable preflight. It enters the busy state without suspension before delegating the accepted mutable Metal transaction to `renderPreparedFrame(_:for:)`, which owns targets, the frame slot, encoding, submission feedback, cancellation boundaries, readback, and ready-or-failed restoration.
   - Preparation finishes before mutable GPU work. After commit, a retained `MetalOffscreenSubmission` uses a typed throwing continuation to wait for actual queue feedback before releasing the frame slot. Successful return permits readback; cancellation then returns without allocating a readback image, while GPU feedback failure latches the original terminal cause for later requests.
   - `MetalOffscreenRenderTargets` owns request-local shared BGRA8-sRGB destination and private depth textures plus their residency set. Successful readback produces an opaque, tightly packed, top-left `RenderedBGRA8SRGBImage`; the CPU-only Image I/O artifact layer consumes that detached value afterward, while HDR-master/accumulation, persistence, and sinks remain future concerns.
 - `Engine2/Render Runtime/Metal/Resource/*.swift`
   - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, validated authored material descriptions, decoded models, frame resources, and one nonoptional `MetalRequiredResources` set.
   - `MetalRequiredResources` resolves the engine shader library, every built-in string-named shader pipeline, opaque depth state, and fixed argument tables during store construction. Downstream encoders retain those typed handles without a second lookup or failure path.
-  - `MetalResourceStore.defaultFrameCount` and pipeline target formats are backend contracts independent of `MetalRenderer`; target formats come from `MetalFrameEncoder`.
+  - Every `MetalResourceStore` construction explicitly selects a frame count. The screen deliberately passes `MetalResourceStore.defaultFrameCount`, while exact offscreen rendering passes `1`; target formats come from `MetalFrameEncoder`.
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
 - `Engine2/Render Runtime/View/*.swift`
@@ -267,7 +269,7 @@ Current example ownership:
   - Render integration tests mirror the Metal backend folders, with shared test-only infrastructure grouped under `Engine2RenderTests/Render Runtime/Metal/Support/`.
 ### Folder Organization
 New simulation systems are added to `Engine2/Simulation Runtime/Engine/System/<system name>.`
-When a new system is created, the requisite components, resources, and protocols will be added in their own subfolders. The `System` folders are organized in funcitonal blocks to ensure proximity of files used in that `System`.
+When a new system is created, the requisite components, resources, and protocols will be added in their own subfolders. The `System` folders are organized in functional blocks to ensure proximity of files used in that `System`.
 ## High-Level Direction
 ### 1. Keep Protocols
 Protocols are staying.

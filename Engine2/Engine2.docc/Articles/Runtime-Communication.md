@@ -8,7 +8,7 @@ Partially implemented.
 
 The Input Runtime now publishes a revisioned latest ``InputSnapshot`` through `PInputSnapshotSource`. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. The Simulation Runtime publishes a latest completed ``SimulationPresentationSnapshot``. The current screen renderer projects that value with `snapshot.camera` exactly, producing a private ``RenderFrame`` that carries the Simulation cursor and no explicit-viewpoint attribution.
 
-`InputMetalView` submits each host ``InputEvent`` directly to ``InputRuntime`` through `PInputEventSink`. No current presentation recipient receives raw screen input, and ``RealtimeAssembly`` is not an input router. Ordered event publication, typed multi-source routes, future presentation routes, multi-window output bindings, additional semantic snapshot surfaces, subscription lifetimes, retained history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
+`InputMetalView` submits each host ``InputEvent`` directly to ``InputRuntime`` through `PInputEventSink`. No current presentation recipient receives raw screen input, and ``RealtimeAssembly`` is not an input router. Ordered event publication, typed multi-source routes, future presentation routes, multi-window output bindings, additional semantic snapshot surfaces, subscription lifetimes, retained runtime publication history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
 
 ## Runtimes Publish State and Occurrences
 
@@ -161,6 +161,8 @@ Ordered discrete transitions are a separate future lane. If key-down/up ordering
 Ordinary runtime publication is not a database.
 
 If replay, auditing, debugging, networking, or another feature requires retained history, an explicit recorder or journal can subscribe to selected runtime outputs and own that retention policy. Durable history should not impose storage or delivery guarantees on every ordinary runtime connection.
+
+The World-owned ``InputHistory`` is deliberately different. It retains a bounded diagnostic projection of Simulation-consumed input for App tooling; it is neither an ordered Input Runtime publication nor a durable replay journal.
 
 Likewise, a Storage Runtime may publish its own status snapshot and completion events, but save and load workflows remain deliberate App-coordinated requests and results rather than ambient access to a snapshot database.
 
