@@ -49,16 +49,17 @@ class SRotation: PSystem {
             let accumulatedRotation = rotationDelta * rotation.rotation
             let updatedRotation = simd_quatf(vector: simd_normalize(accumulatedRotation.vector))
 
-            world.angularVelocityComponents.insert(
-                CAngularVelocity(angularVelocity: updatedAngularVelocity),
-                for: entity
-            )
-            world.rotationComponents.insert(CRotation(rotation: updatedRotation), for: entity)
+            world.angularVelocityComponents.update(for: entity) { angularVelocity in
+                angularVelocity = CAngularVelocity(angularVelocity: updatedAngularVelocity)
+            }
+            world.rotationComponents.update(for: entity) { rotation in
+                rotation = CRotation(rotation: updatedRotation)
+            }
 
             // Angular motion contributions are per-frame inputs, so clear the
             // accumulator after they have been consumed.
-            if world.angularMotionAccumulatorComponents[entity] != nil {
-                world.angularMotionAccumulatorComponents.insert(zeroAccumulator, for: entity)
+            world.angularMotionAccumulatorComponents.update(for: entity) { accumulator in
+                accumulator = zeroAccumulator
             }
         }
     }
