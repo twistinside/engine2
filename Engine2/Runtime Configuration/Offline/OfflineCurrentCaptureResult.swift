@@ -6,10 +6,4 @@
 nonisolated struct OfflineCurrentCaptureResult: Equatable, Sendable {
     let sourceSnapshot: SimulationPresentationSnapshot
     let artifact: RenderedImageArtifact
-
-    /// Creates the terminal value for one current-state capture workflow.
-    init(sourceSnapshot: SimulationPresentationSnapshot, artifact: RenderedImageArtifact) {
-        self.sourceSnapshot = sourceSnapshot
-        self.artifact = artifact
-    }
 }

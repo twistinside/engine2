@@ -11,11 +11,6 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     /// Authored PBR factors keyed by Game Content material identity.
     let materials: [MaterialID: PBRMaterialDescription]
 
-    init(models: [MeshID: ModelAssetReference], materials: [MaterialID: PBRMaterialDescription]) {
-        self.models = models
-        self.materials = materials
-    }
-
     /// Verifies that every identity in Game Content's closed material
     /// vocabulary has an authored description before rendering can begin.
     ///
