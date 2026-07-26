@@ -1253,9 +1253,7 @@ struct AgentSessionCoordinatorTests {
         )
     }
 
-    private static func advanceStepCount(
-        of request: AgentCaptureRequest
-    ) throws -> SimulationStepCount {
+    private static func advanceStepCount(of request: AgentCaptureRequest) throws -> SimulationStepCount {
         guard case let .advance(_, stepCount) = request.source else {
             Issue.record("Expected an advancing agent request.")
             throw UnexpectedOutcome()
@@ -1263,9 +1261,7 @@ struct AgentSessionCoordinatorTests {
         return stepCount
     }
 
-    private static func executedResponse(
-        from outcome: AgentSessionSubmissionOutcome
-    ) throws -> AgentSessionResponse {
+    private static func executedResponse(from outcome: AgentSessionSubmissionOutcome) throws -> AgentSessionResponse {
         guard case let .executed(response) = outcome else {
             Issue.record("Expected executed agent response, received \(outcome)")
             throw UnexpectedOutcome()
@@ -1273,9 +1269,7 @@ struct AgentSessionCoordinatorTests {
         return response
     }
 
-    private static func encodedBytes(
-        in response: AgentSessionResponse
-    ) throws -> Data {
+    private static func encodedBytes(in response: AgentSessionResponse) throws -> Data {
         guard case let .capture(.completed(result)) = response.outcome else {
             Issue.record("Expected completed artifact response.")
             throw UnexpectedOutcome()
@@ -1307,17 +1301,13 @@ struct AgentSessionCoordinatorTests {
                 await Task.yield()
 
             default:
-                Issue.record(
-                    "Unexpected rejection while waiting for close: \(rejection)"
-                )
+                Issue.record("Unexpected rejection while waiting for close: \(rejection)")
                 return rejection
             }
         }
     }
 
-    private static func rawRoundTrip<Value>(
-        _ value: Value
-    ) -> Value? where Value: Equatable & RawRepresentable {
+    private static func rawRoundTrip<Value>(_ value: Value) -> Value? where Value: Equatable & RawRepresentable {
         Value(rawValue: value.rawValue)
     }
 
@@ -1417,10 +1407,7 @@ struct AgentSessionCoordinatorTests {
             )
         }
 
-        func advanceResult(
-            from initialCursor: SimulationCursor,
-            by stepCount: SimulationStepCount
-        ) -> SimulationAdvanceResult {
+        func advanceResult(from initialCursor: SimulationCursor, by stepCount: SimulationStepCount) -> SimulationAdvanceResult {
             var finalTick = initialCursor.tick
             for _ in 0..<stepCount.rawValue {
                 finalTick = finalTick.advanced()
@@ -1496,10 +1483,7 @@ struct AgentSessionCoordinatorTests {
             )
         }
 
-        func rawRenderResult(
-            request: AgentCaptureRequest,
-            cursor: SimulationCursor
-        ) throws -> OffscreenRenderResult {
+        func rawRenderResult(request: AgentCaptureRequest, cursor: SimulationCursor) throws -> OffscreenRenderResult {
             let bytes = Data(
                 repeating: 0x7F,
                 count: request.renderSettings.size.pixelCount * 4
@@ -1545,9 +1529,7 @@ struct AgentSessionCoordinatorTests {
             self.scripts = scripts
         }
 
-        func capture(
-            _ request: OfflineCaptureRequest
-        ) async -> OfflineCaptureOutcome {
+        func capture(_ request: OfflineCaptureRequest) async -> OfflineCaptureOutcome {
             requests.append(request)
             notifyCountWaiters()
 
@@ -1571,9 +1553,7 @@ struct AgentSessionCoordinatorTests {
             }
         }
 
-        func captureCurrent(
-            _ request: OfflineCurrentCaptureRequest
-        ) async -> OfflineCurrentCaptureOutcome {
+        func captureCurrent(_ request: OfflineCurrentCaptureRequest) async -> OfflineCurrentCaptureOutcome {
             currentRequests.append(request)
             notifyCountWaiters()
 

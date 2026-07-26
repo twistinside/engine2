@@ -17,18 +17,9 @@ nonisolated struct OffscreenRenderLimits: Equatable, Sendable {
     let maxPixelCount: Int
 
     /// Creates trusted positive bounds for accepted render sizes.
-    init(
-        maxDimension: Int,
-        maxPixelCount: Int
-    ) {
-        precondition(
-            maxDimension > 0,
-            "The maximum offscreen render dimension must be positive."
-        )
-        precondition(
-            maxPixelCount > 0,
-            "The maximum offscreen render pixel count must be positive."
-        )
+    init(maxDimension: Int, maxPixelCount: Int) {
+        precondition(maxDimension > 0, "The maximum offscreen render dimension must be positive.")
+        precondition(maxPixelCount > 0, "The maximum offscreen render pixel count must be positive.")
         self.maxDimension = maxDimension
         self.maxPixelCount = maxPixelCount
     }

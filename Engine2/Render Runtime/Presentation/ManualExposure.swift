@@ -11,10 +11,7 @@ nonisolated struct ManualExposure: Equatable, Sendable {
     let multiplier: Float
 
     init(multiplier: Float) {
-        precondition(
-            multiplier.isFinite && multiplier >= 0,
-            "Manual exposure must be finite and nonnegative."
-        )
+        precondition(multiplier.isFinite && multiplier >= 0, "Manual exposure must be finite and nonnegative.")
         self.multiplier = multiplier
     }
 }

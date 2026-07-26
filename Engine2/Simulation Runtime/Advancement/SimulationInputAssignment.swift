@@ -15,8 +15,5 @@ nonisolated enum SimulationInputAssignment: Sendable {
     /// Atomically establishes `baseline`, then ingests `snapshot` at the first
     /// requested tick boundary. Same-session cumulative transients are derived
     /// between the two values; persistent state comes from `snapshot`.
-    case rebaseThenIngest(
-        baseline: InputSnapshot,
-        snapshot: InputSnapshot
-    )
+    case rebaseThenIngest(baseline: InputSnapshot, snapshot: InputSnapshot)
 }

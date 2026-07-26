@@ -5,12 +5,7 @@ import Foundation
 /// Viewpoints are created dynamically for windows, viewports, captures, and
 /// tooling clients, so their identity vocabulary is intentionally open-ended
 /// rather than represented by a closed enum.
-nonisolated struct RenderViewpointID:
-    Codable,
-    Hashable,
-    RawRepresentable,
-    Sendable
-{
+nonisolated struct RenderViewpointID: Codable, Hashable, RawRepresentable, Sendable {
     let rawValue: UUID
 
     /// Creates a fresh identity for a newly owned viewpoint.

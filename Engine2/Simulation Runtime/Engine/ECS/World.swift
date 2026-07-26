@@ -30,9 +30,7 @@ class World {
     /// The authoritative owner performs this projection while the resulting
     /// ``SimulationPresentationSnapshot`` remains an isolation-independent
     /// immutable boundary value.
-    func presentationSnapshot(
-        at cursor: SimulationCursor
-    ) -> SimulationPresentationSnapshot {
+    func presentationSnapshot(at cursor: SimulationCursor) -> SimulationPresentationSnapshot {
         let entityPresentations = zip(
             renderableComponents.entities,
             renderableComponents.dense
@@ -141,14 +139,8 @@ class World {
         }
 
         // PRenderable
-        precondition(
-            renderableState == nil || entity is PRenderable,
-            "Renderable initial state requires PRenderable conformance"
-        )
-        precondition(
-            !(entity is PRenderable) || renderableState != nil,
-            "PRenderable conformance requires renderable initial state"
-        )
+        precondition(renderableState == nil || entity is PRenderable, "Renderable initial state requires PRenderable conformance")
+        precondition(!(entity is PRenderable) || renderableState != nil, "PRenderable conformance requires renderable initial state")
         if let renderableState {
             renderableComponents.insert(
                 CRenderable(

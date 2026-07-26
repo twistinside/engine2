@@ -156,11 +156,7 @@ private func upperLeft3x3(of matrix: simd_float4x4) -> simd_float3x3 {
     )
 }
 
-private func matricesAreApproximatelyEqual(
-    _ lhs: simd_float3x3,
-    _ rhs: simd_float3x3,
-    tolerance: Float = 0.0001
-) -> Bool {
+private func matricesAreApproximatelyEqual(_ lhs: simd_float3x3, _ rhs: simd_float3x3, tolerance: Float = 0.0001) -> Bool {
     simd_length(lhs.columns.0 - rhs.columns.0) <= tolerance
         && simd_length(lhs.columns.1 - rhs.columns.1) <= tolerance
         && simd_length(lhs.columns.2 - rhs.columns.2) <= tolerance

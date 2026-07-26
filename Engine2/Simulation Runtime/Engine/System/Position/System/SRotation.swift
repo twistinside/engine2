@@ -63,10 +63,7 @@ class SRotation: PSystem {
     }
 
     /// Converts an axis-rate angular velocity into the quaternion delta for one step.
-    private static func deltaRotation(
-        for angularVelocity: SIMD3<Float>,
-        deltaTime: Float
-    ) -> simd_quatf {
+    private static func deltaRotation(for angularVelocity: SIMD3<Float>, deltaTime: Float) -> simd_quatf {
         let angularStep = angularVelocity * deltaTime
         let angle = simd_length(angularStep)
 

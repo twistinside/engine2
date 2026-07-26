@@ -134,9 +134,7 @@ struct RuntimeCompositionScenarioTests {
     }
 
     @MainActor
-    private static func runClockDrivenSimulation(
-        stepCount: SimulationStepCount
-    ) async -> SimulationRuntime {
+    private static func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
         let runtime = SimulationRuntime(
             worldBuilder: MovingWorldBuilder()
         )
@@ -186,9 +184,7 @@ struct RuntimeCompositionScenarioTests {
         return runtime
     }
 
-    private static func eventually(
-        _ condition: @MainActor () -> Bool
-    ) async -> Bool {
+    private static func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: .seconds(5))
 
@@ -202,10 +198,7 @@ struct RuntimeCompositionScenarioTests {
         return false
     }
 
-    private static func expectDecodableJPEG(
-        _ artifact: RenderedImageArtifact,
-        size: RenderPixelSize
-    ) throws {
+    private static func expectDecodableJPEG(_ artifact: RenderedImageArtifact, size: RenderPixelSize) throws {
         guard case .jpeg = artifact.encoding else {
             Issue.record("Expected the scenario artifact to use JPEG.")
             return

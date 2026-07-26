@@ -264,9 +264,7 @@ struct MetalOffscreenRenderRuntimeTests {
         let incompleteOutcome = await incompleteRuntime.render(request)
 
         guard case let .failed(failure) = incompleteOutcome else {
-            Issue.record(
-                "Expected exact preflight failure, received \(incompleteOutcome)"
-            )
+            Issue.record("Expected exact preflight failure, received \(incompleteOutcome)")
             throw UnexpectedOutcome()
         }
         #expect(failure.stage == .preparation)
@@ -305,9 +303,7 @@ struct MetalOffscreenRenderRuntimeTests {
         return (content, snapshot, viewpoint)
     }
 
-    private func completedResult(
-        from outcome: OffscreenRenderOutcome
-    ) throws -> OffscreenRenderResult {
+    private func completedResult(from outcome: OffscreenRenderOutcome) throws -> OffscreenRenderResult {
         guard case let .completed(result) = outcome else {
             Issue.record("Expected completed offscreen render, received \(outcome)")
             throw UnexpectedOutcome()

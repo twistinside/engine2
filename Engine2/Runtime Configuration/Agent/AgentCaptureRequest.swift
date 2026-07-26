@@ -74,10 +74,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
     }
 
     /// Projects an accepted advance source into the lower-level workflow.
-    func makeOfflineCaptureRequest(
-        expectedCursor: SimulationCursor,
-        stepCount: SimulationStepCount
-    ) -> OfflineCaptureRequest {
+    func makeOfflineCaptureRequest(expectedCursor: SimulationCursor, stepCount: SimulationStepCount) -> OfflineCaptureRequest {
         OfflineCaptureRequest(
             advanceRequest: SimulationAdvanceRequest(
                 expectedCursor: expectedCursor,
@@ -92,9 +89,7 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
     }
 
     /// Projects an accepted current source into the lower-level workflow.
-    func makeOfflineCurrentCaptureRequest(
-        expectedCursor: SimulationCursor
-    ) -> OfflineCurrentCaptureRequest {
+    func makeOfflineCurrentCaptureRequest(expectedCursor: SimulationCursor) -> OfflineCurrentCaptureRequest {
         OfflineCurrentCaptureRequest(
             expectedCursor: expectedCursor,
             renderRequestID: renderRequestID,

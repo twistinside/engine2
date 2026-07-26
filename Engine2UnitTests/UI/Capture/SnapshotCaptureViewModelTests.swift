@@ -449,9 +449,7 @@ private final class StubRealtimeSnapshotCaptureTarget:
         self.outcome = outcome
     }
 
-    func capture(
-        _ request: RealtimeSnapshotCaptureRequest
-    ) async -> RealtimeSnapshotCaptureOutcome {
+    func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
         requests.append(request)
         return outcome
     }
@@ -465,9 +463,7 @@ private final class SuspendedRealtimeSnapshotCaptureTarget:
     private var requestWaiters: [CheckedContinuation<Void, Never>] = []
     private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
 
-    func capture(
-        _ request: RealtimeSnapshotCaptureRequest
-    ) async -> RealtimeSnapshotCaptureOutcome {
+    func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
         requests.append(request)
         requestWaiters.forEach { $0.resume() }
         requestWaiters.removeAll()

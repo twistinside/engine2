@@ -16,22 +16,13 @@ nonisolated enum OfflineCurrentCaptureOutcome: Equatable, Sendable {
     case cancelledBeforeRender
 
     /// The retained current presentation did not match the caller's expectation.
-    case cursorMismatch(
-        expected: SimulationCursor,
-        current: SimulationCursor
-    )
+    case cursorMismatch(expected: SimulationCursor, current: SimulationCursor)
 
     /// Render refused before GPU submission for the selected presentation.
-    case renderRejected(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        rejection: OffscreenRenderRejection
-    )
+    case renderRejected(sourceSnapshot: SimulationPresentationSnapshot, rejection: OffscreenRenderRejection)
 
     /// Render accepted the request but failed before producing a raw image.
-    case renderFailed(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        failure: OffscreenRenderFailure
-    )
+    case renderFailed(sourceSnapshot: SimulationPresentationSnapshot, failure: OffscreenRenderFailure)
 
     /// Render reported post-submission cancellation for a different request.
     case renderCancellationRequestIDMismatch(
@@ -41,22 +32,13 @@ nonisolated enum OfflineCurrentCaptureOutcome: Equatable, Sendable {
     )
 
     /// GPU work completed and released resources after caller cancellation.
-    case renderCancelledAfterSubmission(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        requestID: OffscreenRenderRequestID
-    )
+    case renderCancelledAfterSubmission(sourceSnapshot: SimulationPresentationSnapshot, requestID: OffscreenRenderRequestID)
 
     /// A completed value did not echo the exact request and image extent.
-    case renderResultMismatch(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        renderResult: OffscreenRenderResult
-    )
+    case renderResultMismatch(sourceSnapshot: SimulationPresentationSnapshot, renderResult: OffscreenRenderResult)
 
     /// Raw rendering completed, but cancellation prevented artifact encoding.
-    case cancelledAfterRender(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        renderResult: OffscreenRenderResult
-    )
+    case cancelledAfterRender(sourceSnapshot: SimulationPresentationSnapshot, renderResult: OffscreenRenderResult)
 
     /// Artifact derivation failed without changing either completed predecessor.
     case artifactEncodingFailed(

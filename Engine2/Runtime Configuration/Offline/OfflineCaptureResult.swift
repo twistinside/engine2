@@ -9,10 +9,7 @@ nonisolated struct OfflineCaptureResult: Equatable, Sendable {
     let artifact: RenderedImageArtifact
 
     /// Creates the terminal value for one fully completed capture workflow.
-    init(
-        advanceResult: SimulationAdvanceResult,
-        artifact: RenderedImageArtifact
-    ) {
+    init(advanceResult: SimulationAdvanceResult, artifact: RenderedImageArtifact) {
         self.advanceResult = advanceResult
         self.artifact = artifact
     }

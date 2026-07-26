@@ -111,9 +111,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
     }
 
     /// Renders and encodes the retained exact presentation without advancing.
-    func captureCurrent(
-        _ request: OfflineCurrentCaptureRequest
-    ) async -> OfflineCurrentCaptureOutcome {
+    func captureCurrent(_ request: OfflineCurrentCaptureRequest) async -> OfflineCurrentCaptureOutcome {
         // One gate spans both operation kinds. A current render cannot slip
         // between an accepted advance and its output, and an advance cannot
         // replace the selected snapshot while current output work is awaited.

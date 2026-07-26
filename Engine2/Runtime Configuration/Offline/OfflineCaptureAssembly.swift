@@ -11,10 +11,7 @@ final class OfflineCaptureAssembly {
 
     private let coordinator: OfflineCaptureCoordinator
 
-    init(
-        initialCursor: SimulationCursor,
-        coordinator: OfflineCaptureCoordinator
-    ) {
+    init(initialCursor: SimulationCursor, coordinator: OfflineCaptureCoordinator) {
         self.initialCursor = initialCursor
         self.coordinator = coordinator
     }

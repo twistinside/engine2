@@ -847,9 +847,7 @@ struct RealtimeAdvanceDriverTests {
         )
     }
 
-    private func completedCursor(
-        from outcome: SimulationAdvanceOutcome
-    ) throws -> SimulationCursor {
+    private func completedCursor(from outcome: SimulationAdvanceOutcome) throws -> SimulationCursor {
         guard case let .completed(result) = outcome else {
             Issue.record("Expected a completed outcome.")
             throw UnexpectedAdvanceOutcome()
@@ -865,10 +863,7 @@ struct RealtimeAdvanceDriverTests {
         SimulationCursor(sessionID: sessionID, tick: tick)
     }
 
-    private func inputSnapshot(
-        revision: InputRevision,
-        pointerMotionTotal: SIMD2<Float>
-    ) -> InputSnapshot {
+    private func inputSnapshot(revision: InputRevision, pointerMotionTotal: SIMD2<Float>) -> InputSnapshot {
         InputSnapshot(
             revision: revision,
             pointerPosition: pointerMotionTotal,
@@ -880,9 +875,7 @@ struct RealtimeAdvanceDriverTests {
     }
 
     @MainActor
-    private func eventually(
-        _ condition: () async -> Bool
-    ) async -> Bool {
+    private func eventually(_ condition: () async -> Bool) async -> Bool {
         for _ in 0..<10_000 {
             if await condition() {
                 return true
@@ -992,17 +985,12 @@ private actor RecordingAdvanceTarget: PSimulationAdvanceTarget {
     private var requests: [SimulationAdvanceRequest] = []
     private var mismatchCursors: [SimulationCursor]
 
-    init(
-        cursor: SimulationCursor,
-        mismatchCursors: [SimulationCursor] = []
-    ) {
+    init(cursor: SimulationCursor, mismatchCursors: [SimulationCursor] = []) {
         self.cursor = cursor
         self.mismatchCursors = mismatchCursors
     }
 
-    func advance(
-        _ request: SimulationAdvanceRequest
-    ) async -> SimulationAdvanceOutcome {
+    func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
         requests.append(request)
 
         if mismatchCursors.isEmpty == false {
@@ -1061,9 +1049,7 @@ private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
         Int: [CheckedContinuation<Void, Never>]
     ] = [:]
 
-    func advance(
-        _ request: SimulationAdvanceRequest
-    ) async -> SimulationAdvanceOutcome {
+    func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
         requests.append(request)
 
         return await withCheckedContinuation { continuation in

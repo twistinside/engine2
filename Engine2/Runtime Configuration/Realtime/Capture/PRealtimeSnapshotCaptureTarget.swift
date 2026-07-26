@@ -5,7 +5,5 @@
 /// the source or the offscreen Render Runtime to the caller.
 @MainActor
 protocol PRealtimeSnapshotCaptureTarget: AnyObject {
-    func capture(
-        _ request: RealtimeSnapshotCaptureRequest
-    ) async -> RealtimeSnapshotCaptureOutcome
+    func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome
 }

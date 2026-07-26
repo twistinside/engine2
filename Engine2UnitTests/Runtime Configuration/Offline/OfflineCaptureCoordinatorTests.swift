@@ -1347,11 +1347,7 @@ struct OfflineCaptureCoordinatorTests {
             Result<RenderedImageArtifact, ImageArtifactEncoderError>
         ]
 
-        init(
-            encodingResults: [
-                Result<RenderedImageArtifact, ImageArtifactEncoderError>
-            ] = []
-        ) {
+        init(encodingResults: [ Result<RenderedImageArtifact, ImageArtifactEncoderError> ] = []) {
             self.encodingResults = encodingResults
         }
 
@@ -1429,9 +1425,7 @@ struct OfflineCaptureCoordinatorTests {
             self.probe = probe
         }
 
-        func advance(
-            _ request: SimulationAdvanceRequest
-        ) async -> SimulationAdvanceOutcome {
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
             probe.record(.advance)
             requests.append(request)
             notifyCountWaiters()
@@ -1522,9 +1516,7 @@ struct OfflineCaptureCoordinatorTests {
             self.probe = probe
         }
 
-        func render(
-            _ request: OffscreenRenderRequest
-        ) async -> OffscreenRenderOutcome {
+        func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
             probe.record(.render)
             requests.append(request)
             notifyCountWaiters()
@@ -1645,12 +1637,7 @@ struct OfflineCaptureCoordinatorTests {
             }
         }
 
-        func resumeNext(
-            with result: Result<
-                RenderedImageArtifact,
-                ImageArtifactEncoderError
-            >
-        ) {
+        func resumeNext(with result: Result< RenderedImageArtifact, ImageArtifactEncoderError >) {
             guard !suspended.isEmpty else {
                 Issue.record("No suspended artifact encoding was pending.")
                 return

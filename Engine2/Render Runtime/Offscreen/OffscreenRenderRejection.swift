@@ -4,9 +4,6 @@ nonisolated enum OffscreenRenderRejection: Equatable, Sendable {
     case cancelledBeforeSubmission
     case invalidViewpoint
     case invalidPresentation(RenderFrameProjectionError)
-    case exceedsLimits(
-        requested: RenderPixelSize,
-        limits: OffscreenRenderLimits
-    )
+    case exceedsLimits(requested: RenderPixelSize, limits: OffscreenRenderLimits)
     case instanceLimitExceeded(requested: Int, maximum: Int)
 }

@@ -229,9 +229,7 @@ struct AgentSessionConfigurationTests {
         )
     }
 
-    private static func executedResponse(
-        from outcome: AgentSessionSubmissionOutcome
-    ) throws -> AgentSessionResponse {
+    private static func executedResponse(from outcome: AgentSessionSubmissionOutcome) throws -> AgentSessionResponse {
         guard case let .executed(response) = outcome else {
             Issue.record("Expected executed agent response, received \(outcome)")
             throw UnexpectedOutcome()
@@ -239,9 +237,7 @@ struct AgentSessionConfigurationTests {
         return response
     }
 
-    private static func replayedResponse(
-        from outcome: AgentSessionSubmissionOutcome
-    ) throws -> AgentSessionResponse {
+    private static func replayedResponse(from outcome: AgentSessionSubmissionOutcome) throws -> AgentSessionResponse {
         guard case let .replayed(response) = outcome else {
             Issue.record("Expected replayed agent response, received \(outcome)")
             throw UnexpectedOutcome()
@@ -249,9 +245,7 @@ struct AgentSessionConfigurationTests {
         return response
     }
 
-    private static func completedCapture(
-        from response: AgentSessionResponse
-    ) throws -> OfflineCaptureResult {
+    private static func completedCapture(from response: AgentSessionResponse) throws -> OfflineCaptureResult {
         guard case let .capture(captureOutcome) = response.outcome else {
             Issue.record("Expected capture execution, received \(response.outcome)")
             throw UnexpectedOutcome()
@@ -263,13 +257,9 @@ struct AgentSessionConfigurationTests {
         return result
     }
 
-    private static func completedCurrentCapture(
-        from response: AgentSessionResponse
-    ) throws -> OfflineCurrentCaptureResult {
+    private static func completedCurrentCapture(from response: AgentSessionResponse) throws -> OfflineCurrentCaptureResult {
         guard case let .currentCapture(captureOutcome) = response.outcome else {
-            Issue.record(
-                "Expected current capture execution, received \(response.outcome)"
-            )
+            Issue.record("Expected current capture execution, received \(response.outcome)")
             throw UnexpectedOutcome()
         }
         guard case let .completed(result) = captureOutcome else {

@@ -122,10 +122,7 @@ private extension Float {
 }
 
 private extension SIMD3 where Scalar == Float {
-    func isApproximately(
-        _ other: SIMD3<Float>,
-        tolerance: Float = 0.0001
-    ) -> Bool {
+    func isApproximately(_ other: SIMD3<Float>, tolerance: Float = 0.0001) -> Bool {
         abs(x - other.x) <= tolerance
             && abs(y - other.y) <= tolerance
             && abs(z - other.z) <= tolerance

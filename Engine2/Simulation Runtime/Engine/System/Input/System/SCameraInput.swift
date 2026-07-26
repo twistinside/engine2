@@ -12,19 +12,9 @@ struct SCameraInput: PSystem {
     let minimumRadius: Float
     let maximumRadius: Float
 
-    init(
-        target: SIMD3<Float> = .zero,
-        minimumRadius: Float = 2,
-        maximumRadius: Float = 30
-    ) {
-        precondition(
-            target.x.isFinite && target.y.isFinite && target.z.isFinite,
-            "Camera orbit target must be finite."
-        )
-        precondition(
-            minimumRadius.isFinite && minimumRadius > 0,
-            "Camera orbit minimum radius must be finite and positive."
-        )
+    init(target: SIMD3<Float> = .zero, minimumRadius: Float = 2, maximumRadius: Float = 30) {
+        precondition(target.x.isFinite && target.y.isFinite && target.z.isFinite, "Camera orbit target must be finite.")
+        precondition(minimumRadius.isFinite && minimumRadius > 0, "Camera orbit minimum radius must be finite and positive.")
         precondition(
             maximumRadius.isFinite && maximumRadius >= minimumRadius,
             "Camera orbit maximum radius must be finite and no smaller than its minimum."

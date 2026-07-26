@@ -33,9 +33,7 @@ struct ImageIOArtifactEncoderTests {
     }
 
     @Test(arguments: [0.0, 0.73])
-    func encodesDecodableJPEGAndPreservesExactProvenance(
-        _ qualityValue: Double
-    ) async throws {
+    func encodesDecodableJPEGAndPreservesExactProvenance(_ qualityValue: Double) async throws {
         let size = try RenderPixelSize(width: 7, height: 5)
         let result = try Self.makeResult(
             image: Self.solidImage(
@@ -201,9 +199,7 @@ struct ImageIOArtifactEncoderTests {
         #expect(artifact.sourceRequestID == result.requestID)
     }
 
-    private static func makeResult(
-        image: RenderedBGRA8SRGBImage
-    ) throws -> OffscreenRenderResult {
+    private static func makeResult(image: RenderedBGRA8SRGBImage) throws -> OffscreenRenderResult {
         let requestID = OffscreenRenderRequestID(
             rawValue: UUID(
                 uuidString: "00000000-0000-0000-0000-000000000301"
@@ -265,9 +261,7 @@ struct ImageIOArtifactEncoderTests {
         )
     }
 
-    private static func twoBandImage(
-        size: RenderPixelSize
-    ) throws -> RenderedBGRA8SRGBImage {
+    private static func twoBandImage(size: RenderPixelSize) throws -> RenderedBGRA8SRGBImage {
         var bytes = [UInt8]()
         bytes.reserveCapacity(size.pixelCount * 4)
 

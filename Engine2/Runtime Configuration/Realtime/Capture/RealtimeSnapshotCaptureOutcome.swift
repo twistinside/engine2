@@ -4,15 +4,9 @@
 /// before rendering began. Later Simulation ticks or a subsequent session
 /// rebuild cannot alter the source carried by this outcome.
 nonisolated enum RealtimeSnapshotCaptureOutcome: Equatable, Sendable {
-    case cancelledAfterRender(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        renderResult: OffscreenRenderResult
-    )
+    case cancelledAfterRender(sourceSnapshot: SimulationPresentationSnapshot, renderResult: OffscreenRenderResult)
     case cancelledBeforeRender
-    case completed(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        artifact: RenderedImageArtifact
-    )
+    case completed(sourceSnapshot: SimulationPresentationSnapshot, artifact: RenderedImageArtifact)
     case connectionBusy
     case artifactEncodingFailed(
         sourceSnapshot: SimulationPresentationSnapshot,
@@ -29,20 +23,8 @@ nonisolated enum RealtimeSnapshotCaptureOutcome: Equatable, Sendable {
         expectedRequestID: OffscreenRenderRequestID,
         actualRequestID: OffscreenRenderRequestID
     )
-    case renderCancelledAfterSubmission(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        requestID: OffscreenRenderRequestID
-    )
-    case renderFailed(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        failure: OffscreenRenderFailure
-    )
-    case renderRejected(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        rejection: OffscreenRenderRejection
-    )
-    case renderResultMismatch(
-        sourceSnapshot: SimulationPresentationSnapshot,
-        renderResult: OffscreenRenderResult
-    )
+    case renderCancelledAfterSubmission(sourceSnapshot: SimulationPresentationSnapshot, requestID: OffscreenRenderRequestID)
+    case renderFailed(sourceSnapshot: SimulationPresentationSnapshot, failure: OffscreenRenderFailure)
+    case renderRejected(sourceSnapshot: SimulationPresentationSnapshot, rejection: OffscreenRenderRejection)
+    case renderResultMismatch(sourceSnapshot: SimulationPresentationSnapshot, renderResult: OffscreenRenderResult)
 }

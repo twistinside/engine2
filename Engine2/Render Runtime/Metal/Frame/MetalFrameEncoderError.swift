@@ -8,9 +8,5 @@ nonisolated enum MetalFrameEncoderError: Error, Equatable {
     case mismatchedTargetDimensions
     case missingSceneEncoder
     case missingPresentationEncoder
-    case unexpectedTargetPixelFormats(
-        sceneColor: MTLPixelFormat,
-        depth: MTLPixelFormat,
-        destination: MTLPixelFormat
-    )
+    case unexpectedTargetPixelFormats(sceneColor: MTLPixelFormat, depth: MTLPixelFormat, destination: MTLPixelFormat)
 }

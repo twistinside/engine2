@@ -106,10 +106,7 @@ final class MetalHDRPipelineTestRenderer {
         left: SIMD4<Float>,
         right: SIMD4<Float>
     ) {
-        precondition(
-            materialIDs.count == 2,
-            "The paired material proof requires exactly two identities."
-        )
+        precondition(materialIDs.count == 2, "The paired material proof requires exactly two identities.")
         let results = try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
@@ -131,9 +128,7 @@ final class MetalHDRPipelineTestRenderer {
     /// The narrow centered strips all intersect the shared analytic triangle.
     /// Their distinct regions let one submission validate every per-draw record
     /// while continuing to use production frame packing and argument binding.
-    func renderAuthoredMaterialScene(
-        _ materialIDs: [MaterialID]
-    ) throws -> [MetalHDRPipelineTestResult] {
+    func renderAuthoredMaterialScene(_ materialIDs: [MaterialID]) throws -> [MetalHDRPipelineTestResult] {
         let layout = Self.centeredStripLayout(drawCount: materialIDs.count)
         return try render(
             scenePipeline: pbrPipeline,
@@ -151,10 +146,7 @@ final class MetalHDRPipelineTestRenderer {
     /// Diagnostic pipelines are compiled only by this test harness. They still
     /// consume the ordinary model vertex output, `GPUInstance`, frame light,
     /// production binding helper, and shared BRDF used by the visible surface.
-    func renderDiagnostic(
-        _ output: ModelPBRDiagnosticOutput,
-        materialIDs: [MaterialID]
-    ) throws -> [SIMD4<Float>] {
+    func renderDiagnostic(_ output: ModelPBRDiagnosticOutput, materialIDs: [MaterialID]) throws -> [SIMD4<Float>] {
         guard let pipeline = diagnosticPipelines[output] else {
             preconditionFailure("Missing exhaustive model PBR diagnostic pipeline: \(output)")
         }
@@ -397,9 +389,7 @@ final class MetalHDRPipelineTestRenderer {
 
     /// Resolves the two app-facing modes without extending their closed enum for
     /// test-only M5 diagnostics.
-    private func scenePipeline(
-        for outputMode: RenderOutputMode
-    ) -> any MTLRenderPipelineState {
+    private func scenePipeline(for outputMode: RenderOutputMode) -> any MTLRenderPipelineState {
         switch outputMode {
         case .surface:
             pbrPipeline
@@ -415,12 +405,7 @@ final class MetalHDRPipelineTestRenderer {
     /// the same geometry and only the instance address changes, this layout
     /// makes a six-material submission inspectable without introducing a second
     /// mesh, transform convention, or render target.
-    private static func centeredStripLayout(
-        drawCount: Int
-    ) -> (
-        scissorRects: [MTLScissorRect],
-        sampleRegions: [MTLRegion]
-    ) {
+    private static func centeredStripLayout(drawCount: Int) -> (scissorRects: [MTLScissorRect], sampleRegions: [MTLRegion]) {
         precondition(
             drawCount > 0 && drawCount <= FrameResources.maximumInstanceCount,
             "The centered material strip requires a bounded nonempty draw list."
@@ -429,10 +414,7 @@ final class MetalHDRPipelineTestRenderer {
         let leftEdge = width / 4 + 1
         let rightEdge = width - leftEdge
         let availableWidth = rightEdge - leftEdge
-        precondition(
-            drawCount <= availableWidth,
-            "Each material draw requires at least one inspectable pixel."
-        )
+        precondition(drawCount <= availableWidth, "Each material draw requires at least one inspectable pixel.")
 
         var scissorRects: [MTLScissorRect] = []
         var sampleRegions: [MTLRegion] = []
@@ -466,9 +448,7 @@ final class MetalHDRPipelineTestRenderer {
         return (scissorRects, sampleRegions)
     }
 
-    private func makeTriangleBuffer(
-        normal: SIMD3<Float>
-    ) throws -> any MTLBuffer {
+    private func makeTriangleBuffer(normal: SIMD3<Float>) throws -> any MTLBuffer {
         let positions = [
             SIMD3<Float>(-1, -1, 0),
             SIMD3<Float>(1, -1, 0),
@@ -546,9 +526,7 @@ final class MetalHDRPipelineTestRenderer {
         return texture
     }
 
-    private func makeResidencySet(
-        allocations: [any MTLAllocation]
-    ) throws -> any MTLResidencySet {
+    private func makeResidencySet(allocations: [any MTLAllocation]) throws -> any MTLResidencySet {
         let descriptor = MTLResidencySetDescriptor()
         descriptor.label = "Visible HDR Pipeline Proof Resources"
         descriptor.initialCapacity = allocations.count
@@ -562,10 +540,7 @@ final class MetalHDRPipelineTestRenderer {
         return residencySet
     }
 
-    private func readScenePixel(
-        from texture: any MTLTexture,
-        region: MTLRegion
-    ) -> SIMD4<Float> {
+    private func readScenePixel(from texture: any MTLTexture, region: MTLRegion) -> SIMD4<Float> {
         var components = [Float16](repeating: 0, count: 4)
         components.withUnsafeMutableBytes { bytes in
             texture.getBytes(
@@ -583,10 +558,7 @@ final class MetalHDRPipelineTestRenderer {
         )
     }
 
-    private func readPresentedPixel(
-        from texture: any MTLTexture,
-        region: MTLRegion
-    ) -> SIMD4<UInt8> {
+    private func readPresentedPixel(from texture: any MTLTexture, region: MTLRegion) -> SIMD4<UInt8> {
         var components = [UInt8](repeating: 0, count: 4)
         components.withUnsafeMutableBytes { bytes in
             texture.getBytes(

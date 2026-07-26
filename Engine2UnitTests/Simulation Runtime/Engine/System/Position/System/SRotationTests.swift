@@ -90,11 +90,7 @@ struct SRotationTests {
     }
 }
 
-private func quaternionVectorsApproximatelyEqual(
-    _ lhs: SIMD4<Float>?,
-    _ rhs: SIMD4<Float>,
-    tolerance: Float = 0.000_1
-) -> Bool {
+private func quaternionVectorsApproximatelyEqual(_ lhs: SIMD4<Float>?, _ rhs: SIMD4<Float>, tolerance: Float = 0.000_1) -> Bool {
     guard let lhs else { return false }
     return simd_length(lhs - rhs) <= tolerance
 }

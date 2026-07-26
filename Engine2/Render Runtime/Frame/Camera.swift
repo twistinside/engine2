@@ -137,11 +137,7 @@ nonisolated struct Camera: Sendable {
         projectionMatrix(aspectRatio: aspectRatio) * viewMatrix
     }
 
-    private static func rotationLookingAt(
-        _ target: SIMD3<Float>,
-        from position: SIMD3<Float>,
-        up: SIMD3<Float>
-    ) -> simd_quatf {
+    private static func rotationLookingAt(_ target: SIMD3<Float>, from position: SIMD3<Float>, up: SIMD3<Float>) -> simd_quatf {
         let forward = simd_normalize(target - position)
         let right = simd_normalize(simd_cross(forward, up))
         let correctedUp = simd_cross(right, forward)
@@ -159,36 +155,15 @@ nonisolated struct Camera: Sendable {
     private static func validate(_ projection: Projection) {
         switch projection {
         case let .orthographic(height, near, far):
-            precondition(
-                height.isFinite && height > 0,
-                "Camera orthographic height must be finite and positive."
-            )
-            precondition(
-                near.isFinite && near > 0,
-                "Camera orthographic near plane must be finite and positive."
-            )
-            precondition(
-                far.isFinite && far > near,
-                "Camera orthographic far plane must be finite and greater than the near plane."
-            )
+            precondition(height.isFinite && height > 0, "Camera orthographic height must be finite and positive.")
+            precondition(near.isFinite && near > 0, "Camera orthographic near plane must be finite and positive.")
+            precondition(far.isFinite && far > near, "Camera orthographic far plane must be finite and greater than the near plane.")
 
         case let .perspective(verticalFieldOfView, near, far):
-            precondition(
-                verticalFieldOfView.isFinite && verticalFieldOfView > 0,
-                "Camera field of view must be finite and positive."
-            )
-            precondition(
-                verticalFieldOfView < .pi,
-                "Camera field of view must be less than pi radians."
-            )
-            precondition(
-                near.isFinite && near > 0,
-                "Camera perspective near plane must be finite and positive."
-            )
-            precondition(
-                far.isFinite && far > near,
-                "Camera perspective far plane must be finite and greater than the near plane."
-            )
+            precondition(verticalFieldOfView.isFinite && verticalFieldOfView > 0, "Camera field of view must be finite and positive.")
+            precondition(verticalFieldOfView < .pi, "Camera field of view must be less than pi radians.")
+            precondition(near.isFinite && near > 0, "Camera perspective near plane must be finite and positive.")
+            precondition(far.isFinite && far > near, "Camera perspective far plane must be finite and greater than the near plane.")
         }
     }
 }

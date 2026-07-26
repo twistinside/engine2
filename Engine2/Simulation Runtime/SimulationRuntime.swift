@@ -84,18 +84,14 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     /// request and is applied once at the first requested tick boundary. The
     /// owning assembly is responsible for granting at most one caller effective
     /// advance authority at a time.
-    nonisolated func advance(
-        _ request: SimulationAdvanceRequest
-    ) async -> SimulationAdvanceOutcome {
+    nonisolated func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
         await advanceSynchronously(request)
     }
 
     /// Performs one non-suspending batch inside the Runtime's serialized
     /// mutation domain. The nonisolated protocol witness above only transports
     /// the immutable request and result across that boundary.
-    private func advanceSynchronously(
-        _ request: SimulationAdvanceRequest
-    ) -> SimulationAdvanceOutcome {
+    private func advanceSynchronously(_ request: SimulationAdvanceRequest) -> SimulationAdvanceOutcome {
         let initialCursor = currentCursor
 
         if let expectedCursor = request.expectedCursor,
@@ -149,9 +145,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.
     @discardableResult
-    private func publishPresentationSnapshot(
-        at tick: SimulationTick
-    ) -> SimulationPresentationSnapshot {
+    private func publishPresentationSnapshot(at tick: SimulationTick) -> SimulationPresentationSnapshot {
         let snapshot = engine.world.presentationSnapshot(
             at: SimulationCursor(sessionID: sessionID, tick: tick)
         )

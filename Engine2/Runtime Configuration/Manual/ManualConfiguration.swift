@@ -6,10 +6,7 @@
 nonisolated struct ManualConfiguration: Equatable, Sendable {
     /// Constructs one isolated, initially idle manual assembly.
     @MainActor
-    func makeAssembly(
-        gameContent: BasicGameContent,
-        sessionID: SimulationSessionID = SimulationSessionID()
-    ) -> ManualAssembly {
+    func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID = SimulationSessionID()) -> ManualAssembly {
         ManualAssembly(
             simulationRuntime: SimulationRuntime(
                 worldBuilder: gameContent.worldBuilder,

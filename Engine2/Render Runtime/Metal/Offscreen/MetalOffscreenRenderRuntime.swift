@@ -22,10 +22,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     private var terminalGPUFailure: OffscreenRenderFailure?
 
     /// Selects the system Metal device and constructs a one-slot offscreen store.
-    convenience init(
-        catalog: RenderAssetCatalog,
-        limits: OffscreenRenderLimits = .conservative
-    ) throws {
+    convenience init(catalog: RenderAssetCatalog, limits: OffscreenRenderLimits = .conservative) throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: catalog,
             frameCount: 1
@@ -38,10 +35,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Injection keeps device selection and expensive resource construction
     /// controllable for integration tests while preserving the production
     /// single-request back-pressure policy.
-    init(
-        resources: MetalResourceStore,
-        limits: OffscreenRenderLimits = .conservative
-    ) throws {
+    init(resources: MetalResourceStore, limits: OffscreenRenderLimits = .conservative) throws {
         guard resources.frames.count == 1 else {
             throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(
                 resources.frames.count
@@ -54,16 +48,12 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     }
 
     /// Transports an immutable request into the Runtime's serialized actor.
-    nonisolated func render(
-        _ request: OffscreenRenderRequest
-    ) async -> OffscreenRenderOutcome {
+    nonisolated func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         await renderOnMainActor(request)
     }
 
     /// Accepts, submits, and reads back one exact request under the busy gate.
-    private func renderOnMainActor(
-        _ request: OffscreenRenderRequest
-    ) async -> OffscreenRenderOutcome {
+    private func renderOnMainActor(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         // One explicit request may own the sole allocator and mutable frame
         // buffers at a time. Refusal is immediate rather than an implicit queue.
         guard !isRendering else {
@@ -365,10 +355,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     }
 
     /// Maps a backend error into a stable accepted-request failure stage.
-    private func failure(
-        at stage: OffscreenRenderFailureStage,
-        causedBy error: any Error
-    ) -> OffscreenRenderOutcome {
+    private func failure(at stage: OffscreenRenderFailureStage, causedBy error: any Error) -> OffscreenRenderOutcome {
         .failed(
             OffscreenRenderFailure(
                 stage: stage,

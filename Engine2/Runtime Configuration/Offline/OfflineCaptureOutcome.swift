@@ -35,16 +35,10 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
     case cancelledAfterAdvance(SimulationAdvanceResult)
 
     /// Render refused before GPU submission after Simulation had committed.
-    case renderRejected(
-        advanceResult: SimulationAdvanceResult,
-        rejection: OffscreenRenderRejection
-    )
+    case renderRejected(advanceResult: SimulationAdvanceResult, rejection: OffscreenRenderRejection)
 
     /// Render accepted the request but failed before producing a raw image.
-    case renderFailed(
-        advanceResult: SimulationAdvanceResult,
-        failure: OffscreenRenderFailure
-    )
+    case renderFailed(advanceResult: SimulationAdvanceResult, failure: OffscreenRenderFailure)
 
     /// Render reported post-submission cancellation for a different request.
     ///
@@ -57,25 +51,16 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
     )
 
     /// GPU work completed and released its resources after caller cancellation.
-    case renderCancelledAfterSubmission(
-        advanceResult: SimulationAdvanceResult,
-        requestID: OffscreenRenderRequestID
-    )
+    case renderCancelledAfterSubmission(advanceResult: SimulationAdvanceResult, requestID: OffscreenRenderRequestID)
 
     /// A completed value did not echo the exact request and image extent.
-    case renderResultMismatch(
-        advanceResult: SimulationAdvanceResult,
-        renderResult: OffscreenRenderResult
-    )
+    case renderResultMismatch(advanceResult: SimulationAdvanceResult, renderResult: OffscreenRenderResult)
 
     /// Raw rendering completed, but cancellation prevented artifact encoding.
     ///
     /// Retaining the raw result permits artifact encoding to be retried without
     /// either rerendering or advancing Simulation again.
-    case cancelledAfterRender(
-        advanceResult: SimulationAdvanceResult,
-        renderResult: OffscreenRenderResult
-    )
+    case cancelledAfterRender(advanceResult: SimulationAdvanceResult, renderResult: OffscreenRenderResult)
 
     /// Artifact derivation failed without changing either completed predecessor.
     ///

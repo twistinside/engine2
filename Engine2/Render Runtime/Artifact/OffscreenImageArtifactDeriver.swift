@@ -13,10 +13,7 @@ nonisolated struct OffscreenImageArtifactDeriver: Sendable {
     ///
     /// Initialization only wires dependencies. Rendering, CPU scheduling, and
     /// all fallible work begin in ``derive(sourceSnapshot:renderRequestID:viewpoint:renderSettings:encoding:)``.
-    init(
-        renderTarget: any POffscreenRenderTarget,
-        artifactEncoder: any PImageArtifactEncoder
-    ) {
+    init(renderTarget: any POffscreenRenderTarget, artifactEncoder: any PImageArtifactEncoder) {
         self.renderTarget = renderTarget
         self.artifactEncoder = artifactEncoder
     }

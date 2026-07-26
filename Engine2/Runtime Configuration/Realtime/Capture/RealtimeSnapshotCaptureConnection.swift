@@ -28,9 +28,7 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
     }
 
     /// Selects one exact live value and derives its detached image artifact.
-    func capture(
-        _ request: RealtimeSnapshotCaptureRequest
-    ) async -> RealtimeSnapshotCaptureOutcome {
+    func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
         guard !isCapturing else {
             return .connectionBusy
         }
