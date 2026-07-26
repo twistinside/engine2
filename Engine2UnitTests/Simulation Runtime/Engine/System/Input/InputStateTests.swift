@@ -83,7 +83,7 @@ struct InputStateTests {
 
     @Test func staleRevisionIsIgnored() {
         var input = InputState()
-        let heldKey = KeyboardKey.make(
+        let heldKey = KeyboardKey(
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )
@@ -130,7 +130,7 @@ struct InputStateTests {
 
     @Test func rebaseImportsPersistentStateWithoutHistoricalTransients() {
         var input = InputState()
-        let heldKey = KeyboardKey.make(
+        let heldKey = KeyboardKey(
             keyCode: 49,
             charactersIgnoringModifiers: " "
         )
@@ -171,7 +171,7 @@ struct InputStateTests {
 
     @Test func newerSnapshotUpdatesHeldKeyboardState() {
         var input = InputState()
-        let key = KeyboardKey.make(keyCode: 13, charactersIgnoringModifiers: "w")
+        let key = KeyboardKey(keyCode: 13, charactersIgnoringModifiers: "w")
 
         input.ingest(
             snapshot(session: 1, sequence: 1, pressedKeys: [key])
@@ -207,11 +207,11 @@ struct InputStateTests {
 
     @Test func historyTokensHaveStableOrderingAndRoundedDeltas() {
         var input = InputState()
-        let aKey = KeyboardKey.make(
+        let aKey = KeyboardKey(
             keyCode: 0,
             charactersIgnoringModifiers: "a"
         )
-        let zKey = KeyboardKey.make(
+        let zKey = KeyboardKey(
             keyCode: 6,
             charactersIgnoringModifiers: "z"
         )
@@ -259,7 +259,7 @@ struct InputStateTests {
 
     @Test func cleanupClearsDeltasButPreservesHeldState() {
         var input = InputState()
-        let key = KeyboardKey.make(keyCode: 49, charactersIgnoringModifiers: " ")
+        let key = KeyboardKey(keyCode: 49, charactersIgnoringModifiers: " ")
 
         input.ingest(
             snapshot(

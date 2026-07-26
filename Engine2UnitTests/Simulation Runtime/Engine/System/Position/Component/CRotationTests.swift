@@ -4,6 +4,13 @@ import simd
 @testable import Engine2
 
 struct CRotationTests {
+    @Test func identityUsesNeutralQuaternion() {
+        #expect(
+            CRotation.identity.rotation.vector
+                == simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1)).vector
+        )
+    }
+
     @Test func codableRoundTripsQuaternion() throws {
         let original = CRotation(
             rotation: simd_quatf(

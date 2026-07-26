@@ -22,7 +22,6 @@ class World {
     var camera = Camera.standard
     var input = InputState()
 
-    private static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
     private var nextEntityIndex = 0
 
     /// Captures this World's completed backend-neutral presentation facts.
@@ -105,7 +104,7 @@ class World {
         precondition(state.rotation == nil || entity is POrientable, "Initial state.rotation requires POrientable conformance")
         if entity is POrientable {
             rotationComponents.insert(
-                CRotation(rotation: state.rotation ?? Self.identityRotation),
+                state.rotation.map(CRotation.init(rotation:)) ?? .identity,
                 for: entity.id
             )
         }

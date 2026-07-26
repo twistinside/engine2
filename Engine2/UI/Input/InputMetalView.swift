@@ -79,7 +79,7 @@ final class InputMetalView: MTKView {
 
         inputSink?.receive(
             .keyDown(
-                KeyboardKey.make(
+                KeyboardKey(
                     keyCode: event.keyCode,
                     charactersIgnoringModifiers: event.charactersIgnoringModifiers
                 )
@@ -90,7 +90,7 @@ final class InputMetalView: MTKView {
     override func keyUp(with event: NSEvent) {
         inputSink?.receive(
             .keyUp(
-                KeyboardKey.make(
+                KeyboardKey(
                     keyCode: event.keyCode,
                     charactersIgnoringModifiers: event.charactersIgnoringModifiers
                 )

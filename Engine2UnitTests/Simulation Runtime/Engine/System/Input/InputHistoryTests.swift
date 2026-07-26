@@ -13,7 +13,7 @@ struct InputHistoryTests {
 
     @Test func changedInputAddsNewestRowFirst() async throws {
         var input = InputState()
-        let key = KeyboardKey.make(keyCode: 13, charactersIgnoringModifiers: "w")
+        let key = KeyboardKey(keyCode: 13, charactersIgnoringModifiers: "w")
 
         input.ingest(
             snapshot(session: 1, sequence: 1, pressedKeys: [key])
