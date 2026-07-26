@@ -560,7 +560,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             settings: settings,
             image: try RenderedBGRA8SRGBImage(
                 size: settings.size,
-                bytes: Data(repeating: 0xFF, count: settings.size.pixelCount * 4)
+                bytes: Data(repeating: 0xFF, count: settings.size.bgra8ByteCount)
             )
         )
         let artifact = Self.artifact(
@@ -691,7 +691,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
                 size: request.settings.size,
                 bytes: Data(
                     repeating: 255,
-                    count: request.settings.size.pixelCount * 4
+                    count: request.settings.size.bgra8ByteCount
                 )
             )
         )

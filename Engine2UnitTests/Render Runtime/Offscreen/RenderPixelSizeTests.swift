@@ -9,6 +9,9 @@ struct RenderPixelSizeTests {
         #expect(size.width == 3_840)
         #expect(size.height == 2_160)
         #expect(size.pixelCount == 8_294_400)
+        #expect(size.aspectRatio == Float(3_840) / Float(2_160))
+        #expect(size.bgra8BytesPerRow == 15_360)
+        #expect(size.bgra8ByteCount == 33_177_600)
     }
 
     @Test func acceptsSmallestAndLargestRepresentableBGRAGrids() throws {
@@ -23,8 +26,14 @@ struct RenderPixelSizeTests {
         )
 
         #expect(smallest.pixelCount == 1)
+        #expect(smallest.bgra8BytesPerRow == 4)
+        #expect(smallest.bgra8ByteCount == 4)
         #expect(largestWidth.pixelCount == Int.max / 4)
+        #expect(largestWidth.bgra8BytesPerRow == Int.max - 3)
+        #expect(largestWidth.bgra8ByteCount == Int.max - 3)
         #expect(largestHeight.pixelCount == Int.max / 4)
+        #expect(largestHeight.bgra8BytesPerRow == 4)
+        #expect(largestHeight.bgra8ByteCount == Int.max - 3)
     }
 
     @Test func rejectsZeroAndNegativeWidths() {

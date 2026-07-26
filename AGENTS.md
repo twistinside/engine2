@@ -220,6 +220,7 @@ Current example ownership:
 - `Engine2/Render Runtime/Offscreen/*.swift`
   - `POffscreenRenderTarget` accepts an exact immutable `OffscreenRenderRequest` asynchronously and returns an `OffscreenRenderOutcome`; it never implies source sampling or Simulation advancement.
   - Requests require a completed `SimulationPresentationSnapshot`, an explicit `RenderViewpoint`, and `OffscreenRenderSettings`. Successful results carry detached tightly packed top-left BGRA8-sRGB pixels plus the request identity, source cursor, complete viewpoint, and settings.
+  - `RenderPixelSize` validates positive dimensions plus representable pixel, tightly packed BGRA8 row, and total byte counts once. Its aspect ratio and layout projections are nonfailing downstream invariants.
   - `OffscreenRenderLimits` is caller-selected safety policy. The conservative default may be replaced deliberately by a host prepared for larger allocation, GPU, and readback costs.
 - `Engine2/Render Runtime/Artifact/*.swift`
   - `PImageArtifactEncoder` accepts one completed detached `OffscreenRenderResult` plus explicit `ImageArtifactEncoding` and asynchronously returns a provenance-rich artifact. Implementations own their execution context, keeping scheduling policy out of coordinators.

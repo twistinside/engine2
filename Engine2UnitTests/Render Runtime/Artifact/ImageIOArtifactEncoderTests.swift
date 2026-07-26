@@ -252,7 +252,7 @@ struct ImageIOArtifactEncoderTests {
         red: UInt8
     ) throws -> RenderedBGRA8SRGBImage {
         var bytes = [UInt8]()
-        bytes.reserveCapacity(size.pixelCount * 4)
+        bytes.reserveCapacity(size.bgra8ByteCount)
 
         for _ in 0..<size.pixelCount {
             bytes.append(contentsOf: [blue, green, red, 255])
@@ -266,7 +266,7 @@ struct ImageIOArtifactEncoderTests {
 
     private func twoBandImage(size: RenderPixelSize) throws -> RenderedBGRA8SRGBImage {
         var bytes = [UInt8]()
-        bytes.reserveCapacity(size.pixelCount * 4)
+        bytes.reserveCapacity(size.bgra8ByteCount)
 
         for y in 0..<size.height {
             // The source contract is top-left BGRA: red occupies the first

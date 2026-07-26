@@ -426,7 +426,7 @@ struct SnapshotCaptureViewModelTests {
             settings: artifact.renderSettings,
             image: try RenderedBGRA8SRGBImage(
                 size: size,
-                bytes: Data(repeating: 0xFF, count: size.pixelCount * 4)
+                bytes: Data(repeating: 0xFF, count: size.bgra8ByteCount)
             )
         )
     }

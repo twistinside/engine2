@@ -108,10 +108,8 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         // Projection shape is output-specific. Camera construction validates
         // its authored projection, while this check catches finite view and
         // projection matrices whose product overflows for the requested size.
-        let aspectRatio = Float(request.settings.size.width)
-            / Float(request.settings.size.height)
         let projectionMatrix = request.viewpoint.camera.projectionMatrix(
-            aspectRatio: aspectRatio
+            aspectRatio: request.settings.size.aspectRatio
         )
         guard (projectionMatrix * request.viewpoint.camera.viewMatrix)
             .hasFiniteElements else {
