@@ -812,9 +812,10 @@ response; only `.advance` work is subject to the step-count bound.
 
 ``AgentSessionRequestID`` pairs a dynamic ``AgentSessionID`` with a monotonic
 ``AgentSessionRequestSequence``. ``AgentSessionCoordinator`` accepts only the
-exact next sequence. It records `highestAcceptedSequence` before its first
-`await`, separately from both result retention and the optional next
-representable sequence, which establishes these rules:
+exact next sequence. Its ``AgentSessionRequestSequenceProgress`` transitions
+before the first `await`, coupling accepted high-water to the optional next
+representable sequence while remaining separate from result retention. This
+establishes these rules:
 
 - an identical retained retry returns `.replayed` with the exact original
   ``AgentSessionResponse``, including byte-identical artifact data
@@ -1113,7 +1114,7 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | ``PImageArtifactEncoder``, ``ImageIOArtifactEncoder``, ``ImageArtifactEncoding``, ``OffscreenImageArtifactDeriver``, and ``RenderedImageArtifact`` | Implemented asynchronous CPU JPEG/PNG transformation with validated format-specific policy, detached encoded data, exact source request/cursor/viewpoint/render/encoding provenance, and artifact-result correlation; implementations own execution and retained raw output can retry without ticking or rerendering |
 | ``OfflineCaptureConfiguration``, ``OfflineCaptureAssembly``, ``POfflineCaptureTarget``, and ``OfflineCaptureCoordinator`` | Implemented closed serial topology exposing only initial cursor plus one workflow capability; retains exactly the initial or last completed presentation, offers advance-and-capture plus exact cursor-checked current capture through one gate, validates completed identity/settings/image size, cancellation request ID, and returned artifact provenance, retains source-specific typed predecessor values, and awaits encoder-owned out-of-actor work while keeping busy backpressure active |
 | ``OfflineCurrentCaptureRequest``, ``OfflineCurrentCaptureOutcome``, and ``OfflineCurrentCaptureResult`` | Implemented non-advancing current-presentation request/result vocabulary with mandatory expected cursor, no latest-value sampling, selected-snapshot provenance, and retained raw output on post-render cancellation, encoding failure, or artifact-result mismatch |
-| ``AgentCaptureSource``, ``AgentSessionConfiguration``, ``AgentSessionAssembly``, ``PAgentSessionTarget``, and ``AgentSessionCoordinator`` | Implemented transport-neutral live-process wrapper that privately retains the offline assembly and gives its coordinator only ``POfflineCaptureTarget``; unifies `.advance` and `.current` source choices under stable reflexive payload equality, monotonic session-qualified at-most-once admission, exact retained replay, explicit accepted high-water independent of bounded cache retention and optional next-sequence state, source-appropriate step bounds, and drain-before-close lifecycle |
+| ``AgentCaptureSource``, ``AgentSessionConfiguration``, ``AgentSessionAssembly``, ``PAgentSessionTarget``, and ``AgentSessionCoordinator`` | Implemented transport-neutral live-process wrapper that privately retains the offline assembly and gives its coordinator only ``POfflineCaptureTarget``; unifies `.advance` and `.current` source choices under stable reflexive payload equality, monotonic session-qualified at-most-once admission, exact retained replay, value-semantic sequence progress independent of bounded cache retention, source-appropriate step bounds, and drain-before-close lifecycle |
 | ``MetalResourceStore`` | Device-scoped backend owner whose default frame-ring count and compiled target formats no longer depend on `MetalRenderer` |
 | Production offscreen render integration coverage | Drives both the reusable encoder seam and the exact Runtime through caller-owned targets, explicit residency, real queue feedback, completion-gated readback, and no `MTKView` or `CAMetalDrawable` |
 | Cross-topology composition coverage | Drives a one-second clocked Simulation without Input or Render, 10,000 manual ticks, and two sequential ten-tick offline captures plus a non-advancing current capture; the manual and offline routes reach equivalent authoritative tick-20 presentation state |

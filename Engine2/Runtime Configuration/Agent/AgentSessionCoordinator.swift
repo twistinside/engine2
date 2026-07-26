@@ -12,8 +12,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
     private let captureTarget: any POfflineCaptureTarget
     private var knownCursor: SimulationCursor
-    private var nextExpectedSequence: AgentSessionRequestSequence?
-    private var highestAcceptedSequence: AgentSessionRequestSequence?
+    private var sequenceProgress: AgentSessionRequestSequenceProgress
     private var activeRequest: AgentCaptureRequest?
     private var isClosed = false
     private var replayCache: AgentSessionReplayCache
@@ -31,7 +30,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         self.knownCursor = initialCursor
         self.limits = limits
         self.captureTarget = captureTarget
-        self.nextExpectedSequence = initialRequestSequence
+        self.sequenceProgress = AgentSessionRequestSequenceProgress(initialSequence: initialRequestSequence)
         self.replayCache = AgentSessionReplayCache(
             maximumResultCount: limits.maximumRetainedResultCount,
             maximumImageBytes: limits.maximumRetainedImageBytes
@@ -69,11 +68,11 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
             )
         }
 
-        // Accepted high-water survives both cache eviction and UInt64 sequence
-        // exhaustion. An old unretained identity therefore remains explicitly
-        // evicted rather than becoming executable or losing its diagnosis.
-        if let highestAcceptedSequence,
-           request.id.sequence <= highestAcceptedSequence {
+        let sequenceClassification = sequenceProgress.classification(of: request.id.sequence)
+
+        // Accepted high-water survives cache eviction and sequence exhaustion.
+        // An old unretained identity therefore remains explicitly evicted.
+        if sequenceClassification == .atOrBelowAcceptedHighWater {
             return rejected(.resultEvicted(request.id))
         }
 
@@ -87,19 +86,22 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
             )
         }
 
-        guard let nextExpectedSequence else {
-            // Accepting UInt64.max preserves it as highestAcceptedSequence, so
-            // every representable identity is caught as old above. Keep this
-            // defensive fallback non-executing if internal state is corrupted.
-            return rejected(.resultEvicted(request.id))
-        }
-        guard request.id.sequence == nextExpectedSequence else {
+        switch sequenceClassification {
+        case .expected:
+            break
+
+        case let .unexpected(expectedSequence):
             return rejected(
                 .unexpectedSequence(
-                    expected: nextExpectedSequence,
+                    expected: expectedSequence,
                     actual: request.id.sequence
                 )
             )
+
+        case .atOrBelowAcceptedHighWater:
+            // Exhaustion after UInt64.max classifies every representable value
+            // as old.
+            return rejected(.resultEvicted(request.id))
         }
 
         // Idempotency depends on a stable equivalence relation. Swift floating-
@@ -117,8 +119,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         // From this point the request identity is consumed exactly once. Move
         // high-water before the first await so overlap can never admit it again.
         activeRequest = request
-        highestAcceptedSequence = nextExpectedSequence
-        self.nextExpectedSequence = nextExpectedSequence.successor()
+        sequenceProgress.accept(request.id.sequence)
 
         let response: AgentSessionResponse
         switch request.source {
