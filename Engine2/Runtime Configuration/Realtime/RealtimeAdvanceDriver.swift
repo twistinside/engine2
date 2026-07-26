@@ -94,30 +94,56 @@ final class RealtimeAdvanceDriver {
     @ObservationIgnored
     private var advanceDrainWaiters: [CheckedContinuation<Void, Never>] = []
 
-    init(
+    /// Creates the production cadence connection using suspending-clock timing.
+    convenience init(
         advanceTarget: any PSimulationAdvanceTarget,
-        inputSource: (any PInputSnapshotSource)? = nil,
+        inputSource: (any PInputSnapshotSource)?,
         initialCursor: SimulationCursor,
         fixedTimeStep: Duration,
-        pollInterval: Duration? = nil,
-        catchUpPolicy: RealtimeCatchUpPolicy = .interactive,
-        isAdvancementEnabled: Bool = true,
-        clockFactory: @escaping ClockFactory = { SystemClock() },
-        scheduleTimeSource: @escaping TimeSource = { SuspendingClock().now },
-        sleeper: @escaping Sleeper = { deadline in
-            try await SuspendingClock().sleep(until: deadline)
-        }
+        pollInterval: Duration,
+        catchUpPolicy: RealtimeCatchUpPolicy,
+        isAdvancementEnabled: Bool
+    ) {
+        self.init(
+            advanceTarget: advanceTarget,
+            inputSource: inputSource,
+            initialCursor: initialCursor,
+            fixedTimeStep: fixedTimeStep,
+            pollInterval: pollInterval,
+            catchUpPolicy: catchUpPolicy,
+            isAdvancementEnabled: isAdvancementEnabled,
+            clockFactory: { SystemClock() },
+            scheduleTimeSource: { SuspendingClock().now },
+            sleeper: { deadline in
+                try await SuspendingClock().sleep(until: deadline)
+            }
+        )
+    }
+
+    /// Creates a cadence connection with every time dependency injected.
+    ///
+    /// Tests and specialized hosts use this path to control elapsed samples,
+    /// absolute scheduling, and suspension independently.
+    init(
+        advanceTarget: any PSimulationAdvanceTarget,
+        inputSource: (any PInputSnapshotSource)?,
+        initialCursor: SimulationCursor,
+        fixedTimeStep: Duration,
+        pollInterval: Duration,
+        catchUpPolicy: RealtimeCatchUpPolicy,
+        isAdvancementEnabled: Bool,
+        clockFactory: @escaping ClockFactory,
+        scheduleTimeSource: @escaping TimeSource,
+        sleeper: @escaping Sleeper
     ) {
         precondition(fixedTimeStep > .zero, "Real-time advancement requires a positive fixed time step.")
-
-        let resolvedPollInterval = pollInterval ?? fixedTimeStep
-        precondition(resolvedPollInterval > .zero, "Real-time advancement requires a positive poll interval.")
+        precondition(pollInterval > .zero, "Real-time advancement requires a positive poll interval.")
 
         self.advanceTarget = advanceTarget
         self.inputSource = inputSource
         self.expectedCursor = initialCursor
         self.fixedTimeStep = fixedTimeStep
-        self.pollInterval = resolvedPollInterval
+        self.pollInterval = pollInterval
         self.catchUpPolicy = catchUpPolicy
         self.advancementState = isAdvancementEnabled ? .enabled : .paused
         self.clockFactory = clockFactory

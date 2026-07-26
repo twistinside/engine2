@@ -25,6 +25,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = makeDriver(
             target: target,
+            inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(40),
@@ -61,8 +62,10 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = makeDriver(
             target: target,
+            inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             baseInstant: baseInstant,
             sleeper: sleeper.sleep(until:)
@@ -97,6 +100,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
@@ -104,6 +108,7 @@ struct RealtimeAdvanceDriverTests {
                 maximumStepsPerWake: SimulationStepCount(rawValue: 3),
                 backlogTreatment: .preserve
             ),
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -135,6 +140,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
@@ -142,6 +148,7 @@ struct RealtimeAdvanceDriverTests {
                 maximumStepsPerWake: SimulationStepCount(rawValue: 3),
                 backlogTreatment: .discardOverflow
             ),
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -170,6 +177,7 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
@@ -177,6 +185,7 @@ struct RealtimeAdvanceDriverTests {
                 maximumStepsPerWake: SimulationStepCount(rawValue: 3),
                 backlogTreatment: .discardOverflow
             ),
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -218,6 +227,7 @@ struct RealtimeAdvanceDriverTests {
             inputSource: inputSource,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             baseInstant: baseInstant,
             sleeper: sleeper.sleep(until:)
@@ -332,14 +342,17 @@ struct RealtimeAdvanceDriverTests {
         var clockCreationCount = 0
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .seconds(1),
             pollInterval: .seconds(1),
+            catchUpPolicy: .interactive,
             isAdvancementEnabled: false,
             clockFactory: {
                 clockCreationCount += 1
                 return SystemClock()
             },
+            scheduleTimeSource: { SuspendingClock().now },
             sleeper: sleeper.sleep(until:)
         )
 
@@ -376,9 +389,14 @@ struct RealtimeAdvanceDriverTests {
         let sleeper = ControlledSleeper()
         var driver: RealtimeAdvanceDriver? = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .seconds(1),
             pollInterval: .seconds(1),
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
+            clockFactory: { SystemClock() },
+            scheduleTimeSource: { SuspendingClock().now },
             sleeper: sleeper.sleep(until:)
         )
         weak let weakDriver = driver
@@ -418,6 +436,7 @@ struct RealtimeAdvanceDriverTests {
             inputSource: inputSource,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: {
                 defer { clockCreationCount += 1 }
                 let source = clockCreationCount == 0
@@ -472,9 +491,12 @@ struct RealtimeAdvanceDriverTests {
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: scheduleSource.next,
             sleeper: sleeper.sleep(until:)
@@ -505,8 +527,10 @@ struct RealtimeAdvanceDriverTests {
         let sleeper = ControlledSleeper()
         let driver = makeDriver(
             target: target,
+            inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: {
                 defer { clockCreationCount += 1 }
                 let source = clockCreationCount == 0
@@ -568,6 +592,7 @@ struct RealtimeAdvanceDriverTests {
             inputSource: inputSource,
             cursor: initialCursor,
             fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
             clockFactory: {
                 defer { clockCreationCount += 1 }
                 let source = clockCreationCount == 0
@@ -794,10 +819,10 @@ struct RealtimeAdvanceDriverTests {
 
     private func makeDriver(
         target: RecordingAdvanceTarget,
-        inputSource: (any PInputSnapshotSource)? = nil,
+        inputSource: (any PInputSnapshotSource)?,
         cursor: SimulationCursor,
         fixedTimeStep: Duration,
-        pollInterval: Duration? = nil,
+        pollInterval: Duration,
         clockFactory: @escaping RealtimeAdvanceDriver.ClockFactory,
         baseInstant: SuspendingClock.Instant,
         sleeper: @escaping RealtimeAdvanceDriver.Sleeper
@@ -808,6 +833,8 @@ struct RealtimeAdvanceDriverTests {
             initialCursor: cursor,
             fixedTimeStep: fixedTimeStep,
             pollInterval: pollInterval,
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: clockFactory,
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper
@@ -823,9 +850,12 @@ struct RealtimeAdvanceDriverTests {
     ) -> RealtimeAdvanceDriver {
         RealtimeAdvanceDriver(
             advanceTarget: target,
+            inputSource: nil,
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: clockFactory,
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper

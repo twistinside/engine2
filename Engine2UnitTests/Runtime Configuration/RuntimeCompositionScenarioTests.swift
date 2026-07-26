@@ -166,6 +166,7 @@ struct RuntimeCompositionScenarioTests {
         let sleeper = ControlledSleeper()
         let driver = RealtimeAdvanceDriver(
             advanceTarget: runtime,
+            inputSource: nil,
             initialCursor: runtime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
@@ -173,6 +174,7 @@ struct RuntimeCompositionScenarioTests {
                 maximumStepsPerWake: stepCount,
                 backlogTreatment: .preserve
             ),
+            isAdvancementEnabled: true,
             clockFactory: {
                 SystemClock(timeSource: elapsedSource.next)
             },

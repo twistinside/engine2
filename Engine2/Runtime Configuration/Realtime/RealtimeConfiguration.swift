@@ -20,6 +20,7 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
     /// Constructs one isolated real-time Runtime Assembly from Game Content.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent) -> RealtimeAssembly {
+        let resolvedPollInterval = pollInterval ?? SimulationRuntime.fixedTimeStep
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
@@ -31,8 +32,9 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
             inputSource: inputRuntime,
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
-            pollInterval: pollInterval,
-            catchUpPolicy: catchUpPolicy
+            pollInterval: resolvedPollInterval,
+            catchUpPolicy: catchUpPolicy,
+            isAdvancementEnabled: true
         )
 
         return RealtimeAssembly(

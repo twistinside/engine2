@@ -25,6 +25,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
@@ -116,6 +118,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive,
+            isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
             sleeper: sleeper.sleep(until:)
