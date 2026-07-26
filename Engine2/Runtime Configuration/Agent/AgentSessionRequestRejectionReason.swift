@@ -5,10 +5,7 @@ nonisolated enum AgentSessionRequestRejectionReason: Equatable, Sendable {
     /// containing NaN camera state, so accepting it would make exact retry
     /// comparison non-reflexive.
     case invalidPayload
-    case unexpectedSequence(
-        expected: AgentSessionRequestSequence,
-        actual: AgentSessionRequestSequence
-    )
+    case unexpectedSequence(expected: AgentSessionRequestSequence, actual: AgentSessionRequestSequence)
     case requestConflict(AgentSessionRequestID)
     case anotherRequestBusy(activeRequestID: AgentSessionRequestID)
     case resultEvicted(AgentSessionRequestID)

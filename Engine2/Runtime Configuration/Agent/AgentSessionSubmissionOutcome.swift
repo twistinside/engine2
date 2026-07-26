@@ -7,10 +7,7 @@ nonisolated enum AgentSessionSubmissionOutcome: Equatable, Sendable {
     case replayed(AgentSessionResponse)
 
     /// The identical accepted identity is still executing and cannot be joined.
-    case requestInProgress(
-        requestID: AgentSessionRequestID,
-        knownCursor: SimulationCursor
-    )
+    case requestInProgress(requestID: AgentSessionRequestID, knownCursor: SimulationCursor)
 
     /// The supplied identity was not consumed.
     case rejected(AgentSessionRequestRejection)

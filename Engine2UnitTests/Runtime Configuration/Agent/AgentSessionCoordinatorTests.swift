@@ -1212,7 +1212,7 @@ struct AgentSessionCoordinatorTests {
     private static func coordinator(
         fixture: Fixture,
         target: ScriptedCaptureTarget,
-        limits: AgentSessionLimits = .conservativeDefault,
+        limits: AgentSessionLimits = .conservative,
         initialRequestSequence: AgentSessionRequestSequence = .first
     ) -> AgentSessionCoordinator {
         AgentSessionCoordinator(

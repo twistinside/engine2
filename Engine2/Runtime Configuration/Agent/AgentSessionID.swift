@@ -5,12 +5,7 @@ import Foundation
 /// The vocabulary is intentionally open because applications and future remote
 /// transports create sessions dynamically. This identity does not replace the
 /// distinct ``SimulationSessionID`` that qualifies authoritative world time.
-nonisolated struct AgentSessionID:
-    Codable,
-    Hashable,
-    RawRepresentable,
-    Sendable
-{
+nonisolated struct AgentSessionID: Codable, Hashable, RawRepresentable, Sendable {
     let rawValue: UUID
 
     /// Creates a fresh live-process agent session identity.

@@ -13,8 +13,5 @@ nonisolated enum AgentSessionExecutionOutcome: Equatable, Sendable {
     ///
     /// This result is retained and replayed like any other accepted terminal so
     /// changing the payload at the consumed identity cannot make it executable.
-    case stepLimitExceeded(
-        requested: SimulationStepCount,
-        maximum: SimulationStepCount
-    )
+    case stepLimitExceeded(requested: SimulationStepCount, maximum: SimulationStepCount)
 }

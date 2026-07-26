@@ -6,7 +6,11 @@
 /// are deliberately outside this named bound.
 nonisolated struct AgentSessionLimits: Equatable, Sendable {
     /// Conservative policy for interactive tool and agent use.
-    static let conservativeDefault = AgentSessionLimits()
+    static let conservative = AgentSessionLimits(
+        maximumStepCount: SimulationStepCount(rawValue: 600),
+        maximumRetainedResultCount: 8,
+        maximumRetainedImageBytes: 64 * 1_024 * 1_024
+    )
 
     let maximumStepCount: SimulationStepCount
     let maximumRetainedResultCount: Int
@@ -14,9 +18,9 @@ nonisolated struct AgentSessionLimits: Equatable, Sendable {
 
     /// Creates positive work/count bounds and a nonnegative image-byte budget.
     init(
-        maximumStepCount: SimulationStepCount = SimulationStepCount(rawValue: 600),
-        maximumRetainedResultCount: Int = 8,
-        maximumRetainedImageBytes: Int = 64 * 1_024 * 1_024
+        maximumStepCount: SimulationStepCount,
+        maximumRetainedResultCount: Int,
+        maximumRetainedImageBytes: Int
     ) {
         precondition(
             maximumRetainedResultCount > 0,
