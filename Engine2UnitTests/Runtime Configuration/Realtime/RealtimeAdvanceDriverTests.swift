@@ -292,11 +292,13 @@ struct RealtimeAdvanceDriverTests {
         #expect(await target.requestCount() == 0)
 
         driver.pauseAdvancement()
+        #expect(driver.advancementState == .paused)
         await sleeper.resumeNext()
         await sleeper.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
 
         driver.resumeAdvancement()
+        #expect(driver.advancementState == .enabled)
         await sleeper.resumeNext()
         await sleeper.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
@@ -346,6 +348,7 @@ struct RealtimeAdvanceDriverTests {
         await sleeper.waitForPendingCount(1)
 
         #expect(driver.isRunning)
+        #expect(driver.advancementState == .paused)
         #expect(driver.isAdvancementEnabled == false)
         #expect(clockCreationCount == 1)
 
@@ -583,6 +586,15 @@ struct RealtimeAdvanceDriverTests {
         #expect(driver.isRunning == false)
         #expect(driver.isAdvancementEnabled == false)
         #expect(
+            driver.advancementState
+                == .faulted(
+                    .cursorMismatch(
+                        expected: initialCursor,
+                        current: rebuiltCursor
+                    )
+                )
+        )
+        #expect(
             driver.fault == .cursorMismatch(
                 expected: initialCursor,
                 current: rebuiltCursor
@@ -593,7 +605,9 @@ struct RealtimeAdvanceDriverTests {
         #expect(driver.isAdvancementEnabled == false)
 
         driver.synchronize(to: rebuiltCursor, inputBaseline: nil)
+        #expect(driver.advancementState == .paused)
         driver.resumeAdvancement()
+        #expect(driver.advancementState == .enabled)
         driver.start()
         let didCompleteAfterSynchronization = await eventually {
             await target.requestCount() == 2

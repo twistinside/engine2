@@ -24,8 +24,8 @@ final class RealtimeAdvanceDriver {
     let pollInterval: Duration
     let catchUpPolicy: RealtimeCatchUpPolicy
 
-    /// Whether elapsed time may currently become authoritative Simulation work.
-    private(set) var isAdvancementEnabled: Bool
+    /// User policy or authority fault controlling whether elapsed time advances.
+    private(set) var advancementState: RealtimeAdvancementState
 
     /// Whether lifecycle policy currently permits this driver to poll.
     private(set) var isRunning = false
@@ -33,8 +33,18 @@ final class RealtimeAdvanceDriver {
     /// Whether no exact request issued by this connection remains unsettled.
     private(set) var isQuiescent = true
 
+    /// Whether elapsed time may currently become authoritative Simulation work.
+    var isAdvancementEnabled: Bool {
+        advancementState == .enabled
+    }
+
     /// Latest authority fault. App coordination must synchronize before resume.
-    private(set) var fault: RealtimeAdvanceDriverFault?
+    var fault: RealtimeAdvanceDriverFault? {
+        guard case let .faulted(fault) = advancementState else {
+            return nil
+        }
+        return fault
+    }
 
     @ObservationIgnored
     private let advanceTarget: any PSimulationAdvanceTarget
@@ -109,7 +119,7 @@ final class RealtimeAdvanceDriver {
         self.fixedTimeStep = fixedTimeStep
         self.pollInterval = resolvedPollInterval
         self.catchUpPolicy = catchUpPolicy
-        self.isAdvancementEnabled = isAdvancementEnabled
+        self.advancementState = isAdvancementEnabled ? .enabled : .paused
         self.clockFactory = clockFactory
         self.scheduleTimeSource = scheduleTimeSource
         self.sleeper = sleeper
@@ -180,11 +190,11 @@ final class RealtimeAdvanceDriver {
 
     /// Allows future elapsed samples to produce Simulation advances.
     func resumeAdvancement() {
-        guard isAdvancementEnabled == false, fault == nil else {
+        guard advancementState == .paused else {
             return
         }
 
-        isAdvancementEnabled = true
+        advancementState = .enabled
         elapsedRemainder = .zero
         captureTransitionInputBaseline()
 
@@ -197,11 +207,11 @@ final class RealtimeAdvanceDriver {
 
     /// Prevents future advances and permanently drops any partial-step backlog.
     func pauseAdvancement() {
-        guard isAdvancementEnabled else {
+        guard advancementState == .enabled else {
             return
         }
 
-        isAdvancementEnabled = false
+        advancementState = .paused
         elapsedRemainder = .zero
         setTransitionInputBaseline(nil)
 
@@ -225,7 +235,9 @@ final class RealtimeAdvanceDriver {
         )
         elapsedRemainder = .zero
         discardNextElapsedSample = true
-        fault = nil
+        if case .faulted = advancementState {
+            advancementState = .paused
+        }
     }
 
     /// Launches the one polling task after any retiring request has settled.
@@ -400,8 +412,7 @@ final class RealtimeAdvanceDriver {
             // understands the target timeline. Surface the fault and stop
             // rather than silently adopting potentially unrelated state. The
             // App may synchronize after coordinating the cause.
-            fault = .cursorMismatch(expected: expected, current: current)
-            isAdvancementEnabled = false
+            advancementState = .faulted(.cursorMismatch(expected: expected, current: current))
             isRunning = false
             elapsedRemainder = .zero
             setTransitionInputBaseline(nil)

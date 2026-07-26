@@ -28,7 +28,7 @@ case .success:
     break
 case let .failure(description):
     let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: description)
-    terminalGPUFailure = failure
+    renderingState = .failed(failure)
     return .failed(failure)
 }
 
@@ -53,7 +53,7 @@ do {
     try await commit(commandBuffer, frame: frame, sceneTarget: sceneTarget, targets: targets)
 } catch {
     let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: String(describing: error))
-    terminalGPUFailure = failure
+    renderingState = .failed(failure)
     return .failed(failure)
 }
 

@@ -67,6 +67,7 @@ struct MetalOffscreenRenderRuntimeTests {
 
         let rejected = await runtime.render(excessiveRequest)
 
+        #expect(runtime.renderingState == .ready)
         #expect(
             rejected == .rejected(
                 .exceedsLimits(requested: excessiveSize, limits: limits)
@@ -89,6 +90,48 @@ struct MetalOffscreenRenderRuntimeTests {
 
         #expect(result.requestID == acceptedRequest.id)
         #expect(result.sourceCursor == fixture.snapshot.cursor)
+        #expect(runtime.renderingState == .ready)
+    }
+
+    @Test func overlappingRequestObservesTheExclusiveRenderingState() async throws {
+        let fixture = makeFixture()
+        let runtime = try MetalOffscreenRenderRuntime(
+            catalog: fixture.content.renderAssetCatalog,
+            limits: .conservative
+        )
+        let settings = OffscreenRenderSettings(
+            size: try RenderPixelSize(width: 640, height: 480),
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let firstRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
+            presentationSnapshot: fixture.snapshot,
+            viewpoint: fixture.viewpoint,
+            settings: settings
+        )
+        let overlappingRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
+            presentationSnapshot: fixture.snapshot,
+            viewpoint: fixture.viewpoint,
+            settings: settings
+        )
+
+        let firstRender = Task {
+            await runtime.render(firstRequest)
+        }
+        for _ in 0..<100 {
+            guard runtime.renderingState != .rendering else {
+                break
+            }
+            await Task.yield()
+        }
+        let overlappingOutcome = await runtime.render(overlappingRequest)
+
+        #expect(runtime.renderingState == .rendering)
+        #expect(overlappingOutcome == .rejected(.runtimeBusy))
+        _ = try completedResult(from: await firstRender.value)
+        #expect(runtime.renderingState == .ready)
     }
 
     @Test func invalidExplicitCameraIsRejectedBeforeSubmission() async throws {
@@ -298,6 +341,7 @@ struct MetalOffscreenRenderRuntimeTests {
         }
         #expect(failure.stage == .preparation)
         #expect(failure.backendDescription.contains("missingModel"))
+        #expect(incompleteRuntime.renderingState == .ready)
 
         let validRuntime = try MetalOffscreenRenderRuntime(
             catalog: fixture.content.renderAssetCatalog,
@@ -309,6 +353,7 @@ struct MetalOffscreenRenderRuntimeTests {
 
         #expect(result.requestID == request.id)
         #expect(result.sourceCursor == fixture.snapshot.cursor)
+        #expect(validRuntime.renderingState == .ready)
     }
 
     private func makeFixture() -> (

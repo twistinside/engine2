@@ -23,6 +23,7 @@ struct RenderFrameTests {
         let snapshot = world.presentationSnapshot(at: cursor)
         let frame = RenderFrame(projecting: snapshot)
 
+        #expect(frame.provenance == .simulation(sourceCursor: cursor))
         #expect(frame.sourceCursor == cursor)
         #expect(frame.sourceTick == SimulationTick(rawValue: 7))
         #expect(frame.viewpointID == nil)
@@ -199,6 +200,22 @@ struct RenderFrameTests {
             viewpoint: secondViewpoint
         )
 
+        #expect(
+            firstFrame.provenance
+                == .exact(
+                    sourceCursor: cursor,
+                    viewpointID: firstViewpoint.id,
+                    viewpointRevision: firstViewpoint.revision
+                )
+        )
+        #expect(
+            secondFrame.provenance
+                == .exact(
+                    sourceCursor: cursor,
+                    viewpointID: secondViewpoint.id,
+                    viewpointRevision: secondViewpoint.revision
+                )
+        )
         #expect(firstFrame.sourceCursor == cursor)
         #expect(secondFrame.sourceCursor == cursor)
         #expect(firstFrame.instances == secondFrame.instances)
@@ -462,6 +479,7 @@ struct RenderFrameTests {
     }
 
     @Test func emptyFrameDoesNotFabricateSimulationProvenance() {
+        #expect(RenderFrame.empty.provenance == .empty)
         #expect(RenderFrame.empty.sourceCursor == nil)
         #expect(RenderFrame.empty.sourceTick == nil)
         #expect(RenderFrame.empty.viewpointID == nil)
