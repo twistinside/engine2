@@ -15,12 +15,15 @@ struct MetalDepthRenderingTests {
         )
 
         let cameras = [
-            Camera(),
+            .standard,
             Camera(
                 position: SIMD3<Float>(0, 0, 8),
-                orthographicHeight: 8,
-                nearPlane: 1,
-                farPlane: 20
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 8,
+                    near: 1,
+                    far: 20
+                )
             )
         ]
 
@@ -57,6 +60,7 @@ struct MetalDepthRenderingTests {
         let pixel = try renderCenterPixel(
             drawOrder: [0],
             nearNormal: SIMD3<Float>(1, 0, 0),
+            camera: .standard,
             resources: resources
         )
 
@@ -73,7 +77,7 @@ struct MetalDepthRenderingTests {
 private func renderCenterPixel(
     drawOrder: [Int],
     nearNormal: SIMD3<Float> = SIMD3<Float>(1, 0, 0),
-    camera: Camera = Camera(),
+    camera: Camera,
     resources: MetalResourceStore
 ) throws -> SIMD4<Float> {
     let textureSize = 8
@@ -136,6 +140,7 @@ private func renderCenterPixel(
             materialID: .warmDielectric,
             transform: Transform(
                 position: SIMD3<Float>(0, 0, 0),
+                rotation: Transform.identityRotation,
                 scale: SIMD3<Float>(4, 4, 1)
             )
         ),
@@ -144,6 +149,7 @@ private func renderCenterPixel(
             materialID: .warmDielectric,
             transform: Transform(
                 position: SIMD3<Float>(0, 0, -2),
+                rotation: Transform.identityRotation,
                 scale: SIMD3<Float>(4, 4, 1)
             )
         )

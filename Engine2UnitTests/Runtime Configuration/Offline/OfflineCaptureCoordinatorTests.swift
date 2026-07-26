@@ -106,9 +106,12 @@ struct OfflineCaptureCoordinatorTests {
             cursor: returnedFinalCursor,
             camera: Camera(
                 position: SIMD3<Float>(3, 5, 9),
-                orthographicHeight: 11,
-                nearPlane: 0.25,
-                farPlane: 110
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 11,
+                    near: 0.25,
+                    far: 110
+                )
             ),
             entityPresentations: []
         )
@@ -1212,9 +1215,12 @@ struct OfflineCaptureCoordinatorTests {
             cursor: initialCursor,
             camera: Camera(
                 position: SIMD3<Float>(9, 8, 7),
-                orthographicHeight: 12,
-                nearPlane: 0.1,
-                farPlane: 120
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 12,
+                    near: 0.1,
+                    far: 120
+                )
             ),
             entityPresentations: []
         )
@@ -1226,9 +1232,12 @@ struct OfflineCaptureCoordinatorTests {
             cursor: finalCursor,
             camera: Camera(
                 position: SIMD3<Float>(2, 4, 8),
-                orthographicHeight: 9,
-                nearPlane: 0.2,
-                farPlane: 90
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 9,
+                    near: 0.2,
+                    far: 90
+                )
             ),
             entityPresentations: [
                 EntityPresentationSnapshot(
@@ -1254,7 +1263,11 @@ struct OfflineCaptureCoordinatorTests {
                 )!
             ),
             revision: RenderViewpointRevision(rawValue: 7),
-            camera: Camera(position: SIMD3<Float>(6, 5, 4))
+            camera: Camera(
+                position: SIMD3<Float>(6, 5, 4),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
         let size = try RenderPixelSize(width: 4, height: 3)
         let renderSettings = OffscreenRenderSettings(

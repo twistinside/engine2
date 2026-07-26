@@ -838,7 +838,7 @@ struct RealtimeAdvanceDriverTests {
                 ),
                 finalPresentationSnapshot: SimulationPresentationSnapshot(
                     cursor: finalCursor,
-                    camera: Camera(),
+                    camera: .standard,
                     entityPresentations: []
                 )
             )
@@ -1020,7 +1020,7 @@ private extension RealtimeAdvanceDriverTests {
                     ),
                     finalPresentationSnapshot: SimulationPresentationSnapshot(
                         cursor: finalCursor,
-                        camera: Camera(),
+                        camera: .standard,
                         entityPresentations: []
                     )
                 )

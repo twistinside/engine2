@@ -100,7 +100,11 @@ struct MetalOffscreenRenderRuntimeTests {
         let invalidViewpoint = RenderViewpoint(
             id: RenderViewpointID(),
             revision: .zero,
-            camera: Camera(position: SIMD3<Float>(.nan, 0, 8))
+            camera: Camera(
+                position: SIMD3<Float>(.nan, 0, 8),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
         let request = OffscreenRenderRequest(
             id: OffscreenRenderRequestID(),
@@ -228,6 +232,7 @@ struct MetalOffscreenRenderRuntimeTests {
             camera: Camera.lookingAt(
                 .zero,
                 from: SIMD3<Float>(1, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
                 projection: fixture.snapshot.camera.projection
             )
         )

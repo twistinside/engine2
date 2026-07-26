@@ -7,6 +7,7 @@
 struct BasicWorldBuilder: PWorldBuilder {
     func buildWorld() -> World {
         let world = World()
+        world.camera = .standard
 
         _ = Ball(
             in: world,

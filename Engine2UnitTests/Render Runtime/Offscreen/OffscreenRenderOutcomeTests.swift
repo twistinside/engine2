@@ -103,7 +103,11 @@ struct OffscreenRenderOutcomeTests {
                     )!
                 ),
                 revision: RenderViewpointRevision(rawValue: 4),
-                camera: Camera(position: SIMD3<Float>(0, 0, 5))
+                camera: Camera(
+                    position: SIMD3<Float>(0, 0, 5),
+                    rotation: Transform.identityRotation,
+                    projection: .standardPerspective
+                )
             ),
             settings: OffscreenRenderSettings(
                 size: size,

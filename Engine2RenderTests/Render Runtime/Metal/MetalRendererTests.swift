@@ -376,7 +376,7 @@ struct MetalRendererTests {
                     sessionID: SimulationSessionID(),
                     tick: .zero
                 ),
-                camera: Camera(),
+                camera: .standard,
                 entityPresentations: (0..<instanceCount).map { index in
                     EntityPresentationSnapshot(
                         id: EntityID(index: index, generation: 0),

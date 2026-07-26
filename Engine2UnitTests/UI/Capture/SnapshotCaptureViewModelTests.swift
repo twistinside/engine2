@@ -399,7 +399,12 @@ struct SnapshotCaptureViewModelTests {
                 sessionID: SimulationSessionID(),
                 tick: SimulationTick(rawValue: tick)
             ),
-            camera: Camera.lookingAt(.zero, from: SIMD3<Float>(0, 0, 8)),
+            camera: Camera.lookingAt(
+                .zero,
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
+            ),
             entityPresentations: []
         )
         let artifact = RenderedImageArtifact(

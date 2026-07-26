@@ -32,7 +32,9 @@ struct OfflineCaptureConfigurationTests {
             revision: RenderViewpointRevision(rawValue: 7),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(0, 0, 8)
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let firstRenderSettings = OffscreenRenderSettings(
@@ -94,7 +96,9 @@ struct OfflineCaptureConfigurationTests {
             revision: firstViewpoint.revision.advanced(),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(1, 0.5, 8)
+                from: SIMD3<Float>(1, 0.5, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let secondRenderSettings = OffscreenRenderSettings(

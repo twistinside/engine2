@@ -17,7 +17,7 @@ struct SimulationAdvanceResultTests {
         )
         let snapshot = SimulationPresentationSnapshot(
             cursor: finalCursor,
-            camera: Camera(),
+            camera: .standard,
             entityPresentations: []
         )
 

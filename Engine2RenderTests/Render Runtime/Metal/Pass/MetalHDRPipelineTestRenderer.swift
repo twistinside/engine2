@@ -17,9 +17,12 @@ final class MetalHDRPipelineTestRenderer {
 
     private static let camera = Camera(
         position: SIMD3<Float>(0, 0, 1),
-        orthographicHeight: 2,
-        nearPlane: 0.1,
-        farPlane: 10
+        rotation: Transform.identityRotation,
+        projection: .orthographic(
+            height: 2,
+            near: 0.1,
+            far: 10
+        )
     )
 
     private let resources: MetalResourceStore
@@ -215,7 +218,7 @@ final class MetalHDRPipelineTestRenderer {
             RenderInstance(
                 meshID: .ball,
                 materialID: materialID,
-                transform: Transform()
+                transform: .identity
             )
         }
         let preparedFrame = MetalPreparedFrame(

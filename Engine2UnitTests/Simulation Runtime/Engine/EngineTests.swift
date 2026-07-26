@@ -218,6 +218,7 @@ struct EngineTests {
         replacement.camera = Camera.lookingAt(
             .zero,
             from: SIMD3<Float>(0, 3, 12),
+            up: SIMD3<Float>(0, 1, 0),
             projection: replacementProjection
         )
         engine.replaceWorld(with: replacement, inputBaseline: nil)

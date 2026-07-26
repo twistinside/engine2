@@ -32,12 +32,20 @@ struct RenderFrameTests {
                 RenderInstance(
                     meshID: .ball,
                     materialID: .warmDielectric,
-                    worldPosition: SIMD3<Float>(2, -4, 0)
+                    transform: Transform(
+                        position: SIMD3<Float>(2, -4, 0),
+                        rotation: Transform.identityRotation,
+                        scale: RenderInstance.defaultScale
+                    )
                 ),
                 RenderInstance(
                     meshID: .ball,
                     materialID: .goldMetal,
-                    worldPosition: SIMD3<Float>(-1, 3, 0)
+                    transform: Transform(
+                        position: SIMD3<Float>(-1, 3, 0),
+                        rotation: Transform.identityRotation,
+                        scale: RenderInstance.defaultScale
+                    )
                 )
             ]
         )
@@ -111,7 +119,15 @@ struct RenderFrameTests {
         let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
         let scale = SIMD3<Float>(2, 3, 4)
 
-        world.camera = Camera(position: SIMD3<Float>(1, 2, 3), orthographicHeight: 12)
+        world.camera = Camera(
+            position: SIMD3<Float>(1, 2, 3),
+            rotation: Transform.identityRotation,
+            projection: .orthographic(
+                height: 12,
+                near: 0.1,
+                far: 100
+            )
+        )
         world.positionComponents.insert(CPosition(position: SIMD3<Float>(3, 4, 5)), for: entity)
         world.renderableComponents.insert(
             CRenderable(meshID: .ball, materialID: .warmDielectric),
@@ -158,12 +174,20 @@ struct RenderFrameTests {
         let firstViewpoint = RenderViewpoint(
             id: RenderViewpointID(),
             revision: RenderViewpointRevision(rawValue: 2),
-            camera: Camera(position: SIMD3<Float>(0, 0, 6))
+            camera: Camera(
+                position: SIMD3<Float>(0, 0, 6),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
         let secondViewpoint = RenderViewpoint(
             id: RenderViewpointID(),
             revision: RenderViewpointRevision(rawValue: 9),
-            camera: Camera(position: SIMD3<Float>(6, 2, 0))
+            camera: Camera(
+                position: SIMD3<Float>(6, 2, 0),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
 
         let firstFrame = try RenderFrame(
@@ -242,7 +266,7 @@ struct RenderFrameTests {
     @Test func exactProjectionRejectsAnInvalidSelectedCamera() {
         let world = World()
         let snapshot = world.presentationSnapshot(at: cursor())
-        var camera = Camera()
+        var camera = Camera.standard
         camera.position = SIMD3<Float>(.infinity, 0, 8)
         let viewpoint = RenderViewpoint(
             id: RenderViewpointID(),
@@ -274,7 +298,11 @@ struct RenderFrameTests {
         let viewpoint = RenderViewpoint(
             id: RenderViewpointID(),
             revision: RenderViewpointRevision(rawValue: 6),
-            camera: Camera(position: SIMD3<Float>(0, 0, 10))
+            camera: Camera(
+                position: SIMD3<Float>(0, 0, 10),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
 
         let exact = try RenderFrame(
@@ -291,7 +319,11 @@ struct RenderFrameTests {
                 RenderInstance(
                     meshID: .ball,
                     materialID: .goldMetal,
-                    worldPosition: SIMD3<Float>(1, 2, 3)
+                    transform: Transform(
+                        position: SIMD3<Float>(1, 2, 3),
+                        rotation: Transform.identityRotation,
+                        scale: RenderInstance.defaultScale
+                    )
                 )
             ]
         )
@@ -313,7 +345,7 @@ struct RenderFrameTests {
         ) {
             try RenderFrame(
                 exactlyProjecting: snapshot,
-                viewpoint: viewpoint()
+                viewpoint: viewpoint(camera: .standard)
             )
         }
     }
@@ -339,7 +371,7 @@ struct RenderFrameTests {
         ) {
             try RenderFrame(
                 exactlyProjecting: snapshot,
-                viewpoint: viewpoint()
+                viewpoint: viewpoint(camera: .standard)
             )
         }
     }
@@ -365,7 +397,7 @@ struct RenderFrameTests {
         ) {
             try RenderFrame(
                 exactlyProjecting: snapshot,
-                viewpoint: viewpoint()
+                viewpoint: viewpoint(camera: .standard)
             )
         }
     }
@@ -386,7 +418,9 @@ struct RenderFrameTests {
         let snapshot = world.presentationSnapshot(at: cursor())
         let viewpoint = viewpoint(
             camera: Camera(
-                position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0)
+                position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
             )
         )
 
@@ -416,7 +450,9 @@ struct RenderFrameTests {
             for: entity
         )
         world.camera = Camera(
-            position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0)
+            position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0),
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
         )
 
         let snapshot = world.presentationSnapshot(at: cursor())
@@ -436,7 +472,7 @@ struct RenderFrameTests {
         SimulationCursor(sessionID: SimulationSessionID(), tick: tick)
     }
 
-    private func viewpoint(camera: Camera = Camera()) -> RenderViewpoint {
+    private func viewpoint(camera: Camera) -> RenderViewpoint {
         RenderViewpoint(
             id: RenderViewpointID(),
             revision: .zero,

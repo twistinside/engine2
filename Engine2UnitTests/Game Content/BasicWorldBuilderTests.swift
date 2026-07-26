@@ -117,8 +117,8 @@ struct BasicWorldBuilderTests {
         }
     }
 
-    /// Freezes the independently documented M5 camera instead of asking the
-    /// mutable production defaults to serve as their own test expectation.
+    /// Freezes the independently documented M5 camera rather than asking the
+    /// named production standard to serve as its own test expectation.
     private func expectReferenceCamera(_ camera: Camera) {
         #expect(camera.position == SIMD3<Float>(0, 0, 8))
         #expect(camera.rotation.vector == Self.identityRotation.vector)

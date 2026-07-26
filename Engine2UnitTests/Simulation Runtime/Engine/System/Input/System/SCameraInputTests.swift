@@ -14,6 +14,7 @@ struct SCameraInputTests {
         world.camera = Camera.lookingAt(
             target,
             from: target + SIMD3<Float>(0, 4, 8),
+            up: SIMD3<Float>(0, 1, 0),
             projection: projection
         )
         world.input.actions.cameraOrbitYawDelta = .pi / 2
