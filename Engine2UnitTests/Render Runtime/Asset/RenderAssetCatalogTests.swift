@@ -2,6 +2,12 @@ import Testing
 @testable import Engine2
 
 struct RenderAssetCatalogTests {
+    private static let goldMetal = PBRMaterialDescription(
+        baseColor: SIMD3<Float>(1, 0.766, 0.336),
+        metallic: 1,
+        perceptualRoughness: 0.35
+    )
+
     @Test func completeMaterialVocabularyPassesCoverageValidation() throws {
         let catalog = RenderAssetCatalog(
             models: [:],
@@ -45,10 +51,4 @@ struct RenderAssetCatalogTests {
             )
         }
     }
-
-    private static let goldMetal = PBRMaterialDescription(
-        baseColor: SIMD3<Float>(1, 0.766, 0.336),
-        metallic: 1,
-        perceptualRoughness: 0.35
-    )
 }

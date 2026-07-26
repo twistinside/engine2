@@ -20,11 +20,6 @@ nonisolated struct AgentSessionRequestSequenceProgress: Equatable, Sendable {
 
     private var state: State
 
-    /// Starts a fresh or restored lane before its first accepted request.
-    init(initialSequence: AgentSessionRequestSequence) {
-        state = .initial(expected: initialSequence)
-    }
-
     /// Whether the last accepted sequence has no representable successor.
     var isExhausted: Bool {
         if case .exhausted = state {
@@ -32,6 +27,11 @@ nonisolated struct AgentSessionRequestSequenceProgress: Equatable, Sendable {
         } else {
             false
         }
+    }
+
+    /// Starts a fresh or restored lane before its first accepted request.
+    init(initialSequence: AgentSessionRequestSequence) {
+        state = .initial(expected: initialSequence)
     }
 
     /// Classifies a candidate without consuming it or changing progress.

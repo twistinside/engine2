@@ -9,6 +9,28 @@ enum SnapshotCapturePresentation: Equatable {
     case captureFailure(message: String)
     case exportFailure(message: String, document: JPEGArtifactDocument, defaultFilename: String)
 
+    /// Payload supplied only while SwiftUI should present the file exporter.
+    var exporter: (document: JPEGArtifactDocument, defaultFilename: String)? {
+        guard case let .exporter(document, defaultFilename) = self else {
+            return nil
+        }
+        return (document, defaultFilename)
+    }
+
+    /// Message and action policy supplied only while SwiftUI shows an alert.
+    var failure: (message: String, allowsExportRetry: Bool)? {
+        switch self {
+        case .exporter:
+            nil
+
+        case let .captureFailure(message):
+            (message, false)
+
+        case let .exportFailure(message, _, _):
+            (message, true)
+        }
+    }
+
     /// Projects one maximum-quality JPEG capture terminal into modal UI state.
     ///
     /// ``SnapshotCaptureViewModel`` always requests JPEG. A completed outcome
@@ -111,25 +133,4 @@ enum SnapshotCapturePresentation: Equatable {
         }
     }
 
-    /// Payload supplied only while SwiftUI should present the file exporter.
-    var exporter: (document: JPEGArtifactDocument, defaultFilename: String)? {
-        guard case let .exporter(document, defaultFilename) = self else {
-            return nil
-        }
-        return (document, defaultFilename)
-    }
-
-    /// Message and action policy supplied only while SwiftUI shows an alert.
-    var failure: (message: String, allowsExportRetry: Bool)? {
-        switch self {
-        case .exporter:
-            nil
-
-        case let .captureFailure(message):
-            (message, false)
-
-        case let .exportFailure(message, _, _):
-            (message, true)
-        }
-    }
 }

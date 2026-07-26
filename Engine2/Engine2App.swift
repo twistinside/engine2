@@ -17,44 +17,6 @@ struct Engine2App: App {
 
     private let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 
-    init() {
-        let gameContent = BasicGameContent()
-        let realtimeAssembly = RealtimeConfiguration(
-            pollInterval: SimulationRuntime.fixedTimeStep,
-            catchUpPolicy: .interactive
-        ).makeAssembly(
-            gameContent: gameContent
-        )
-        let snapshotCaptureViewModel: SnapshotCaptureViewModel
-
-        do {
-            let offscreenRenderRuntime = try MetalOffscreenRenderRuntime(
-                catalog: gameContent.renderAssetCatalog,
-                limits: .conservative
-            )
-            let captureConnection = try RealtimeSnapshotCaptureConnection(
-                presentationSource: realtimeAssembly.simulationRuntime,
-                renderTarget: offscreenRenderRuntime
-            )
-            snapshotCaptureViewModel = SnapshotCaptureViewModel(
-                captureTarget: captureConnection,
-                renderSize: .uhd4K
-            )
-        } catch {
-            snapshotCaptureViewModel = SnapshotCaptureViewModel(
-                unavailableReason:
-                    "Snapshot output could not start. \(error)",
-                renderSize: .uhd4K
-            )
-        }
-
-        self.gameContent = gameContent
-        self.realtimeAssembly = realtimeAssembly
-        _snapshotCaptureViewModel = State(
-            initialValue: snapshotCaptureViewModel
-        )
-    }
-
     var body: some Scene {
         Window("Engine2", id: "main") {
             ContentView(
@@ -118,5 +80,43 @@ struct Engine2App: App {
                 }
             }
         }
+    }
+
+    init() {
+        let gameContent = BasicGameContent()
+        let realtimeAssembly = RealtimeConfiguration(
+            pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive
+        ).makeAssembly(
+            gameContent: gameContent
+        )
+        let snapshotCaptureViewModel: SnapshotCaptureViewModel
+
+        do {
+            let offscreenRenderRuntime = try MetalOffscreenRenderRuntime(
+                catalog: gameContent.renderAssetCatalog,
+                limits: .conservative
+            )
+            let captureConnection = try RealtimeSnapshotCaptureConnection(
+                presentationSource: realtimeAssembly.simulationRuntime,
+                renderTarget: offscreenRenderRuntime
+            )
+            snapshotCaptureViewModel = SnapshotCaptureViewModel(
+                captureTarget: captureConnection,
+                renderSize: .uhd4K
+            )
+        } catch {
+            snapshotCaptureViewModel = SnapshotCaptureViewModel(
+                unavailableReason:
+                    "Snapshot output could not start. \(error)",
+                renderSize: .uhd4K
+            )
+        }
+
+        self.gameContent = gameContent
+        self.realtimeAssembly = realtimeAssembly
+        _snapshotCaptureViewModel = State(
+            initialValue: snapshotCaptureViewModel
+        )
     }
 }

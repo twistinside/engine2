@@ -21,6 +21,10 @@ When working in Swift:
   string, declaration, method signature, enum case, pattern, or call would make it harder to scan—especially when one
   readable line would become three or four. Break lines for semantic grouping, not merely to satisfy a counter.
 
+- Declare every stored and computed property before all initializers, subscripts, and methods in the same declaration
+  or extension. A computed projection remains part of the type's state surface even when its implementation is long;
+  do not tuck it beneath an initializer or behavioral method.
+
 - Extract a constructed value when the local adds a nonredundant role, exposes validation or reuse, or separates a
   substantial construction from the operation that consumes it. Otherwise, keep construction inline when an argument,
   property, or enum case label already states the role, direct assignment or initializer delegation is clearer, or a

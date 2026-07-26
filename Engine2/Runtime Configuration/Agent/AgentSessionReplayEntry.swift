@@ -9,6 +9,10 @@ nonisolated struct AgentSessionReplayEntry: Equatable, Sendable {
     /// Exact named-budget footprint computed once with the immutable response.
     let retainedImageByteCount: Int
 
+    var requestID: AgentSessionRequestID {
+        request.id
+    }
+
     /// Pairs one accepted request with the terminal response produced for it.
     init(request: AgentCaptureRequest, response: AgentSessionResponse) {
         precondition(request.id == response.requestID, "A replay entry must pair one request identity with its response.")
@@ -16,9 +20,5 @@ nonisolated struct AgentSessionReplayEntry: Equatable, Sendable {
         self.request = request
         self.response = response
         self.retainedImageByteCount = response.outcome.retainedImageByteCount
-    }
-
-    var requestID: AgentSessionRequestID {
-        request.id
     }
 }

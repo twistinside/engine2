@@ -3,6 +3,30 @@ import simd
 @testable import Engine2
 
 struct BasicWorldBuilderRenderTests {
+    private static let expectedEntityIDs = (0..<6).map {
+        EntityID(index: $0, generation: 0)
+    }
+
+    private static let expectedPositions = [
+        SIMD3<Float>(-1.75, 1.10, 0),
+        SIMD3<Float>(0, 1.10, 0),
+        SIMD3<Float>(1.75, 1.10, 0),
+        SIMD3<Float>(-1.75, -1.10, 0),
+        SIMD3<Float>(0, -1.10, 0),
+        SIMD3<Float>(1.75, -1.10, 0)
+    ]
+
+    private static let expectedMaterialIDs: [MaterialID] = [
+        .warmDielectricSmooth,
+        .warmDielectric,
+        .warmDielectricRough,
+        .goldMetalSmooth,
+        .goldMetal,
+        .goldMetalRough
+    ]
+
+    private static let expectedProjectedScale = SIMD3<Float>(repeating: 0.5)
+
     @Test func materialSphereSceneUsesOrdinarySnapshotAndRenderFramePath() {
         let world = BasicWorldBuilder().buildWorld()
         let tick = SimulationTick(rawValue: 41)
@@ -95,28 +119,4 @@ struct BasicWorldBuilderRenderTests {
             Issue.record("The material validation camera must remain perspective.")
         }
     }
-
-    private static let expectedEntityIDs = (0..<6).map {
-        EntityID(index: $0, generation: 0)
-    }
-
-    private static let expectedPositions = [
-        SIMD3<Float>(-1.75, 1.10, 0),
-        SIMD3<Float>(0, 1.10, 0),
-        SIMD3<Float>(1.75, 1.10, 0),
-        SIMD3<Float>(-1.75, -1.10, 0),
-        SIMD3<Float>(0, -1.10, 0),
-        SIMD3<Float>(1.75, -1.10, 0)
-    ]
-
-    private static let expectedMaterialIDs: [MaterialID] = [
-        .warmDielectricSmooth,
-        .warmDielectric,
-        .warmDielectricRough,
-        .goldMetalSmooth,
-        .goldMetal,
-        .goldMetalRough
-    ]
-
-    private static let expectedProjectedScale = SIMD3<Float>(repeating: 0.5)
 }

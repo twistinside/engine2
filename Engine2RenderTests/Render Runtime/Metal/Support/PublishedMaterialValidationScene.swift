@@ -10,6 +10,11 @@ struct PublishedMaterialValidationScene {
     let catalog: RenderAssetCatalog
     let renderFrame: RenderFrame
 
+    /// Material identities in the exact order published by the builder.
+    var materialIDs: [MaterialID] {
+        renderFrame.instances.map(\.materialID)
+    }
+
     init() {
         let gameContent = BasicGameContent()
         let world = gameContent.worldBuilder.buildWorld()
@@ -22,11 +27,6 @@ struct PublishedMaterialValidationScene {
 
         self.catalog = gameContent.renderAssetCatalog
         self.renderFrame = RenderFrame(projecting: snapshot)
-    }
-
-    /// Material identities in the exact order published by the builder.
-    var materialIDs: [MaterialID] {
-        renderFrame.instances.map(\.materialID)
     }
 
     /// Resolves every published identity through the App-supplied catalog.

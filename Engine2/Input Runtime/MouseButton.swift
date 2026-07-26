@@ -16,10 +16,6 @@ nonisolated enum MouseButton: Hashable, Sendable {
 }
 
 extension MouseButton: Comparable {
-    static func < (lhs: MouseButton, rhs: MouseButton) -> Bool {
-        lhs.sortIndex < rhs.sortIndex
-    }
-
     private var sortIndex: Int {
         switch self {
         case .left: 0
@@ -27,5 +23,9 @@ extension MouseButton: Comparable {
         case .middle: 2
         case let .other(buttonNumber): 10 + buttonNumber
         }
+    }
+
+    static func < (lhs: MouseButton, rhs: MouseButton) -> Bool {
+        lhs.sortIndex < rhs.sortIndex
     }
 }

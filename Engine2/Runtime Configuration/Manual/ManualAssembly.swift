@@ -6,10 +6,6 @@
 final class ManualAssembly {
     let simulationRuntime: SimulationRuntime
 
-    init(simulationRuntime: SimulationRuntime) {
-        self.simulationRuntime = simulationRuntime
-    }
-
     /// Narrow capability used by callers that may live outside MainActor.
     nonisolated var advanceTarget: any PSimulationAdvanceTarget {
         simulationRuntime
@@ -18,5 +14,9 @@ final class ManualAssembly {
     /// Latest-value presentation capability for independently paced consumers.
     var presentationSource: any PSimulationPresentationSource {
         simulationRuntime
+    }
+
+    init(simulationRuntime: SimulationRuntime) {
+        self.simulationRuntime = simulationRuntime
     }
 }
