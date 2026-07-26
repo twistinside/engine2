@@ -83,7 +83,7 @@ struct MetalSceneView: NSViewRepresentable {
                     frameCount: MetalResourceStore.defaultFrameCount
                 )
                 rendererAvailability = .available(
-                    MetalRenderer(
+                    try MetalRenderer(
                         resources: resources,
                         presentationSource: presentationSource,
                         outputMode: outputMode

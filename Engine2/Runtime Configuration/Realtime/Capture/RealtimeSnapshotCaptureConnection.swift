@@ -32,12 +32,12 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
     convenience init(
         presentationSource: any PSimulationPresentationSource,
         renderTarget: any POffscreenRenderTarget
-    ) {
+    ) throws(ImageArtifactEncoderError) {
         self.init(
             presentationSource: presentationSource,
             renderTarget: renderTarget,
             viewpointID: RenderViewpointID(),
-            artifactEncoder: ImageIOArtifactEncoder()
+            artifactEncoder: try ImageIOArtifactEncoder()
         )
     }
 

@@ -20,7 +20,7 @@ struct RealtimeSnapshotCaptureIntegrationTests {
             catalog: gameContent.renderAssetCatalog,
             limits: .conservative
         )
-        let connection = RealtimeSnapshotCaptureConnection(
+        let connection = try RealtimeSnapshotCaptureConnection(
             presentationSource: assembly.simulationRuntime,
             renderTarget: renderRuntime
         )

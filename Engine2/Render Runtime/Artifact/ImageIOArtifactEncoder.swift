@@ -3,7 +3,7 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Stateless Image I/O derivation of encoded artifacts from render results.
+/// Immutable Image I/O derivation of encoded artifacts from render results.
 ///
 /// Artifact encoding is deliberately above the Render Runtime boundary. The
 /// encoder neither samples application state nor touches Metal, and it never
@@ -21,6 +21,19 @@ import UniformTypeIdentifiers
 /// before this operation; once encoding begins, the completed artifact or
 /// typed failure wins.
 nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
+    /// Required standard color space resolved once before any workflow can use
+    /// this encoder.
+    private let colorSpace: CGColorSpace
+
+    /// Resolves the fixed Core Graphics resource required by every artifact.
+    init() throws(ImageArtifactEncoderError) {
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+            throw .couldNotCreateSRGBColorSpace
+        }
+
+        self.colorSpace = colorSpace
+    }
+
     /// Encodes a completed raw render while preserving all render provenance.
     ///
     /// A failure leaves the source result unchanged and has no runtime-side
@@ -30,9 +43,6 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
         _ result: OffscreenRenderResult,
         as encoding: ImageArtifactEncoding
     ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
-        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
-            throw .couldNotCreateSRGBColorSpace
-        }
         guard let provider = CGDataProvider(data: result.image.bytes as CFData) else {
             throw .couldNotCreateDataProvider
         }
