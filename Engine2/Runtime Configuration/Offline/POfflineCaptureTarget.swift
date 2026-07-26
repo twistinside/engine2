@@ -7,7 +7,5 @@
 nonisolated protocol POfflineCaptureTarget: AnyObject, Sendable {
     func capture(_ request: OfflineCaptureRequest) async -> OfflineCaptureOutcome
 
-    func captureCurrent(
-        _ request: OfflineCurrentCaptureRequest
-    ) async -> OfflineCurrentCaptureOutcome
+    func captureCurrent(_ request: OfflineCurrentCaptureRequest) async -> OfflineCurrentCaptureOutcome
 }

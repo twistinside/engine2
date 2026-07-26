@@ -263,11 +263,7 @@ struct MetalHDRPipelineTests {
     }
 }
 
-private func expectStoredHalfRGBA(
-    _ actual: SIMD4<Float>,
-    approximately expected: SIMD4<Float>,
-    maximumHalfULPDistance: Int = 2
-) {
+private func expectStoredHalfRGBA(_ actual: SIMD4<Float>, approximately expected: SIMD4<Float>, maximumHalfULPDistance: Int = 2) {
     // Positive half-float bit patterns are monotonically ordered. This compares
     // the precision the scene attachment actually stores, rather than imposing
     // an arbitrary decimal epsilon on GPU arithmetic.
@@ -281,11 +277,7 @@ private func expectStoredHalfRGBA(
     }
 }
 
-private func expectBGRA8(
-    _ actual: SIMD4<UInt8>,
-    approximately expected: SIMD4<UInt8>,
-    maximumByteDistance: Int = 1
-) {
+private func expectBGRA8(_ actual: SIMD4<UInt8>, approximately expected: SIMD4<UInt8>, maximumByteDistance: Int = 1) {
     // Metal's fixed-function conversion may differ by one final quantization
     // step across GPUs, while any missing or duplicate transfer differs by
     // dozens of byte values in the selected validation colors.
@@ -316,9 +308,7 @@ private func expectStoredHalfRGBSum(
     #expect(actual.w == 1)
 }
 
-private func linearBGRA8(
-    from rgb: SIMD3<Float>
-) -> SIMD4<UInt8> {
+private func linearBGRA8(from rgb: SIMD3<Float>) -> SIMD4<UInt8> {
     SIMD4<UInt8>(
         quantizedUNorm8(rgb.z),
         quantizedUNorm8(rgb.y),
@@ -327,9 +317,7 @@ private func linearBGRA8(
     )
 }
 
-private func srgbEncodedBGRA8(
-    from displayLinearRGB: SIMD3<Float>
-) -> SIMD4<UInt8> {
+private func srgbEncodedBGRA8(from displayLinearRGB: SIMD3<Float>) -> SIMD4<UInt8> {
     linearBGRA8(from: displayLinearRGB.applyingSRGBTransfer)
 }
 
@@ -338,10 +326,7 @@ private func quantizedUNorm8(_ value: Float) -> UInt8 {
     return UInt8((clamped * 255).rounded())
 }
 
-private func byteDistance(
-    _ lhs: SIMD4<UInt8>,
-    _ rhs: SIMD4<UInt8>
-) -> Int {
+private func byteDistance(_ lhs: SIMD4<UInt8>, _ rhs: SIMD4<UInt8>) -> Int {
     (0..<4).reduce(into: 0) { distance, componentIndex in
         distance += abs(Int(lhs[componentIndex]) - Int(rhs[componentIndex]))
     }

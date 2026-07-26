@@ -27,11 +27,7 @@ final class RealtimeAssembly {
         advanceDriver.fault
     }
 
-    init(
-        inputRuntime: InputRuntime,
-        simulationRuntime: SimulationRuntime,
-        advanceDriver: RealtimeAdvanceDriver
-    ) {
+    init(inputRuntime: InputRuntime, simulationRuntime: SimulationRuntime, advanceDriver: RealtimeAdvanceDriver) {
         self.inputRuntime = inputRuntime
         self.simulationRuntime = simulationRuntime
         self.advanceDriver = advanceDriver
@@ -109,10 +105,7 @@ final class RealtimeAssembly {
     /// apply an older App-scene decision after a newer one.
     @discardableResult
     private func beginLifecycleTransition() -> UInt64 {
-        precondition(
-            lifecycleGeneration < .max,
-            "Real-time assembly lifecycle generation exhausted."
-        )
+        precondition(lifecycleGeneration < .max, "Real-time assembly lifecycle generation exhausted.")
         lifecycleGeneration += 1
         return lifecycleGeneration
     }

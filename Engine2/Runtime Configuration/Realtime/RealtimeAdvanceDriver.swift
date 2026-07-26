@@ -99,16 +99,10 @@ final class RealtimeAdvanceDriver {
             try await SuspendingClock().sleep(until: deadline)
         }
     ) {
-        precondition(
-            fixedTimeStep > .zero,
-            "Real-time advancement requires a positive fixed time step."
-        )
+        precondition(fixedTimeStep > .zero, "Real-time advancement requires a positive fixed time step.")
 
         let resolvedPollInterval = pollInterval ?? fixedTimeStep
-        precondition(
-            resolvedPollInterval > .zero,
-            "Real-time advancement requires a positive poll interval."
-        )
+        precondition(resolvedPollInterval > .zero, "Real-time advancement requires a positive poll interval.")
 
         self.advanceTarget = advanceTarget
         self.inputSource = inputSource
@@ -223,14 +217,8 @@ final class RealtimeAdvanceDriver {
     /// Synchronizing clears any prior authority fault but deliberately preserves
     /// the user's enabled/paused preference. A faulted driver therefore remains
     /// paused until the App explicitly resumes it.
-    func synchronize(
-        to cursor: SimulationCursor,
-        inputBaseline: InputSnapshot? = nil
-    ) {
-        precondition(
-            synchronizationGeneration < .max,
-            "Real-time synchronization generation exhausted."
-        )
+    func synchronize(to cursor: SimulationCursor, inputBaseline: InputSnapshot? = nil) {
+        precondition(synchronizationGeneration < .max, "Real-time synchronization generation exhausted.")
         synchronizationGeneration += 1
         expectedCursor = cursor
         setTransitionInputBaseline(
@@ -310,10 +298,7 @@ final class RealtimeAdvanceDriver {
     }
 
     /// Processes one elapsed-time sample and optionally issues one exact batch.
-    private func processWake(
-        runID: UInt64,
-        previousDeadline: SystemClock.Instant
-    ) async -> SystemClock.Instant? {
+    private func processWake(runID: UInt64, previousDeadline: SystemClock.Instant) async -> SystemClock.Instant? {
         // Cancellation-insensitive test or platform sleepers may return after
         // stop/restart. Revalidate this run before sampling or asking the
         // authoritative target to do any work.
@@ -467,9 +452,7 @@ final class RealtimeAdvanceDriver {
     }
 
     /// Returns the first configured deadline strictly after the current time.
-    private func advancedDeadline(
-        after previousDeadline: SystemClock.Instant
-    ) -> SystemClock.Instant {
+    private func advancedDeadline(after previousDeadline: SystemClock.Instant) -> SystemClock.Instant {
         var nextWakeDeadline = previousDeadline.advanced(by: pollInterval)
         let currentTime = scheduleTimeSource()
 
@@ -493,10 +476,7 @@ final class RealtimeAdvanceDriver {
 
     /// Changes input policy while superseding any in-flight request bookkeeping.
     private func setTransitionInputBaseline(_ baseline: InputSnapshot?) {
-        precondition(
-            inputPolicyGeneration < .max,
-            "Real-time input policy generation exhausted."
-        )
+        precondition(inputPolicyGeneration < .max, "Real-time input policy generation exhausted.")
         inputPolicyGeneration += 1
         transitionInputBaseline = baseline
     }

@@ -167,9 +167,7 @@ struct OfflineCaptureConfigurationTests {
         )
     }
 
-    private func completedResult(
-        from outcome: OfflineCaptureOutcome
-    ) throws -> OfflineCaptureResult {
+    private func completedResult(from outcome: OfflineCaptureOutcome) throws -> OfflineCaptureResult {
         guard case let .completed(result) = outcome else {
             Issue.record("Expected completed offline capture, received \(outcome)")
             throw UnexpectedOutcome()

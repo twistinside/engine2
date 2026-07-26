@@ -14,10 +14,7 @@ nonisolated final class MetalOffscreenTestSubmission: @unchecked Sendable {
     private var feedbackError: (any Error)?
 
     init(retaining retainedObjects: [AnyObject]) {
-        precondition(
-            !retainedObjects.isEmpty,
-            "An offscreen submission must retain at least one resource owner."
-        )
+        precondition(!retainedObjects.isEmpty, "An offscreen submission must retain at least one resource owner.")
 
         self.retainedObjects = retainedObjects
     }
@@ -36,9 +33,7 @@ nonisolated final class MetalOffscreenTestSubmission: @unchecked Sendable {
     }
 
     /// Waits for actual GPU feedback and rejects both timeout and GPU failure.
-    func waitForCompletion(
-        timeout: DispatchTime
-    ) throws {
+    func waitForCompletion(timeout: DispatchTime) throws {
         guard completion.wait(timeout: timeout) == .success else {
             throw MetalOffscreenTestSubmissionError.timedOut
         }

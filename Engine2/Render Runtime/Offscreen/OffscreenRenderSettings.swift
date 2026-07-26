@@ -5,11 +5,7 @@ nonisolated struct OffscreenRenderSettings: Equatable, Sendable {
     let exposure: ManualExposure
 
     /// Creates the complete output policy applied to one render request.
-    init(
-        size: RenderPixelSize,
-        outputMode: RenderOutputMode = .surface,
-        exposure: ManualExposure = .validation
-    ) {
+    init(size: RenderPixelSize, outputMode: RenderOutputMode = .surface, exposure: ManualExposure = .validation) {
         self.size = size
         self.outputMode = outputMode
         self.exposure = exposure

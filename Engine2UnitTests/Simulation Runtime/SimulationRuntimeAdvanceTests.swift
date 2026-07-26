@@ -332,18 +332,14 @@ struct SimulationRuntimeAdvanceTests {
     }
 
     @MainActor
-    private func makeSimulation(
-        sessionID: SimulationSessionID = SimulationSessionID()
-    ) -> SimulationRuntime {
+    private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
             sessionID: sessionID
         )
     }
 
-    private func completedResult(
-        from outcome: SimulationAdvanceOutcome
-    ) throws -> SimulationAdvanceResult {
+    private func completedResult(from outcome: SimulationAdvanceOutcome) throws -> SimulationAdvanceResult {
         guard case let .completed(result) = outcome else {
             Issue.record("Expected a completed Simulation advance, received \(outcome)")
             throw UnexpectedOutcome()

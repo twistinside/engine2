@@ -22,15 +22,9 @@ struct GPUInstance {
     ) {
         // Build model-view once so the position and normal paths use exactly the
         // same model and camera transforms.
-        precondition(
-            instance.transform.supportsNormalTransform,
-            "GPU instances require a finite transform with invertible scale."
-        )
+        precondition(instance.transform.supportsNormalTransform, "GPU instances require a finite transform with invertible scale.")
         let modelViewMatrix = viewMatrix * instance.transform.matrix
-        precondition(
-            modelViewMatrix.hasFiniteElements,
-            "GPU instances require a finite model-view transform."
-        )
+        precondition(modelViewMatrix.hasFiniteElements, "GPU instances require a finite model-view transform.")
         let linearModelView = simd_float3x3(
             columns: (
                 SIMD3<Float>(

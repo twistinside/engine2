@@ -66,9 +66,7 @@ final class MetalOffscreenRenderTargets {
     ///
     /// Requiring the completion value at this boundary prevents callers from
     /// reading shared storage while the GPU can still be writing it.
-    func readback(
-        after completion: MetalOffscreenCompletion
-    ) throws -> RenderedBGRA8SRGBImage {
+    func readback(after completion: MetalOffscreenCompletion) throws -> RenderedBGRA8SRGBImage {
         guard completion == .success else {
             throw MetalOffscreenRenderTargetError
                 .readbackRequiresSuccessfulCompletion

@@ -67,9 +67,7 @@ final class MetalHDRPresentationPass {
 
     /// Descriptor factory kept visible to tests because the resulting encoder
     /// does not expose which attachment policy created it.
-    static func makeRenderPassDescriptor(
-        destinationTexture: any MTLTexture
-    ) -> MTL4RenderPassDescriptor {
+    static func makeRenderPassDescriptor(destinationTexture: any MTLTexture) -> MTL4RenderPassDescriptor {
         let descriptor = MTL4RenderPassDescriptor()
         descriptor.colorAttachments[0].texture = destinationTexture
         descriptor.colorAttachments[0].loadAction = .clear
@@ -83,9 +81,7 @@ final class MetalHDRPresentationPass {
         return descriptor
     }
 
-    private func pipeline(
-        for outputMode: RenderOutputMode
-    ) -> any MTLRenderPipelineState {
+    private func pipeline(for outputMode: RenderOutputMode) -> any MTLRenderPipelineState {
         switch outputMode {
         case .surface:
             toneMappedPipeline

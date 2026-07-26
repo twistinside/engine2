@@ -19,12 +19,7 @@ final class MetalResidencyManager {
     private let commandQueue: any MTL4CommandQueue
     private var registeredExternalSets: Set<ObjectIdentifier> = []
 
-    init(
-        device: any MTLDevice,
-        commandQueue: any MTL4CommandQueue,
-        staticAssetCapacity: Int,
-        frameResourceCapacity: Int
-    ) throws {
+    init(device: any MTLDevice, commandQueue: any MTL4CommandQueue, staticAssetCapacity: Int, frameResourceCapacity: Int) throws {
         let staticDescriptor = MTLResidencySetDescriptor()
         staticDescriptor.label = "Static Render Assets"
         staticDescriptor.initialCapacity = staticAssetCapacity

@@ -5,12 +5,7 @@ import Foundation
 /// Requests are created dynamically by applications, tools, and remote clients,
 /// so their identity vocabulary is intentionally open-ended rather than a
 /// closed enum.
-nonisolated struct OffscreenRenderRequestID:
-    Codable,
-    Hashable,
-    RawRepresentable,
-    Sendable
-{
+nonisolated struct OffscreenRenderRequestID: Codable, Hashable, RawRepresentable, Sendable {
     let rawValue: UUID
 
     /// Creates a fresh identity for a newly issued request.

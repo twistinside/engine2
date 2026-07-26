@@ -17,19 +17,9 @@ nonisolated struct AgentSessionLimits: Equatable, Sendable {
     let maximumRetainedImageBytes: Int
 
     /// Creates positive work/count bounds and a nonnegative image-byte budget.
-    init(
-        maximumStepCount: SimulationStepCount,
-        maximumRetainedResultCount: Int,
-        maximumRetainedImageBytes: Int
-    ) {
-        precondition(
-            maximumRetainedResultCount > 0,
-            "An agent session must retain space for at least one result."
-        )
-        precondition(
-            maximumRetainedImageBytes >= 0,
-            "Agent retained-image budget cannot be negative."
-        )
+    init(maximumStepCount: SimulationStepCount, maximumRetainedResultCount: Int, maximumRetainedImageBytes: Int) {
+        precondition(maximumRetainedResultCount > 0, "An agent session must retain space for at least one result.")
+        precondition(maximumRetainedImageBytes >= 0, "Agent retained-image budget cannot be negative.")
 
         self.maximumStepCount = maximumStepCount
         self.maximumRetainedResultCount = maximumRetainedResultCount

@@ -4,15 +4,9 @@
 /// derivation did not. Callers can therefore retry encoding without
 /// resampling Simulation, resolving another viewpoint, or submitting GPU work.
 nonisolated enum OffscreenImageArtifactOutcome: Equatable, Sendable {
-    case artifactEncodingFailed(
-        renderResult: OffscreenRenderResult,
-        failure: ImageArtifactEncoderError
-    )
+    case artifactEncodingFailed(renderResult: OffscreenRenderResult, failure: ImageArtifactEncoderError)
     /// Encoding returned empty bytes or provenance that did not match its input.
-    case artifactResultMismatch(
-        renderResult: OffscreenRenderResult,
-        artifact: RenderedImageArtifact
-    )
+    case artifactResultMismatch(renderResult: OffscreenRenderResult, artifact: RenderedImageArtifact)
     case cancelledAfterRender(OffscreenRenderResult)
     case completed(RenderedImageArtifact)
     case renderCancellationRequestIDMismatch(

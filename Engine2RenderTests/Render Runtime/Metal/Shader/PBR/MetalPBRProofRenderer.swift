@@ -103,10 +103,7 @@ final class MetalPBRProofRenderer {
     }
 
     /// Renders one diagnostic and returns raw linear RGBA values in row order.
-    func render(
-        _ output: PBRProofOutput,
-        parameters: PBRProofParameters = .validation
-    ) throws -> [SIMD4<Float>] {
+    func render(_ output: PBRProofOutput, parameters: PBRProofParameters = .validation) throws -> [SIMD4<Float>] {
         guard canSubmit else {
             throw MetalPBRProofRendererError.unusableAfterTimeout
         }

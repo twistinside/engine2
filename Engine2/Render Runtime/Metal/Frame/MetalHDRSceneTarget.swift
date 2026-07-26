@@ -20,10 +20,7 @@ final class MetalHDRSceneTarget {
     }
 
     init(device: any MTLDevice, width: Int, height: Int) throws {
-        precondition(
-            width > 0 && height > 0,
-            "An HDR scene target requires positive pixel dimensions."
-        )
+        precondition(width > 0 && height > 0, "An HDR scene target requires positive pixel dimensions.")
 
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: MetalFrameEncoder.sceneColorPixelFormat,

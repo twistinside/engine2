@@ -274,10 +274,7 @@ private func renderCenterPixel(
     )
 }
 
-private func makeTriangleBuffer(
-    normal: SIMD3<Float>,
-    device: any MTLDevice
-) throws -> any MTLBuffer {
+private func makeTriangleBuffer(normal: SIMD3<Float>, device: any MTLDevice) throws -> any MTLBuffer {
     let positions = [
         SIMD3<Float>(-1, -1, 0),
         SIMD3<Float>(1, -1, 0),
@@ -309,11 +306,7 @@ private func makeTriangleBuffer(
     return try #require(buffer)
 }
 
-private func expectLinearRGBA(
-    _ actual: SIMD4<Float>,
-    approximately expected: SIMD4<Float>,
-    maximumHalfULPDistance: Int = 1
-) {
+private func expectLinearRGBA(_ actual: SIMD4<Float>, approximately expected: SIMD4<Float>, maximumHalfULPDistance: Int = 1) {
     for componentIndex in 0..<4 {
         let actualHalf = Float16(actual[componentIndex])
         let expectedHalf = Float16(expected[componentIndex])

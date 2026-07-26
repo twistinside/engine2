@@ -338,10 +338,7 @@ struct MetalFrameEncoderTests {
     }
 
     @MainActor
-    private func makeResidencySet(
-        device: any MTLDevice,
-        allocations: [any MTLAllocation]
-    ) throws -> any MTLResidencySet {
+    private func makeResidencySet(device: any MTLDevice, allocations: [any MTLAllocation]) throws -> any MTLResidencySet {
         let descriptor = MTLResidencySetDescriptor()
         descriptor.label = "MetalFrameEncoder Offscreen Targets"
         descriptor.initialCapacity = allocations.count

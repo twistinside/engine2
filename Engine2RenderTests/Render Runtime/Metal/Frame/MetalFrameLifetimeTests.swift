@@ -75,9 +75,7 @@ struct MetalFrameLifetimeTests {
     }
 
     @MainActor
-    private func makeDrawable(
-        device: any MTLDevice
-    ) throws -> any CAMetalDrawable {
+    private func makeDrawable(device: any MTLDevice) throws -> any CAMetalDrawable {
         let layer = CAMetalLayer()
         layer.device = device
         layer.pixelFormat = MetalFrameEncoder.destinationColorPixelFormat

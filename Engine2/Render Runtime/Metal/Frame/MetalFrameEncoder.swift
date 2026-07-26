@@ -98,9 +98,7 @@ final class MetalFrameEncoder {
     }
 
     /// Resolves a closed output mode to an eagerly compiled pipeline.
-    private func renderPipelineState(
-        for outputMode: RenderOutputMode
-    ) -> any MTLRenderPipelineState {
+    private func renderPipelineState(for outputMode: RenderOutputMode) -> any MTLRenderPipelineState {
         switch outputMode {
         case .surface:
             pbrPipelineState
@@ -111,11 +109,7 @@ final class MetalFrameEncoder {
     }
 
     /// Emits ordered model draws for the exact set packed into this frame slot.
-    private func draw(
-        _ prepared: MetalPreparedFrame,
-        frame: FrameResources,
-        with renderEncoder: any MTL4RenderCommandEncoder
-    ) {
+    private func draw(_ prepared: MetalPreparedFrame, frame: FrameResources, with renderEncoder: any MTL4RenderCommandEncoder) {
         for (instanceIndex, instance) in prepared.instances.enumerated() {
             // Missing model content makes only this live-screen instance
             // unrenderable. Exact offscreen work proves model coverage before

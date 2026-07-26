@@ -11,10 +11,7 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     /// Authored PBR factors keyed by Game Content material identity.
     let materials: [MaterialID: PBRMaterialDescription]
 
-    init(
-        models: [MeshID: ModelAssetReference],
-        materials: [MaterialID: PBRMaterialDescription]
-    ) {
+    init(models: [MeshID: ModelAssetReference], materials: [MaterialID: PBRMaterialDescription]) {
         self.models = models
         self.materials = materials
     }
@@ -41,9 +38,7 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     ///
     /// Callers that accept a partial or otherwise unvalidated catalog receive a
     /// concrete content error before encoding a draw for the missing identity.
-    func materialDescription(
-        for id: MaterialID
-    ) throws -> PBRMaterialDescription {
+    func materialDescription(for id: MaterialID) throws -> PBRMaterialDescription {
         guard let description = materials[id] else {
             throw RenderAssetCatalogError.missingMaterialDescriptions([id])
         }

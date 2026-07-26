@@ -50,10 +50,7 @@ final class SnapshotCaptureViewModel {
     ///
     /// `reason` is intentionally open-ended because Metal and driver diagnostic
     /// vocabularies are external to Engine2's closed capture state.
-    init(
-        unavailableReason reason: String,
-        renderSize: RenderPixelSize = SnapshotCaptureViewModel.defaultRenderSize
-    ) {
+    init(unavailableReason reason: String, renderSize: RenderPixelSize = SnapshotCaptureViewModel.defaultRenderSize) {
         self.captureTarget = nil
         self.renderSize = renderSize
         self.unavailableReason = reason
@@ -70,10 +67,7 @@ final class SnapshotCaptureViewModel {
     /// Advancing the generation prevents that stale completion from opening a
     /// save panel in a later presentation of the window.
     func deactivatePresentation() {
-        precondition(
-            presentationGeneration < .max,
-            "Snapshot presentation generation exhausted."
-        )
+        precondition(presentationGeneration < .max, "Snapshot presentation generation exhausted.")
         presentationGeneration += 1
         isPresentationActive = false
         isExporterPresented = false
@@ -225,9 +219,7 @@ final class SnapshotCaptureViewModel {
         }
     }
 
-    private func message(
-        for rejection: OffscreenRenderRejection
-    ) -> String {
+    private func message(for rejection: OffscreenRenderRejection) -> String {
         switch rejection {
         case .runtimeBusy:
             "The offline renderer is busy with another request."
@@ -252,9 +244,7 @@ final class SnapshotCaptureViewModel {
         }
     }
 
-    private func message(
-        for failure: ImageArtifactEncoderError
-    ) -> String {
+    private func message(for failure: ImageArtifactEncoderError) -> String {
         switch failure {
         case .couldNotCreateSRGBColorSpace:
             "The system could not create the sRGB color space for JPEG export."
@@ -273,10 +263,7 @@ final class SnapshotCaptureViewModel {
         }
     }
 
-    private func presentFailure(
-        _ message: String,
-        allowsExportRetry: Bool = false
-    ) {
+    private func presentFailure(_ message: String, allowsExportRetry: Bool = false) {
         failureMessage = message
         failureAllowsExportRetry = allowsExportRetry
         isFailurePresented = true

@@ -118,10 +118,7 @@ struct InputMetalViewTests {
     }
 
     @MainActor
-    private func makeKeyEvent(
-        type: NSEvent.EventType,
-        isRepeat: Bool
-    ) -> NSEvent? {
+    private func makeKeyEvent(type: NSEvent.EventType, isRepeat: Bool) -> NSEvent? {
         NSEvent.keyEvent(
             with: type,
             location: .zero,
@@ -137,11 +134,7 @@ struct InputMetalViewTests {
     }
 
     @MainActor
-    private func makeLeftDragEvent(
-        location: CGPoint,
-        deltaX: Int64,
-        deltaY: Int64
-    ) throws -> NSEvent {
+    private func makeLeftDragEvent(location: CGPoint, deltaX: Int64, deltaY: Int64) throws -> NSEvent {
         let baseEvent = try #require(
             NSEvent.mouseEvent(
                 with: .leftMouseDragged,
@@ -162,10 +155,7 @@ struct InputMetalViewTests {
     }
 
     @MainActor
-    private func makePixelScrollEvent(
-        horizontal: Int32,
-        vertical: Int32
-    ) throws -> NSEvent {
+    private func makePixelScrollEvent(horizontal: Int32, vertical: Int32) throws -> NSEvent {
         let cgEvent = try #require(
             CGEvent(
                 scrollWheelEvent2Source: nil,

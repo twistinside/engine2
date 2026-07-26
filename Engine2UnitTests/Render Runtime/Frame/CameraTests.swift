@@ -152,10 +152,7 @@ struct CameraTests {
 
 /// Applies homogeneous division so projection tests assert the depth value
 /// consumed by Metal rather than an intermediate clip-space coordinate.
-private func projectedDepth(
-    ofViewZ viewZ: Float,
-    through projection: simd_float4x4
-) -> Float {
+private func projectedDepth(ofViewZ viewZ: Float, through projection: simd_float4x4) -> Float {
     let clipPosition = projection * SIMD4<Float>(0, 0, viewZ, 1)
     return clipPosition.z / clipPosition.w
 }
@@ -167,10 +164,7 @@ private extension Float {
 }
 
 private extension simd_float4x4 {
-    func isApproximately(
-        _ other: simd_float4x4,
-        tolerance: Float = 0.0001
-    ) -> Bool {
+    func isApproximately(_ other: simd_float4x4, tolerance: Float = 0.0001) -> Bool {
         simd_length(columns.0 - other.columns.0) <= tolerance
             && simd_length(columns.1 - other.columns.1) <= tolerance
             && simd_length(columns.2 - other.columns.2) <= tolerance

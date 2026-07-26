@@ -79,10 +79,7 @@ struct USDRenderModel {
 
     /// Resolves every Game Content model reference into renderer-owned Metal
     /// resources. The catalog itself never receives those backend objects.
-    static func load(
-        catalog: RenderAssetCatalog,
-        device: any MTLDevice
-    ) throws -> [MeshID: USDRenderModel] {
+    static func load(catalog: RenderAssetCatalog, device: any MTLDevice) throws -> [MeshID: USDRenderModel] {
         var models: [MeshID: USDRenderModel] = [:]
 
         for (meshID, asset) in catalog.models {
@@ -92,10 +89,7 @@ struct USDRenderModel {
         return models
     }
 
-    private static func load(
-        _ modelAsset: ModelAssetReference,
-        device: any MTLDevice
-    ) throws -> USDRenderModel {
+    private static func load(_ modelAsset: ModelAssetReference, device: any MTLDevice) throws -> USDRenderModel {
         guard let url = Bundle.main.url(
             forResource: modelAsset.resourceName,
             withExtension: modelAsset.format.rawValue
@@ -169,9 +163,7 @@ struct USDRenderModel {
 
     /// Computes the byte range consumed by one indexed draw without allowing
     /// malformed counts to overflow into an apparently small buffer request.
-    private static func requiredIndexByteCount(
-        for submesh: MTKSubmesh
-    ) -> Int? {
+    private static func requiredIndexByteCount(for submesh: MTKSubmesh) -> Int? {
         let bytesPerIndex: Int
         switch submesh.indexType {
         case .uint16:
@@ -191,10 +183,7 @@ struct USDRenderModel {
     }
 
     /// Proves the MetalKit slice contains the bytes the encoder will address.
-    private static func containsUsableBytes(
-        _ meshBuffer: MTKMeshBuffer,
-        minimumByteCount: Int
-    ) -> Bool {
+    private static func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
         guard minimumByteCount > 0,
               meshBuffer.offset >= 0,
               meshBuffer.length >= minimumByteCount

@@ -83,10 +83,7 @@ struct Engine2App: App {
             }
         }
         .onChange(of: scenePhase, initial: true) { _, newPhase in
-            precondition(
-                lifecycleRequestID < .max,
-                "App lifecycle request identity exhausted."
-            )
+            precondition(lifecycleRequestID < .max, "App lifecycle request identity exhausted.")
             lifecycleRequestID += 1
             let requestID = lifecycleRequestID
 

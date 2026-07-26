@@ -57,10 +57,7 @@ final class MetalResourceStore {
 
     /// Selects the system's default Metal device and creates a complete store
     /// containing the renderer's required built-in resources.
-    convenience init(
-        renderAssetCatalog: RenderAssetCatalog,
-        frameCount: Int = defaultFrameCount
-    ) throws {
+    convenience init(renderAssetCatalog: RenderAssetCatalog, frameCount: Int = defaultFrameCount) throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw MetalResourceStoreError.missingDevice
         }
@@ -73,11 +70,7 @@ final class MetalResourceStore {
     }
 
     /// Creates a resource store for an explicitly selected device.
-    init(
-        device: any MTLDevice,
-        renderAssetCatalog: RenderAssetCatalog,
-        frameCount: Int = defaultFrameCount
-    ) throws {
+    init(device: any MTLDevice, renderAssetCatalog: RenderAssetCatalog, frameCount: Int = defaultFrameCount) throws {
         guard frameCount > 0 else {
             throw MetalResourceStoreError.invalidFrameCount(frameCount)
         }
@@ -124,9 +117,7 @@ final class MetalResourceStore {
     }
 
     /// Returns a previously loaded shader library.
-    func shaderLibrary(
-        for id: MetalShaderLibraryID
-    ) throws -> any MTLLibrary {
+    func shaderLibrary(for id: MetalShaderLibraryID) throws -> any MTLLibrary {
         guard let library = shaderLibraries[id] else {
             throw MetalResourceStoreError.missingShaderLibrary(id)
         }
@@ -135,9 +126,7 @@ final class MetalResourceStore {
     }
 
     /// Returns a pipeline that was compiled before frame encoding began.
-    func renderPipelineState(
-        for id: MetalRenderPipelineID
-    ) throws -> any MTLRenderPipelineState {
+    func renderPipelineState(for id: MetalRenderPipelineID) throws -> any MTLRenderPipelineState {
         guard let state = renderPipelineStates[id] else {
             throw MetalResourceStoreError.missingRenderPipeline(id)
         }
@@ -146,9 +135,7 @@ final class MetalResourceStore {
     }
 
     /// Returns an immutable depth-stencil state by backend identity.
-    func depthStencilState(
-        for id: MetalDepthStencilStateID
-    ) throws -> any MTLDepthStencilState {
+    func depthStencilState(for id: MetalDepthStencilStateID) throws -> any MTLDepthStencilState {
         guard let state = depthStencilStates[id] else {
             throw MetalResourceStoreError.missingDepthStencilState(id)
         }
@@ -157,9 +144,7 @@ final class MetalResourceStore {
     }
 
     /// Returns a Metal 4 resource-binding table by backend identity.
-    func argumentTable(
-        for id: MetalArgumentTableID
-    ) throws -> any MTL4ArgumentTable {
+    func argumentTable(for id: MetalArgumentTableID) throws -> any MTL4ArgumentTable {
         guard let table = argumentTables[id] else {
             throw MetalResourceStoreError.missingArgumentTable(id)
         }
@@ -177,9 +162,7 @@ final class MetalResourceStore {
     /// Store construction validates exhaustive coverage before retaining this
     /// immutable dictionary. Frame preparation can therefore use the lookup as
     /// a total mapping without repeating a recoverable content check per draw.
-    func materialDescription(
-        for id: MaterialID
-    ) -> PBRMaterialDescription {
+    func materialDescription(for id: MaterialID) -> PBRMaterialDescription {
         // Coverage was proved before `materialDescriptions` was retained and
         // the dictionary never mutates afterward. A future construction path
         // that violates that invariant is a programmer error, not a frame-time
@@ -189,9 +172,7 @@ final class MetalResourceStore {
 
     /// Loads the shader library defined by a closed Render Runtime identity.
     @discardableResult
-    private func loadShaderLibrary(
-        _ id: MetalShaderLibraryID
-    ) throws -> any MTLLibrary {
+    private func loadShaderLibrary(_ id: MetalShaderLibraryID) throws -> any MTLLibrary {
         if let existingLibrary = shaderLibraries[id] {
             return existingLibrary
         }
@@ -212,9 +193,7 @@ final class MetalResourceStore {
 
     /// Compiles the Metal 4 render pipeline defined by a closed identity.
     @discardableResult
-    private func loadRenderPipeline(
-        _ id: MetalRenderPipelineID
-    ) throws -> any MTLRenderPipelineState {
+    private func loadRenderPipeline(_ id: MetalRenderPipelineID) throws -> any MTLRenderPipelineState {
         if let existingState = renderPipelineStates[id] {
             return existingState
         }
@@ -279,9 +258,7 @@ final class MetalResourceStore {
 
     /// Creates the immutable depth-stencil state defined by a closed identity.
     @discardableResult
-    private func loadDepthStencilState(
-        _ id: MetalDepthStencilStateID
-    ) throws -> any MTLDepthStencilState {
+    private func loadDepthStencilState(_ id: MetalDepthStencilStateID) throws -> any MTLDepthStencilState {
         if let existingState = depthStencilStates[id] {
             return existingState
         }
@@ -303,9 +280,7 @@ final class MetalResourceStore {
     /// `MTLDepthStencilState` intentionally does not expose the descriptor used
     /// to create it. Keeping this deterministic factory separate lets tests lock
     /// the ordinary opaque-depth convention without duplicating that policy.
-    static func makeDepthStencilDescriptor(
-        for id: MetalDepthStencilStateID
-    ) -> MTLDepthStencilDescriptor {
+    static func makeDepthStencilDescriptor(for id: MetalDepthStencilStateID) -> MTLDepthStencilDescriptor {
         let descriptor = MTLDepthStencilDescriptor()
 
         switch id {
@@ -320,9 +295,7 @@ final class MetalResourceStore {
 
     /// Creates the Metal 4 argument table defined by a closed identity.
     @discardableResult
-    private func loadArgumentTable(
-        _ id: MetalArgumentTableID
-    ) throws -> any MTL4ArgumentTable {
+    private func loadArgumentTable(_ id: MetalArgumentTableID) throws -> any MTL4ArgumentTable {
         if let existingTable = argumentTables[id] {
             return existingTable
         }

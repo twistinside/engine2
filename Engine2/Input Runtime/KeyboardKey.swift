@@ -14,10 +14,7 @@ nonisolated struct KeyboardKey: Hashable, Comparable, Sendable {
         }
     }
 
-    static func make(
-        keyCode: UInt16,
-        charactersIgnoringModifiers: String?
-    ) -> KeyboardKey {
+    static func make(keyCode: UInt16, charactersIgnoringModifiers: String?) -> KeyboardKey {
         KeyboardKey(
             keyCode: keyCode,
             displayName: displayName(
@@ -27,10 +24,7 @@ nonisolated struct KeyboardKey: Hashable, Comparable, Sendable {
         )
     }
 
-    private static func displayName(
-        for keyCode: UInt16,
-        charactersIgnoringModifiers: String?
-    ) -> String {
+    private static func displayName(for keyCode: UInt16, charactersIgnoringModifiers: String?) -> String {
         switch keyCode {
         case 36: "Return"
         case 48: "Tab"

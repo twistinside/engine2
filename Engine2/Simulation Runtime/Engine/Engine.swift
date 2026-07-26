@@ -27,10 +27,7 @@ final class Engine {
             SRotation()
         ]
     ) {
-        precondition(
-            fixedTimeStep > .zero,
-            "Engine requires a positive fixed time step."
-        )
+        precondition(fixedTimeStep > .zero, "Engine requires a positive fixed time step.")
         self.world = world
         self.completedTick = .zero
         self.fixedTimeStep = fixedTimeStep
@@ -49,10 +46,7 @@ final class Engine {
     }
 
     /// Installs a newly constructed world and begins a new tick timeline.
-    func replaceWorld(
-        with world: World,
-        inputBaseline: InputSnapshot? = nil
-    ) {
+    func replaceWorld(with world: World, inputBaseline: InputSnapshot? = nil) {
         self.world = world
         if let inputBaseline {
             self.world.input.rebase(to: inputBaseline)

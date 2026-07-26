@@ -512,9 +512,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
     }
 
-    private static func renderResult(
-        for request: OffscreenRenderRequest
-    ) throws -> OffscreenRenderResult {
+    private static func renderResult(for request: OffscreenRenderRequest) throws -> OffscreenRenderResult {
         OffscreenRenderResult(
             requestID: request.id,
             sourceCursor: request.presentationSnapshot.cursor,
@@ -573,9 +571,7 @@ private actor ControlledRenderTarget: POffscreenRenderTarget {
         Int: [CheckedContinuation<OffscreenRenderRequest, Never>]
     ] = [:]
 
-    func render(
-        _ request: OffscreenRenderRequest
-    ) async -> OffscreenRenderOutcome {
+    func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         let requestIndex = requests.count
         requests.append(request)
         requestWaiters.removeValue(forKey: requestIndex)?.forEach {
@@ -657,12 +653,7 @@ private actor SuspendedArtifactEncoder: PImageArtifactEncoder {
         }
     }
 
-    func complete(
-        _ result: Result<
-            RenderedImageArtifact,
-            ImageArtifactEncoderError
-        >
-    ) {
+    func complete(_ result: Result< RenderedImageArtifact, ImageArtifactEncoderError >) {
         continuation?.resume(returning: result)
         continuation = nil
     }
@@ -673,10 +664,7 @@ private actor CountingArtifactEncoder: PImageArtifactEncoder {
     private let mismatchesEncoding: Bool
     private var callCount = 0
 
-    init(
-        failure: ImageArtifactEncoderError? = nil,
-        mismatchesEncoding: Bool = false
-    ) {
+    init(failure: ImageArtifactEncoderError? = nil, mismatchesEncoding: Bool = false) {
         self.failure = failure
         self.mismatchesEncoding = mismatchesEncoding
     }

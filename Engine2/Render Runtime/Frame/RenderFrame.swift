@@ -69,10 +69,7 @@ struct RenderFrame: Equatable {
     /// Unlike the screen-oriented tolerant projection, this exact boundary
     /// never converts malformed input into an empty or partial success. The
     /// first invalid entity is reported with its authoritative `EntityID`.
-    init(
-        exactlyProjecting snapshot: SimulationPresentationSnapshot,
-        viewpoint: RenderViewpoint
-    ) throws {
+    init(exactlyProjecting snapshot: SimulationPresentationSnapshot, viewpoint: RenderViewpoint) throws {
         guard viewpoint.camera.supportsViewTransform else {
             throw RenderFrameProjectionError.invalidSelectedCamera
         }

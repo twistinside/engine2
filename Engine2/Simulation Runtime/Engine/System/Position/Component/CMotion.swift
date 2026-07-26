@@ -22,11 +22,7 @@ struct CMotion: PComponent {
         accumulator.impulse
     }
 
-    init(
-        velocity: SIMD3<Float> = .zero,
-        accelerationIntent: AccelerationIntent = .idle,
-        impulse: SIMD3<Float> = .zero
-    ) {
+    init(velocity: SIMD3<Float> = .zero, accelerationIntent: AccelerationIntent = .idle, impulse: SIMD3<Float> = .zero) {
         self.velocity = velocity
         self.accelerationIntent = accelerationIntent
         self.accumulator = Accumulator(

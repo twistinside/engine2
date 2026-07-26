@@ -432,15 +432,11 @@ struct RenderFrameTests {
         #expect(RenderFrame.empty.viewpointRevision == nil)
     }
 
-    private static func cursor(
-        at tick: SimulationTick = .zero
-    ) -> SimulationCursor {
+    private static func cursor(at tick: SimulationTick = .zero) -> SimulationCursor {
         SimulationCursor(sessionID: SimulationSessionID(), tick: tick)
     }
 
-    private static func viewpoint(
-        camera: Camera = Camera()
-    ) -> RenderViewpoint {
+    private static func viewpoint(camera: Camera = Camera()) -> RenderViewpoint {
         RenderViewpoint(
             id: RenderViewpointID(),
             revision: .zero,

@@ -13,11 +13,7 @@ struct RenderInstance: Equatable {
     let materialID: MaterialID
     let transform: Transform
 
-    init(
-        meshID: MeshID,
-        materialID: MaterialID,
-        transform: Transform
-    ) {
+    init(meshID: MeshID, materialID: MaterialID, transform: Transform) {
         self.meshID = meshID
         self.materialID = materialID
         self.transform = transform

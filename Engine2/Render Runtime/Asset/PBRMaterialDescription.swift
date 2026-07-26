@@ -21,25 +21,12 @@ nonisolated struct PBRMaterialDescription: Equatable, Sendable {
     /// Game Content.
     let perceptualRoughness: Float
 
-    init(
-        baseColor: SIMD3<Float>,
-        metallic: Float,
-        perceptualRoughness: Float
-    ) {
+    init(baseColor: SIMD3<Float>, metallic: Float, perceptualRoughness: Float) {
         // Reject invalid authored content at construction instead of allowing a
         // later shader clamp to silently change the requested appearance.
-        precondition(
-            Self.acceptsBaseColor(baseColor),
-            "PBR base-color channels must be finite scene-linear values in 0...1."
-        )
-        precondition(
-            Self.acceptsUnitFactor(metallic),
-            "PBR metallic must be a finite value in 0...1."
-        )
-        precondition(
-            Self.acceptsUnitFactor(perceptualRoughness),
-            "PBR perceptual roughness must be a finite value in 0...1."
-        )
+        precondition(Self.acceptsBaseColor(baseColor), "PBR base-color channels must be finite scene-linear values in 0...1.")
+        precondition(Self.acceptsUnitFactor(metallic), "PBR metallic must be a finite value in 0...1.")
+        precondition(Self.acceptsUnitFactor(perceptualRoughness), "PBR perceptual roughness must be a finite value in 0...1.")
 
         self.baseColor = baseColor
         self.metallic = metallic

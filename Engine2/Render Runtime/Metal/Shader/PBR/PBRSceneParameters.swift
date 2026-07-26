@@ -16,10 +16,7 @@ struct PBRSceneParameters {
 
     /// Resolves the fixed validation input for one completed camera value.
     init(camera: Camera) {
-        precondition(
-            camera.supportsViewTransform,
-            "PBR scene parameters require a finite camera transform."
-        )
+        precondition(camera.supportsViewTransform, "PBR scene parameters require a finite camera transform.")
 
         // A direction has w=0 semantics, so camera translation must not affect
         // it. Extract only the linear world-to-view rotation and normalize the
