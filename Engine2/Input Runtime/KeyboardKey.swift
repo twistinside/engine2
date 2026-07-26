@@ -2,17 +2,9 @@
 ///
 /// Keyboard layouts expose an open-ended display vocabulary, so the label is
 /// retained as a string alongside the stable platform key code.
-nonisolated struct KeyboardKey: Hashable, Comparable, Sendable {
+nonisolated struct KeyboardKey: Hashable, Sendable {
     let keyCode: UInt16
     let displayName: String
-
-    static func < (lhs: KeyboardKey, rhs: KeyboardKey) -> Bool {
-        if lhs.displayName == rhs.displayName {
-            lhs.keyCode < rhs.keyCode
-        } else {
-            lhs.displayName < rhs.displayName
-        }
-    }
 
     static func make(keyCode: UInt16, charactersIgnoringModifiers: String?) -> KeyboardKey {
         KeyboardKey(
@@ -41,6 +33,16 @@ nonisolated struct KeyboardKey: Hashable, Comparable, Sendable {
             } else {
                 "Key\(keyCode)"
             }
+        }
+    }
+}
+
+extension KeyboardKey: Comparable {
+    static func < (lhs: KeyboardKey, rhs: KeyboardKey) -> Bool {
+        if lhs.displayName == rhs.displayName {
+            lhs.keyCode < rhs.keyCode
+        } else {
+            lhs.displayName < rhs.displayName
         }
     }
 }
