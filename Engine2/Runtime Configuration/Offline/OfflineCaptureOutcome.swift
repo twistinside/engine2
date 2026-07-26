@@ -81,4 +81,71 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
         renderResult: OffscreenRenderResult,
         artifact: RenderedImageArtifact
     )
+
+    /// Projects a shared artifact terminal into the advance-aware offline domain.
+    ///
+    /// Every terminal gains the exact committed Simulation result while all
+    /// render and artifact payloads remain unchanged.
+    init(artifactOutcome: OffscreenImageArtifactOutcome, advanceResult: SimulationAdvanceResult) {
+        switch artifactOutcome {
+        case let .completed(artifact):
+            self = .completed(
+                OfflineCaptureResult(
+                    advanceResult: advanceResult,
+                    artifact: artifact
+                )
+            )
+
+        case let .renderRejected(rejection):
+            self = .renderRejected(
+                advanceResult: advanceResult,
+                rejection: rejection
+            )
+
+        case let .renderFailed(failure):
+            self = .renderFailed(
+                advanceResult: advanceResult,
+                failure: failure
+            )
+
+        case let .renderCancellationRequestIDMismatch(expected, actual):
+            self = .renderCancellationRequestIDMismatch(
+                advanceResult: advanceResult,
+                expectedRequestID: expected,
+                actualRequestID: actual
+            )
+
+        case let .renderCancelledAfterSubmission(requestID):
+            self = .renderCancelledAfterSubmission(
+                advanceResult: advanceResult,
+                requestID: requestID
+            )
+
+        case let .renderResultMismatch(renderResult):
+            self = .renderResultMismatch(
+                advanceResult: advanceResult,
+                renderResult: renderResult
+            )
+
+        case let .cancelledAfterRender(renderResult):
+            self = .cancelledAfterRender(
+                advanceResult: advanceResult,
+                renderResult: renderResult
+            )
+
+        case let .artifactEncodingFailed(renderResult, failure):
+            self = .artifactEncodingFailed(
+                advanceResult: advanceResult,
+                renderResult: renderResult,
+                failure: failure
+            )
+
+        case let .artifactResultMismatch(renderResult, artifact):
+            self = .artifactResultMismatch(
+                advanceResult: advanceResult,
+                renderResult: renderResult,
+                artifact: artifact
+            )
+        }
+    }
 }

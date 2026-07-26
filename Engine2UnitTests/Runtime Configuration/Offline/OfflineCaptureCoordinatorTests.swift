@@ -4,6 +4,205 @@ import Testing
 @testable import Engine2
 
 struct OfflineCaptureCoordinatorTests {
+    @Test func advanceOutcomeConstructionPreservesEveryArtifactTerminal() throws {
+        let fixture = try makeFixture()
+        let rejection = OffscreenRenderRejection.runtimeBusy
+        let failure = OffscreenRenderFailure(
+            stage: .gpuExecution,
+            backendDescription: "scripted GPU failure"
+        )
+        let encoderFailure = ImageArtifactEncoderError.destinationFinalizationFailed
+        let actualRequestID = OffscreenRenderRequestID()
+        let mappings: [(OffscreenImageArtifactOutcome, OfflineCaptureOutcome)] = [
+            (
+                .completed(fixture.artifact),
+                .completed(
+                    OfflineCaptureResult(
+                        advanceResult: fixture.advanceResult,
+                        artifact: fixture.artifact
+                    )
+                )
+            ),
+            (
+                .renderRejected(rejection),
+                .renderRejected(
+                    advanceResult: fixture.advanceResult,
+                    rejection: rejection
+                )
+            ),
+            (
+                .renderFailed(failure),
+                .renderFailed(
+                    advanceResult: fixture.advanceResult,
+                    failure: failure
+                )
+            ),
+            (
+                .renderCancellationRequestIDMismatch(
+                    expectedRequestID: fixture.request.renderRequestID,
+                    actualRequestID: actualRequestID
+                ),
+                .renderCancellationRequestIDMismatch(
+                    advanceResult: fixture.advanceResult,
+                    expectedRequestID: fixture.request.renderRequestID,
+                    actualRequestID: actualRequestID
+                )
+            ),
+            (
+                .renderCancelledAfterSubmission(actualRequestID),
+                .renderCancelledAfterSubmission(
+                    advanceResult: fixture.advanceResult,
+                    requestID: actualRequestID
+                )
+            ),
+            (
+                .renderResultMismatch(fixture.renderResult),
+                .renderResultMismatch(
+                    advanceResult: fixture.advanceResult,
+                    renderResult: fixture.renderResult
+                )
+            ),
+            (
+                .cancelledAfterRender(fixture.renderResult),
+                .cancelledAfterRender(
+                    advanceResult: fixture.advanceResult,
+                    renderResult: fixture.renderResult
+                )
+            ),
+            (
+                .artifactEncodingFailed(
+                    renderResult: fixture.renderResult,
+                    failure: encoderFailure
+                ),
+                .artifactEncodingFailed(
+                    advanceResult: fixture.advanceResult,
+                    renderResult: fixture.renderResult,
+                    failure: encoderFailure
+                )
+            ),
+            (
+                .artifactResultMismatch(
+                    renderResult: fixture.renderResult,
+                    artifact: fixture.artifact
+                ),
+                .artifactResultMismatch(
+                    advanceResult: fixture.advanceResult,
+                    renderResult: fixture.renderResult,
+                    artifact: fixture.artifact
+                )
+            )
+        ]
+
+        for (artifactOutcome, expected) in mappings {
+            #expect(
+                OfflineCaptureOutcome(
+                    artifactOutcome: artifactOutcome,
+                    advanceResult: fixture.advanceResult
+                ) == expected
+            )
+        }
+    }
+
+    @Test func currentOutcomeConstructionPreservesEveryArtifactTerminal() throws {
+        let fixture = try makeFixture()
+        let rejection = OffscreenRenderRejection.runtimeBusy
+        let failure = OffscreenRenderFailure(
+            stage: .gpuExecution,
+            backendDescription: "scripted GPU failure"
+        )
+        let encoderFailure = ImageArtifactEncoderError.destinationFinalizationFailed
+        let actualRequestID = OffscreenRenderRequestID()
+        let sourceSnapshot = fixture.initialSnapshot
+        let mappings: [(OffscreenImageArtifactOutcome, OfflineCurrentCaptureOutcome)] = [
+            (
+                .completed(fixture.artifact),
+                .completed(
+                    OfflineCurrentCaptureResult(
+                        sourceSnapshot: sourceSnapshot,
+                        artifact: fixture.artifact
+                    )
+                )
+            ),
+            (
+                .renderRejected(rejection),
+                .renderRejected(
+                    sourceSnapshot: sourceSnapshot,
+                    rejection: rejection
+                )
+            ),
+            (
+                .renderFailed(failure),
+                .renderFailed(
+                    sourceSnapshot: sourceSnapshot,
+                    failure: failure
+                )
+            ),
+            (
+                .renderCancellationRequestIDMismatch(
+                    expectedRequestID: fixture.request.renderRequestID,
+                    actualRequestID: actualRequestID
+                ),
+                .renderCancellationRequestIDMismatch(
+                    sourceSnapshot: sourceSnapshot,
+                    expectedRequestID: fixture.request.renderRequestID,
+                    actualRequestID: actualRequestID
+                )
+            ),
+            (
+                .renderCancelledAfterSubmission(actualRequestID),
+                .renderCancelledAfterSubmission(
+                    sourceSnapshot: sourceSnapshot,
+                    requestID: actualRequestID
+                )
+            ),
+            (
+                .renderResultMismatch(fixture.renderResult),
+                .renderResultMismatch(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: fixture.renderResult
+                )
+            ),
+            (
+                .cancelledAfterRender(fixture.renderResult),
+                .cancelledAfterRender(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: fixture.renderResult
+                )
+            ),
+            (
+                .artifactEncodingFailed(
+                    renderResult: fixture.renderResult,
+                    failure: encoderFailure
+                ),
+                .artifactEncodingFailed(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: fixture.renderResult,
+                    failure: encoderFailure
+                )
+            ),
+            (
+                .artifactResultMismatch(
+                    renderResult: fixture.renderResult,
+                    artifact: fixture.artifact
+                ),
+                .artifactResultMismatch(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: fixture.renderResult,
+                    artifact: fixture.artifact
+                )
+            )
+        ]
+
+        for (artifactOutcome, expected) in mappings {
+            #expect(
+                OfflineCurrentCaptureOutcome(
+                    artifactOutcome: artifactOutcome,
+                    sourceSnapshot: sourceSnapshot
+                ) == expected
+            )
+        }
+    }
+
     @Test func completesInOrderUsingTheExactAdvancedSnapshot() async throws {
         let fixture = try makeFixture()
         let probe = Probe(
