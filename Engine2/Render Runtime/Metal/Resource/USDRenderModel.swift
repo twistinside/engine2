@@ -50,40 +50,6 @@ struct USDRenderModel {
     }
 
     init(meshes: [MTKMesh]) {
-        func containsUsableBytes(_ meshBuffer: MTKMeshBuffer, minimumByteCount: Int) -> Bool {
-            guard minimumByteCount > 0,
-                  meshBuffer.offset >= 0,
-                  meshBuffer.length >= minimumByteCount
-            else {
-                return false
-            }
-
-            let sliceEnd = meshBuffer.offset.addingReportingOverflow(
-                meshBuffer.length
-            )
-            return !sliceEnd.overflow
-                && sliceEnd.partialValue <= meshBuffer.buffer.length
-        }
-
-        func requiredIndexByteCount(for submesh: MTKSubmesh) -> Int? {
-            let bytesPerIndex: Int
-            switch submesh.indexType {
-            case .uint16:
-                bytesPerIndex = MemoryLayout<UInt16>.stride
-
-            case .uint32:
-                bytesPerIndex = MemoryLayout<UInt32>.stride
-
-            @unknown default:
-                return nil
-            }
-
-            let result = submesh.indexCount.multipliedReportingOverflow(
-                by: bytesPerIndex
-            )
-            return result.overflow ? nil : result.partialValue
-        }
-
         self.meshes = meshes
         guard !meshes.isEmpty else {
             self.hasCompleteDrawableIndexedGeometry = false
@@ -92,7 +58,7 @@ struct USDRenderModel {
 
         self.hasCompleteDrawableIndexedGeometry = meshes.allSatisfy { mesh in
             guard let vertexBuffer = mesh.vertexBuffers.first,
-                  containsUsableBytes(vertexBuffer, minimumByteCount: 1),
+                  vertexBuffer.containsUsableBytes(minimumByteCount: 1),
                   !mesh.submeshes.isEmpty
             else {
                 return false
@@ -100,17 +66,12 @@ struct USDRenderModel {
 
             return mesh.submeshes.allSatisfy { submesh in
                 guard submesh.indexCount > 0,
-                      let requiredByteCount = requiredIndexByteCount(
-                        for: submesh
-                      )
+                      let requiredByteCount = submesh.requiredIndexByteCount
                 else {
                     return false
                 }
 
-                return containsUsableBytes(
-                    submesh.indexBuffer,
-                    minimumByteCount: requiredByteCount
-                )
+                return submesh.indexBuffer.containsUsableBytes(minimumByteCount: requiredByteCount)
             }
         }
     }

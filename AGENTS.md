@@ -88,6 +88,8 @@ Current example ownership:
   method. Computed projections belong with the property surface even when their implementation is substantial.
 - Prefer an explicit declaration type with `[]` for an empty array, such as `var instances: [RenderInstance] = []`;
   do not infer the element type from `[RenderInstance]()`.
+- Never declare a function inside an initializer, method, accessor, or closure. Move the behavior onto its natural
+  receiver, a private instance method on the coordinating type, or a focused collaborator; never a static helper dump.
 - Extract a constructed value when the local adds a nonredundant role or separates substantial construction from the
   operation that consumes it. Otherwise, keep construction inline when an argument, property, or enum case label,
   direct assignment, or aggregate shape already supplies the meaning. A label does not erase a separate ownership,
