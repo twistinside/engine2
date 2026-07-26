@@ -20,9 +20,15 @@ final class RealtimeAdvanceDriver {
     /// Weakly resolving source used by the polling task between wake cycles.
     typealias DriverSource = @MainActor () -> RealtimeAdvanceDriver?
 
-    let fixedTimeStep: Duration
+    var fixedTimeStep: Duration {
+        stepAccumulator.fixedTimeStep
+    }
+
     let pollInterval: Duration
-    let catchUpPolicy: RealtimeCatchUpPolicy
+
+    var catchUpPolicy: RealtimeCatchUpPolicy {
+        stepAccumulator.catchUpPolicy
+    }
 
     /// User policy or authority fault controlling whether elapsed time advances.
     private(set) var advancementState: RealtimeAdvancementState
@@ -65,7 +71,7 @@ final class RealtimeAdvanceDriver {
     private var clock: SystemClock?
 
     @ObservationIgnored
-    private var elapsedRemainder = Duration.zero
+    private var stepAccumulator: RealtimeStepAccumulator
 
     @ObservationIgnored
     private var expectedCursor: SimulationCursor
@@ -142,9 +148,11 @@ final class RealtimeAdvanceDriver {
         self.advanceTarget = advanceTarget
         self.inputSource = inputSource
         self.expectedCursor = initialCursor
-        self.fixedTimeStep = fixedTimeStep
         self.pollInterval = pollInterval
-        self.catchUpPolicy = catchUpPolicy
+        self.stepAccumulator = RealtimeStepAccumulator(
+            fixedTimeStep: fixedTimeStep,
+            catchUpPolicy: catchUpPolicy
+        )
         self.advancementState = isAdvancementEnabled ? .enabled : .paused
         self.clockFactory = clockFactory
         self.scheduleTimeSource = scheduleTimeSource
@@ -177,7 +185,7 @@ final class RealtimeAdvanceDriver {
     func stop() {
         guard isRunning else {
             clock = nil
-            elapsedRemainder = .zero
+            stepAccumulator.reset()
             return
         }
 
@@ -186,7 +194,7 @@ final class RealtimeAdvanceDriver {
         advanceRunID()
         updateTask?.cancel()
         clock = nil
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         discardNextElapsedSample = false
     }
 
@@ -221,7 +229,7 @@ final class RealtimeAdvanceDriver {
         }
 
         advancementState = .enabled
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         captureTransitionInputBaseline()
 
         // A resume that occurs before the next disabled wake must still drop
@@ -238,7 +246,7 @@ final class RealtimeAdvanceDriver {
         }
 
         advancementState = .paused
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         setTransitionInputBaseline(nil)
 
         // If pause and resume both occur before another wake, that wake must
@@ -259,7 +267,7 @@ final class RealtimeAdvanceDriver {
         setTransitionInputBaseline(
             inputBaseline ?? inputSource?.latestInputSnapshot
         )
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         discardNextElapsedSample = true
         if case .faulted = advancementState {
             advancementState = .paused
@@ -272,7 +280,7 @@ final class RealtimeAdvanceDriver {
 
         // A fresh clock discards all wall time outside this lifecycle run.
         clock = clockFactory()
-        elapsedRemainder = .zero
+        stepAccumulator.reset()
         discardNextElapsedSample = false
         advanceRunID()
 
@@ -352,14 +360,12 @@ final class RealtimeAdvanceDriver {
 
         if isAdvancementEnabled == false || discardNextElapsedSample {
             // Paused time and any pre-pause fractional step are not debt.
-            elapsedRemainder = .zero
+            stepAccumulator.reset()
             discardNextElapsedSample = false
             return advancedDeadline(after: previousDeadline)
         }
 
-        elapsedRemainder += elapsed
-
-        guard let stepCount = consumeReadyStepCount() else {
+        guard let stepCount = stepAccumulator.consumeSteps(adding: elapsed) else {
             return advancedDeadline(after: previousDeadline)
         }
 
@@ -440,7 +446,7 @@ final class RealtimeAdvanceDriver {
             // App may synchronize after coordinating the cause.
             advancementState = .faulted(.cursorMismatch(expected: expected, current: current))
             isRunning = false
-            elapsedRemainder = .zero
+            stepAccumulator.reset()
             setTransitionInputBaseline(nil)
             return nil
         }
@@ -459,32 +465,6 @@ final class RealtimeAdvanceDriver {
         } else if self.runID == runID {
             isRunning = false
         }
-    }
-
-    /// Removes at most one configured wake budget from elapsed-time debt.
-    private func consumeReadyStepCount() -> SimulationStepCount? {
-        guard elapsedRemainder >= fixedTimeStep else {
-            return nil
-        }
-
-        var rawStepCount: UInt32 = 0
-        let maximumStepCount = catchUpPolicy.maximumStepsPerWake.rawValue
-        while elapsedRemainder >= fixedTimeStep,
-              rawStepCount < maximumStepCount {
-            elapsedRemainder -= fixedTimeStep
-            rawStepCount += 1
-        }
-
-        if elapsedRemainder >= fixedTimeStep,
-           catchUpPolicy.backlogTreatment == .discardOverflow {
-            // Once at least one additional whole step overflows the cap, real-
-            // time responsiveness wins over wall-clock catch-up. Cursor space
-            // remains contiguous because no Simulation step was requested or
-            // skipped; only external elapsed-time debt is discarded.
-            elapsedRemainder = .zero
-        }
-
-        return SimulationStepCount(rawValue: rawStepCount)
     }
 
     /// Returns the first configured deadline strictly after the current time.
