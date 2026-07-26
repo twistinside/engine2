@@ -53,7 +53,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         await renderOnMainActor(request)
     }
 
-    /// Accepts, submits, and reads back one exact request under the busy gate.
+    /// Admits and immutably preflights one exact request under the busy gate.
     private func renderOnMainActor(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         // One explicit request may own the sole allocator and mutable frame
         // buffers at a time. Refusal is immediate rather than an implicit queue.
@@ -170,6 +170,15 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         }
 
         renderingState = .rendering
+        return await renderPreparedFrame(preparedFrame, for: request)
+    }
+
+    /// Executes one admitted request while the Runtime owns its busy gate.
+    ///
+    /// The caller has completed immutable preflight and entered `.rendering`
+    /// without suspension. This method owns request-scoped targets, the sole
+    /// frame slot, command encoding and submission, feedback, and readback.
+    private func renderPreparedFrame(_ preparedFrame: MetalPreparedFrame, for request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
         defer {
             if renderingState == .rendering {
                 renderingState = .ready
