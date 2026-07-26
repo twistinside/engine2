@@ -1,4 +1,4 @@
-# Global coding preferences
+# Swift coding preferences
 
 When working in Swift:
 
@@ -8,4 +8,32 @@ When working in Swift:
 
 - Prefer standard Swift language features over custom abstractions.
 
-- When designing or substantially rewriting Swift code, consult examples under `.agents/swift/examples/`.
+- Use 120 characters as the ordinary line-length limit. A modest overrun is preferable when wrapping one cohesive
+  string, declaration, method signature, enum case, pattern, or call would make it harder to scan—especially when one
+  readable line would become three or four. Break lines for semantic grouping, not merely to satisfy a counter.
+
+- Use Swift's synthesized initializers when they express the intended construction API. Do not write a structure
+  initializer that only assigns same-named parameters to stored properties. Keep an explicit initializer when it
+  validates, normalizes, delegates, changes labels or access, supplies deliberate defaults, satisfies a protocol
+  requirement, or is needed because another initializer suppresses the desired synthesis.
+
+- Put a secondary behavioral protocol conformance with handwritten requirements in a focused extension when possible,
+  keeping its implementation with the conformance. Defining-role, inheritance, marker, and synthesized conformances may
+  remain on the primary declaration when a separate extension would add no useful organization.
+
+- Use `static` only for a genuinely type-level value or operation. Do not use static helper methods as an
+  implementation-detail namespace. Keep helpers that support one instance's workflow as instance methods even when they
+  do not currently read stored state, and keep one-use calculations inline when extraction adds no domain meaning.
+
+- Within one concrete implementation, prefer throwing methods that return only their successful value. Do not introduce
+  request, response, result, outcome, or completion types merely to carry local success and failure between adjacent
+  calls. Keep explicit value-shaped outcomes at real runtime, actor, protocol, persistence, replay, or transport
+  boundaries when admission, cancellation, provenance, partial commitment, or exhaustive handling is part of the
+  contract.
+
+- Resolve required fallible resources at their owning construction boundary. Convert string or external identities into
+  validated typed handles once, retain them, and make downstream access nonthrowing when successful construction proves
+  they exist. Defer creation only when identity, availability, size, or deliberate demand-driven cost is genuinely
+  dynamic.
+
+- When designing or substantially rewriting Swift code, consult the relevant examples under `.agents/swift/examples/`.
