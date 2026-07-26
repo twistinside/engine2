@@ -17,14 +17,12 @@ struct RenderAssetCatalogTests {
         do {
             try catalog.validateMaterialCoverage()
             Issue.record("Expected incomplete material content to be rejected.")
-        } catch let error as RenderAssetCatalogError {
+        } catch let error {
             // The error must follow the enum declaration rather than unstable
             // dictionary ordering so diagnostics remain reproducible.
             #expect(
                 error == .missingMaterialDescriptions(MaterialID.allCases)
             )
-        } catch {
-            Issue.record("Unexpected material coverage error: \(error)")
         }
     }
 
@@ -41,12 +39,10 @@ struct RenderAssetCatalogTests {
         do {
             _ = try catalog.materialDescription(for: .warmDielectric)
             Issue.record("Expected a missing material lookup to throw.")
-        } catch let error as RenderAssetCatalogError {
+        } catch let error {
             #expect(
                 error == .missingMaterialDescriptions([.warmDielectric])
             )
-        } catch {
-            Issue.record("Unexpected material lookup error: \(error)")
         }
     }
 

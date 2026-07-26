@@ -37,7 +37,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Injection keeps device selection and expensive resource construction
     /// controllable for integration tests while preserving the production
     /// single-request back-pressure policy.
-    init(resources: MetalResourceStore, limits: OffscreenRenderLimits) throws {
+    init(resources: MetalResourceStore, limits: OffscreenRenderLimits) throws(MetalOffscreenRenderTargetError) {
         guard resources.frames.count == 1, let frame = resources.frames.first else {
             throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(resources.frames.count)
         }

@@ -15,7 +15,7 @@ nonisolated struct JPEGQuality: Equatable, Hashable, Sendable {
     let value: Double
 
     /// Creates a validated finite normalized quality.
-    init(_ value: Double) throws {
+    init(_ value: Double) throws(JPEGQualityError) {
         guard value.isFinite else {
             throw JPEGQualityError.notFinite
         }

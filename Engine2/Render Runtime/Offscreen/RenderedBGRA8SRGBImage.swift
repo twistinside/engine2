@@ -15,7 +15,7 @@ nonisolated struct RenderedBGRA8SRGBImage: Equatable, Sendable {
     let bytes: Data
 
     /// Validates and adopts exactly one tightly packed image payload.
-    init(size: RenderPixelSize, bytes: Data) throws {
+    init(size: RenderPixelSize, bytes: Data) throws(RenderedBGRA8SRGBImageError) {
         guard bytes.count == size.bgra8ByteCount else {
             throw RenderedBGRA8SRGBImageError.unexpectedByteCount(
                 expected: size.bgra8ByteCount,
