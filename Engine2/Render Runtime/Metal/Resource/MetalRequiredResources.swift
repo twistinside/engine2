@@ -44,48 +44,29 @@ struct MetalRequiredResources {
             throw MetalResourceStoreError.missingDefaultShaderLibrary
         }
 
-        func makeRenderPipeline(
-            vertexFunctionName: String,
-            fragmentFunctionName: String,
-            label: String,
-            colorPixelFormat: MTLPixelFormat
-        ) throws -> any MTLRenderPipelineState {
-            let vertexFunction = MTL4LibraryFunctionDescriptor()
-            vertexFunction.library = engineLibrary
-            vertexFunction.name = vertexFunctionName
-
-            let fragmentFunction = MTL4LibraryFunctionDescriptor()
-            fragmentFunction.library = engineLibrary
-            fragmentFunction.name = fragmentFunctionName
-
-            let descriptor = MTL4RenderPipelineDescriptor()
-            descriptor.label = label
-            descriptor.vertexFunctionDescriptor = vertexFunction
-            descriptor.fragmentFunctionDescriptor = fragmentFunction
-            descriptor.rasterSampleCount = 1
-            descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
-            return try compiler.makeRenderPipelineState(descriptor: descriptor)
-        }
-
-        let modelPBRPipeline = try makeRenderPipeline(
+        let pipelineCompiler = MetalRenderPipelineCompiler(
+            compiler: compiler,
+            library: engineLibrary
+        )
+        let modelPBRPipeline = try pipelineCompiler.compile(
             vertexFunctionName: "modelVertex",
             fragmentFunctionName: "modelPBRFragment",
             label: "USD Model PBR Pipeline",
             colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat
         )
-        let modelNormalDiagnosticPipeline = try makeRenderPipeline(
+        let modelNormalDiagnosticPipeline = try pipelineCompiler.compile(
             vertexFunctionName: "modelVertex",
             fragmentFunctionName: "modelNormalDiagnosticFragment",
             label: "USD Model Normal Diagnostic Pipeline",
             colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat
         )
-        let hdrToneMappedPresentationPipeline = try makeRenderPipeline(
+        let hdrToneMappedPresentationPipeline = try pipelineCompiler.compile(
             vertexFunctionName: "hdrPresentationVertex",
             fragmentFunctionName: "hdrToneMappedPresentationFragment",
             label: "HDR Tone-Mapped Presentation Pipeline",
             colorPixelFormat: MetalFrameEncoder.destinationColorPixelFormat
         )
-        let linearPresentationPipeline = try makeRenderPipeline(
+        let linearPresentationPipeline = try pipelineCompiler.compile(
             vertexFunctionName: "hdrPresentationVertex",
             fragmentFunctionName: "linearPresentationFragment",
             label: "Linear Diagnostic Presentation Pipeline",

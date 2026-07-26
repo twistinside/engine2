@@ -28,6 +28,10 @@ When working in Swift:
 - Spell an empty array with an explicit declaration type and an empty literal, such as
   `var instances: [RenderInstance] = []`, rather than inferring the type from `[RenderInstance]()`.
 
+- Never declare a function inside an initializer, method, accessor, or closure. Put reusable behavior on the receiver it
+  serves, as a private instance method on the coordinating type, or on a focused collaborator. Do not disguise a nested
+  helper as a local closure or replace it with a static helper dumping ground.
+
 - Extract a constructed value when the local adds a nonredundant role, exposes validation or reuse, or separates a
   substantial construction from the operation that consumes it. Otherwise, keep construction inline when an argument,
   property, or enum case label already states the role, direct assignment or initializer delegation is clearer, or a
