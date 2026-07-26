@@ -79,7 +79,8 @@ struct MetalSceneView: NSViewRepresentable {
             // assets, and commits the static/frame residency sets.
             do {
                 let resources = try MetalResourceStore(
-                    renderAssetCatalog: renderAssetCatalog
+                    renderAssetCatalog: renderAssetCatalog,
+                    frameCount: MetalResourceStore.defaultFrameCount
                 )
                 rendererAvailability = .available(
                     MetalRenderer(

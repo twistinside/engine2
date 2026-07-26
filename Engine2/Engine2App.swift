@@ -20,7 +20,7 @@ struct Engine2App: App {
     init() {
         let gameContent = BasicGameContent()
         let realtimeAssembly = RealtimeConfiguration(
-            pollInterval: nil,
+            pollInterval: SimulationRuntime.fixedTimeStep,
             catchUpPolicy: .interactive
         ).makeAssembly(
             gameContent: gameContent

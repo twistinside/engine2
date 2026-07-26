@@ -9,7 +9,8 @@ struct MetalRendererTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
         let requiredResources = resources.requiredResources
@@ -153,7 +154,8 @@ struct MetalRendererTests {
         let view = MTKView(frame: .zero, device: device)
         let resources = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
         let renderer = MetalRenderer(
             resources: resources,
