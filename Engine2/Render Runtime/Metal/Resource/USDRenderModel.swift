@@ -94,7 +94,7 @@ struct USDRenderModel {
             forResource: modelAsset.resourceName,
             withExtension: modelAsset.format.rawValue
         ) else {
-            throw MetalRendererError.missingModel(modelAsset.resourceName)
+            throw MetalRendererError.missingModel(modelAsset)
         }
 
         let allocator = MTKMeshBufferAllocator(device: device)
