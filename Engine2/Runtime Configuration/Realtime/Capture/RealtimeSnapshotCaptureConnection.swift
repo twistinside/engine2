@@ -65,81 +65,15 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
             isCapturing = false
         }
 
-        let derivation = await imageDeriver.derive(
-            sourceSnapshot: sourceSnapshot,
-            renderRequestID: request.renderRequestID,
-            viewpoint: viewpoint,
-            renderSettings: request.renderSettings,
-            encoding: request.encoding
-        )
-        return outcome(
-            from: derivation,
+        return RealtimeSnapshotCaptureOutcome(
+            artifactOutcome: await imageDeriver.derive(
+                sourceSnapshot: sourceSnapshot,
+                renderRequestID: request.renderRequestID,
+                viewpoint: viewpoint,
+                renderSettings: request.renderSettings,
+                encoding: request.encoding
+            ),
             sourceSnapshot: sourceSnapshot
         )
-    }
-
-    /// Adds the selected live publication to the shared derivation terminal.
-    private func outcome(
-        from derivation: OffscreenImageArtifactOutcome,
-        sourceSnapshot: SimulationPresentationSnapshot
-    ) -> RealtimeSnapshotCaptureOutcome {
-        switch derivation {
-        case let .completed(artifact):
-            .completed(
-                sourceSnapshot: sourceSnapshot,
-                artifact: artifact
-            )
-
-        case let .renderRejected(rejection):
-            .renderRejected(
-                sourceSnapshot: sourceSnapshot,
-                rejection: rejection
-            )
-
-        case let .renderFailed(failure):
-            .renderFailed(
-                sourceSnapshot: sourceSnapshot,
-                failure: failure
-            )
-
-        case let .renderCancellationRequestIDMismatch(expected, actual):
-            .renderCancellationRequestIDMismatch(
-                sourceSnapshot: sourceSnapshot,
-                expectedRequestID: expected,
-                actualRequestID: actual
-            )
-
-        case let .renderCancelledAfterSubmission(requestID):
-            .renderCancelledAfterSubmission(
-                sourceSnapshot: sourceSnapshot,
-                requestID: requestID
-            )
-
-        case let .renderResultMismatch(renderResult):
-            .renderResultMismatch(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult
-            )
-
-        case let .cancelledAfterRender(renderResult):
-            .cancelledAfterRender(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult
-            )
-
-        case let .artifactEncodingFailed(renderResult, failure):
-            .artifactEncodingFailed(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult,
-                failure: failure
-            )
-
-        case let .artifactResultMismatch(renderResult, artifact):
-            .artifactResultMismatch(
-                sourceSnapshot: sourceSnapshot,
-                renderResult: renderResult,
-                artifact: artifact
-            )
-        }
     }
 }

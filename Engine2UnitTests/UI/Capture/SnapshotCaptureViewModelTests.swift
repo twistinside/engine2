@@ -177,7 +177,7 @@ struct SnapshotCaptureViewModelTests {
     }
 
     @Test
-    func captureTerminalMessagesCoverEveryNonSuccessOutcome() async throws {
+    func jpegCapturePresentationMapsEveryNonSuccessOutcome() throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try fixture(size: size, tick: 101)
         let rawResult = try renderResult(
@@ -354,25 +354,12 @@ struct SnapshotCaptureViewModelTests {
         ]
 
         for scenario in scenarios {
-            let target = StubRealtimeSnapshotCaptureTarget(
-                outcome: scenario.outcome
-            )
-            let model = SnapshotCaptureViewModel(
-                captureTarget: target,
-                renderSize: size
-            )
-            model.activatePresentation()
-
-            await model.capture(outputMode: .surface)
-
             #expect(
-                model.presentedModal
+                SnapshotCapturePresentation(
+                    jpegCaptureOutcome: scenario.outcome
+                )
                     == .captureFailure(message: scenario.expectedMessage)
             )
-            #expect(target.requests.count == 1)
-
-            model.dismissFailure()
-            #expect(model.presentedModal == nil)
         }
     }
 

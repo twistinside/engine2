@@ -538,6 +538,129 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(await encoder.count() == 1)
     }
 
+    @Test
+    func realtimeOutcomeAddsSelectedSnapshotToEveryArtifactTerminal() throws {
+        let sourceSnapshot = snapshot(tick: 53, cameraX: 2)
+        let requestID = OffscreenRenderRequestID()
+        let wrongRequestID = OffscreenRenderRequestID()
+        let settings = OffscreenRenderSettings(
+            size: try RenderPixelSize(width: 4, height: 4),
+            outputMode: .surface,
+            exposure: .validation
+        )
+        let viewpoint = RenderViewpoint(
+            id: RenderViewpointID(),
+            revision: .zero,
+            camera: sourceSnapshot.camera
+        )
+        let renderResult = OffscreenRenderResult(
+            requestID: requestID,
+            sourceCursor: sourceSnapshot.cursor,
+            viewpoint: viewpoint,
+            settings: settings,
+            image: try RenderedBGRA8SRGBImage(
+                size: settings.size,
+                bytes: Data(repeating: 0xFF, count: settings.size.pixelCount * 4)
+            )
+        )
+        let artifact = Self.artifact(
+            for: renderResult,
+            encoding: .jpeg(quality: .observation)
+        )
+        let rejection = OffscreenRenderRejection.runtimeBusy
+        let failure = OffscreenRenderFailure(
+            stage: .gpuExecution,
+            backendDescription: "scripted"
+        )
+        let encodingFailure = ImageArtifactEncoderError.destinationFinalizationFailed
+        let mappings: [(OffscreenImageArtifactOutcome, RealtimeSnapshotCaptureOutcome)] = [
+            (
+                .completed(artifact),
+                .completed(
+                    sourceSnapshot: sourceSnapshot,
+                    artifact: artifact
+                )
+            ),
+            (
+                .renderRejected(rejection),
+                .renderRejected(
+                    sourceSnapshot: sourceSnapshot,
+                    rejection: rejection
+                )
+            ),
+            (
+                .renderFailed(failure),
+                .renderFailed(
+                    sourceSnapshot: sourceSnapshot,
+                    failure: failure
+                )
+            ),
+            (
+                .renderCancellationRequestIDMismatch(
+                    expectedRequestID: requestID,
+                    actualRequestID: wrongRequestID
+                ),
+                .renderCancellationRequestIDMismatch(
+                    sourceSnapshot: sourceSnapshot,
+                    expectedRequestID: requestID,
+                    actualRequestID: wrongRequestID
+                )
+            ),
+            (
+                .renderCancelledAfterSubmission(requestID),
+                .renderCancelledAfterSubmission(
+                    sourceSnapshot: sourceSnapshot,
+                    requestID: requestID
+                )
+            ),
+            (
+                .renderResultMismatch(renderResult),
+                .renderResultMismatch(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: renderResult
+                )
+            ),
+            (
+                .cancelledAfterRender(renderResult),
+                .cancelledAfterRender(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: renderResult
+                )
+            ),
+            (
+                .artifactEncodingFailed(
+                    renderResult: renderResult,
+                    failure: encodingFailure
+                ),
+                .artifactEncodingFailed(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: renderResult,
+                    failure: encodingFailure
+                )
+            ),
+            (
+                .artifactResultMismatch(
+                    renderResult: renderResult,
+                    artifact: artifact
+                ),
+                .artifactResultMismatch(
+                    sourceSnapshot: sourceSnapshot,
+                    renderResult: renderResult,
+                    artifact: artifact
+                )
+            )
+        ]
+
+        for (artifactOutcome, expected) in mappings {
+            #expect(
+                RealtimeSnapshotCaptureOutcome(
+                    artifactOutcome: artifactOutcome,
+                    sourceSnapshot: sourceSnapshot
+                ) == expected
+            )
+        }
+    }
+
     private func snapshot(
         sessionID: SimulationSessionID = SimulationSessionID(),
         tick: UInt64,
