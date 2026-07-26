@@ -1618,7 +1618,7 @@ struct AgentSessionCoordinatorTests {
         func rawRenderResult(request: AgentCaptureRequest, cursor: SimulationCursor) throws -> OffscreenRenderResult {
             let bytes = Data(
                 repeating: 0x7F,
-                count: request.renderSettings.size.pixelCount * 4
+                count: request.renderSettings.size.bgra8ByteCount
             )
             return OffscreenRenderResult(
                 requestID: request.renderRequestID,

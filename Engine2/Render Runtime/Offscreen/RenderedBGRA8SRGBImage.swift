@@ -16,31 +16,15 @@ nonisolated struct RenderedBGRA8SRGBImage: Equatable, Sendable {
 
     /// Validates and adopts exactly one tightly packed image payload.
     init(size: RenderPixelSize, bytes: Data) throws {
-        let (bytesPerRow, rowOverflowed) = size.width
-            .multipliedReportingOverflow(by: 4)
-        guard !rowOverflowed else {
-            throw RenderedBGRA8SRGBImageError.bytesPerRowOverflow(
-                width: size.width
-            )
-        }
-
-        let (expectedByteCount, totalOverflowed) = bytesPerRow
-            .multipliedReportingOverflow(by: size.height)
-        guard !totalOverflowed else {
-            throw RenderedBGRA8SRGBImageError.byteCountOverflow(
-                bytesPerRow: bytesPerRow,
-                height: size.height
-            )
-        }
-        guard bytes.count == expectedByteCount else {
+        guard bytes.count == size.bgra8ByteCount else {
             throw RenderedBGRA8SRGBImageError.unexpectedByteCount(
-                expected: expectedByteCount,
+                expected: size.bgra8ByteCount,
                 actual: bytes.count
             )
         }
 
         self.size = size
-        self.bytesPerRow = bytesPerRow
+        self.bytesPerRow = size.bgra8BytesPerRow
         self.origin = .topLeft
         self.bytes = bytes
     }

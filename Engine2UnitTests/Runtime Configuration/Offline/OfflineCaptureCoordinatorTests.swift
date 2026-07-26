@@ -709,7 +709,7 @@ struct OfflineCaptureCoordinatorTests {
             size: wrongImageSize,
             bytes: Data(
                 repeating: 0x5A,
-                count: wrongImageSize.pixelCount * 4
+                count: wrongImageSize.bgra8ByteCount
             )
         )
         let mismatches = [
@@ -1630,7 +1630,7 @@ struct OfflineCaptureCoordinatorTests {
         )
         let image = try RenderedBGRA8SRGBImage(
             size: size,
-            bytes: Data(repeating: 0x7F, count: size.pixelCount * 4)
+            bytes: Data(repeating: 0x7F, count: size.bgra8ByteCount)
         )
         let renderResult = OffscreenRenderResult(
             requestID: renderRequestID,
