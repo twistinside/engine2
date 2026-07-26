@@ -13,7 +13,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     private let captureTarget: any POfflineCaptureTarget
     private var knownCursor: SimulationCursor
     private var nextExpectedSequence: AgentSessionRequestSequence?
-    private var highestAcceptedSequence: AgentSessionRequestSequence? = nil
+    private var highestAcceptedSequence: AgentSessionRequestSequence?
     private var activeRequest: AgentCaptureRequest?
     private var isClosed = false
 
@@ -39,9 +39,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Admits, executes once, replays, or refuses one stable request value.
-    func capture(
-        _ request: AgentCaptureRequest
-    ) async -> AgentSessionSubmissionOutcome {
+    func capture(_ request: AgentCaptureRequest) async -> AgentSessionSubmissionOutcome {
         guard request.id.sessionID == sessionID else {
             return rejected(
                 .wrongSession(
@@ -142,10 +140,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                         stepCount: stepCount
                     )
                 )
-                knownCursor = Self.knownCursor(
-                    after: outcome,
-                    previous: knownCursor
-                )
+                knownCursor = knownCursor(after: outcome, previous: knownCursor)
                 response = AgentSessionResponse(
                     requestID: request.id,
                     outcome: .capture(outcome),
@@ -159,10 +154,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                     expectedCursor: expectedCursor
                 )
             )
-            knownCursor = Self.knownCursor(
-                after: outcome,
-                previous: knownCursor
-            )
+            knownCursor = knownCursor(after: outcome, previous: knownCursor)
             response = AgentSessionResponse(
                 requestID: request.id,
                 outcome: .currentCapture(outcome),
@@ -192,9 +184,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Forms a non-consuming rejection at the currently known cursor.
-    private func rejected(
-        _ reason: AgentSessionRequestRejectionReason
-    ) -> AgentSessionSubmissionOutcome {
+    private func rejected(_ reason: AgentSessionRequestRejectionReason) -> AgentSessionSubmissionOutcome {
         .rejected(
             AgentSessionRequestRejection(
                 reason: reason,
@@ -204,11 +194,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Retains a response within both count and named image-byte budgets.
-    private func retain(
-        response: AgentSessionResponse,
-        for request: AgentCaptureRequest
-    ) {
-        let imageBytes = Self.retainedImageByteCount(in: response.outcome)
+    private func retain(response: AgentSessionResponse, for request: AgentCaptureRequest) {
+        let imageBytes = retainedImageByteCount(in: response.outcome)
         guard imageBytes <= limits.maximumRetainedImageBytes else {
             return
         }
@@ -224,9 +211,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
             if let evictedResponse = retainedResponses.removeValue(
                 forKey: oldestID
             ) {
-                retainedImageBytes -= Self.retainedImageByteCount(
-                    in: evictedResponse.outcome
-                )
+                retainedImageBytes -= retainedImageByteCount(in: evictedResponse.outcome)
             }
         }
 
@@ -246,10 +231,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Derives the exact authoritative position exposed with an agent response.
-    private static func knownCursor(
-        after outcome: OfflineCaptureOutcome,
-        previous: SimulationCursor
-    ) -> SimulationCursor {
+    private func knownCursor(after outcome: OfflineCaptureOutcome, previous: SimulationCursor) -> SimulationCursor {
         switch outcome {
         case let .completed(result):
             result.advanceResult.finalCursor
@@ -279,10 +261,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Derives exact cursor knowledge from a non-advancing current capture.
-    private static func knownCursor(
-        after outcome: OfflineCurrentCaptureOutcome,
-        previous: SimulationCursor
-    ) -> SimulationCursor {
+    private func knownCursor(after outcome: OfflineCurrentCaptureOutcome, previous: SimulationCursor) -> SimulationCursor {
         switch outcome {
         case let .completed(result):
             result.sourceSnapshot.cursor
@@ -296,11 +275,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
         case let .renderRejected(sourceSnapshot, _),
              let .renderFailed(sourceSnapshot, _),
-             let .renderCancellationRequestIDMismatch(
-                 sourceSnapshot,
-                 _,
-                 _
-             ),
+             let .renderCancellationRequestIDMismatch(sourceSnapshot, _, _),
              let .renderCancelledAfterSubmission(sourceSnapshot, _),
              let .renderResultMismatch(sourceSnapshot, _),
              let .cancelledAfterRender(sourceSnapshot, _),
@@ -311,9 +286,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Counts only retained encoded or raw image payloads by declared policy.
-    private static func retainedImageByteCount(
-        in outcome: AgentSessionExecutionOutcome
-    ) -> Int {
+    private func retainedImageByteCount(in outcome: AgentSessionExecutionOutcome) -> Int {
         switch outcome {
         case let .capture(captureOutcome):
             return switch captureOutcome {
@@ -325,15 +298,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                  let .artifactEncodingFailed(_, renderResult, _):
                 renderResult.image.bytes.count
 
-            case let .artifactResultMismatch(
-                _,
-                renderResult,
-                artifact
-            ):
-                combinedImageByteCount(
-                    renderResult.image.bytes.count,
-                    artifact.encodedData.count
-                )
+            case let .artifactResultMismatch(_, renderResult, artifact):
+                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
 
             case .coordinatorBusy,
                  .cancelledBeforeAdvance,
@@ -357,15 +323,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                  let .artifactEncodingFailed(_, renderResult, _):
                 renderResult.image.bytes.count
 
-            case let .artifactResultMismatch(
-                _,
-                renderResult,
-                artifact
-            ):
-                combinedImageByteCount(
-                    renderResult.image.bytes.count,
-                    artifact.encodedData.count
-                )
+            case let .artifactResultMismatch(_, renderResult, artifact):
+                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
 
             case .coordinatorBusy,
                  .cancelledBeforeRender,
@@ -383,10 +342,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     }
 
     /// Adds two retained payload sizes without allowing integer wraparound.
-    private static func combinedImageByteCount(
-        _ first: Int,
-        _ second: Int
-    ) -> Int {
+    private func combinedImageByteCount(_ first: Int, _ second: Int) -> Int {
         let (sum, overflowed) = first.addingReportingOverflow(second)
         return overflowed ? .max : sum
     }

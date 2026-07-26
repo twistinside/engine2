@@ -24,7 +24,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Selects the system Metal device and constructs a one-slot offscreen store.
     convenience init(
         catalog: RenderAssetCatalog,
-        limits: OffscreenRenderLimits = .conservativeDefault
+        limits: OffscreenRenderLimits = .conservative
     ) throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: catalog,
@@ -40,7 +40,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// single-request back-pressure policy.
     init(
         resources: MetalResourceStore,
-        limits: OffscreenRenderLimits = .conservativeDefault
+        limits: OffscreenRenderLimits = .conservative
     ) throws {
         guard resources.frames.count == 1 else {
             throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(

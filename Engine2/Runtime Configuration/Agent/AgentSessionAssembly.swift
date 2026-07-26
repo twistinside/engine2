@@ -3,7 +3,6 @@
 /// The retained offline assembly keeps Simulation, Metal, and capture workflow
 /// ownership alive. Callers receive only immutable starting identity, the agent
 /// capability, and coordinated drain-before-close lifecycle.
-@MainActor
 final class AgentSessionAssembly {
     nonisolated let sessionID: AgentSessionID
     nonisolated let initialCursor: SimulationCursor
@@ -11,6 +10,11 @@ final class AgentSessionAssembly {
 
     private let offlineAssembly: OfflineCaptureAssembly
     private let coordinator: AgentSessionCoordinator
+
+    /// Sole request capability exposed to an App or future transport adapter.
+    nonisolated var target: any PAgentSessionTarget {
+        coordinator
+    }
 
     init(
         sessionID: AgentSessionID,
@@ -26,11 +30,6 @@ final class AgentSessionAssembly {
         )
         self.offlineAssembly = offlineAssembly
         self.coordinator = coordinator
-    }
-
-    /// Sole request capability exposed to an App or future transport adapter.
-    nonisolated var target: any PAgentSessionTarget {
-        coordinator
     }
 
     /// Refuses new unique work immediately and awaits accepted work completion.

@@ -8,15 +8,18 @@
 /// before allocator, model, and driver overhead.
 nonisolated struct OffscreenRenderLimits: Equatable, Sendable {
     /// Conservative policy suitable for general-purpose callers.
-    static let conservativeDefault = OffscreenRenderLimits()
+    static let conservative = OffscreenRenderLimits(
+        maxDimension: 8_192,
+        maxPixelCount: 16_777_216
+    )
 
     let maxDimension: Int
     let maxPixelCount: Int
 
     /// Creates trusted positive bounds for accepted render sizes.
     init(
-        maxDimension: Int = 8_192,
-        maxPixelCount: Int = 16_777_216
+        maxDimension: Int,
+        maxPixelCount: Int
     ) {
         precondition(
             maxDimension > 0,

@@ -9,7 +9,7 @@ nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
 
     /// Creates offline allocation and readback policy.
     init(
-        renderLimits: OffscreenRenderLimits = .conservativeDefault
+        renderLimits: OffscreenRenderLimits = .conservative
     ) {
         self.renderLimits = renderLimits
     }

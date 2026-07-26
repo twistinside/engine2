@@ -9,8 +9,8 @@ nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
 
     /// Creates render and agent-session policy.
     init(
-        renderLimits: OffscreenRenderLimits = .conservativeDefault,
-        sessionLimits: AgentSessionLimits = .conservativeDefault
+        renderLimits: OffscreenRenderLimits = .conservative,
+        sessionLimits: AgentSessionLimits = .conservative
     ) {
         self.renderLimits = renderLimits
         self.sessionLimits = sessionLimits
