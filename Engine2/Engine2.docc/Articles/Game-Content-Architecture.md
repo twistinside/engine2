@@ -153,12 +153,16 @@ The App is the composition root. It creates one game-content value, then supplie
 
 The example app now implements the first version of this boundary with
 `BasicGameContent`. It supplies `BasicWorldBuilder` to ``SimulationRuntime``
-and a `RenderAssetCatalog` to the current render path. ``Ball`` advertises only
-the backend-neutral `MeshID.ball` plus a `MaterialID`; Game Content maps the mesh
-to `Ball.usdz` and maps each material identity to a `PBRMaterialDescription`.
-The renderer privately turns those descriptions and packaged source assets into
-per-draw data, Model I/O values, and Metal resources. Neither ``World`` nor
-``Ball`` contains a filename, material factor, or backend object.
+and deliberately selects `RenderAssetCatalog.everything` for the current render
+path. Its explicit `init(worldBuilder:)` keeps world construction injectable
+without hiding the catalog choice behind a default argument. Callers may still
+construct curated catalogs through `RenderAssetCatalog.init(models:materials:)`.
+``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
+Game Content maps the mesh to `Ball.usdz` and maps each material identity to a
+`PBRMaterialDescription`. The renderer privately turns those descriptions and
+packaged source assets into per-draw data, Model I/O values, and Metal resources.
+Neither ``World`` nor ``Ball`` contains a filename, material factor, or backend
+object.
 
 `BasicWorldBuilder` currently uses that boundary to construct a deterministic
 six-sphere material grid. Every entity shares `MeshID.ball`, while its
