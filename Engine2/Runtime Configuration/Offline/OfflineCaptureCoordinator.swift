@@ -29,7 +29,7 @@ actor OfflineCaptureCoordinator: POfflineCaptureTarget {
         advanceTarget: any PSimulationAdvanceTarget,
         initialPresentationSnapshot: SimulationPresentationSnapshot,
         renderTarget: any POffscreenRenderTarget,
-        artifactEncoder: any PImageArtifactEncoder = ImageIOArtifactEncoder()
+        artifactEncoder: any PImageArtifactEncoder
     ) {
         self.advanceTarget = advanceTarget
         self.currentPresentationSnapshot = initialPresentationSnapshot
