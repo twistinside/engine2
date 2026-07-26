@@ -31,4 +31,9 @@ When working in Swift:
   boundaries when admission, cancellation, provenance, partial commitment, or exhaustive handling is part of the
   contract.
 
+- Resolve required fallible resources at their owning construction boundary. Convert string or external identities into
+  validated typed handles once, retain them, and make downstream access nonthrowing when successful construction proves
+  they exist. Defer creation only when identity, availability, size, or deliberate demand-driven cost is genuinely
+  dynamic.
+
 - When designing or substantially rewriting Swift code, consult the relevant examples under `.agents/swift/examples/`.
