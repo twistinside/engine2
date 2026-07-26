@@ -208,6 +208,7 @@ Current example ownership:
 - `Engine2/Render Runtime/Frame/*.swift`
   - `RenderFrame.init(projecting:)` converts a `SimulationPresentationSnapshot` into private real-time screen instances and uses the snapshot camera exactly, with no independent viewpoint input or attribution.
   - `RenderFrame.init(exactlyProjecting:viewpoint:)` is the strict request path. It rejects a malformed selected camera or any presented entity with missing position, an unusable finite normal-matrix inverse, or a nonfinite model-view transform instead of using the screen path's tolerant omission policy. `MetalOffscreenRenderRuntime` additionally validates the requested-aspect model-view-projection products before GPU packing.
+  - `RenderInstance.init(projecting:viewMatrix:)` owns the shared per-entity transform construction and validation used by both frame paths while leaving the direct memberwise initializer synthesized for already-projected values.
 - `Engine2/Render Runtime/Viewpoint/*.swift`
   - `RenderViewpoint` carries one output-specific camera, stable `RenderViewpointID`, and monotonic `RenderViewpointRevision` by value through exact offscreen, offline, and agent requests and results.
 - `Engine2/Render Runtime/Offscreen/*.swift`

@@ -107,7 +107,9 @@ tolerant `RenderFrame(projecting:)` screen initializer accepts one exact
 prevents live screen code from selecting a camera that Simulation has not
 published. The presentation snapshot already contains only entities with
 explicit abstract presentation state; Render filters that set for the position
-it needs and applies render defaults.
+it needs and applies render defaults. `RenderInstance.init(projecting:viewMatrix:)`
+owns the shared per-entity transform construction and normal-matrix validation;
+the frame initializers choose whether an invalid instance is omitted or thrown.
 
 The separate `RenderFrame(exactlyProjecting:viewpoint:)` request initializer
 requires an explicit ``RenderViewpoint``, strictly validates the complete
