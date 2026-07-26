@@ -10,7 +10,8 @@ struct RealtimeSnapshotCaptureIntegrationTests {
     func capturesLivePresentationThroughMetalWithoutAdvancingSimulation() async throws {
         let gameContent = BasicGameContent()
         let assembly = RealtimeConfiguration(
-            pollInterval: .seconds(60)
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
         ).makeAssembly(gameContent: gameContent)
         let sourceSnapshot =
             assembly.simulationRuntime.latestPresentationSnapshot

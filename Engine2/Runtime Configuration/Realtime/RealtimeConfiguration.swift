@@ -8,7 +8,7 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
     let pollInterval: Duration?
     let catchUpPolicy: RealtimeCatchUpPolicy
 
-    init(pollInterval: Duration? = nil, catchUpPolicy: RealtimeCatchUpPolicy = .interactive) {
+    init(pollInterval: Duration?, catchUpPolicy: RealtimeCatchUpPolicy) {
         if let pollInterval {
             precondition(pollInterval > .zero, "Real-time polling requires a positive interval.")
         }

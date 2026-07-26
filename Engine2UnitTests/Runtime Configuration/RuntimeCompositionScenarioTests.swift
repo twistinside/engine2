@@ -50,7 +50,9 @@ struct RuntimeCompositionScenarioTests {
             return
         }
 
-        let offline = try OfflineCaptureConfiguration().makeAssembly(
+        let offline = try OfflineCaptureConfiguration(
+            renderLimits: .conservative
+        ).makeAssembly(
             gameContent: gameContent
         )
         let size = try RenderPixelSize(width: 64, height: 64)

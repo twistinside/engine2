@@ -7,11 +7,6 @@
 nonisolated struct OfflineCaptureConfiguration: Equatable, Sendable {
     let renderLimits: OffscreenRenderLimits
 
-    /// Creates offline allocation and readback policy.
-    init(renderLimits: OffscreenRenderLimits = .conservative) {
-        self.renderLimits = renderLimits
-    }
-
     /// Constructs one isolated production assembly from consumer Game Content.
     @MainActor
     func makeAssembly(
