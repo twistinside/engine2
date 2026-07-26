@@ -5,14 +5,11 @@
 /// gives other configurations a deliberate place to choose a different topology
 /// without adding optional peers or mode switches to the real-time assembly.
 nonisolated struct RealtimeConfiguration: Equatable, Sendable {
-    let pollInterval: Duration?
+    let pollInterval: Duration
     let catchUpPolicy: RealtimeCatchUpPolicy
 
-    init(pollInterval: Duration?, catchUpPolicy: RealtimeCatchUpPolicy) {
-        if let pollInterval {
-            precondition(pollInterval > .zero, "Real-time polling requires a positive interval.")
-        }
-
+    init(pollInterval: Duration, catchUpPolicy: RealtimeCatchUpPolicy) {
+        precondition(pollInterval > .zero, "Real-time polling requires a positive interval.")
         self.pollInterval = pollInterval
         self.catchUpPolicy = catchUpPolicy
     }
@@ -20,7 +17,6 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
     /// Constructs one isolated real-time Runtime Assembly from Game Content.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent) -> RealtimeAssembly {
-        let resolvedPollInterval = pollInterval ?? SimulationRuntime.fixedTimeStep
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
@@ -32,7 +28,7 @@ nonisolated struct RealtimeConfiguration: Equatable, Sendable {
             inputSource: inputRuntime,
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
-            pollInterval: resolvedPollInterval,
+            pollInterval: pollInterval,
             catchUpPolicy: catchUpPolicy,
             isAdvancementEnabled: true
         )

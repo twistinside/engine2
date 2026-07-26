@@ -43,7 +43,7 @@ final class MetalResourceStore {
 
     /// Selects the system's default Metal device and creates a complete store
     /// containing the renderer's required built-in resources.
-    convenience init(renderAssetCatalog: RenderAssetCatalog, frameCount: Int = defaultFrameCount) throws {
+    convenience init(renderAssetCatalog: RenderAssetCatalog, frameCount: Int) throws {
         guard let device = MTLCreateSystemDefaultDevice() else {
             throw MetalResourceStoreError.missingDevice
         }
@@ -56,7 +56,7 @@ final class MetalResourceStore {
     }
 
     /// Creates a resource store for an explicitly selected device.
-    init(device: any MTLDevice, renderAssetCatalog: RenderAssetCatalog, frameCount: Int = defaultFrameCount) throws {
+    init(device: any MTLDevice, renderAssetCatalog: RenderAssetCatalog, frameCount: Int) throws {
         guard frameCount > 0 else {
             throw MetalResourceStoreError.invalidFrameCount(frameCount)
         }

@@ -53,9 +53,9 @@ struct RealtimeConfigurationTests {
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
     }
 
-    @Test func omittedPollingIntervalSelectsTheSimulationFixedTimeStep() {
+    @Test func fixedStepPollingPolicyIsSelectedExplicitly() {
         let configuration = RealtimeConfiguration(
-            pollInterval: nil,
+            pollInterval: SimulationRuntime.fixedTimeStep,
             catchUpPolicy: .interactive
         )
 

@@ -7,7 +7,8 @@ struct MetalResourceStoreTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
         #expect(store.frames.count == MetalResourceStore.defaultFrameCount)
@@ -70,7 +71,8 @@ struct MetalResourceStoreTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: .materialOnlyTestCatalog
+            renderAssetCatalog: .materialOnlyTestCatalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
         let first = store.requiredResources.engineLibrary
@@ -84,7 +86,8 @@ struct MetalResourceStoreTests {
         let catalog = BasicGameContent().renderAssetCatalog
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: catalog
+            renderAssetCatalog: catalog,
+            frameCount: MetalResourceStore.defaultFrameCount
         )
 
         // Material identities cross the runtime boundary, while the retained
@@ -115,7 +118,8 @@ struct MetalResourceStoreTests {
         do {
             _ = try MetalResourceStore(
                 device: device,
-                renderAssetCatalog: incompleteCatalog
+                renderAssetCatalog: incompleteCatalog,
+                frameCount: MetalResourceStore.defaultFrameCount
             )
             Issue.record("Expected incomplete authored material content to fail")
         } catch let error as RenderAssetCatalogError {
