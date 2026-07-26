@@ -74,7 +74,7 @@ Current example ownership:
   Swift code.
 - Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
 - Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
-- One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion. Do not create a separate extension file solely for one static member. Keep type-owned static members with their primary declaration, or colocate a focused extension with the domain owner that authors and selects the value.
+- One type per file is a project rule. Name the file after the type. Keep extensions of repository-owned types in the owning type's file; never extend one repository type from another type's file. Put extensions of framework or other externally owned types in dedicated, appropriately named files under `Extension/`. Do not create a separate extension file solely for one static member; keep that member with the repository type's primary declaration. A documented test-target-only extension may remain in a clearly named test-support file when putting fixture API in the production declaration would be the only alternative.
 - Give substantial multiline constructed values role-named locals before passing them into another initializer or operation. Inline small literal projections and declarative builder values only when naming them would add no meaning.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.
@@ -195,7 +195,8 @@ Current example ownership:
   - Example Game Content builder that seeds a deterministic six-Ball PBR material grid. Every Ball is quiescent, shares `MeshID.ball`, and selects one smooth, baseline, or rough warm-dielectric or gold-metal `MaterialID`.
 - `Engine2/Game Content/BasicGameContent.swift`
   - Selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
-  - Colocates the focused extensions that define `.basicGame` and `RenderAssetCatalog.everything`; these values are authored and selected by Basic Game Content and do not justify standalone static-member files.
+- `Engine2/Simulation Runtime/SimulationConfiguration.swift`
+  - Owns the named `.basicGame` policy with the type that exposes it; `BasicGameContent` deliberately selects that value.
 - `Engine2/Game Content/Model/MeshID.swift`
   - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
 - `Engine2/Game Content/Material/MaterialID.swift`
@@ -214,6 +215,7 @@ Current example ownership:
   - Ordinary live publication uses latest-value semantics; retained publication replay history remains an explicit future recorder concern.
 - `Engine2/Render Runtime/Asset/*.swift`
   - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values. Its coverage and lookup operations expose the closed `RenderAssetCatalogError` domain through typed throws.
+  - `RenderAssetCatalog.everything` remains with its owning type rather than extending the catalog from `BasicGameContent.swift`.
 - `Engine2/Render Runtime/Frame/*.swift`
   - `RenderFrame.init(projecting:)` converts a `SimulationPresentationSnapshot` into private real-time screen instances and uses the snapshot camera exactly, with no independent viewpoint input or attribution.
   - `RenderFrame.init(exactlyProjecting:viewpoint:)` is the strict request path. Its typed `RenderFrameProjectionError` rejects a malformed selected camera or any presented entity with missing position, an unusable finite normal-matrix inverse, or a nonfinite model-view transform instead of using the screen path's tolerant omission policy. `OffscreenRenderRejection` owns the exhaustive projection from that internal failure domain into expected boundary refusals. `MetalOffscreenRenderRuntime` additionally validates the requested-aspect model-view-projection products before GPU packing.

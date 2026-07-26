@@ -35,10 +35,12 @@ When working in Swift:
   keeping its implementation with the conformance. Defining-role, inheritance, marker, and synthesized conformances may
   remain on the primary declaration when a separate extension would add no useful organization.
 
-- Do not create a file solely to hold one static member in an extension. Keep a type-owned static member with the type's
-  primary declaration. When another domain authors the value, colocate that focused extension with the domain owner that
-  selects it. A separate extension file should represent a substantial cohesive implementation or conformance, not serve
-  as a namespace for one constant or factory.
+- Keep every extension with the type it extends. For a repository-owned type, put the extension in that type's owning
+  file; never place an extension of one repository type in another type's file. Put an extension of a framework or other
+  externally owned type in its own appropriately named file under `Extension/`. Do not create a separate extension file
+  solely for one static member: keep that member with the repository type's primary declaration.
+  Test-target-only support is an exceptional case when moving it would expose fixture API in production; keep that
+  extension in a clearly named test-support file and document why it cannot live with the production declaration.
 
 - Use `static` only for a genuinely type-level value or operation. Do not use static helper methods as an
   implementation-detail namespace. Keep helpers that support one instance's workflow as instance methods even when they

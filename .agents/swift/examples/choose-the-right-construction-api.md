@@ -200,7 +200,7 @@ every model and material it declares.
 Define that catalog as an immutable named value:
 
 ```swift
-extension RenderAssetCatalog {
+struct RenderAssetCatalog {
     /// Complete catalog for every asset declared by Basic Game Content.
     ///
     /// Callers may still construct a curated catalog with
@@ -258,12 +258,11 @@ This centralizes the definition of "everything" without making it an invisible
 initializer choice. Prefer `static let` when the value is stable, immutable,
 and reusable.
 
-The declaration belongs with the domain that owns its contents. In this
-example, define the extension in `BasicGameContent.swift` even though Swift
-exposes the member through `RenderAssetCatalog`. Do not create a
-`RenderAssetCatalog+BasicGameContent.swift` file solely to hold this one static
-value. The Render Runtime owns the catalog contract; it does not own this
-game's authored assets.
+The declaration belongs in `RenderAssetCatalog.swift`, with the repository type
+that exposes it. Never put an extension of `RenderAssetCatalog` in
+`BasicGameContent.swift`: a file named for one type must not quietly contain
+members of another type. A single named static value also does not justify a
+standalone `RenderAssetCatalog+BasicGameContent.swift` file.
 
 The name must remain truthful. If optional asset packs or runtime-discovered
 content make "everything" contextual, use a narrower name such as `.core` or

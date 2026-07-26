@@ -7,6 +7,15 @@ import simd
 /// Game Content or the App composition root must deliberately select a named production
 /// value instead of letting individual systems choose local defaults.
 nonisolated struct SimulationConfiguration: Equatable, Sendable {
+    /// Complete Simulation behavior policy selected by Basic Game Content.
+    static let basicGame = Self(
+        pointerOrbitSensitivity: 0.01,
+        scrollZoomSensitivity: 0.04,
+        cameraOrbitTarget: .zero,
+        minimumCameraOrbitRadius: 2,
+        maximumCameraOrbitRadius: 30
+    )
+
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
     let cameraOrbitTarget: SIMD3<Float>

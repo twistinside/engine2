@@ -1,5 +1,7 @@
 @testable import Engine2
 
+/// Test-target-only catalog fixtures stay out of the production-owned
+/// `RenderAssetCatalog.swift` file so they cannot become Engine2 API.
 extension RenderAssetCatalog {
     /// Complete authored materials without packaged model references.
     ///
