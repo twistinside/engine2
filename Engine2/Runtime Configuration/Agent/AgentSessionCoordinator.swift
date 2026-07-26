@@ -16,11 +16,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
     private var highestAcceptedSequence: AgentSessionRequestSequence?
     private var activeRequest: AgentCaptureRequest?
     private var isClosed = false
-
-    private var retainedRequests: [AgentSessionRequestID: AgentCaptureRequest] = [:]
-    private var retainedResponses: [AgentSessionRequestID: AgentSessionResponse] = [:]
-    private var retentionOrder: [AgentSessionRequestID] = []
-    private var retainedImageBytes = 0
+    private var replayCache: AgentSessionReplayCache
     private var drainWaiters: [CheckedContinuation<Void, Never>] = []
 
     /// Creates one session around the already composed offline workflow.
@@ -36,6 +32,10 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         self.limits = limits
         self.captureTarget = captureTarget
         self.nextExpectedSequence = initialRequestSequence
+        self.replayCache = AgentSessionReplayCache(
+            maximumResultCount: limits.maximumRetainedResultCount,
+            maximumImageBytes: limits.maximumRetainedImageBytes
+        )
     }
 
     /// Admits, executes once, replays, or refuses one stable request value.
@@ -50,12 +50,11 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         }
 
         // Retained replay and payload conflict take precedence even after close.
-        if let retainedRequest = retainedRequests[request.id],
-           let retainedResponse = retainedResponses[request.id] {
-            guard retainedRequest == request else {
+        if let replayEntry = replayCache.entry(for: request.id) {
+            guard replayEntry.request == request else {
                 return rejected(.requestConflict(request.id))
             }
-            return .replayed(retainedResponse)
+            return .replayed(replayEntry.response)
         }
 
         // Actor reentrancy makes the accepted call visible while it awaits the
@@ -162,7 +161,12 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
             )
         }
 
-        retain(response: response, for: request)
+        replayCache.retain(
+            AgentSessionReplayEntry(
+                request: request,
+                response: response
+            )
+        )
         activeRequest = nil
         resumeDrainWaiters()
         return .executed(response)
@@ -193,34 +197,6 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         )
     }
 
-    /// Retains a response within both count and named image-byte budgets.
-    private func retain(response: AgentSessionResponse, for request: AgentCaptureRequest) {
-        let imageBytes = retainedImageByteCount(in: response.outcome)
-        guard imageBytes <= limits.maximumRetainedImageBytes else {
-            return
-        }
-
-        while retentionOrder.count >= limits.maximumRetainedResultCount
-            || retainedImageBytes
-                > limits.maximumRetainedImageBytes - imageBytes {
-            guard let oldestID = retentionOrder.first else {
-                return
-            }
-            retentionOrder.removeFirst()
-            retainedRequests[oldestID] = nil
-            if let evictedResponse = retainedResponses.removeValue(
-                forKey: oldestID
-            ) {
-                retainedImageBytes -= retainedImageByteCount(in: evictedResponse.outcome)
-            }
-        }
-
-        retainedRequests[request.id] = request
-        retainedResponses[request.id] = response
-        retentionOrder.append(request.id)
-        retainedImageBytes += imageBytes
-    }
-
     /// Resumes every closer only after accepted work reaches a terminal value.
     private func resumeDrainWaiters() {
         let waiters = drainWaiters
@@ -228,67 +204,5 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         for waiter in waiters {
             waiter.resume()
         }
-    }
-
-    /// Counts only retained encoded or raw image payloads by declared policy.
-    private func retainedImageByteCount(in outcome: AgentSessionExecutionOutcome) -> Int {
-        switch outcome {
-        case let .capture(captureOutcome):
-            return switch captureOutcome {
-            case let .completed(result):
-                result.artifact.encodedData.count
-
-            case let .renderResultMismatch(_, renderResult),
-                 let .cancelledAfterRender(_, renderResult),
-                 let .artifactEncodingFailed(_, renderResult, _):
-                renderResult.image.bytes.count
-
-            case let .artifactResultMismatch(_, renderResult, artifact):
-                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
-
-            case .coordinatorBusy,
-                 .cancelledBeforeAdvance,
-                 .advanceRejected,
-                 .advanceResultMismatch,
-                 .cancelledAfterAdvance,
-                 .renderRejected,
-                 .renderFailed,
-                 .renderCancellationRequestIDMismatch,
-                 .renderCancelledAfterSubmission:
-                0
-            }
-
-        case let .currentCapture(captureOutcome):
-            return switch captureOutcome {
-            case let .completed(result):
-                result.artifact.encodedData.count
-
-            case let .renderResultMismatch(_, renderResult),
-                 let .cancelledAfterRender(_, renderResult),
-                 let .artifactEncodingFailed(_, renderResult, _):
-                renderResult.image.bytes.count
-
-            case let .artifactResultMismatch(_, renderResult, artifact):
-                combinedImageByteCount(renderResult.image.bytes.count, artifact.encodedData.count)
-
-            case .coordinatorBusy,
-                 .cancelledBeforeRender,
-                 .cursorMismatch,
-                 .renderRejected,
-                 .renderFailed,
-                 .renderCancellationRequestIDMismatch,
-                 .renderCancelledAfterSubmission:
-                0
-            }
-
-        case .stepLimitExceeded:
-            return 0
-        }
-    }
-
-    /// Adds two retained payload sizes without allowing integer wraparound.
-    private func combinedImageByteCount(_ first: Int, _ second: Int) -> Int {
-        let (sum, overflowed) = first.addingReportingOverflow(second)
-        return overflowed ? .max : sum
     }
 }

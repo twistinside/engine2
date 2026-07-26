@@ -662,6 +662,124 @@ struct AgentSessionCoordinatorTests {
         #expect(await target.requestCount() == 1)
     }
 
+    @Test func replayCacheKeepsRequestAndResponsePairedThroughFIFOEviction() throws {
+        let fixture = try makeFixture()
+        var cache = AgentSessionReplayCache(
+            maximumResultCount: 2,
+            maximumImageBytes: 1_024
+        )
+        let entries = (0...2).map { sequence in
+            let request = fixture.request(sequence: UInt64(sequence))
+            let response = AgentSessionResponse(
+                requestID: request.id,
+                outcome: .stepLimitExceeded(
+                    requested: SimulationStepCount(rawValue: 2),
+                    maximum: .one
+                ),
+                knownCursor: fixture.initialCursor
+            )
+            return AgentSessionReplayEntry(
+                request: request,
+                response: response
+            )
+        }
+
+        cache.retain(entries[0])
+        cache.retain(entries[1])
+
+        #expect(cache.entry(for: entries[0].requestID) == entries[0])
+        #expect(cache.entry(for: entries[1].requestID) == entries[1])
+
+        cache.retain(entries[2])
+
+        #expect(cache.entry(for: entries[0].requestID) == nil)
+        #expect(cache.entry(for: entries[1].requestID) == entries[1])
+        #expect(cache.entry(for: entries[2].requestID) == entries[2])
+    }
+
+    @Test func replayCacheImageBudgetEvictsFIFOAndLeavesOversizedEntriesUnretained() throws {
+        let fixture = try makeFixture()
+        var cache = AgentSessionReplayCache(
+            maximumResultCount: 4,
+            maximumImageBytes: 6
+        )
+        let requests = (0...2).map {
+            fixture.currentRequest(sequence: UInt64($0))
+        }
+        let entries = requests.enumerated().map { index, request in
+            let byteCount = index == 2 ? 7 : 4
+            let outcome = fixture.currentCompletedOutcome(
+                request: request,
+                sourceSnapshot: fixture.snapshot(at: fixture.initialCursor),
+                encodedBytes: Data(repeating: UInt8(index), count: byteCount)
+            )
+            return AgentSessionReplayEntry(
+                request: request,
+                response: AgentSessionResponse(
+                    requestID: request.id,
+                    outcome: .currentCapture(outcome),
+                    knownCursor: fixture.initialCursor
+                )
+            )
+        }
+
+        cache.retain(entries[0])
+        cache.retain(entries[1])
+
+        #expect(cache.entry(for: entries[0].requestID) == nil)
+        #expect(cache.entry(for: entries[1].requestID) == entries[1])
+
+        cache.retain(entries[2])
+
+        #expect(cache.entry(for: entries[1].requestID) == entries[1])
+        #expect(cache.entry(for: entries[2].requestID) == nil)
+    }
+
+    @Test func replayCacheCountsRawAndEncodedMismatchPayloadsTogether() throws {
+        let fixture = try makeFixture()
+        let request = fixture.request(sequence: 0)
+        let advance = fixture.advanceResult(
+            from: fixture.initialCursor,
+            by: try advanceStepCount(of: request)
+        )
+        let rawResult = try fixture.rawRenderResult(
+            request: request,
+            cursor: advance.finalCursor
+        )
+        let artifact = fixture.artifact(
+            request: request,
+            cursor: advance.finalCursor,
+            encodedBytes: Data(repeating: 0x50, count: 8),
+            encoding: .png
+        )
+        #expect(rawResult.image.bytes.count == 16)
+        #expect(artifact.encodedData.count == 8)
+
+        let response = AgentSessionResponse(
+            requestID: request.id,
+            outcome: .capture(
+                .artifactResultMismatch(
+                    advanceResult: advance,
+                    renderResult: rawResult,
+                    artifact: artifact
+                )
+            ),
+            knownCursor: advance.finalCursor
+        )
+        var cache = AgentSessionReplayCache(
+            maximumResultCount: 4,
+            maximumImageBytes: 23
+        )
+        cache.retain(
+            AgentSessionReplayEntry(
+                request: request,
+                response: response
+            )
+        )
+
+        #expect(cache.entry(for: request.id) == nil)
+    }
+
     @Test func countRetentionEvictsOldestResponseInFIFOOrder() async throws {
         let fixture = try makeFixture()
         let limits = AgentSessionLimits(
