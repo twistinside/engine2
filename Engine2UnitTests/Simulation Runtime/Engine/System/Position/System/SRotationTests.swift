@@ -3,7 +3,7 @@ import simd
 @testable import Engine2
 
 struct SRotationTests {
-    @Test func integratesAngularVelocityAndClearsAccumulator() async throws {
+    @Test func updatesExistingRowsWithoutChangingComponentTopology() async throws {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)
 
@@ -22,6 +22,15 @@ struct SRotationTests {
             ),
             for: entity
         )
+        let expectedRotationEntities = world.rotationComponents.entities
+        let expectedRotationSparse = world.rotationComponents.sparse
+        let expectedRotationCount = world.rotationComponents.dense.count
+        let expectedAngularVelocityEntities = world.angularVelocityComponents.entities
+        let expectedAngularVelocitySparse = world.angularVelocityComponents.sparse
+        let expectedAngularVelocityCount = world.angularVelocityComponents.dense.count
+        let expectedAccumulatorEntities = world.angularMotionAccumulatorComponents.entities
+        let expectedAccumulatorSparse = world.angularMotionAccumulatorComponents.sparse
+        let expectedAccumulatorCount = world.angularMotionAccumulatorComponents.dense.count
 
         let system = SRotation()
         system.update(world: &world, deltaTime: 0.5)
@@ -36,6 +45,15 @@ struct SRotationTests {
         ))
         #expect(world.angularMotionAccumulatorComponents[entity]?.angularAcceleration == .zero)
         #expect(world.angularMotionAccumulatorComponents[entity]?.angularImpulse == .zero)
+        #expect(world.rotationComponents.entities == expectedRotationEntities)
+        #expect(world.rotationComponents.sparse == expectedRotationSparse)
+        #expect(world.rotationComponents.dense.count == expectedRotationCount)
+        #expect(world.angularVelocityComponents.entities == expectedAngularVelocityEntities)
+        #expect(world.angularVelocityComponents.sparse == expectedAngularVelocitySparse)
+        #expect(world.angularVelocityComponents.dense.count == expectedAngularVelocityCount)
+        #expect(world.angularMotionAccumulatorComponents.entities == expectedAccumulatorEntities)
+        #expect(world.angularMotionAccumulatorComponents.sparse == expectedAccumulatorSparse)
+        #expect(world.angularMotionAccumulatorComponents.dense.count == expectedAccumulatorCount)
     }
 
     @Test func integratesRotationWithoutAccumulatorComponent() async throws {
@@ -62,6 +80,9 @@ struct SRotationTests {
             expectedRotation.vector
         ))
         #expect(world.angularMotionAccumulatorComponents[entity] == nil)
+        #expect(world.angularMotionAccumulatorComponents.dense.isEmpty)
+        #expect(world.angularMotionAccumulatorComponents.entities.isEmpty)
+        #expect(world.angularMotionAccumulatorComponents.sparse.isEmpty)
     }
 
     @Test func incompleteEntityWithoutRotationIsLeftUnchanged() {
