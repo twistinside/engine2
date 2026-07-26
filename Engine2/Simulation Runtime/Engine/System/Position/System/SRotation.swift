@@ -3,13 +3,13 @@ import simd
 
 /// Applies one frame of accumulated angular motion by first updating angular
 /// velocity and then advancing orientation from the new angular velocity.
-class SRotation: PSystem {
+struct SRotation: PSystem {
     private static let signposter = OSSignposter(
         subsystem: "Engine2",
         category: "SRotation"
     )
 
-    func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Float) {
         let signpostState = Self.signposter.beginInterval("SRotation.update")
         defer {
             Self.signposter.endInterval("SRotation.update", signpostState)

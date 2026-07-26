@@ -32,7 +32,7 @@ struct SRotationTests {
         let expectedAccumulatorSparse = world.angularMotionAccumulatorComponents.sparse
         let expectedAccumulatorCount = world.angularMotionAccumulatorComponents.dense.count
 
-        let system = SRotation()
+        var system = SRotation()
         system.update(world: &world, deltaTime: 0.5)
 
         let expectedAngularVelocity = SIMD3<Float>(0, 0, 2.5)
@@ -69,7 +69,7 @@ struct SRotationTests {
             for: entity
         )
 
-        let system = SRotation()
+        var system = SRotation()
         system.update(world: &world, deltaTime: 0.25)
 
         let expectedRotation = simd_quatf(angle: .pi / 6 + 0.5, axis: SIMD3<Float>(0, 1, 0))
@@ -101,7 +101,8 @@ struct SRotationTests {
             for: entity
         )
 
-        SRotation().update(world: &world, deltaTime: 0.5)
+        var system = SRotation()
+        system.update(world: &world, deltaTime: 0.5)
 
         #expect(world.angularVelocityComponents[entity] == expectedVelocity)
         #expect(
