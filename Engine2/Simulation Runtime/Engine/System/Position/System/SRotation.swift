@@ -46,7 +46,8 @@ class SRotation: PSystem {
                 for: updatedAngularVelocity,
                 deltaTime: deltaTime
             )
-            let updatedRotation = Self.normalized(deltaRotation * rotation.rotation)
+            let accumulatedRotation = deltaRotation * rotation.rotation
+            let updatedRotation = simd_quatf(vector: simd_normalize(accumulatedRotation.vector))
 
             world.angularVelocityComponents.insert(
                 CAngularVelocity(angularVelocity: updatedAngularVelocity),
@@ -73,10 +74,5 @@ class SRotation: PSystem {
 
         let axis = angularStep / angle
         return simd_quatf(angle: angle, axis: axis)
-    }
-
-    /// Renormalizes accumulated quaternion math back onto the unit sphere.
-    private static func normalized(_ rotation: simd_quatf) -> simd_quatf {
-        simd_quatf(vector: simd_normalize(rotation.vector))
     }
 }

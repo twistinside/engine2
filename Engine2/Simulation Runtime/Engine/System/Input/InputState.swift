@@ -125,7 +125,7 @@ struct InputState {
         tokens += mouse.buttons.sorted().map(\.displayName)
 
         if mouse.delta != .zero {
-            tokens.append("Mouse \(Self.format(delta: mouse.delta))")
+            tokens.append("Mouse dx:\(Self.format(signed: mouse.delta.x)) dy:\(Self.format(signed: mouse.delta.y))")
         }
 
         if mouse.scrollDelta != .zero {
@@ -135,10 +135,6 @@ struct InputState {
         tokens += keyboard.keys.sorted().map(\.displayName)
 
         return tokens
-    }
-
-    private static func format(delta: SIMD2<Float>) -> String {
-        "dx:\(format(signed: delta.x)) dy:\(format(signed: delta.y))"
     }
 
     private static func format(signed value: Float) -> String {
