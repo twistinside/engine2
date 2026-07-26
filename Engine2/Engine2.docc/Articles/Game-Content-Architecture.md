@@ -157,7 +157,10 @@ beside the complete `.basicGame` ``SimulationConfiguration``, and deliberately
 selects `RenderAssetCatalog.everything` for the current render path. Its explicit
 `init(worldBuilder:)` keeps world construction injectable without hiding either
 behavior or catalog policy behind a default argument. Callers may still construct
-curated catalogs through `RenderAssetCatalog.init(models:materials:)`.
+curated catalogs through `RenderAssetCatalog.init(models:materials:)`. The focused
+extensions defining `.basicGame` and `.everything` are colocated in
+`BasicGameContent.swift`, the file for the domain that authors and selects them,
+rather than receiving standalone files for individual static members.
 ``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
 Game Content maps the mesh to `Ball.usdz` and maps each material identity to a
 `PBRMaterialDescription`. The renderer privately turns those descriptions and

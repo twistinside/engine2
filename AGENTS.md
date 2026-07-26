@@ -74,7 +74,7 @@ Current example ownership:
   Swift code.
 - Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
 - Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
-- One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion.
+- One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion. Do not create a separate extension file solely for one static member. Keep type-owned static members with their primary declaration, or colocate a focused extension with the domain owner that authors and selects the value.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.
 - Using `String` or a string-backed wrapper in place of an enum for a closed set is heavily discouraged. Any exception must be justified with a code or documentation comment explaining why the vocabulary is genuinely open-ended or why an external API requires strings.
@@ -194,6 +194,7 @@ Current example ownership:
   - Example Game Content builder that seeds a deterministic six-Ball PBR material grid. Every Ball is quiescent, shares `MeshID.ball`, and selects one smooth, baseline, or rough warm-dielectric or gold-metal `MaterialID`.
 - `Engine2/Game Content/BasicGameContent.swift`
   - Selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
+  - Colocates the focused extensions that define `.basicGame` and `RenderAssetCatalog.everything`; these values are authored and selected by Basic Game Content and do not justify standalone static-member files.
 - `Engine2/Game Content/Model/MeshID.swift`
   - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
 - `Engine2/Game Content/Material/MaterialID.swift`

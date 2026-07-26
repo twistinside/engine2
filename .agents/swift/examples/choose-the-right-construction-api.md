@@ -224,9 +224,11 @@ initializer choice. Prefer `static let` when the value is stable, immutable,
 and reusable.
 
 The declaration belongs with the domain that owns its contents. In this
-example, define the extension with Basic Game Content even though Swift exposes
-the member through `RenderAssetCatalog`. The Render Runtime owns the catalog
-contract; it does not own this game's authored assets.
+example, define the extension in `BasicGameContent.swift` even though Swift
+exposes the member through `RenderAssetCatalog`. Do not create a
+`RenderAssetCatalog+BasicGameContent.swift` file solely to hold this one static
+value. The Render Runtime owns the catalog contract; it does not own this
+game's authored assets.
 
 The name must remain truthful. If optional asset packs or runtime-discovered
 content make "everything" contextual, use a narrower name such as `.core` or
