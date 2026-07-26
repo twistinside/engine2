@@ -30,6 +30,11 @@ When working in Swift:
   keeping its implementation with the conformance. Defining-role, inheritance, marker, and synthesized conformances may
   remain on the primary declaration when a separate extension would add no useful organization.
 
+- Do not create a file solely to hold one static member in an extension. Keep a type-owned static member with the type's
+  primary declaration. When another domain authors the value, colocate that focused extension with the domain owner that
+  selects it. A separate extension file should represent a substantial cohesive implementation or conformance, not serve
+  as a namespace for one constant or factory.
+
 - Use `static` only for a genuinely type-level value or operation. Do not use static helper methods as an
   implementation-detail namespace. Keep helpers that support one instance's workflow as instance methods even when they
   do not currently read stored state, and keep one-use calculations inline when extraction adds no domain meaning.
