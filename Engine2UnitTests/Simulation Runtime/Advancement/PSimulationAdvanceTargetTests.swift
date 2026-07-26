@@ -27,14 +27,16 @@ struct PSimulationAdvanceTargetTests {
     }
 }
 
-private actor RejectionAdvanceTarget: PSimulationAdvanceTarget {
-    let rejection: SimulationAdvanceRejection
+private extension PSimulationAdvanceTargetTests {
+    private actor RejectionAdvanceTarget: PSimulationAdvanceTarget {
+        let rejection: SimulationAdvanceRejection
 
-    init(rejection: SimulationAdvanceRejection) {
-        self.rejection = rejection
-    }
+        init(rejection: SimulationAdvanceRejection) {
+            self.rejection = rejection
+        }
 
-    func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
-        .rejected(rejection)
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
+            .rejected(rejection)
+        }
     }
 }

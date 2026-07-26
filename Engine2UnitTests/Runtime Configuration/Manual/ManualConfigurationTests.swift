@@ -100,18 +100,20 @@ struct ManualConfigurationTests {
     }
 }
 
-private struct ManualMovingWorldBuilder: PWorldBuilder {
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(
-            in: world,
-            position: .zero,
-            velocity: SIMD3<Float>(
-                1 / SimulationRuntime.fixedTimeStep.seconds,
-                0,
-                0
+private extension ManualConfigurationTests {
+    private struct ManualMovingWorldBuilder: PWorldBuilder {
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(
+                in: world,
+                position: .zero,
+                velocity: SIMD3<Float>(
+                    1 / SimulationRuntime.fixedTimeStep.seconds,
+                    0,
+                    0
+                )
             )
-        )
-        return world
+            return world
+        }
     }
 }

@@ -549,151 +549,161 @@ struct RealtimeSnapshotCaptureConnectionTests {
     }
 }
 
-private final class MutablePresentationSource: PSimulationPresentationSource {
-    var snapshot: SimulationPresentationSnapshot
-    private(set) var sampleCount = 0
+private extension RealtimeSnapshotCaptureConnectionTests {
+    private final class MutablePresentationSource: PSimulationPresentationSource {
+        var snapshot: SimulationPresentationSnapshot
+        private(set) var sampleCount = 0
 
-    var latestPresentationSnapshot: SimulationPresentationSnapshot {
-        sampleCount += 1
-        return snapshot
-    }
-
-    init(_ snapshot: SimulationPresentationSnapshot) {
-        self.snapshot = snapshot
-    }
-}
-
-private actor ControlledRenderTarget: POffscreenRenderTarget {
-    private var requests: [OffscreenRenderRequest] = []
-    private var continuation: CheckedContinuation<OffscreenRenderOutcome, Never>?
-    private var requestWaiters: [
-        Int: [CheckedContinuation<OffscreenRenderRequest, Never>]
-    ] = [:]
-
-    func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
-        let requestIndex = requests.count
-        requests.append(request)
-        requestWaiters.removeValue(forKey: requestIndex)?.forEach {
-            $0.resume(returning: request)
+        var latestPresentationSnapshot: SimulationPresentationSnapshot {
+            sampleCount += 1
+            return snapshot
         }
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
+
+        init(_ snapshot: SimulationPresentationSnapshot) {
+            self.snapshot = snapshot
         }
     }
 
-    func waitForFirstRequest() async -> OffscreenRenderRequest {
-        await waitForRequest(at: 0)
-    }
+    private actor ControlledRenderTarget: POffscreenRenderTarget {
+        private var requests: [OffscreenRenderRequest] = []
+        private var continuation: CheckedContinuation<OffscreenRenderOutcome, Never>?
+        private var requestWaiters: [
+            Int: [CheckedContinuation<OffscreenRenderRequest, Never>]
+        ] = [:]
 
-    func waitForRequest(at index: Int) async -> OffscreenRenderRequest {
-        precondition(index >= 0)
-        if requests.indices.contains(index) {
-            return requests[index]
-        }
-        return await withCheckedContinuation { continuation in
-            requestWaiters[index, default: []].append(continuation)
-        }
-    }
-
-    func requestCount() -> Int {
-        requests.count
-    }
-
-    func complete(_ outcome: OffscreenRenderOutcome) {
-        continuation?.resume(returning: outcome)
-        continuation = nil
-    }
-}
-
-private struct CorrelatedArtifactEncoder: PImageArtifactEncoder {
-    func encode(
-        _ result: OffscreenRenderResult,
-        as encoding: ImageArtifactEncoding
-    ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
-        RealtimeSnapshotCaptureConnectionTests.artifact(
-            for: result,
-            encoding: encoding
-        )
-    }
-}
-
-private actor SuspendedArtifactEncoder: PImageArtifactEncoder {
-    private var continuation: CheckedContinuation<
-        Result<RenderedImageArtifact, ImageArtifactEncoderError>,
-        Never
-    >?
-    private var requestWaiters: [CheckedContinuation<Void, Never>] = []
-    private var didReceiveRequest = false
-
-    func encode(
-        _ result: OffscreenRenderResult,
-        as encoding: ImageArtifactEncoding
-    ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
-        didReceiveRequest = true
-        requestWaiters.forEach { $0.resume() }
-        requestWaiters.removeAll()
-        let result = await withCheckedContinuation { continuation in
-            self.continuation = continuation
-        }
-        switch result {
-        case let .success(artifact):
-            return artifact
-        case let .failure(failure):
-            throw failure
-        }
-    }
-
-    func waitForRequest() async {
-        guard !didReceiveRequest else {
-            return
-        }
-        await withCheckedContinuation { continuation in
-            requestWaiters.append(continuation)
-        }
-    }
-
-    func complete(_ result: Result< RenderedImageArtifact, ImageArtifactEncoderError >) {
-        continuation?.resume(returning: result)
-        continuation = nil
-    }
-}
-
-private actor CountingArtifactEncoder: PImageArtifactEncoder {
-    private let failure: ImageArtifactEncoderError?
-    private let mismatchesEncoding: Bool
-    private var callCount = 0
-
-    init(failure: ImageArtifactEncoderError? = nil, mismatchesEncoding: Bool = false) {
-        self.failure = failure
-        self.mismatchesEncoding = mismatchesEncoding
-    }
-
-    func encode(
-        _ result: OffscreenRenderResult,
-        as encoding: ImageArtifactEncoding
-    ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
-        callCount += 1
-        if let failure {
-            throw failure
-        }
-        let resultEncoding: ImageArtifactEncoding
-        if mismatchesEncoding {
-            resultEncoding = switch encoding {
-            case .jpeg:
-                .png
-            case .png:
-                .jpeg(quality: .observation)
+        func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome {
+            let requestIndex = requests.count
+            requests.append(request)
+            requestWaiters.removeValue(forKey: requestIndex)?.forEach {
+                $0.resume(returning: request)
             }
-        } else {
-            resultEncoding = encoding
+            return await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
         }
-        return RealtimeSnapshotCaptureConnectionTests.artifact(
-            for: result,
-            encoding: resultEncoding
-        )
+
+        func waitForFirstRequest() async -> OffscreenRenderRequest {
+            await waitForRequest(at: 0)
+        }
+
+        func waitForRequest(at index: Int) async -> OffscreenRenderRequest {
+            precondition(index >= 0)
+            if requests.indices.contains(index) {
+                return requests[index]
+            }
+            return await withCheckedContinuation { continuation in
+                requestWaiters[index, default: []].append(continuation)
+            }
+        }
+
+        func requestCount() -> Int {
+            requests.count
+        }
+
+        func complete(_ outcome: OffscreenRenderOutcome) {
+            continuation?.resume(returning: outcome)
+            continuation = nil
+        }
     }
 
-    func count() -> Int {
-        callCount
+    private struct CorrelatedArtifactEncoder: PImageArtifactEncoder {
+        func encode(
+            _ result: OffscreenRenderResult,
+            as encoding: ImageArtifactEncoding
+        ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
+            RealtimeSnapshotCaptureConnectionTests.artifact(
+                for: result,
+                encoding: encoding
+            )
+        }
+    }
+
+    private actor SuspendedArtifactEncoder: PImageArtifactEncoder {
+        private var continuation: CheckedContinuation<
+            Result<RenderedImageArtifact, ImageArtifactEncoderError>,
+            Never
+        >?
+        private var requestWaiters: [CheckedContinuation<Void, Never>] = []
+        private var didReceiveRequest = false
+
+        func encode(
+            _ result: OffscreenRenderResult,
+            as encoding: ImageArtifactEncoding
+        ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
+            didReceiveRequest = true
+            requestWaiters.forEach { $0.resume() }
+            requestWaiters.removeAll()
+            let result = await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+            switch result {
+            case let .success(artifact):
+                return artifact
+            case let .failure(failure):
+                throw failure
+            }
+        }
+
+        func waitForRequest() async {
+            guard !didReceiveRequest else {
+                return
+            }
+            await withCheckedContinuation { continuation in
+                requestWaiters.append(continuation)
+            }
+        }
+
+        func complete(
+            _ result: Result<
+                RenderedImageArtifact,
+                ImageArtifactEncoderError
+            >
+        ) {
+            continuation?.resume(returning: result)
+            continuation = nil
+        }
+    }
+
+    private actor CountingArtifactEncoder: PImageArtifactEncoder {
+        private let failure: ImageArtifactEncoderError?
+        private let mismatchesEncoding: Bool
+        private var callCount = 0
+
+        init(
+            failure: ImageArtifactEncoderError? = nil,
+            mismatchesEncoding: Bool = false
+        ) {
+            self.failure = failure
+            self.mismatchesEncoding = mismatchesEncoding
+        }
+
+        func encode(
+            _ result: OffscreenRenderResult,
+            as encoding: ImageArtifactEncoding
+        ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
+            callCount += 1
+            if let failure {
+                throw failure
+            }
+            let resultEncoding: ImageArtifactEncoding
+            if mismatchesEncoding {
+                resultEncoding = switch encoding {
+                case .jpeg:
+                    .png
+                case .png:
+                    .jpeg(quality: .observation)
+                }
+            } else {
+                resultEncoding = encoding
+            }
+            return RealtimeSnapshotCaptureConnectionTests.artifact(
+                for: result,
+                encoding: resultEncoding
+            )
+        }
+
+        func count() -> Int {
+            callCount
+        }
     }
 }

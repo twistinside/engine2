@@ -264,15 +264,17 @@ private extension SIMD3 where Scalar == Float {
     }
 }
 
-private final class ExecutionRecorder {
-    var entries: [String] = []
-}
+private extension EngineTests {
+    private final class ExecutionRecorder {
+        var entries: [String] = []
+    }
 
-private struct RecordingSystem: PSystem {
-    let name: String
-    let recorder: ExecutionRecorder
+    private struct RecordingSystem: PSystem {
+        let name: String
+        let recorder: ExecutionRecorder
 
-    mutating func update(world: inout World, deltaTime: Float) {
-        recorder.entries.append(name)
+        mutating func update(world: inout World, deltaTime: Float) {
+            recorder.entries.append(name)
+        }
     }
 }

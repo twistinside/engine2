@@ -121,24 +121,26 @@ struct SimulationRuntimeTests {
     }
 }
 
-private struct TestWorldBuilder: PWorldBuilder {
-    let position: SIMD3<Float>
+private extension SimulationRuntimeTests {
+    private struct TestWorldBuilder: PWorldBuilder {
+        let position: SIMD3<Float>
 
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(in: world, position: position)
-        return world
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(in: world, position: position)
+            return world
+        }
     }
-}
 
-private final class IncrementingWorldBuilder: PWorldBuilder {
-    private(set) var buildCount = 0
+    private final class IncrementingWorldBuilder: PWorldBuilder {
+        private(set) var buildCount = 0
 
-    func buildWorld() -> World {
-        buildCount += 1
+        func buildWorld() -> World {
+            buildCount += 1
 
-        let world = World()
-        _ = Ball(in: world, position: SIMD3<Float>(Float(buildCount), 0, 0))
-        return world
+            let world = World()
+            _ = Ball(in: world, position: SIMD3<Float>(Float(buildCount), 0, 0))
+            return world
+        }
     }
 }

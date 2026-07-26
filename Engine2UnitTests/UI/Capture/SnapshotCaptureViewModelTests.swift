@@ -439,54 +439,53 @@ struct SnapshotCaptureViewModelTests {
     }
 }
 
-private final class StubRealtimeSnapshotCaptureTarget:
-    PRealtimeSnapshotCaptureTarget {
-    let outcome: RealtimeSnapshotCaptureOutcome
-    private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
+private extension SnapshotCaptureViewModelTests {
+    private final class StubRealtimeSnapshotCaptureTarget: PRealtimeSnapshotCaptureTarget {
+        let outcome: RealtimeSnapshotCaptureOutcome
+        private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
 
-    init(outcome: RealtimeSnapshotCaptureOutcome) {
-        self.outcome = outcome
-    }
+        init(outcome: RealtimeSnapshotCaptureOutcome) {
+            self.outcome = outcome
+        }
 
-    func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
-        requests.append(request)
-        return outcome
-    }
-}
-
-private final class SuspendedRealtimeSnapshotCaptureTarget:
-    PRealtimeSnapshotCaptureTarget {
-    private var continuation:
-        CheckedContinuation<RealtimeSnapshotCaptureOutcome, Never>?
-    private var requestWaiters: [CheckedContinuation<Void, Never>] = []
-    private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
-
-    func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
-        requests.append(request)
-        requestWaiters.forEach { $0.resume() }
-        requestWaiters.removeAll()
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
+        func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
+            requests.append(request)
+            return outcome
         }
     }
 
-    func waitForRequest() async {
-        guard requests.isEmpty else {
-            return
+    private final class SuspendedRealtimeSnapshotCaptureTarget: PRealtimeSnapshotCaptureTarget {
+        private var continuation: CheckedContinuation<RealtimeSnapshotCaptureOutcome, Never>?
+        private var requestWaiters: [CheckedContinuation<Void, Never>] = []
+        private(set) var requests: [RealtimeSnapshotCaptureRequest] = []
+
+        func capture(_ request: RealtimeSnapshotCaptureRequest) async -> RealtimeSnapshotCaptureOutcome {
+            requests.append(request)
+            requestWaiters.forEach { $0.resume() }
+            requestWaiters.removeAll()
+            return await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
         }
-        await withCheckedContinuation { continuation in
-            requestWaiters.append(continuation)
+
+        func waitForRequest() async {
+            guard requests.isEmpty else {
+                return
+            }
+            await withCheckedContinuation { continuation in
+                requestWaiters.append(continuation)
+            }
+        }
+
+        func complete(_ outcome: RealtimeSnapshotCaptureOutcome) {
+            continuation?.resume(returning: outcome)
+            continuation = nil
         }
     }
 
-    func complete(_ outcome: RealtimeSnapshotCaptureOutcome) {
-        continuation?.resume(returning: outcome)
-        continuation = nil
-    }
-}
-
-private struct SyntheticSaveError: LocalizedError {
-    var errorDescription: String? {
-        "Synthetic save failure."
+    private struct SyntheticSaveError: LocalizedError {
+        var errorDescription: String? {
+            "Synthetic save failure."
+        }
     }
 }

@@ -27,4 +27,6 @@ struct PRotatableTests {
     }
 }
 
-private final class TestRotatingEntity: Entity, PRotatable {}
+private extension PRotatableTests {
+    private final class TestRotatingEntity: Entity, PRotatable {}
+}

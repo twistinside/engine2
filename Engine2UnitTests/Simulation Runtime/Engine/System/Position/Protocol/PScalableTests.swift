@@ -13,4 +13,6 @@ struct PScalableTests {
     }
 }
 
-private final class TestScalableEntity: Entity, PScalable {}
+private extension PScalableTests {
+    private final class TestScalableEntity: Entity, PScalable {}
+}

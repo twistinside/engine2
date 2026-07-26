@@ -884,223 +884,225 @@ struct RealtimeAdvanceDriverTests {
     }
 }
 
-private struct UnexpectedAdvanceOutcome: Error {}
+private extension RealtimeAdvanceDriverTests {
+    private struct UnexpectedAdvanceOutcome: Error {}
 
-private final class SampledInstantSource {
-    private let samples: [SuspendingClock.Instant]
-    private var nextIndex = 0
+    private final class SampledInstantSource {
+        private let samples: [SuspendingClock.Instant]
+        private var nextIndex = 0
 
-    init(samples: [SuspendingClock.Instant]) {
-        self.samples = samples
-    }
+        init(samples: [SuspendingClock.Instant]) {
+            self.samples = samples
+        }
 
-    func next() -> SuspendingClock.Instant {
-        let sample = samples[min(nextIndex, samples.count - 1)]
-        nextIndex += 1
-        return sample
-    }
-}
-
-private actor ImmediateSleeper {
-    private let results: [Result<Void, any Error>]
-    private var nextIndex = 0
-    private var deadlines: [SuspendingClock.Instant] = []
-
-    init(results: [Result<Void, any Error>]) {
-        self.results = results
-    }
-
-    func sleep(until deadline: SuspendingClock.Instant) async throws {
-        deadlines.append(deadline)
-        let index = min(nextIndex, results.count - 1)
-        nextIndex += 1
-        try results[index].get()
-    }
-
-    func recordedDeadlines() -> [SuspendingClock.Instant] {
-        deadlines
-    }
-}
-
-private actor ControlledSleeper {
-    private struct Waiter {
-        let continuation: CheckedContinuation<Void, any Error>
-    }
-
-    private var waiters: [Waiter] = []
-    private var countWaiters: [
-        Int: [CheckedContinuation<Void, Never>]
-    ] = [:]
-
-    func sleep(until deadline: SuspendingClock.Instant) async throws {
-        try await withCheckedThrowingContinuation { continuation in
-            waiters.append(Waiter(continuation: continuation))
-            resumeSatisfiedCountWaiters()
+        func next() -> SuspendingClock.Instant {
+            let sample = samples[min(nextIndex, samples.count - 1)]
+            nextIndex += 1
+            return sample
         }
     }
 
-    func waitForPendingCount(_ count: Int) async {
-        guard waiters.count < count else {
-            return
+    private actor ImmediateSleeper {
+        private let results: [Result<Void, any Error>]
+        private var nextIndex = 0
+        private var deadlines: [SuspendingClock.Instant] = []
+
+        init(results: [Result<Void, any Error>]) {
+            self.results = results
         }
 
-        await withCheckedContinuation { continuation in
-            countWaiters[count, default: []].append(continuation)
-        }
-    }
-
-    func resumeNext() {
-        guard waiters.isEmpty == false else {
-            Issue.record("No controlled sleep was pending.")
-            return
+        func sleep(until deadline: SuspendingClock.Instant) async throws {
+            deadlines.append(deadline)
+            let index = min(nextIndex, results.count - 1)
+            nextIndex += 1
+            try results[index].get()
         }
 
-        waiters.removeFirst().continuation.resume()
-    }
-
-    func resumeAll() {
-        let pendingWaiters = waiters
-        waiters.removeAll()
-        for waiter in pendingWaiters {
-            waiter.continuation.resume()
+        func recordedDeadlines() -> [SuspendingClock.Instant] {
+            deadlines
         }
     }
 
-    private func resumeSatisfiedCountWaiters() {
-        let satisfiedCounts = countWaiters.keys.filter {
-            $0 <= waiters.count
+    private actor ControlledSleeper {
+        private struct Waiter {
+            let continuation: CheckedContinuation<Void, any Error>
         }
-        for count in satisfiedCounts {
-            let continuations = countWaiters.removeValue(forKey: count) ?? []
-            continuations.forEach { $0.resume() }
+
+        private var waiters: [Waiter] = []
+        private var countWaiters: [
+            Int: [CheckedContinuation<Void, Never>]
+        ] = [:]
+
+        func sleep(until deadline: SuspendingClock.Instant) async throws {
+            try await withCheckedThrowingContinuation { continuation in
+                waiters.append(Waiter(continuation: continuation))
+                resumeSatisfiedCountWaiters()
+            }
+        }
+
+        func waitForPendingCount(_ count: Int) async {
+            guard waiters.count < count else {
+                return
+            }
+
+            await withCheckedContinuation { continuation in
+                countWaiters[count, default: []].append(continuation)
+            }
+        }
+
+        func resumeNext() {
+            guard waiters.isEmpty == false else {
+                Issue.record("No controlled sleep was pending.")
+                return
+            }
+
+            waiters.removeFirst().continuation.resume()
+        }
+
+        func resumeAll() {
+            let pendingWaiters = waiters
+            waiters.removeAll()
+            for waiter in pendingWaiters {
+                waiter.continuation.resume()
+            }
+        }
+
+        private func resumeSatisfiedCountWaiters() {
+            let satisfiedCounts = countWaiters.keys.filter {
+                $0 <= waiters.count
+            }
+            for count in satisfiedCounts {
+                let continuations = countWaiters.removeValue(forKey: count) ?? []
+                continuations.forEach { $0.resume() }
+            }
         }
     }
-}
 
-private actor RecordingAdvanceTarget: PSimulationAdvanceTarget {
-    private var cursor: SimulationCursor
-    private var requests: [SimulationAdvanceRequest] = []
-    private var mismatchCursors: [SimulationCursor]
+    private actor RecordingAdvanceTarget: PSimulationAdvanceTarget {
+        private var cursor: SimulationCursor
+        private var requests: [SimulationAdvanceRequest] = []
+        private var mismatchCursors: [SimulationCursor]
 
-    init(cursor: SimulationCursor, mismatchCursors: [SimulationCursor] = []) {
-        self.cursor = cursor
-        self.mismatchCursors = mismatchCursors
-    }
+        init(cursor: SimulationCursor, mismatchCursors: [SimulationCursor] = []) {
+            self.cursor = cursor
+            self.mismatchCursors = mismatchCursors
+        }
 
-    func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
-        requests.append(request)
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
+            requests.append(request)
 
-        if mismatchCursors.isEmpty == false {
-            let current = mismatchCursors.removeFirst()
-            cursor = current
-            return .rejected(
-                .cursorMismatch(
-                    expected: request.expectedCursor ?? cursor,
-                    current: current
+            if mismatchCursors.isEmpty == false {
+                let current = mismatchCursors.removeFirst()
+                cursor = current
+                return .rejected(
+                    .cursorMismatch(
+                        expected: request.expectedCursor ?? cursor,
+                        current: current
+                    )
+                )
+            }
+
+            let initialCursor = cursor
+            let finalCursor = SimulationCursor(
+                sessionID: cursor.sessionID,
+                tick: SimulationTick(
+                    rawValue: cursor.tick.rawValue + UInt64(request.stepCount.rawValue)
+                )
+            )
+            cursor = finalCursor
+
+            return .completed(
+                SimulationAdvanceResult(
+                    initialCursor: initialCursor,
+                    finalCursor: finalCursor,
+                    completedStepCount: SimulationCompletedStepCount(
+                        rawValue: request.stepCount.rawValue
+                    ),
+                    finalPresentationSnapshot: SimulationPresentationSnapshot(
+                        cursor: finalCursor,
+                        camera: Camera(),
+                        entityPresentations: []
+                    )
                 )
             )
         }
 
-        let initialCursor = cursor
-        let finalCursor = SimulationCursor(
-            sessionID: cursor.sessionID,
-            tick: SimulationTick(
-                rawValue: cursor.tick.rawValue + UInt64(request.stepCount.rawValue)
-            )
-        )
-        cursor = finalCursor
+        func requestCount() -> Int {
+            requests.count
+        }
 
-        return .completed(
-            SimulationAdvanceResult(
-                initialCursor: initialCursor,
-                finalCursor: finalCursor,
-                completedStepCount: SimulationCompletedStepCount(
-                    rawValue: request.stepCount.rawValue
-                ),
-                finalPresentationSnapshot: SimulationPresentationSnapshot(
-                    cursor: finalCursor,
-                    camera: Camera(),
-                    entityPresentations: []
-                )
-            )
-        )
-    }
-
-    func requestCount() -> Int {
-        requests.count
-    }
-
-    func recordedRequests() -> [SimulationAdvanceRequest] {
-        requests
-    }
-}
-
-private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
-    private struct PendingAdvance {
-        let continuation: CheckedContinuation<SimulationAdvanceOutcome, Never>
-    }
-
-    private var requests: [SimulationAdvanceRequest] = []
-    private var pendingAdvances: [PendingAdvance] = []
-    private var countWaiters: [
-        Int: [CheckedContinuation<Void, Never>]
-    ] = [:]
-
-    func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
-        requests.append(request)
-
-        return await withCheckedContinuation { continuation in
-            pendingAdvances.append(PendingAdvance(continuation: continuation))
-            resumeSatisfiedCountWaiters()
+        func recordedRequests() -> [SimulationAdvanceRequest] {
+            requests
         }
     }
 
-    func waitForRequestCount(_ count: Int) async {
-        guard requests.count < count else {
-            return
+    private actor SuspendedAdvanceTarget: PSimulationAdvanceTarget {
+        private struct PendingAdvance {
+            let continuation: CheckedContinuation<SimulationAdvanceOutcome, Never>
         }
 
-        await withCheckedContinuation { continuation in
-            countWaiters[count, default: []].append(continuation)
+        private var requests: [SimulationAdvanceRequest] = []
+        private var pendingAdvances: [PendingAdvance] = []
+        private var countWaiters: [
+            Int: [CheckedContinuation<Void, Never>]
+        ] = [:]
+
+        func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
+            requests.append(request)
+
+            return await withCheckedContinuation { continuation in
+                pendingAdvances.append(PendingAdvance(continuation: continuation))
+                resumeSatisfiedCountWaiters()
+            }
+        }
+
+        func waitForRequestCount(_ count: Int) async {
+            guard requests.count < count else {
+                return
+            }
+
+            await withCheckedContinuation { continuation in
+                countWaiters[count, default: []].append(continuation)
+            }
+        }
+
+        func resumeNext(with outcome: SimulationAdvanceOutcome) {
+            guard pendingAdvances.isEmpty == false else {
+                Issue.record("No suspended advance was pending.")
+                return
+            }
+
+            pendingAdvances.removeFirst().continuation.resume(returning: outcome)
+        }
+
+        func recordedRequests() -> [SimulationAdvanceRequest] {
+            requests
+        }
+
+        private func resumeSatisfiedCountWaiters() {
+            let satisfiedCounts = countWaiters.keys.filter {
+                $0 <= requests.count
+            }
+            for count in satisfiedCounts {
+                let continuations = countWaiters.removeValue(forKey: count) ?? []
+                continuations.forEach { $0.resume() }
+            }
         }
     }
 
-    func resumeNext(with outcome: SimulationAdvanceOutcome) {
-        guard pendingAdvances.isEmpty == false else {
-            Issue.record("No suspended advance was pending.")
-            return
+    private final class SequencedInputSource: PInputSnapshotSource {
+        private let snapshots: [InputSnapshot]
+        private(set) var readCount = 0
+
+        var latestInputSnapshot: InputSnapshot {
+            let snapshot = snapshots[min(readCount, snapshots.count - 1)]
+            readCount += 1
+            return snapshot
         }
 
-        pendingAdvances.removeFirst().continuation.resume(returning: outcome)
-    }
-
-    func recordedRequests() -> [SimulationAdvanceRequest] {
-        requests
-    }
-
-    private func resumeSatisfiedCountWaiters() {
-        let satisfiedCounts = countWaiters.keys.filter {
-            $0 <= requests.count
+        init(snapshots: [InputSnapshot]) {
+            precondition(snapshots.isEmpty == false)
+            self.snapshots = snapshots
         }
-        for count in satisfiedCounts {
-            let continuations = countWaiters.removeValue(forKey: count) ?? []
-            continuations.forEach { $0.resume() }
-        }
-    }
-}
-
-private final class SequencedInputSource: PInputSnapshotSource {
-    private let snapshots: [InputSnapshot]
-    private(set) var readCount = 0
-
-    var latestInputSnapshot: InputSnapshot {
-        let snapshot = snapshots[min(readCount, snapshots.count - 1)]
-        readCount += 1
-        return snapshot
-    }
-
-    init(snapshots: [InputSnapshot]) {
-        precondition(snapshots.isEmpty == false)
-        self.snapshots = snapshots
     }
 }

@@ -51,12 +51,14 @@ struct RealtimeConfigurationTests {
     }
 }
 
-private struct RealtimeTestWorldBuilder: PWorldBuilder {
-    let position: SIMD3<Float>
+private extension RealtimeConfigurationTests {
+    private struct RealtimeTestWorldBuilder: PWorldBuilder {
+        let position: SIMD3<Float>
 
-    func buildWorld() -> World {
-        let world = World()
-        _ = Ball(in: world, position: position)
-        return world
+        func buildWorld() -> World {
+            let world = World()
+            _ = Ball(in: world, position: position)
+            return world
+        }
     }
 }
