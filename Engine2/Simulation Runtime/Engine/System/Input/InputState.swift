@@ -125,11 +125,11 @@ struct InputState {
         tokens += mouse.buttons.sorted().map(\.displayName)
 
         if mouse.delta != .zero {
-            tokens.append("Mouse dx:\(Self.format(signed: mouse.delta.x)) dy:\(Self.format(signed: mouse.delta.y))")
+            tokens.append("Mouse dx:\(format(signed: mouse.delta.x)) dy:\(format(signed: mouse.delta.y))")
         }
 
         if mouse.scrollDelta != .zero {
-            tokens.append("Wheel:\(Self.format(signed: mouse.scrollDelta.y))")
+            tokens.append("Wheel:\(format(signed: mouse.scrollDelta.y))")
         }
 
         tokens += keyboard.keys.sorted().map(\.displayName)
@@ -137,7 +137,7 @@ struct InputState {
         return tokens
     }
 
-    private static func format(signed value: Float) -> String {
+    private func format(signed value: Float) -> String {
         let rounded = value.rounded()
         guard let integer = Int(exactly: rounded) else {
             let text = String(value)

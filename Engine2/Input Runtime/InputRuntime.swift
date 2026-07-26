@@ -53,14 +53,14 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         switch event {
         case let .mouseButtonDown(button, position):
-            guard Self.isFinite(position) else {
+            guard isFinite(position) else {
                 return
             }
             pointerPosition = position
             pressedMouseButtons.insert(button)
 
         case let .mouseButtonUp(button, position):
-            guard Self.isFinite(position) else {
+            guard isFinite(position) else {
                 return
             }
             pointerPosition = position
@@ -68,9 +68,9 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         case let .mouseDragged(delta, position):
             let nextPointerMotionTotal = pointerMotionTotal + delta
-            guard Self.isFinite(delta),
-                  Self.isFinite(position),
-                  Self.isFinite(nextPointerMotionTotal) else {
+            guard isFinite(delta),
+                  isFinite(position),
+                  isFinite(nextPointerMotionTotal) else {
                 return
             }
             pointerPosition = position
@@ -78,8 +78,8 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
 
         case let .scroll(delta):
             let nextScrollTotal = scrollTotal + delta
-            guard Self.isFinite(delta),
-                  Self.isFinite(nextScrollTotal) else {
+            guard isFinite(delta),
+                  isFinite(nextScrollTotal) else {
                 return
             }
             scrollTotal = nextScrollTotal
@@ -95,7 +95,7 @@ final class InputRuntime: PInputEventSink, PInputSnapshotSource {
         publishSnapshot()
     }
 
-    private static func isFinite(_ value: SIMD2<Float>) -> Bool {
+    private func isFinite(_ value: SIMD2<Float>) -> Bool {
         value.x.isFinite && value.y.isFinite
     }
 

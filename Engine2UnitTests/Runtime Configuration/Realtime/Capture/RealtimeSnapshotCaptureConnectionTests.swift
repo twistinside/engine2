@@ -6,8 +6,8 @@ import Testing
 struct RealtimeSnapshotCaptureConnectionTests {
     @Test
     func locksSelectedSnapshotCameraBeforeRenderingSuspends() async throws {
-        let initialSnapshot = Self.snapshot(tick: 3, cameraX: 0)
-        let laterSnapshot = Self.snapshot(
+        let initialSnapshot = snapshot(tick: 3, cameraX: 0)
+        let laterSnapshot = snapshot(
             sessionID: initialSnapshot.cursor.sessionID,
             tick: 4,
             cameraX: 2
@@ -39,7 +39,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         // completed outcome must continue to carry the selected value.
         presentationSource.snapshot = laterSnapshot
 
-        let renderResult = try Self.renderResult(for: renderRequest)
+        let renderResult = try renderResult(for: renderRequest)
         await renderTarget.complete(.completed(renderResult))
         let outcome = await capture.value
         let artifact = Self.artifact(
@@ -65,8 +65,8 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func sequentialCapturesKeepOneIdentityAndFollowSimulationPublications() async throws {
-        let firstSnapshot = Self.snapshot(tick: 43, cameraX: -2)
-        let secondSnapshot = Self.snapshot(
+        let firstSnapshot = snapshot(tick: 43, cameraX: -2)
+        let secondSnapshot = snapshot(
             sessionID: firstSnapshot.cursor.sessionID,
             tick: 44,
             cameraX: 3
@@ -97,7 +97,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(firstRequest)
         }
         let firstRenderRequest = await renderTarget.waitForRequest(at: 0)
-        let firstRenderResult = try Self.renderResult(for: firstRenderRequest)
+        let firstRenderResult = try renderResult(for: firstRenderRequest)
         await renderTarget.complete(.completed(firstRenderResult))
         guard case let .completed(firstSelectedSnapshot, firstArtifact) =
             await firstCapture.value
@@ -112,7 +112,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(secondRequest)
         }
         let secondRenderRequest = await renderTarget.waitForRequest(at: 1)
-        let secondRenderResult = try Self.renderResult(for: secondRenderRequest)
+        let secondRenderResult = try renderResult(for: secondRenderRequest)
         await renderTarget.complete(.completed(secondRenderResult))
         guard case let .completed(secondSelectedSnapshot, secondArtifact) =
             await secondCapture.value
@@ -148,7 +148,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func overlappingCaptureReturnsBusyWithoutSamplingAgain() async throws {
-        let snapshot = Self.snapshot(tick: 1, cameraX: 0)
+        let snapshot = snapshot(tick: 1, cameraX: 0)
         let presentationSource = MutablePresentationSource(snapshot)
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
@@ -180,14 +180,14 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(presentationSource.sampleCount == 1)
         #expect(await renderTarget.requestCount() == 1)
 
-        let result = try Self.renderResult(for: admittedRequest)
+        let result = try renderResult(for: admittedRequest)
         await renderTarget.complete(.completed(result))
         _ = await firstCapture.value
     }
 
     @Test
     func overlapDuringArtifactEncodingReturnsBusyWithoutResampling() async throws {
-        let snapshot = Self.snapshot(tick: 11, cameraX: 0)
+        let snapshot = snapshot(tick: 11, cameraX: 0)
         let presentationSource = MutablePresentationSource(snapshot)
         let renderTarget = ControlledRenderTarget()
         let encoder = SuspendedArtifactEncoder()
@@ -213,7 +213,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(firstRequest)
         }
         let admittedRequest = await renderTarget.waitForFirstRequest()
-        let renderResult = try Self.renderResult(for: admittedRequest)
+        let renderResult = try renderResult(for: admittedRequest)
         await renderTarget.complete(.completed(renderResult))
         await encoder.waitForRequest()
 
@@ -239,7 +239,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func preCancelledCaptureDoesNotSampleSourcesOrRender() async throws {
-        let snapshot = Self.snapshot(tick: 17, cameraX: 0)
+        let snapshot = snapshot(tick: 17, cameraX: 0)
         let presentationSource = MutablePresentationSource(snapshot)
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
@@ -269,7 +269,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func cancellationAfterRawRenderRetainsExactSnapshotAndResult() async throws {
-        let snapshot = Self.snapshot(tick: 23, cameraX: 0)
+        let snapshot = snapshot(tick: 23, cameraX: 0)
         let renderTarget = ControlledRenderTarget()
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
@@ -287,7 +287,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(request)
         }
         let admittedRequest = await renderTarget.waitForFirstRequest()
-        let renderResult = try Self.renderResult(for: admittedRequest)
+        let renderResult = try renderResult(for: admittedRequest)
         capture.cancel()
         await renderTarget.complete(.completed(renderResult))
 
@@ -302,7 +302,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func mismatchedRenderProvenancePreventsArtifactEncoding() async throws {
-        let snapshot = Self.snapshot(tick: 31, cameraX: 0)
+        let snapshot = snapshot(tick: 31, cameraX: 0)
         let renderTarget = ControlledRenderTarget()
         let encoder = CountingArtifactEncoder()
         let connection = RealtimeSnapshotCaptureConnection(
@@ -321,7 +321,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(request)
         }
         let admittedRequest = await renderTarget.waitForFirstRequest()
-        let validResult = try Self.renderResult(for: admittedRequest)
+        let validResult = try renderResult(for: admittedRequest)
         let mismatchedCursor = SimulationCursor(
             sessionID: validResult.sourceCursor.sessionID,
             tick: validResult.sourceCursor.tick.advanced()
@@ -347,7 +347,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func everyPreEncodingRenderTerminalPreservesTheSelectedSnapshot() async throws {
-        let snapshot = Self.snapshot(tick: 37, cameraX: 1)
+        let snapshot = snapshot(tick: 37, cameraX: 1)
         let request = RealtimeSnapshotCaptureRequest(
             renderRequestID: OffscreenRenderRequestID(),
             renderSettings: OffscreenRenderSettings(
@@ -423,7 +423,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func artifactFailurePreservesSelectedSnapshotAndRawResult() async throws {
-        let snapshot = Self.snapshot(tick: 41, cameraX: -1)
+        let snapshot = snapshot(tick: 41, cameraX: -1)
         let renderTarget = ControlledRenderTarget()
         let encodingFailure =
             ImageArtifactEncoderError.destinationFinalizationFailed
@@ -443,7 +443,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(request)
         }
         let admittedRequest = await renderTarget.waitForFirstRequest()
-        let renderResult = try Self.renderResult(for: admittedRequest)
+        let renderResult = try renderResult(for: admittedRequest)
         await renderTarget.complete(.completed(renderResult))
 
         #expect(
@@ -458,7 +458,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
 
     @Test
     func mismatchedArtifactProvenanceRetainsRawAndEncodedValues() async throws {
-        let snapshot = Self.snapshot(tick: 47, cameraX: 1)
+        let snapshot = snapshot(tick: 47, cameraX: 1)
         let renderTarget = ControlledRenderTarget()
         let encoder = CountingArtifactEncoder(mismatchesEncoding: true)
         let connection = RealtimeSnapshotCaptureConnection(
@@ -477,7 +477,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             await connection.capture(request)
         }
         let admittedRequest = await renderTarget.waitForFirstRequest()
-        let renderResult = try Self.renderResult(for: admittedRequest)
+        let renderResult = try renderResult(for: admittedRequest)
         await renderTarget.complete(.completed(renderResult))
         let mismatchedArtifact = Self.artifact(
             for: renderResult,
@@ -494,7 +494,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(await encoder.count() == 1)
     }
 
-    private static func snapshot(
+    private func snapshot(
         sessionID: SimulationSessionID = SimulationSessionID(),
         tick: UInt64,
         cameraX: Float
@@ -512,7 +512,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
     }
 
-    private static func renderResult(for request: OffscreenRenderRequest) throws -> OffscreenRenderResult {
+    private func renderResult(for request: OffscreenRenderRequest) throws -> OffscreenRenderResult {
         OffscreenRenderResult(
             requestID: request.id,
             sourceCursor: request.presentationSnapshot.cursor,

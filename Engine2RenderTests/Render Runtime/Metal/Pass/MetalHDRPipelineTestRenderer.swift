@@ -128,7 +128,7 @@ final class MetalHDRPipelineTestRenderer {
     /// Their distinct regions let one submission validate every per-draw record
     /// while continuing to use production frame packing and argument binding.
     func renderAuthoredMaterialScene(_ materialIDs: [MaterialID]) throws -> [MetalHDRPipelineTestResult] {
-        let layout = Self.centeredStripLayout(drawCount: materialIDs.count)
+        let layout = centeredStripLayout(drawCount: materialIDs.count)
         return try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
@@ -150,7 +150,7 @@ final class MetalHDRPipelineTestRenderer {
             preconditionFailure("Missing exhaustive model PBR diagnostic pipeline: \(output)")
         }
 
-        let layout = Self.centeredStripLayout(drawCount: materialIDs.count)
+        let layout = centeredStripLayout(drawCount: materialIDs.count)
         let results = try render(
             scenePipeline: pipeline,
             // Factor and contribution assertions inspect the raw HDR scene
@@ -404,14 +404,14 @@ final class MetalHDRPipelineTestRenderer {
     /// the same geometry and only the instance address changes, this layout
     /// makes a six-material submission inspectable without introducing a second
     /// mesh, transform convention, or render target.
-    private static func centeredStripLayout(drawCount: Int) -> (scissorRects: [MTLScissorRect], sampleRegions: [MTLRegion]) {
+    private func centeredStripLayout(drawCount: Int) -> (scissorRects: [MTLScissorRect], sampleRegions: [MTLRegion]) {
         precondition(
             drawCount > 0 && drawCount <= FrameResources.maximumInstanceCount,
             "The centered material strip requires a bounded nonempty draw list."
         )
 
-        let leftEdge = width / 4 + 1
-        let rightEdge = width - leftEdge
+        let leftEdge = Self.width / 4 + 1
+        let rightEdge = Self.width - leftEdge
         let availableWidth = rightEdge - leftEdge
         precondition(drawCount <= availableWidth, "Each material draw requires at least one inspectable pixel.")
 
@@ -431,13 +431,13 @@ final class MetalHDRPipelineTestRenderer {
                     x: startX,
                     y: 0,
                     width: regionWidth,
-                    height: height
+                    height: Self.height
                 )
             )
             sampleRegions.append(
                 MTLRegionMake2D(
                     startX + regionWidth / 2,
-                    height / 2,
+                    Self.height / 2,
                     1,
                     1
                 )

@@ -8,7 +8,7 @@ import Testing
 struct RuntimeCompositionScenarioTests {
     @Test
     func clockDrivenSimulationRunsOneSecondWithoutInputOrRenderPeers() async throws {
-        let runtime = await Self.runClockDrivenSimulation(
+        let runtime = await runClockDrivenSimulation(
             stepCount: SimulationStepCount(rawValue: 60)
         )
 
@@ -32,7 +32,7 @@ struct RuntimeCompositionScenarioTests {
         let gameContent = BasicGameContent(
             worldBuilder: MovingWorldBuilder()
         )
-        let clockDriven = await Self.runClockDrivenSimulation(
+        let clockDriven = await runClockDrivenSimulation(
             stepCount: SimulationStepCount(rawValue: 20)
         )
         let manual = ManualConfiguration().makeAssembly(
@@ -128,12 +128,12 @@ struct RuntimeCompositionScenarioTests {
                 == manualResult.finalPresentationSnapshot.camera
         )
 
-        try Self.expectDecodableJPEG(firstResult.artifact, size: size)
-        try Self.expectDecodableJPEG(secondResult.artifact, size: size)
-        try Self.expectDecodableJPEG(currentResult.artifact, size: size)
+        try expectDecodableJPEG(firstResult.artifact, size: size)
+        try expectDecodableJPEG(secondResult.artifact, size: size)
+        try expectDecodableJPEG(currentResult.artifact, size: size)
     }
 
-    private static func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
+    private func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
         let runtime = SimulationRuntime(
             worldBuilder: MovingWorldBuilder()
         )
@@ -173,7 +173,7 @@ struct RuntimeCompositionScenarioTests {
         let expectedTick = SimulationTick(
             rawValue: UInt64(stepCount.rawValue)
         )
-        let didAdvance = await Self.eventually {
+        let didAdvance = await eventually {
             runtime.currentCursor.tick == expectedTick
         }
         await driver.stopAndDrain()
@@ -183,7 +183,7 @@ struct RuntimeCompositionScenarioTests {
         return runtime
     }
 
-    private static func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
+    private func eventually(_ condition: @MainActor () -> Bool) async -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: .seconds(5))
 
@@ -197,7 +197,7 @@ struct RuntimeCompositionScenarioTests {
         return false
     }
 
-    private static func expectDecodableJPEG(_ artifact: RenderedImageArtifact, size: RenderPixelSize) throws {
+    private func expectDecodableJPEG(_ artifact: RenderedImageArtifact, size: RenderPixelSize) throws {
         guard case .jpeg = artifact.encoding else {
             Issue.record("Expected the scenario artifact to use JPEG.")
             return
