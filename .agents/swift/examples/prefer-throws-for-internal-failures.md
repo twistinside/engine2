@@ -128,6 +128,25 @@ Likewise, Agent Session outcomes carry idempotent replay, in-progress identity, 
 and authoritative cursor knowledge. A thrown error alone would discard information that remains meaningful after the
 operation returns.
 
+That does not require manual failure return values between the actor's own
+methods. `AgentSessionCoordinator` uses typed throws for new-work admission,
+then converts the closed `AgentSessionRequestRejectionReason` into the public
+value-shaped submission outcome:
+
+```swift
+do {
+    try admitNewRequest(request)
+} catch {
+    return rejected(error)
+}
+
+let response = await executeAcceptedRequest(request)
+```
+
+The internal method communicates one success or one refusal through ordinary
+control flow. The protocol method still preserves that refusal as replay- and
+transport-relevant boundary data.
+
 Keep an explicit value when it:
 
 - is stored, replayed, persisted, or sent onward as data;

@@ -1,5 +1,9 @@
 /// Closed reasons a request was refused without consuming its supplied identity.
-nonisolated enum AgentSessionRequestRejectionReason: Equatable, Sendable {
+///
+/// New-work admission throws this value inside the coordinator. The protocol
+/// boundary converts it into ``AgentSessionRequestRejection`` so refusal remains
+/// replayable contract data rather than escaping as an implementation error.
+nonisolated enum AgentSessionRequestRejectionReason: Error, Equatable, Sendable {
     case wrongSession(expected: AgentSessionID, actual: AgentSessionID)
     /// The payload cannot participate in stable equality, such as a viewpoint
     /// containing NaN camera state, so accepting it would make exact retry
