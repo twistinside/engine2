@@ -32,7 +32,7 @@ struct GPUInstanceTests {
             RenderInstance(
                 meshID: .ball,
                 materialID: .warmDielectric,
-                transform: Transform()
+                transform: .identity
             ),
             material: material,
             viewMatrix: matrix_identity_float4x4,
@@ -70,7 +70,12 @@ struct GPUInstanceTests {
             materialID: .warmDielectric,
             transform: transform
         )
-        let camera = Camera.lookingAt(.zero, from: SIMD3<Float>(0, 1, 8))
+        let camera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(0, 1, 8),
+            up: SIMD3<Float>(0, 1, 0),
+            projection: .standardPerspective
+        )
         let gpuInstance = GPUInstance(
             renderInstance,
             material: Self.warmDielectric,
@@ -96,6 +101,7 @@ struct GPUInstanceTests {
             meshID: .ball,
             materialID: .warmDielectric,
             transform: Transform(
+                position: .zero,
                 rotation: simd_quatf(
                     angle: .pi / 4,
                     axis: SIMD3<Float>(0, 1, 0)
@@ -103,8 +109,16 @@ struct GPUInstanceTests {
                 scale: SIMD3<Float>(2, 1, 0.5)
             )
         )
-        let firstCamera = Camera(position: SIMD3<Float>(0, 0, 8))
-        let translatedCamera = Camera(position: SIMD3<Float>(3, -2, 8))
+        let firstCamera = Camera(
+            position: SIMD3<Float>(0, 0, 8),
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
+        let translatedCamera = Camera(
+            position: SIMD3<Float>(3, -2, 8),
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let projection = firstCamera.projectionMatrix(aspectRatio: 1)
         let first = GPUInstance(
             renderInstance,

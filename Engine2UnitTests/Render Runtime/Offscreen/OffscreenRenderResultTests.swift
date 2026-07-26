@@ -23,7 +23,11 @@ struct OffscreenRenderResultTests {
                 )!
             ),
             revision: RenderViewpointRevision(rawValue: 23),
-            camera: Camera(position: SIMD3<Float>(7, 8, 9))
+            camera: Camera(
+                position: SIMD3<Float>(7, 8, 9),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
         let size = try RenderPixelSize(width: 2, height: 1)
         let settings = OffscreenRenderSettings(

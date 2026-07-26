@@ -84,7 +84,7 @@ final class FrameResources: @unchecked Sendable {
         // unused parameter buffer finite in that case so GPU inspection never
         // encounters stale NaNs; any nonempty frame has already validated its
         // actual camera at the Render projection boundary.
-        let parameterCamera = camera.supportsViewTransform ? camera : Camera()
+        let parameterCamera = camera.supportsViewTransform ? camera : .standard
         pbrSceneParametersBuffer.contents().storeBytes(
             of: PBRSceneParameters(camera: parameterCamera),
             as: PBRSceneParameters.self

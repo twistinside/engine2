@@ -14,7 +14,12 @@ struct SimulationPresentationSnapshotTests {
         )
         world.camera = Camera(
             position: SIMD3<Float>(1, 2, 8),
-            orthographicHeight: 10
+            rotation: Transform.identityRotation,
+            projection: .orthographic(
+                height: 10,
+                near: 0.1,
+                far: 100
+            )
         )
         world.renderableComponents.insert(
             CRenderable(

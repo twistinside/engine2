@@ -437,9 +437,9 @@ The entities retain their normal movement and rotation capabilities. Their
 velocity, acceleration intent, impulse, angular velocity, and angular
 accumulators all use zero/idle defaults, so the invariant Simulation schedule
 leaves the scene quiescent. They do not advertise scale; ``RenderFrame`` applies
-its existing `0.5` default. The default perspective camera remains at
-`(0, 0, 8)`, and the fixed Render-owned world-space `+Z` directional light is
-unchanged.
+``RenderInstance/defaultScale`` as its named missing-scale projection policy.
+The named ``Camera/standard`` perspective camera remains at `(0, 0, 8)`, and
+the fixed Render-owned world-space `+Z` directional light is unchanged.
 
 Validation deliberately adds no app-facing render path. Surface and view-space
 normal modes remain the only `RenderOutputMode` cases. Test-addressable model

@@ -6,7 +6,7 @@ struct RenderFrame: Equatable {
         sourceCursor: nil,
         viewpointID: nil,
         viewpointRevision: nil,
-        camera: Camera(),
+        camera: .standard,
         instances: []
     )
 

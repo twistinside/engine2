@@ -4,19 +4,16 @@ import simd
 nonisolated struct Transform: Sendable {
     static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
 
+    /// Neutral placement that leaves local-space positions unchanged.
+    static let identity = Transform(
+        position: .zero,
+        rotation: identityRotation,
+        scale: SIMD3<Float>(repeating: 1)
+    )
+
     var position: SIMD3<Float>
     var rotation: simd_quatf
     var scale: SIMD3<Float>
-
-    init(
-        position: SIMD3<Float> = .zero,
-        rotation: simd_quatf = Self.identityRotation,
-        scale: SIMD3<Float> = SIMD3<Float>(repeating: 1)
-    ) {
-        self.position = position
-        self.rotation = rotation
-        self.scale = scale
-    }
 
     /// Model matrix that transforms local mesh vertices into world space.
     var matrix: simd_float4x4 {

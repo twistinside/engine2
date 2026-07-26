@@ -66,7 +66,9 @@ struct AgentSessionConfigurationTests {
             revision: RenderViewpointRevision(rawValue: 11),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(0, 0, 8)
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let firstRenderSettings = OffscreenRenderSettings(
@@ -129,7 +131,9 @@ struct AgentSessionConfigurationTests {
             revision: firstViewpoint.revision.advanced(),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(0.75, 0.25, 8)
+                from: SIMD3<Float>(0.75, 0.25, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let secondRenderSettings = OffscreenRenderSettings(
@@ -202,7 +206,9 @@ struct AgentSessionConfigurationTests {
             revision: secondViewpoint.revision.advanced(),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(-0.5, 0.5, 8)
+                from: SIMD3<Float>(-0.5, 0.5, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             )
         )
         let thirdRequest = AgentCaptureRequest(

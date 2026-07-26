@@ -162,7 +162,9 @@ struct SimulationRuntimeAdvanceTests {
                 sinf(0.05) * 8,
                 0,
                 cosf(0.05) * 8
-            )
+            ),
+            up: SIMD3<Float>(0, 1, 0),
+            projection: .standardPerspective
         )
         #expect(simd_distance(simulation.world.camera.position, expectedCamera.position) < 0.0001)
         #expect(
@@ -242,7 +244,9 @@ struct SimulationRuntimeAdvanceTests {
                 sinf(0.05) * 8,
                 0,
                 cosf(0.05) * 8
-            )
+            ),
+            up: SIMD3<Float>(0, 1, 0),
+            projection: .standardPerspective
         )
         #expect(simd_distance(simulation.world.camera.position, expectedCamera.position) < 0.0001)
         #expect(

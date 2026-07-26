@@ -19,7 +19,7 @@ class World {
     var selectableComponents = ComponentStore<CSelectable>()
 
     // MARK: Resources
-    var camera = Camera()
+    var camera = Camera.standard
     var input = InputState()
 
     private static let identityRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))

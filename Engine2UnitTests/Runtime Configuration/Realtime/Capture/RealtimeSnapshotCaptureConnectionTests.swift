@@ -550,7 +550,9 @@ struct RealtimeSnapshotCaptureConnectionTests {
             ),
             camera: Camera.lookingAt(
                 .zero,
-                from: SIMD3<Float>(cameraX, 0, 8)
+                from: SIMD3<Float>(cameraX, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
             ),
             entityPresentations: []
         )

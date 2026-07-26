@@ -59,7 +59,7 @@ struct RuntimeCompositionScenarioTests {
         let viewpoint = RenderViewpoint(
             id: RenderViewpointID(),
             revision: .zero,
-            camera: Camera()
+            camera: .standard
         )
         let settings = OffscreenRenderSettings(
             size: size,

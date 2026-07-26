@@ -222,9 +222,12 @@ struct ImageIOArtifactEncoderTests {
             revision: RenderViewpointRevision(rawValue: 43),
             camera: Camera(
                 position: SIMD3<Float>(3, 5, 7),
-                orthographicHeight: 11,
-                nearPlane: 0.25,
-                farPlane: 250
+                rotation: Transform.identityRotation,
+                projection: .orthographic(
+                    height: 11,
+                    near: 0.25,
+                    far: 250
+                )
             )
         )
         let settings = OffscreenRenderSettings(

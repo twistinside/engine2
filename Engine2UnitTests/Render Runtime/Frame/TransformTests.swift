@@ -19,27 +19,39 @@ struct TransformTests {
     }
 
     @Test func normalTransformSupportRejectsDegenerateOrNonfiniteInputs() {
-        #expect(Transform().supportsNormalTransform)
+        #expect(Transform.identity.supportsNormalTransform)
         #expect(
             Transform(
+                position: .zero,
+                rotation: Transform.identityRotation,
                 scale: SIMD3<Float>(1, 0, 1)
             ).supportsNormalTransform == false
         )
         #expect(
             Transform(
+                position: .zero,
+                rotation: Transform.identityRotation,
                 scale: SIMD3<Float>(Float.leastNonzeroMagnitude, 1, 1)
             ).supportsNormalTransform == false
         )
         #expect(
             Transform(
-                position: SIMD3<Float>(.infinity, 0, 0)
+                position: SIMD3<Float>(.infinity, 0, 0),
+                rotation: Transform.identityRotation,
+                scale: SIMD3<Float>(repeating: 1)
             ).supportsNormalTransform == false
         )
         #expect(
             Transform(
-                rotation: simd_quatf(vector: .zero)
+                position: .zero,
+                rotation: simd_quatf(vector: .zero),
+                scale: SIMD3<Float>(repeating: 1)
             ).supportsNormalTransform == false
         )
+    }
+
+    @Test func identityTransformLeavesLocalPositionsUnchanged() {
+        #expect(Transform.identity.matrix == matrix_identity_float4x4)
     }
 }
 

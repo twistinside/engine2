@@ -550,7 +550,9 @@ struct AgentSessionCoordinatorTests {
             id: validRequest.viewpoint.id,
             revision: validRequest.viewpoint.revision,
             camera: Camera(
-                position: SIMD3<Float>(.nan, 3, 8)
+                position: SIMD3<Float>(.nan, 3, 8),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
             )
         )
         let invalidRequest = AgentCaptureRequest(
@@ -1339,7 +1341,11 @@ struct AgentSessionCoordinatorTests {
                 )!
             ),
             revision: RenderViewpointRevision(rawValue: 4),
-            camera: Camera(position: SIMD3<Float>(2, 3, 8))
+            camera: Camera(
+                position: SIMD3<Float>(2, 3, 8),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         )
         let renderSettings = OffscreenRenderSettings(
             size: try RenderPixelSize(width: 2, height: 2),

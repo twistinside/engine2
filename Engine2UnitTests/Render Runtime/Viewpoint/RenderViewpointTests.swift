@@ -4,7 +4,11 @@ import Testing
 struct RenderViewpointTests {
     @Test func equalityIncludesIdentityRevisionAndCamera() {
         let id = RenderViewpointID()
-        let camera = Camera(position: .init(1, 2, 3))
+        let camera = Camera(
+            position: .init(1, 2, 3),
+            rotation: Transform.identityRotation,
+            projection: .standardPerspective
+        )
         let value = RenderViewpoint(id: id, revision: .zero, camera: camera)
 
         #expect(value == RenderViewpoint(id: id, revision: .zero, camera: camera))
@@ -21,7 +25,11 @@ struct RenderViewpointTests {
         #expect(value != RenderViewpoint(
             id: id,
             revision: .zero,
-            camera: Camera(position: .init(3, 2, 1))
+            camera: Camera(
+                position: .init(3, 2, 1),
+                rotation: Transform.identityRotation,
+                projection: .standardPerspective
+            )
         ))
     }
 }

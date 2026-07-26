@@ -15,7 +15,7 @@ struct SimulationAdvanceOutcomeTests {
             completedStepCount: SimulationCompletedStepCount(rawValue: 1),
             finalPresentationSnapshot: SimulationPresentationSnapshot(
                 cursor: finalCursor,
-                camera: Camera(),
+                camera: .standard,
                 entityPresentations: []
             )
         )
