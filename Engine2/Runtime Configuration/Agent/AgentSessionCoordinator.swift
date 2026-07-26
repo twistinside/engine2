@@ -29,7 +29,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         initialCursor: SimulationCursor,
         limits: AgentSessionLimits,
         captureTarget: any POfflineCaptureTarget,
-        initialRequestSequence: AgentSessionRequestSequence = .first
+        initialRequestSequence: AgentSessionRequestSequence
     ) {
         self.sessionID = sessionID
         self.knownCursor = initialCursor

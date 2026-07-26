@@ -85,6 +85,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
     func pausedCameraInputIsDiscardedAndFreshInputCommitsAfterResume() async {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let initialCamera = simulationRuntime.world.camera

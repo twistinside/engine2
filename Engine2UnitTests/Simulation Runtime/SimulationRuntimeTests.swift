@@ -2,10 +2,31 @@ import Testing
 @testable import Engine2
 
 struct SimulationRuntimeTests {
+    @Test func constructionDistinguishesFreshAndInjectedSessionIdentity() {
+        let injectedSessionID = SimulationSessionID()
+        let injected = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
+            inputBaseline: nil,
+            sessionID: injectedSessionID
+        )
+        let fresh = SimulationRuntime(
+            worldBuilder: BasicWorldBuilder(),
+            inputBaseline: nil
+        )
+
+        #expect(injected.sessionID == injectedSessionID)
+        #expect(injected.currentCursor.sessionID == injectedSessionID)
+        #expect(fresh.sessionID != injectedSessionID)
+        #expect(fresh.currentCursor.sessionID == fresh.sessionID)
+    }
+
     @Test func initBuildsEngineWorldFromBuilder() async throws {
         let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
 
-        let simulation = SimulationRuntime(worldBuilder: builder)
+        let simulation = SimulationRuntime(
+            worldBuilder: builder,
+            inputBaseline: nil
+        )
         let presentationSource: any PSimulationPresentationSource = simulation
 
         let entity = try #require(simulation.world.positionComponents.entities.first)
@@ -21,7 +42,10 @@ struct SimulationRuntimeTests {
     @Test func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
         let builder = IncrementingWorldBuilder()
 
-        let simulation = SimulationRuntime(worldBuilder: builder)
+        let simulation = SimulationRuntime(
+            worldBuilder: builder,
+            inputBaseline: nil
+        )
         let firstWorld = simulation.world
         let firstEntity = try #require(firstWorld.positionComponents.entities.first)
 
@@ -44,7 +68,8 @@ struct SimulationRuntimeTests {
 
     @Test func replacingBuilderCanDeferWorldReconstruction() throws {
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0)),
+            inputBaseline: nil
         )
         let originalWorld = simulation.world
 
@@ -69,7 +94,8 @@ struct SimulationRuntimeTests {
 
     @Test func replacingBuilderRebuildsImmediatelyByDefault() throws {
         let simulation = SimulationRuntime(
-            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+            worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0)),
+            inputBaseline: nil
         )
         let originalWorld = simulation.world
 

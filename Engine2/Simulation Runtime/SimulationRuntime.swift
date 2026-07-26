@@ -29,9 +29,9 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     }
 
     init(
-        worldBuilder: any PWorldBuilder = BasicWorldBuilder(),
-        inputBaseline: InputSnapshot? = nil,
-        sessionID: SimulationSessionID = SimulationSessionID()
+        worldBuilder: any PWorldBuilder,
+        inputBaseline: InputSnapshot?,
+        sessionID: SimulationSessionID
     ) {
         self.worldBuilder = worldBuilder
         self.sessionID = sessionID
@@ -49,6 +49,20 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
                 sessionID: sessionID,
                 tick: engine.completedTick
             )
+        )
+    }
+
+    /// Starts a fresh authoritative timeline for the supplied World recipe and
+    /// optional Input publication baseline.
+    ///
+    /// Restored or externally correlated sessions use
+    /// `init(worldBuilder:inputBaseline:sessionID:)` so identity selection
+    /// remains explicit at their composition boundary.
+    convenience init(worldBuilder: any PWorldBuilder, inputBaseline: InputSnapshot?) {
+        self.init(
+            worldBuilder: worldBuilder,
+            inputBaseline: inputBaseline,
+            sessionID: SimulationSessionID()
         )
     }
 

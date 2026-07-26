@@ -11,22 +11,33 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
     private let imageDeriver: OffscreenImageArtifactDeriver
     private var isCapturing = false
 
-    /// Creates a production connection around one dedicated Render Runtime.
-    ///
-    /// A connection generates its own stable viewpoint identity by default
-    /// because it owns that output projection. Injection remains available for
-    /// restoration and deterministic tests.
+    /// Creates a connection from fully injected output identity and encoding
+    /// dependencies for restoration or deterministic tests.
     init(
         presentationSource: any PSimulationPresentationSource,
         renderTarget: any POffscreenRenderTarget,
-        viewpointID: RenderViewpointID = RenderViewpointID(),
-        artifactEncoder: any PImageArtifactEncoder = ImageIOArtifactEncoder()
+        viewpointID: RenderViewpointID,
+        artifactEncoder: any PImageArtifactEncoder
     ) {
         self.presentationSource = presentationSource
         self.viewpointID = viewpointID
         self.imageDeriver = OffscreenImageArtifactDeriver(
             renderTarget: renderTarget,
             artifactEncoder: artifactEncoder
+        )
+    }
+
+    /// Creates a production connection that owns a fresh stable viewpoint
+    /// identity and the production image encoder.
+    convenience init(
+        presentationSource: any PSimulationPresentationSource,
+        renderTarget: any POffscreenRenderTarget
+    ) {
+        self.init(
+            presentationSource: presentationSource,
+            renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
+            artifactEncoder: ImageIOArtifactEncoder()
         )
     }
 

@@ -161,6 +161,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
@@ -207,6 +208,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
         let firstRequest = RealtimeSnapshotCaptureRequest(
@@ -264,6 +266,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: presentationSource,
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
@@ -296,6 +299,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: CorrelatedArtifactEncoder()
         )
         let request = RealtimeSnapshotCaptureRequest(
@@ -333,6 +337,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
@@ -436,6 +441,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
             let connection = RealtimeSnapshotCaptureConnection(
                 presentationSource: MutablePresentationSource(snapshot),
                 renderTarget: renderTarget,
+                viewpointID: RenderViewpointID(),
                 artifactEncoder: encoder
             )
             let capture = Task {
@@ -461,6 +467,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(
@@ -497,6 +504,7 @@ struct RealtimeSnapshotCaptureConnectionTests {
         let connection = RealtimeSnapshotCaptureConnection(
             presentationSource: MutablePresentationSource(snapshot),
             renderTarget: renderTarget,
+            viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
         let request = RealtimeSnapshotCaptureRequest(

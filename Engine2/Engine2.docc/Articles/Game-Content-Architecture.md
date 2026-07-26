@@ -174,7 +174,8 @@ let content = MyGameContent()
 let inputRuntime = InputRuntime()
 
 let simulationRuntime = SimulationRuntime(
-    worldBuilder: content.worldBuilder
+    worldBuilder: content.worldBuilder,
+    inputBaseline: inputRuntime.latestInputSnapshot
 )
 
 let renderRuntime = RenderRuntime(
