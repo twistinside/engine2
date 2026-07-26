@@ -25,6 +25,9 @@ When working in Swift:
   or extension. A computed projection remains part of the type's state surface even when its implementation is long;
   do not tuck it beneath an initializer or behavioral method.
 
+- Spell an empty array with an explicit declaration type and an empty literal, such as
+  `var instances: [RenderInstance] = []`, rather than inferring the type from `[RenderInstance]()`.
+
 - Extract a constructed value when the local adds a nonredundant role, exposes validation or reuse, or separates a
   substantial construction from the operation that consumes it. Otherwise, keep construction inline when an argument,
   property, or enum case label already states the role, direct assignment or initializer delegation is clearer, or a

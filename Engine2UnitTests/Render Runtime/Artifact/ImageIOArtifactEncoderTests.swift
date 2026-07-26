@@ -248,7 +248,7 @@ struct ImageIOArtifactEncoderTests {
         green: UInt8,
         red: UInt8
     ) throws -> RenderedBGRA8SRGBImage {
-        var bytes = [UInt8]()
+        var bytes: [UInt8] = []
         bytes.reserveCapacity(size.bgra8ByteCount)
 
         for _ in 0..<size.pixelCount {
@@ -262,7 +262,7 @@ struct ImageIOArtifactEncoderTests {
     }
 
     private func twoBandImage(size: RenderPixelSize) throws -> RenderedBGRA8SRGBImage {
-        var bytes = [UInt8]()
+        var bytes: [UInt8] = []
         bytes.reserveCapacity(size.bgra8ByteCount)
 
         for y in 0..<size.height {
