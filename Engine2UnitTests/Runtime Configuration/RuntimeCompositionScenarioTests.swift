@@ -176,13 +176,10 @@ struct RuntimeCompositionScenarioTests {
             _ in
             accumulated + SimulationRuntime.fixedTimeStep
         }
-        let elapsedSource = InstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: elapsed)
-            ]
+        let clock = CompositionTestClock(
+            initialInstant: baseInstant,
+            resumedInstants: [baseInstant.advanced(by: elapsed)]
         )
-        let sleeper = ControlledSleeper()
         let catchUpPolicy = RealtimeCatchUpPolicy(
             maximumStepsPerWake: stepCount,
             backlogTreatment: .preserve
@@ -195,16 +192,12 @@ struct RuntimeCompositionScenarioTests {
             pollInterval: SimulationRuntime.fixedTimeStep,
             catchUpPolicy: catchUpPolicy,
             isAdvancementEnabled: true,
-            clockFactory: {
-                SystemClock(timeSource: elapsedSource.next)
-            },
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        clock.resumeNext()
 
         let expectedRawTick = UInt64(stepCount.rawValue)
         let expectedTick = SimulationTick(
@@ -214,7 +207,7 @@ struct RuntimeCompositionScenarioTests {
             runtime.currentCursor.tick == expectedTick
         }
         await driver.stopAndDrain()
-        await sleeper.resumeAll()
+        clock.resumeAll()
 
         #expect(didAdvance)
         return runtime
@@ -265,33 +258,31 @@ struct RuntimeCompositionScenarioTests {
         }
     }
 
-    private final class InstantSource {
-        private let samples: [SuspendingClock.Instant]
-        private var nextIndex = 0
-
-        init(samples: [SuspendingClock.Instant]) {
-            precondition(samples.isEmpty == false)
-            self.samples = samples
-        }
-
-        func next() -> SuspendingClock.Instant {
-            let sample = samples[min(nextIndex, samples.count - 1)]
-            nextIndex += 1
-            return sample
-        }
-    }
-
-    private actor ControlledSleeper {
+    private final class CompositionTestClock: PRealtimeClock {
         private struct Waiter {
             let continuation: CheckedContinuation<Void, any Error>
         }
 
+        private var currentInstant: SuspendingClock.Instant
+        private var resumedInstants: [SuspendingClock.Instant]
         private var waiters: [Waiter] = []
         private var countWaiters: [
             Int: [CheckedContinuation<Void, Never>]
         ] = [:]
 
-        func sleep(until deadline: SuspendingClock.Instant) async throws {
+        var now: SuspendingClock.Instant {
+            currentInstant
+        }
+
+        init(
+            initialInstant: SuspendingClock.Instant,
+            resumedInstants: [SuspendingClock.Instant]
+        ) {
+            self.currentInstant = initialInstant
+            self.resumedInstants = resumedInstants
+        }
+
+        func sleep(until _: SuspendingClock.Instant) async throws {
             try await withCheckedThrowingContinuation { continuation in
                 let waiter = Waiter(continuation: continuation)
                 waiters.append(waiter)
@@ -314,8 +305,14 @@ struct RuntimeCompositionScenarioTests {
                 Issue.record("No composition sleep was pending.")
                 return
             }
+            guard resumedInstants.isEmpty == false else {
+                Issue.record("No composition wake instant was scripted.")
+                return
+            }
 
-            waiters.removeFirst().continuation.resume()
+            currentInstant = resumedInstants.removeFirst()
+            let waiter = waiters.removeFirst()
+            waiter.continuation.resume()
         }
 
         func resumeAll() {

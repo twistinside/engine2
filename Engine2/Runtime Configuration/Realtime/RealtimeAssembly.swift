@@ -69,7 +69,7 @@ final class RealtimeAssembly {
     func resumeAdvancement() {
         advanceDriver.resumeAdvancement()
 
-        // A fault or unexpected sleeper failure can end cadence independently
+        // A fault or unexpected clock failure can end cadence independently
         // of the user's desired playback policy. If this assembly is active,
         // resume also restores the task after policy recovery.
         if inputRuntime.isRunning,

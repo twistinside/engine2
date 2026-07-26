@@ -12,13 +12,12 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
         let initialCamera = simulationRuntime.world.camera
         let baseInstant = SuspendingClock().now
-        let elapsedSource = IntegrationInstantSource(
-            samples: [
-                baseInstant,
+        let clock = IntegrationTestClock(
+            initialInstant: baseInstant,
+            resumedInstants: [
                 baseInstant.advanced(by: SimulationRuntime.fixedTimeStep)
             ]
         )
-        let sleeper = IntegrationControlledSleeper()
         let driver = RealtimeAdvanceDriver(
             advanceTarget: simulationRuntime,
             inputSource: inputRuntime,
@@ -27,14 +26,12 @@ struct RealtimeAdvanceDriverIntegrationTests {
             pollInterval: SimulationRuntime.fixedTimeStep,
             catchUpPolicy: .interactive,
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         inputRuntime.start()
         driver.start()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
 
         // This event arrives after the driver's transition baseline but before
         // the first tick. The atomic rebase-then-ingest assignment must retain
@@ -45,13 +42,13 @@ struct RealtimeAdvanceDriverIntegrationTests {
                 position: SIMD2<Float>(20, 10)
             )
         )
-        await sleeper.resumeNext()
+        clock.resumeNext()
 
         let didAdvance = await eventually {
             simulationRuntime.currentCursor.tick == SimulationTick(rawValue: 1)
         }
         await driver.stopAndDrain()
-        await sleeper.resumeAll()
+        clock.resumeAll()
         inputRuntime.stop()
 
         let entity = try #require(
@@ -104,15 +101,14 @@ struct RealtimeAdvanceDriverIntegrationTests {
         let thirdInstant = secondInstant.advanced(
             by: SimulationRuntime.fixedTimeStep
         )
-        let elapsedSource = IntegrationInstantSource(
-            samples: [
-                baseInstant,
+        let clock = IntegrationTestClock(
+            initialInstant: baseInstant,
+            resumedInstants: [
                 firstInstant,
                 secondInstant,
                 thirdInstant
             ]
         )
-        let sleeper = IntegrationControlledSleeper()
         let driver = RealtimeAdvanceDriver(
             advanceTarget: simulationRuntime,
             inputSource: inputRuntime,
@@ -121,14 +117,12 @@ struct RealtimeAdvanceDriverIntegrationTests {
             pollInterval: SimulationRuntime.fixedTimeStep,
             catchUpPolicy: .interactive,
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         inputRuntime.start()
         driver.start()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
 
         driver.pauseAdvancement()
         inputRuntime.receive(
@@ -147,16 +141,16 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
 
         driver.resumeAdvancement()
-        await sleeper.resumeNext()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        clock.resumeNext()
+        await clock.waitForPendingCount(1)
+        clock.resumeNext()
 
         let baselineTickCompleted = await eventually {
             simulationRuntime.currentCursor.tick == SimulationTick(rawValue: 1)
         }
         guard baselineTickCompleted else {
             await driver.stopAndDrain()
-            await sleeper.resumeAll()
+            clock.resumeAll()
             inputRuntime.stop()
             Issue.record("The resume-baseline tick never completed.")
             return
@@ -167,7 +161,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
             initialCamera
         )
 
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
         inputRuntime.receive(
             .mouseDragged(
                 delta: SIMD2<Float>(10, 0),
@@ -176,13 +170,13 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
         #expect(simulationRuntime.world.camera == initialCamera)
 
-        await sleeper.resumeNext()
+        clock.resumeNext()
         let activeTickCompleted = await eventually {
             simulationRuntime.currentCursor.tick == SimulationTick(rawValue: 2)
         }
 
         await driver.stopAndDrain()
-        await sleeper.resumeAll()
+        clock.resumeAll()
         inputRuntime.stop()
 
         #expect(activeTickCompleted)
@@ -240,32 +234,31 @@ private extension RealtimeAdvanceDriverIntegrationTests {
         }
     }
 
-    private final class IntegrationInstantSource {
-        private let samples: [SuspendingClock.Instant]
-        private var nextIndex = 0
-
-        init(samples: [SuspendingClock.Instant]) {
-            self.samples = samples
-        }
-
-        func next() -> SuspendingClock.Instant {
-            let sample = samples[min(nextIndex, samples.count - 1)]
-            nextIndex += 1
-            return sample
-        }
-    }
-
-    private actor IntegrationControlledSleeper {
+    private final class IntegrationTestClock: PRealtimeClock {
         private struct Waiter {
             let continuation: CheckedContinuation<Void, any Error>
         }
 
+        private var currentInstant: SuspendingClock.Instant
+        private var resumedInstants: [SuspendingClock.Instant]
         private var waiters: [Waiter] = []
         private var countWaiters: [
             Int: [CheckedContinuation<Void, Never>]
         ] = [:]
 
-        func sleep(until deadline: SuspendingClock.Instant) async throws {
+        var now: SuspendingClock.Instant {
+            currentInstant
+        }
+
+        init(
+            initialInstant: SuspendingClock.Instant,
+            resumedInstants: [SuspendingClock.Instant]
+        ) {
+            self.currentInstant = initialInstant
+            self.resumedInstants = resumedInstants
+        }
+
+        func sleep(until _: SuspendingClock.Instant) async throws {
             try await withCheckedThrowingContinuation { continuation in
                 let waiter = Waiter(continuation: continuation)
                 waiters.append(waiter)
@@ -288,8 +281,14 @@ private extension RealtimeAdvanceDriverIntegrationTests {
                 Issue.record("No integration sleep was pending.")
                 return
             }
+            guard resumedInstants.isEmpty == false else {
+                Issue.record("No integration wake instant was scripted.")
+                return
+            }
 
-            waiters.removeFirst().continuation.resume()
+            currentInstant = resumedInstants.removeFirst()
+            let waiter = waiters.removeFirst()
+            waiter.continuation.resume()
         }
 
         func resumeAll() {

@@ -32,6 +32,11 @@ When working in Swift:
   serves, as a private instance method on the coordinating type, or on a focused collaborator. Do not disguise a nested
   helper as a local closure or replace it with a static helper dumping ground.
 
+- When multiple related escaping closures represent operations of one dependency, replace the closure bundle with one
+  narrow capability protocol and inject one conforming value. This keeps shared identity, state, invariants, concurrency,
+  and test substitution coherent. Preserve a single trailing closure when the policy genuinely has one operation and
+  closure capture is part of the intended design.
+
 - Extract a constructed value when the local adds a nonredundant role, exposes validation or reuse, or separates a
   substantial construction from the operation that consumes it. Otherwise, keep construction inline when an argument,
   property, or enum case label already states the role, direct assignment or initializer delegation is clearer, or a
