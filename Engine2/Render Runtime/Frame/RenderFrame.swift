@@ -77,7 +77,7 @@ struct RenderFrame: Equatable {
         }
 
         let viewMatrix = viewpoint.camera.viewMatrix
-        var instances = [RenderInstance]()
+        var instances: [RenderInstance] = []
         instances.reserveCapacity(snapshot.entityPresentations.count)
         for entity in snapshot.entityPresentations {
             let instance = try RenderInstance(projecting: entity, viewMatrix: viewMatrix)
