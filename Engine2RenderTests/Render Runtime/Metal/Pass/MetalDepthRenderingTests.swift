@@ -211,13 +211,13 @@ private func renderCenterPixel(
         )
     )
     encoder.setRenderPipelineState(
-        try resources.renderPipelineState(for: .modelNormalDiagnostic)
+        resources.requiredResources.modelNormalDiagnosticPipeline
     )
     encoder.setDepthStencilState(
-        try resources.depthStencilState(for: .opaque)
+        resources.requiredResources.opaqueDepthStencilState
     )
 
-    let argumentTable = try resources.argumentTable(for: .model)
+    let argumentTable = resources.requiredResources.modelArgumentTable
     for instanceIndex in drawOrder {
         argumentTable.setAddress(
             vertexBuffers[instanceIndex].gpuAddress,

@@ -9,7 +9,8 @@ that owns the resource should also own the failure.
 
 ## Avoid Replaying Construction Failure
 
-`MetalResourceStore` already compiles every required built-in render pipeline during initialization:
+Before the required-resource set was explicit, `MetalResourceStore` compiled every required built-in render pipeline
+during initialization:
 
 ```swift
 try loadRenderPipeline(.modelPBR)
@@ -18,14 +19,14 @@ try loadRenderPipeline(.hdrToneMappedPresentation)
 try loadRenderPipeline(.linearPresentation)
 ```
 
-Compilation maps each closed pipeline identity to string-named Metal shader entry points and asks `MTL4Compiler` to
-create the pipeline state. A misspelled vertex or fragment name therefore fails store construction, before frame
-encoding begins.
+Compilation mapped each closed pipeline identity to string-named Metal shader entry points and asked `MTL4Compiler` to
+create the pipeline state. A misspelled vertex or fragment name therefore failed store construction, before frame
+encoding began.
 
 Apple's [Metal 4 compilation guidance][metal4-compilation] makes compilation timing an explicit renderer decision. For
 Engine2's small closed required set, store construction is the predictable point to surface those failures.
 
-Downstream objects nevertheless replay a second, ordinary failure path:
+Downstream objects nevertheless replayed a second, ordinary failure path:
 
 ```swift
 init(resources: MetalResourceStore) throws {
@@ -35,7 +36,7 @@ init(resources: MetalResourceStore) throws {
 }
 ```
 
-The accessor treats an absent cache row as recoverable:
+The accessor treated an absent cache row as recoverable:
 
 ```swift
 func renderPipelineState(for id: MetalRenderPipelineID) throws -> any MTLRenderPipelineState {
@@ -47,9 +48,9 @@ func renderPipelineState(for id: MetalRenderPipelineID) throws -> any MTLRenderP
 }
 ```
 
-After successful construction, the private cache has no expected removal path. A missing required pipeline now means the
-store's construction invariant is broken, not that a later consumer encountered a new operational failure. Keeping the
-lookup throwing:
+After successful construction, the private cache had no expected removal path. A missing required pipeline meant the
+store's construction invariant was broken, not that a later consumer encountered a new operational failure. Keeping
+the lookup throwing:
 
 - makes every consumer propagate an impossible ordinary error;
 - obscures which initialization boundary actually compiles and validates the resource;

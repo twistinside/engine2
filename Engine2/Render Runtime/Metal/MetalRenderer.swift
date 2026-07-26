@@ -51,11 +51,11 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         resources: MetalResourceStore,
         presentationSource: any PSimulationPresentationSource,
         outputMode: RenderOutputMode
-    ) throws {
+    ) {
         precondition(!resources.frames.isEmpty, "MetalRenderer requires at least one frame resource set.")
 
         self.resources = resources
-        self.frameEncoder = try MetalFrameEncoder(resources: resources)
+        self.frameEncoder = MetalFrameEncoder(resources: resources)
         self.presentationSource = presentationSource
         self.outputMode = outputMode
 

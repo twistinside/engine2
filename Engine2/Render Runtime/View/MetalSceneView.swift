@@ -82,7 +82,7 @@ struct MetalSceneView: NSViewRepresentable {
                     renderAssetCatalog: renderAssetCatalog
                 )
                 rendererAvailability = .available(
-                    try MetalRenderer(
+                    MetalRenderer(
                         resources: resources,
                         presentationSource: presentationSource,
                         outputMode: outputMode

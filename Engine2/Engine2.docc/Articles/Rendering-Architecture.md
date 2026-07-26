@@ -17,7 +17,8 @@ The current codebase already has:
 - ``AgentCaptureSource`` and ``AgentSessionConfiguration`` as the transport-neutral live-process wrapper that unifies bounded `.advance` and non-advancing `.current` admission and exact response replay while receiving only ``POfflineCaptureTarget``
 - a real-time screen path whose camera is locked to the latest completed Simulation presentation
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
-  command queue, typed state caches, decoded models, and frame-resource ring
+  command queue, nonoptional built-in required-resource set, decoded models,
+  and frame-resource ring
 - `MetalResidencyManager` as the owner of committed static-asset and
   frame-allocation residency sets
 - typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
@@ -181,10 +182,9 @@ different store and a different set of compiled and allocated objects.
 The store eagerly creates the resources required by the current renderer:
 
 - an `MTL4Compiler` and `MTL4CommandQueue`
-- loaded shader libraries keyed by `MetalShaderLibraryID`
-- Metal 4 render pipelines keyed by `MetalRenderPipelineID`
-- depth-stencil states keyed by `MetalDepthStencilStateID`
-- argument tables keyed by `MetalArgumentTableID`
+- one ``MetalRequiredResources`` value containing the engine shader library,
+  four compiled Metal 4 pipelines, opaque depth state, and three argument
+  tables as nonoptional typed handles
 - decoded models resolved from backend-neutral `MeshID` values
 - validated authored descriptions resolved from backend-neutral `MaterialID`
   values
@@ -192,17 +192,19 @@ The store eagerly creates the resources required by the current renderer:
 - the PBR scene, normal diagnostic, tone-mapped presentation, and linear
   diagnostic pipelines
 
-Each backend identity is a closed Render Runtime enum whose case determines the
-complete resource definition. The store builds each case once and retains the
-result for lookup. Required resources are compiled before drawing begins, so
-``MetalFrameEncoder`` performs deterministic lookup rather than shader or pipeline compilation while preparing or encoding a frame.
+``MetalRequiredResources`` keeps the string-named shader entry points inside
+the store's fallible construction boundary. Successful store construction
+therefore proves that the complete fixed set exists, and ``MetalFrameEncoder``
+retains those handles directly rather than replaying an impossible cache-miss
+failure while preparing or encoding a frame.
 Catalog or renderer construction failures remain observable through the
 `MetalSceneView` coordinator's latest render error rather than being discarded
 when the bridge cannot create a renderer.
 
-Future vertex layouts, function constants, blend state, and attachment
-variants should become explicit enum cases or deliberately modeled variant
-keys instead of silently sharing a pipeline identity.
+Future vertex layouts, function constants, blend state, and attachment variants
+that expand this small fixed set should become explicit required properties or
+deliberately modeled dynamic variant keys instead of silently sharing a
+pipeline definition.
 
 ## View-Independent Metal Frame Encoding
 

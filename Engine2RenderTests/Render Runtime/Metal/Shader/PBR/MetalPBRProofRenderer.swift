@@ -70,7 +70,7 @@ final class MetalPBRProofRenderer {
         residencySet.addAllocation(colorTexture)
         residencySet.commit()
 
-        let library = try resources.shaderLibrary(for: .engine)
+        let library = resources.requiredResources.engineLibrary
         var pipelines: [PBRProofOutput: any MTLRenderPipelineState] = [:]
         for output in PBRProofOutput.allCases {
             let vertexFunction = MTL4LibraryFunctionDescriptor()

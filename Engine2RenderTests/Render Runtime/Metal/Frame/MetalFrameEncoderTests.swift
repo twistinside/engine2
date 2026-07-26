@@ -13,7 +13,7 @@ struct MetalFrameEncoderTests {
             renderAssetCatalog: scene.catalog,
             frameCount: 1
         )
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
 
         // Content resolution is deliberately complete before acquiring the
         // mutable frame slot or resetting its allocator. A caller can therefore
@@ -160,7 +160,7 @@ struct MetalFrameEncoderTests {
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
-        let encoder = try MetalFrameEncoder(resources: resources)
+        let encoder = MetalFrameEncoder(resources: resources)
 
         for requestedCount in [
             0,
