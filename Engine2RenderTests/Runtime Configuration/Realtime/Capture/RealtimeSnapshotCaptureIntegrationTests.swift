@@ -16,7 +16,8 @@ struct RealtimeSnapshotCaptureIntegrationTests {
             assembly.simulationRuntime.latestPresentationSnapshot
         let sourceCursor = assembly.simulationRuntime.currentCursor
         let renderRuntime = try MetalOffscreenRenderRuntime(
-            catalog: gameContent.renderAssetCatalog
+            catalog: gameContent.renderAssetCatalog,
+            limits: .conservative
         )
         let viewpointID = RenderViewpointID()
         let connection = RealtimeSnapshotCaptureConnection(

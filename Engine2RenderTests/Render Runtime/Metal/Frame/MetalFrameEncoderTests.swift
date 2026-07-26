@@ -92,7 +92,8 @@ struct MetalFrameEncoderTests {
             depthTexture: depthTexture,
             destinationTexture: destinationTexture,
             clearColor: MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1),
-            outputMode: .surface
+            outputMode: .surface,
+            exposure: .validation
         )
         #expect(inputs.drawableSize == CGSize(width: width, height: height))
 
@@ -232,7 +233,8 @@ struct MetalFrameEncoderTests {
                     blue: 0,
                     alpha: 1
                 ),
-                outputMode: .surface
+                outputMode: .surface,
+                exposure: .validation
             )
         }
     }
@@ -287,7 +289,8 @@ struct MetalFrameEncoderTests {
                     blue: 0,
                     alpha: 1
                 ),
-                outputMode: .surface
+                outputMode: .surface,
+                exposure: .validation
             )
         }
     }

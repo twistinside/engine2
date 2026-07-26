@@ -133,7 +133,8 @@ struct MetalRendererTests {
         )
         let renderer = try MetalRenderer(
             resources: resources,
-            presentationSource: SimulationRuntime()
+            presentationSource: SimulationRuntime(),
+            outputMode: .surface
         )
 
         renderer.configure(view)
@@ -336,11 +337,13 @@ struct MetalRendererTests {
 
         frame.write(
             empty,
-            drawableSize: CGSize(width: 1_920, height: 1_080)
+            drawableSize: CGSize(width: 1_920, height: 1_080),
+            exposure: .validation
         )
         frame.write(
             maximum,
-            drawableSize: CGSize(width: 1_920, height: 1_080)
+            drawableSize: CGSize(width: 1_920, height: 1_080),
+            exposure: .validation
         )
 
         #expect(empty.instances.isEmpty)

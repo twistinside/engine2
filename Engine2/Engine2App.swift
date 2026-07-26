@@ -26,19 +26,22 @@ struct Engine2App: App {
 
         do {
             let offscreenRenderRuntime = try MetalOffscreenRenderRuntime(
-                catalog: gameContent.renderAssetCatalog
+                catalog: gameContent.renderAssetCatalog,
+                limits: .conservative
             )
             let captureConnection = RealtimeSnapshotCaptureConnection(
                 presentationSource: realtimeAssembly.simulationRuntime,
                 renderTarget: offscreenRenderRuntime
             )
             snapshotCaptureViewModel = SnapshotCaptureViewModel(
-                captureTarget: captureConnection
+                captureTarget: captureConnection,
+                renderSize: .uhd4K
             )
         } catch {
             snapshotCaptureViewModel = SnapshotCaptureViewModel(
                 unavailableReason:
-                    "The offline Metal renderer could not start. \(error)"
+                    "The offline Metal renderer could not start. \(error)",
+                renderSize: .uhd4K
             )
         }
 

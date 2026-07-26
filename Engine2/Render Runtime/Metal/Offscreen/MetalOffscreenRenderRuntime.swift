@@ -22,7 +22,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     private var terminalGPUFailure: OffscreenRenderFailure?
 
     /// Selects the system Metal device and constructs a one-slot offscreen store.
-    convenience init(catalog: RenderAssetCatalog, limits: OffscreenRenderLimits = .conservative) throws {
+    convenience init(catalog: RenderAssetCatalog, limits: OffscreenRenderLimits) throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: catalog,
             frameCount: 1
@@ -35,7 +35,7 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Injection keeps device selection and expensive resource construction
     /// controllable for integration tests while preserving the production
     /// single-request back-pressure policy.
-    init(resources: MetalResourceStore, limits: OffscreenRenderLimits = .conservative) throws {
+    init(resources: MetalResourceStore, limits: OffscreenRenderLimits) throws {
         guard resources.frames.count == 1 else {
             throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(
                 resources.frames.count

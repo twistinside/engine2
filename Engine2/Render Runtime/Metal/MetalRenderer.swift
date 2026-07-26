@@ -50,7 +50,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     init(
         resources: MetalResourceStore,
         presentationSource: any PSimulationPresentationSource,
-        outputMode: RenderOutputMode = .surface
+        outputMode: RenderOutputMode
     ) throws {
         precondition(!resources.frames.isEmpty, "MetalRenderer requires at least one frame resource set.")
 
@@ -192,7 +192,8 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
                     destinationTexture: drawable.texture,
                     clearColor: viewRenderPassDescriptor
                         .colorAttachments[0].clearColor,
-                    outputMode: outputMode
+                    outputMode: outputMode,
+                    exposure: .validation
                 ),
                 into: commandBuffer
             )

@@ -8,9 +8,6 @@ import Observation
 /// resolves a viewpoint, calls Metal directly, or writes a destination itself.
 @Observable
 final class SnapshotCaptureViewModel {
-    /// Deliberate 4K output that stays within the conservative Render limits.
-    static let defaultRenderSize = RenderPixelSize.uhd4K
-
     private(set) var isCapturing = false
     var isExporterPresented = false
     private(set) var exportDocument: JPEGArtifactDocument?
@@ -36,10 +33,7 @@ final class SnapshotCaptureViewModel {
     private var presentationGeneration: UInt64 = 0
 
     /// Creates an available UI model around the App-owned capture capability.
-    init(
-        captureTarget: any PRealtimeSnapshotCaptureTarget,
-        renderSize: RenderPixelSize = SnapshotCaptureViewModel.defaultRenderSize
-    ) {
+    init(captureTarget: any PRealtimeSnapshotCaptureTarget, renderSize: RenderPixelSize) {
         self.captureTarget = captureTarget
         self.renderSize = renderSize
         self.unavailableReason = nil
@@ -49,7 +43,7 @@ final class SnapshotCaptureViewModel {
     ///
     /// `reason` is intentionally open-ended because Metal and driver diagnostic
     /// vocabularies are external to Engine2's closed capture state.
-    init(unavailableReason reason: String, renderSize: RenderPixelSize = SnapshotCaptureViewModel.defaultRenderSize) {
+    init(unavailableReason reason: String, renderSize: RenderPixelSize) {
         self.captureTarget = nil
         self.renderSize = renderSize
         self.unavailableReason = reason

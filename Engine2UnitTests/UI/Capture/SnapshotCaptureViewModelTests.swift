@@ -6,13 +6,6 @@ import UniformTypeIdentifiers
 
 struct SnapshotCaptureViewModelTests {
     @Test
-    func defaultRenderSizeUsesNamedUHD4KPreset() {
-        #expect(SnapshotCaptureViewModel.defaultRenderSize == .uhd4K)
-        #expect(SnapshotCaptureViewModel.defaultRenderSize.width == 3_840)
-        #expect(SnapshotCaptureViewModel.defaultRenderSize.height == 2_160)
-    }
-
-    @Test
     func completedCapturePresentsExactJPEGDocumentAndTickFilename() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try fixture(size: size, tick: 42)
@@ -38,6 +31,7 @@ struct SnapshotCaptureViewModelTests {
         let request = try #require(target.requests.first)
         #expect(request.renderSettings.size == size)
         #expect(request.renderSettings.outputMode == .viewSpaceNormals)
+        #expect(request.renderSettings.exposure == .validation)
         #expect(request.encoding == .jpeg(quality: .maximum))
 
         model.exportCancelled()
@@ -47,7 +41,8 @@ struct SnapshotCaptureViewModelTests {
     @Test
     func unavailableRendererSurfacesFailureWithoutPresentingExporter() async {
         let model = SnapshotCaptureViewModel(
-            unavailableReason: "Synthetic Metal initialization failure."
+            unavailableReason: "Synthetic Metal initialization failure.",
+            renderSize: .uhd4K
         )
         model.activatePresentation()
 
@@ -417,7 +412,11 @@ struct SnapshotCaptureViewModelTests {
                 revision: .zero,
                 camera: snapshot.camera
             ),
-            renderSettings: OffscreenRenderSettings(size: size)
+            renderSettings: OffscreenRenderSettings(
+                size: size,
+                outputMode: .surface,
+                exposure: .validation
+            )
         )
         return (snapshot, artifact)
     }
