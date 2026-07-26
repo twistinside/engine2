@@ -140,7 +140,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                         stepCount: stepCount
                     )
                 )
-                knownCursor = knownCursor(after: outcome, previous: knownCursor)
+                knownCursor = outcome.authoritativeCursor(after: knownCursor)
                 response = AgentSessionResponse(
                     requestID: request.id,
                     outcome: .capture(outcome),
@@ -154,7 +154,7 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
                     expectedCursor: expectedCursor
                 )
             )
-            knownCursor = knownCursor(after: outcome, previous: knownCursor)
+            knownCursor = outcome.authoritativeCursor(after: knownCursor)
             response = AgentSessionResponse(
                 requestID: request.id,
                 outcome: .currentCapture(outcome),
@@ -227,61 +227,6 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
         drainWaiters.removeAll()
         for waiter in waiters {
             waiter.resume()
-        }
-    }
-
-    /// Derives the exact authoritative position exposed with an agent response.
-    private func knownCursor(after outcome: OfflineCaptureOutcome, previous: SimulationCursor) -> SimulationCursor {
-        switch outcome {
-        case let .completed(result):
-            result.advanceResult.finalCursor
-
-        case .coordinatorBusy,
-             .cancelledBeforeAdvance:
-            previous
-
-        case let .advanceRejected(rejection):
-            switch rejection {
-            case let .cursorMismatch(_, current):
-                current
-            }
-
-        case let .advanceResultMismatch(_, _, _, result),
-             let .cancelledAfterAdvance(result),
-             let .renderRejected(result, _),
-             let .renderFailed(result, _),
-             let .renderCancellationRequestIDMismatch(result, _, _),
-             let .renderCancelledAfterSubmission(result, _),
-             let .renderResultMismatch(result, _),
-             let .cancelledAfterRender(result, _),
-             let .artifactEncodingFailed(result, _, _),
-             let .artifactResultMismatch(result, _, _):
-            result.finalCursor
-        }
-    }
-
-    /// Derives exact cursor knowledge from a non-advancing current capture.
-    private func knownCursor(after outcome: OfflineCurrentCaptureOutcome, previous: SimulationCursor) -> SimulationCursor {
-        switch outcome {
-        case let .completed(result):
-            result.sourceSnapshot.cursor
-
-        case .coordinatorBusy,
-             .cancelledBeforeRender:
-            previous
-
-        case let .cursorMismatch(_, current):
-            current
-
-        case let .renderRejected(sourceSnapshot, _),
-             let .renderFailed(sourceSnapshot, _),
-             let .renderCancellationRequestIDMismatch(sourceSnapshot, _, _),
-             let .renderCancelledAfterSubmission(sourceSnapshot, _),
-             let .renderResultMismatch(sourceSnapshot, _),
-             let .cancelledAfterRender(sourceSnapshot, _),
-             let .artifactEncodingFailed(sourceSnapshot, _, _),
-             let .artifactResultMismatch(sourceSnapshot, _, _):
-            sourceSnapshot.cursor
         }
     }
 

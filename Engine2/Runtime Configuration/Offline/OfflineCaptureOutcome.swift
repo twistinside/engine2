@@ -148,4 +148,35 @@ nonisolated enum OfflineCaptureOutcome: Equatable, Sendable {
             )
         }
     }
+
+    /// Returns the authoritative Simulation cursor established by this outcome.
+    ///
+    /// Outcomes that observe no Simulation work retain `previous`. A rejection
+    /// reports the target's current cursor, and every post-advance terminal
+    /// reports the exact committed result's final cursor.
+    func authoritativeCursor(after previous: SimulationCursor) -> SimulationCursor {
+        switch self {
+        case let .completed(result):
+            result.advanceResult.finalCursor
+
+        case .coordinatorBusy,
+             .cancelledBeforeAdvance:
+            previous
+
+        case let .advanceRejected(.cursorMismatch(_, current)):
+            current
+
+        case let .advanceResultMismatch(_, _, _, result),
+             let .cancelledAfterAdvance(result),
+             let .renderRejected(result, _),
+             let .renderFailed(result, _),
+             let .renderCancellationRequestIDMismatch(result, _, _),
+             let .renderCancelledAfterSubmission(result, _),
+             let .renderResultMismatch(result, _),
+             let .cancelledAfterRender(result, _),
+             let .artifactEncodingFailed(result, _, _),
+             let .artifactResultMismatch(result, _, _):
+            result.finalCursor
+        }
+    }
 }

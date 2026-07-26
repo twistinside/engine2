@@ -120,4 +120,33 @@ nonisolated enum OfflineCurrentCaptureOutcome: Equatable, Sendable {
             )
         }
     }
+
+    /// Returns the authoritative Simulation cursor established by this outcome.
+    ///
+    /// Outcomes that observe no selected presentation retain `previous`. A
+    /// cursor mismatch reports the target's current cursor, and every terminal
+    /// after selection reports that exact immutable snapshot's cursor.
+    func authoritativeCursor(after previous: SimulationCursor) -> SimulationCursor {
+        switch self {
+        case let .completed(result):
+            result.sourceSnapshot.cursor
+
+        case .coordinatorBusy,
+             .cancelledBeforeRender:
+            previous
+
+        case let .cursorMismatch(_, current):
+            current
+
+        case let .renderRejected(sourceSnapshot, _),
+             let .renderFailed(sourceSnapshot, _),
+             let .renderCancellationRequestIDMismatch(sourceSnapshot, _, _),
+             let .renderCancelledAfterSubmission(sourceSnapshot, _),
+             let .renderResultMismatch(sourceSnapshot, _),
+             let .cancelledAfterRender(sourceSnapshot, _),
+             let .artifactEncodingFailed(sourceSnapshot, _, _),
+             let .artifactResultMismatch(sourceSnapshot, _, _):
+            sourceSnapshot.cursor
+        }
+    }
 }
