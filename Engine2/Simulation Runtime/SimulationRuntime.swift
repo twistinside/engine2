@@ -46,12 +46,11 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
             configuration: configuration
         )
         self.engine = engine
-        self.latestPresentationSnapshot = engine.world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: sessionID,
-                tick: engine.completedTick
-            )
+        let initialCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: engine.completedTick
         )
+        self.latestPresentationSnapshot = engine.world.presentationSnapshot(at: initialCursor)
     }
 
     /// Starts a fresh authoritative timeline for the supplied World recipe and
@@ -151,12 +150,13 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         }
 
         let finalSnapshot = publishPresentationSnapshot(at: engine.completedTick)
+        let completedStepCount = SimulationCompletedStepCount(
+            rawValue: request.stepCount.rawValue
+        )
         let result = SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: currentCursor,
-            completedStepCount: SimulationCompletedStepCount(
-                rawValue: request.stepCount.rawValue
-            ),
+            completedStepCount: completedStepCount,
             finalPresentationSnapshot: finalSnapshot
         )
 
@@ -166,9 +166,8 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     /// Replaces the latest-value slot only after the engine completes a fixed step.
     @discardableResult
     private func publishPresentationSnapshot(at tick: SimulationTick) -> SimulationPresentationSnapshot {
-        let snapshot = engine.world.presentationSnapshot(
-            at: SimulationCursor(sessionID: sessionID, tick: tick)
-        )
+        let cursor = SimulationCursor(sessionID: sessionID, tick: tick)
+        let snapshot = engine.world.presentationSnapshot(at: cursor)
         latestPresentationSnapshot = snapshot
         return snapshot
     }

@@ -16,12 +16,13 @@ nonisolated struct AgentCaptureRequest: Equatable, Sendable {
 
     /// Projects an accepted advance source into the lower-level workflow.
     func makeOfflineCaptureRequest(expectedCursor: SimulationCursor, stepCount: SimulationStepCount) -> OfflineCaptureRequest {
-        OfflineCaptureRequest(
-            advanceRequest: SimulationAdvanceRequest(
-                expectedCursor: expectedCursor,
-                stepCount: stepCount,
-                inputAssignment: .none
-            ),
+        let advanceRequest = SimulationAdvanceRequest(
+            expectedCursor: expectedCursor,
+            stepCount: stepCount,
+            inputAssignment: .none
+        )
+        return OfflineCaptureRequest(
+            advanceRequest: advanceRequest,
             renderRequestID: renderRequestID,
             viewpoint: viewpoint,
             renderSettings: renderSettings,

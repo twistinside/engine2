@@ -189,19 +189,20 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
         // Phase one shades opaque geometry into linear half-float scene color;
         // phase two presents that stored value to the sRGB drawable. The frame
         // encoder owns their shared buffer packing, draws, barrier, and ordering.
+        let clearColor = viewRenderPassDescriptor.colorAttachments[0].clearColor
         do {
+            let encodingInputs = try MetalFrameEncodingInputs(
+                frameResources: frame,
+                sceneColorTexture: sceneTarget.texture,
+                depthTexture: depthTexture,
+                destinationTexture: drawable.texture,
+                clearColor: clearColor,
+                outputMode: outputMode,
+                exposure: .validation
+            )
             try frameEncoder.encode(
                 preparedFrame,
-                inputs: MetalFrameEncodingInputs(
-                    frameResources: frame,
-                    sceneColorTexture: sceneTarget.texture,
-                    depthTexture: depthTexture,
-                    destinationTexture: drawable.texture,
-                    clearColor: viewRenderPassDescriptor
-                        .colorAttachments[0].clearColor,
-                    outputMode: outputMode,
-                    exposure: .validation
-                ),
+                inputs: encodingInputs,
                 into: commandBuffer
             )
         } catch {

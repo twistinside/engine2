@@ -28,6 +28,41 @@ not call them designated initializers.
 Keep a one-off combination at its composition site when it has no stable domain
 meaning. Do not add a named preset merely because the initializer is long.
 
+### Name Meaningful Nested Construction
+
+A substantial constructed value remains a separate decision even when another
+object immediately owns it. Do not bury that decision inside a second
+multiline initializer:
+
+```swift
+// Avoid: the Simulation Runtime disappears inside assembly punctuation.
+ManualAssembly(
+    simulationRuntime: SimulationRuntime(
+        worldBuilder: gameContent.worldBuilder,
+        configuration: gameContent.simulationConfiguration,
+        inputBaseline: nil,
+        sessionID: sessionID
+    )
+)
+```
+
+Bind the inner value to a role-named local, then construct the owner:
+
+```swift
+let simulationRuntime = SimulationRuntime(
+    worldBuilder: gameContent.worldBuilder,
+    configuration: gameContent.simulationConfiguration,
+    inputBaseline: nil,
+    sessionID: sessionID
+)
+return ManualAssembly(simulationRuntime: simulationRuntime)
+```
+
+This exposes both construction boundaries and gives later validation,
+configuration, or debugging a natural seam. Keep tiny value projections, enum
+cases, and declarative builder or modifier values inline when extracting them
+would merely replace a clear label with a redundant local name.
+
 ### Let Swift Synthesize Plain Memberwise Construction
 
 Choosing a full initializer at the call site does not mean hand-writing one in

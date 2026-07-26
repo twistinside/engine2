@@ -75,6 +75,7 @@ Current example ownership:
 - Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
 - Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
 - One type per file is a project rule. Name the file after the type; extensions of that type may remain with it when doing so preserves cohesion. Do not create a separate extension file solely for one static member. Keep type-owned static members with their primary declaration, or colocate a focused extension with the domain owner that authors and selects the value.
+- Give substantial multiline constructed values role-named locals before passing them into another initializer or operation. Inline small literal projections and declarative builder values only when naming them would add no meaning.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.
 - Using `String` or a string-backed wrapper in place of an enum for a closed set is heavily discouraged. Any exception must be justified with a code or documentation comment explaining why the vocabulary is genuinely open-ended or why an external API requires strings.

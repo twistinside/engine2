@@ -62,14 +62,11 @@ final class InputMetalView: MTKView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        inputSink?.receive(
-            .scroll(
-                delta: SIMD2<Float>(
-                    Float(event.scrollingDeltaX),
-                    Float(event.scrollingDeltaY)
-                )
-            )
+        let delta = SIMD2<Float>(
+            Float(event.scrollingDeltaX),
+            Float(event.scrollingDeltaY)
         )
+        inputSink?.receive(.scroll(delta: delta))
     }
 
     override func keyDown(with event: NSEvent) {
@@ -77,25 +74,19 @@ final class InputMetalView: MTKView {
             return
         }
 
-        inputSink?.receive(
-            .keyDown(
-                KeyboardKey(
-                    keyCode: event.keyCode,
-                    charactersIgnoringModifiers: event.charactersIgnoringModifiers
-                )
-            )
+        let key = KeyboardKey(
+            keyCode: event.keyCode,
+            charactersIgnoringModifiers: event.charactersIgnoringModifiers
         )
+        inputSink?.receive(.keyDown(key))
     }
 
     override func keyUp(with event: NSEvent) {
-        inputSink?.receive(
-            .keyUp(
-                KeyboardKey(
-                    keyCode: event.keyCode,
-                    charactersIgnoringModifiers: event.charactersIgnoringModifiers
-                )
-            )
+        let key = KeyboardKey(
+            keyCode: event.keyCode,
+            charactersIgnoringModifiers: event.charactersIgnoringModifiers
         )
+        inputSink?.receive(.keyUp(key))
     }
 
     private func pointerPosition(from event: NSEvent) -> SIMD2<Float> {
