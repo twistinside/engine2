@@ -72,19 +72,13 @@ nonisolated struct Camera: Sendable {
     /// simulation state produces no draw instances instead of NaN view-space
     /// positions and normal matrices.
     var supportsViewTransform: Bool {
-        let positionIsFinite = position.x.isFinite
-            && position.y.isFinite
-            && position.z.isFinite
         let rotationVector = rotation.vector
         let rotationLengthSquared = simd_length_squared(rotationVector)
-        let rotationIsFiniteAndNonzero = rotationVector.x.isFinite
-            && rotationVector.y.isFinite
-            && rotationVector.z.isFinite
-            && rotationVector.w.isFinite
+        let rotationIsFiniteAndNonzero = rotationVector.isFinite
             && rotationLengthSquared.isFinite
             && rotationLengthSquared > 0
 
-        guard positionIsFinite && rotationIsFiniteAndNonzero else {
+        guard position.isFinite && rotationIsFiniteAndNonzero else {
             return false
         }
 

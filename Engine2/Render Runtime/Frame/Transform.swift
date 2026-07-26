@@ -28,25 +28,15 @@ nonisolated struct Transform: Sendable {
     /// projection uses this property to omit malformed or degenerate instances
     /// before they can introduce infinities or NaNs into a GPU frame.
     var supportsNormalTransform: Bool {
-        let positionIsFinite = position.x.isFinite
-            && position.y.isFinite
-            && position.z.isFinite
         let rotationVector = rotation.vector
         let rotationLengthSquared = simd_length_squared(rotationVector)
-        let rotationIsFiniteAndNonzero = rotationVector.x.isFinite
-            && rotationVector.y.isFinite
-            && rotationVector.z.isFinite
-            && rotationVector.w.isFinite
+        let rotationIsFiniteAndNonzero = rotationVector.isFinite
             && rotationLengthSquared.isFinite
             && rotationLengthSquared > 0
-        let scaleHasFiniteReciprocal = scale.x.isFinite
-            && scale.y.isFinite
-            && scale.z.isFinite
-            && (1 / scale.x).isFinite
-            && (1 / scale.y).isFinite
-            && (1 / scale.z).isFinite
+        let scaleHasFiniteReciprocal = scale.isFinite
+            && SIMD3<Float>(1 / scale.x, 1 / scale.y, 1 / scale.z).isFinite
 
-        return positionIsFinite
+        return position.isFinite
             && rotationIsFiniteAndNonzero
             && scaleHasFiniteReciprocal
             && matrix.hasFiniteElements

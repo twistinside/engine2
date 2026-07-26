@@ -13,7 +13,7 @@ struct SCameraInput: PSystem {
     let maximumRadius: Float
 
     init(target: SIMD3<Float>, minimumRadius: Float, maximumRadius: Float) {
-        precondition(target.x.isFinite && target.y.isFinite && target.z.isFinite, "Camera orbit target must be finite.")
+        precondition(target.isFinite, "Camera orbit target must be finite.")
         precondition(minimumRadius.isFinite && minimumRadius > 0, "Camera orbit minimum radius must be finite and positive.")
         precondition(
             maximumRadius.isFinite && maximumRadius >= minimumRadius,
@@ -38,9 +38,7 @@ struct SCameraInput: PSystem {
 
         let currentCamera = world.camera
         let offset = currentCamera.position - target
-        guard offset.x.isFinite,
-              offset.y.isFinite,
-              offset.z.isFinite else {
+        guard offset.isFinite else {
             return
         }
 
@@ -69,9 +67,7 @@ struct SCameraInput: PSystem {
             offset.y,
             cosf(nextYaw) * nextRadius
         )
-        guard nextPosition.x.isFinite,
-              nextPosition.y.isFinite,
-              nextPosition.z.isFinite else {
+        guard nextPosition.isFinite else {
             return
         }
 
