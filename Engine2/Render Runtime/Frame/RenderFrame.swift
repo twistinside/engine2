@@ -71,14 +71,16 @@ struct RenderFrame: Equatable {
     /// Unlike the screen-oriented tolerant projection, this exact boundary
     /// never converts malformed input into an empty or partial success. The
     /// first invalid entity is reported with its authoritative `EntityID`.
-    init(exactlyProjecting snapshot: SimulationPresentationSnapshot, viewpoint: RenderViewpoint) throws {
+    init(exactlyProjecting snapshot: SimulationPresentationSnapshot, viewpoint: RenderViewpoint) throws(RenderFrameProjectionError) {
         guard viewpoint.camera.supportsViewTransform else {
             throw RenderFrameProjectionError.invalidSelectedCamera
         }
 
         let viewMatrix = viewpoint.camera.viewMatrix
-        let instances = try snapshot.entityPresentations.map { entity in
-            try RenderInstance(projecting: entity, viewMatrix: viewMatrix)
+        var instances = [RenderInstance]()
+        instances.reserveCapacity(snapshot.entityPresentations.count)
+        for entity in snapshot.entityPresentations {
+            instances.append(try RenderInstance(projecting: entity, viewMatrix: viewMatrix))
         }
 
         self.init(
