@@ -29,7 +29,7 @@ final class MetalHDRFramePass {
         into commandBuffer: any MTL4CommandBuffer,
         encodeScene: (any MTL4RenderCommandEncoder) -> Void
     ) throws(MetalFrameEncoderError) {
-        let sceneRenderPassDescriptor = Self.makeSceneRenderPassDescriptor(
+        let sceneRenderPassDescriptor = makeSceneRenderPassDescriptor(
             sceneColorTexture: sceneColorTexture,
             depthTexture: depthTexture,
             clearColor: clearColor
@@ -63,7 +63,7 @@ final class MetalHDRFramePass {
 
     /// Builds the opaque scene descriptor independently of MetalKit's drawable
     /// descriptor so tests can lock the HDR, store, and depth conventions.
-    static func makeSceneRenderPassDescriptor(
+    func makeSceneRenderPassDescriptor(
         sceneColorTexture: any MTLTexture,
         depthTexture: any MTLTexture,
         clearColor: MTLClearColor
