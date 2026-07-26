@@ -14,6 +14,9 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// Long-lived backend resources shared by every accepted request.
     private let resources: MetalResourceStore
 
+    /// Sole reusable frame slot proved present during Runtime construction.
+    private let frame: FrameResources
+
     /// App-selected allocation and readback policy for this capability.
     let limits: OffscreenRenderLimits
 
@@ -35,13 +38,12 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
     /// controllable for integration tests while preserving the production
     /// single-request back-pressure policy.
     init(resources: MetalResourceStore, limits: OffscreenRenderLimits) throws {
-        guard resources.frames.count == 1 else {
-            throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(
-                resources.frames.count
-            )
+        guard resources.frames.count == 1, let frame = resources.frames.first else {
+            throw MetalOffscreenRenderTargetError.invalidFrameResourceCount(resources.frames.count)
         }
 
         self.resources = resources
+        self.frame = frame
         self.limits = limits
         self.frameEncoder = MetalFrameEncoder(resources: resources)
     }
@@ -191,7 +193,6 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
         // The busy gate and completion-awaited lifecycle prove the sole slot is
         // available here. Keep the semaphore boundary nevertheless so the same
         // frame-resource invariant is enforced as in screen rendering.
-        let frame = resources.frames[0]
         frame.waitUntilAvailable()
         var runtimeOwnsFrame = true
         defer {

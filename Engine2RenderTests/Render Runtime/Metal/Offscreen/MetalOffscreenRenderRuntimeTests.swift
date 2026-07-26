@@ -3,6 +3,18 @@ import Testing
 @testable import Engine2
 
 struct MetalOffscreenRenderRuntimeTests {
+    @Test func constructionRequiresExactlyOneFrameResource() throws {
+        let content = BasicGameContent()
+        let resources = try MetalResourceStore(
+            renderAssetCatalog: content.renderAssetCatalog,
+            frameCount: 2
+        )
+
+        #expect(throws: MetalOffscreenRenderTargetError.invalidFrameResourceCount(2)) {
+            try MetalOffscreenRenderRuntime(resources: resources, limits: .conservative)
+        }
+    }
+
     @Test func rendersExactMaterialSceneIntoDetachedOpaquePixels() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
