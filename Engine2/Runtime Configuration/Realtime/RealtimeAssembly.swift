@@ -4,7 +4,6 @@
 /// time into exact requests, and one Simulation Runtime commits those requests.
 /// The App wires platform input directly to the Input Runtime and screen Render
 /// directly to completed Simulation presentation snapshots.
-@MainActor
 final class RealtimeAssembly {
     let inputRuntime: InputRuntime
     let simulationRuntime: SimulationRuntime

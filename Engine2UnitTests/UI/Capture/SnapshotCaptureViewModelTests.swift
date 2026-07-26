@@ -5,14 +5,14 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct SnapshotCaptureViewModelTests {
-    @Test @MainActor
+    @Test
     func defaultRenderSizeUsesNamedUHD4KPreset() {
         #expect(SnapshotCaptureViewModel.defaultRenderSize == .uhd4K)
         #expect(SnapshotCaptureViewModel.defaultRenderSize.width == 3_840)
         #expect(SnapshotCaptureViewModel.defaultRenderSize.height == 2_160)
     }
 
-    @Test @MainActor
+    @Test
     func completedCapturePresentsExactJPEGDocumentAndTickFilename() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try Self.fixture(size: size, tick: 42)
@@ -44,7 +44,7 @@ struct SnapshotCaptureViewModelTests {
         #expect(model.exportDocument == nil)
     }
 
-    @Test @MainActor
+    @Test
     func unavailableRendererSurfacesFailureWithoutPresentingExporter() async {
         let model = SnapshotCaptureViewModel(
             unavailableReason: "Synthetic Metal initialization failure."
@@ -63,7 +63,7 @@ struct SnapshotCaptureViewModelTests {
         )
     }
 
-    @Test @MainActor
+    @Test
     func inactiveAndOverlappingCaptureRequestsDoNotReachTheTarget() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try Self.fixture(size: size, tick: 17)
@@ -103,7 +103,7 @@ struct SnapshotCaptureViewModelTests {
         await firstCapture.value
     }
 
-    @Test @MainActor
+    @Test
     func failedSaveRetainsExactDocumentForRetryWithoutRecapturing() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try Self.fixture(size: size, tick: 73)
@@ -147,7 +147,7 @@ struct SnapshotCaptureViewModelTests {
         #expect(target.requests.count == 1)
     }
 
-    @Test @MainActor
+    @Test
     func disappearingPresentationIgnoresLateCaptureCompletion() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try Self.fixture(size: size, tick: 91)
@@ -178,7 +178,7 @@ struct SnapshotCaptureViewModelTests {
         #expect(model.exportDocument == nil)
     }
 
-    @Test @MainActor
+    @Test
     func captureTerminalMessagesCoverEveryNonSuccessOutcome() async throws {
         let size = try RenderPixelSize(width: 8, height: 6)
         let (snapshot, artifact) = try Self.fixture(size: size, tick: 101)
@@ -439,7 +439,6 @@ struct SnapshotCaptureViewModelTests {
     }
 }
 
-@MainActor
 private final class StubRealtimeSnapshotCaptureTarget:
     PRealtimeSnapshotCaptureTarget {
     let outcome: RealtimeSnapshotCaptureOutcome
@@ -455,7 +454,6 @@ private final class StubRealtimeSnapshotCaptureTarget:
     }
 }
 
-@MainActor
 private final class SuspendedRealtimeSnapshotCaptureTarget:
     PRealtimeSnapshotCaptureTarget {
     private var continuation:

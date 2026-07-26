@@ -1,6 +1,5 @@
 @testable import Engine2
 
-@MainActor
 final class RecordingInputEventSink: PInputEventSink {
     private(set) var receivedEvents: [InputEvent] = []
 

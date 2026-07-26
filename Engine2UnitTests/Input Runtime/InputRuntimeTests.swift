@@ -2,7 +2,6 @@ import Testing
 @testable import Engine2
 
 struct InputRuntimeTests {
-    @MainActor
     @Test func lifecyclePublishesFreshIdempotentSessions() {
         let runtime = InputRuntime()
 
@@ -38,7 +37,6 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot.scrollTotal == .zero)
     }
 
-    @MainActor
     @Test func priorSnapshotsRemainImmutableAsNewEventsArrive() {
         let runtime = InputRuntime()
         let key = KeyboardKey(keyCode: 13, displayName: "W")
@@ -57,7 +55,6 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot.revision == InputRevision(session: 1, sequence: 2))
     }
 
-    @MainActor
     @Test func pointerAndScrollTotalsAccumulateAcrossPublications() {
         let runtime = InputRuntime()
         runtime.start()
@@ -84,7 +81,6 @@ struct InputRuntimeTests {
         #expect(snapshot.revision == InputRevision(session: 1, sequence: 4))
     }
 
-    @MainActor
     @Test func buttonAndKeyTransitionsPublishHeldState() {
         let runtime = InputRuntime()
         let key = KeyboardKey(keyCode: 49, displayName: "Space")
@@ -106,7 +102,6 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot.pressedKeys.isEmpty)
     }
 
-    @MainActor
     @Test func stopPublishesNeutralHeldStateWithoutDiscardingSessionTotals() {
         let runtime = InputRuntime()
         let key = KeyboardKey(keyCode: 13, displayName: "W")
@@ -134,7 +129,6 @@ struct InputRuntimeTests {
         #expect(stoppedSnapshot.scrollTotal == activeSnapshot.scrollTotal)
     }
 
-    @MainActor
     @Test func eventsAreIgnoredWhileStopped() {
         let runtime = InputRuntime()
         let key = KeyboardKey(keyCode: 13, displayName: "W")
@@ -158,7 +152,6 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot == stoppedSnapshot)
     }
 
-    @MainActor
     @Test func instancesPublishIndependentInputState() {
         let firstRuntime = InputRuntime()
         let secondRuntime = InputRuntime()
@@ -180,7 +173,6 @@ struct InputRuntimeTests {
         #expect(secondRuntime.latestInputSnapshot.pressedMouseButtons == [.right])
     }
 
-    @MainActor
     @Test func duplicateHeldStateTransitionsRemainSetLikeButStillPublish() {
         let runtime = InputRuntime()
         runtime.start()
@@ -200,7 +192,6 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot.revision.sequence == 4)
     }
 
-    @MainActor
     @Test func zeroMagnitudeContinuousEventsStillProduceOrderedPublications() {
         let runtime = InputRuntime()
         runtime.start()
@@ -215,7 +206,6 @@ struct InputRuntimeTests {
         #expect(runtime.latestInputSnapshot != initial)
     }
 
-    @MainActor
     @Test func invalidAndOverflowingPointerValuesAreIgnoredAtomically() {
         let runtime = InputRuntime()
         runtime.start()

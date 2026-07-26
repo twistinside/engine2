@@ -6,7 +6,6 @@ import Observation
 /// Simulation advance requests. It owns playback policy and polling lifecycle;
 /// the target owns authoritative session state, exact step execution, and
 /// publication of completed results.
-@MainActor
 @Observable
 final class RealtimeAdvanceDriver {
     /// Factory that creates a fresh elapsed-time sampler for each driver run.

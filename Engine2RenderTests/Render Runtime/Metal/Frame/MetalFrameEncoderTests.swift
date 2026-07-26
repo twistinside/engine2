@@ -5,7 +5,6 @@ import Testing
 @testable import Engine2
 
 struct MetalFrameEncoderTests {
-    @MainActor
     @Test func encodesPublishedFrameIntoCallerOwnedOffscreenTargets() throws {
         let width = 320
         let height = 240
@@ -155,7 +154,6 @@ struct MetalFrameEncoderTests {
         #expect(containsRenderedColor)
     }
 
-    @MainActor
     @Test func preparationBoundsZeroOrdinaryMaximumAndExcessiveFrames() throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: .materialOnlyTestCatalog,
@@ -191,7 +189,6 @@ struct MetalFrameEncoderTests {
         }
     }
 
-    @MainActor
     @Test func encodingInputsRejectMismatchedTargetDimensions() throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: .materialOnlyTestCatalog,
@@ -240,7 +237,6 @@ struct MetalFrameEncoderTests {
         }
     }
 
-    @MainActor
     @Test func encodingInputsRejectUnexpectedTargetFormats() throws {
         let resources = try MetalResourceStore(
             renderAssetCatalog: .materialOnlyTestCatalog,
@@ -317,7 +313,6 @@ struct MetalFrameEncoderTests {
         return RenderFrame(projecting: snapshot)
     }
 
-    @MainActor
     private func makeTexture(
         device: any MTLDevice,
         pixelFormat: MTLPixelFormat,
@@ -337,7 +332,6 @@ struct MetalFrameEncoderTests {
         return try #require(device.makeTexture(descriptor: descriptor))
     }
 
-    @MainActor
     private func makeResidencySet(device: any MTLDevice, allocations: [any MTLAllocation]) throws -> any MTLResidencySet {
         let descriptor = MTLResidencySetDescriptor()
         descriptor.label = "MetalFrameEncoder Offscreen Targets"

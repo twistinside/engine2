@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct RealtimeSnapshotCaptureIntegrationTests {
-    @Test @MainActor
+    @Test
     func capturesLivePresentationThroughMetalWithoutAdvancingSimulation() async throws {
         let gameContent = BasicGameContent()
         let assembly = RealtimeConfiguration(

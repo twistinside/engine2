@@ -6,7 +6,7 @@ import Testing
 /// Scenario-level proof that Runtime topology changes do not change Simulation
 /// semantics and that optional peers remain genuinely optional.
 struct RuntimeCompositionScenarioTests {
-    @Test @MainActor
+    @Test
     func clockDrivenSimulationRunsOneSecondWithoutInputOrRenderPeers() async throws {
         let runtime = await Self.runClockDrivenSimulation(
             stepCount: SimulationStepCount(rawValue: 60)
@@ -27,7 +27,7 @@ struct RuntimeCompositionScenarioTests {
         )
     }
 
-    @Test @MainActor
+    @Test
     func clockManualAndOfflineTopologiesReachEquivalentTickTwentyState() async throws {
         let gameContent = BasicGameContent(
             worldBuilder: MovingWorldBuilder()
@@ -133,7 +133,6 @@ struct RuntimeCompositionScenarioTests {
         try Self.expectDecodableJPEG(currentResult.artifact, size: size)
     }
 
-    @MainActor
     private static func runClockDrivenSimulation(stepCount: SimulationStepCount) async -> SimulationRuntime {
         let runtime = SimulationRuntime(
             worldBuilder: MovingWorldBuilder()

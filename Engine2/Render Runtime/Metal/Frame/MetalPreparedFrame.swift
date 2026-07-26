@@ -5,7 +5,6 @@
 /// parallel arrays or a second resource lookup. Preparing this value resolves
 /// all authored content before a caller resets allocators, writes GPU buffers,
 /// or begins a Metal 4 command buffer.
-@MainActor
 struct MetalPreparedFrame {
     let renderFrame: RenderFrame
     let instances: [(

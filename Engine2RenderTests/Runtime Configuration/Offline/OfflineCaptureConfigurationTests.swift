@@ -7,7 +7,6 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct OfflineCaptureConfigurationTests {
-    @MainActor
     @Test
     func composesSimulationMetalAndImageArtifactsAcrossCaptures() async throws {
         let sessionID = SimulationSessionID(

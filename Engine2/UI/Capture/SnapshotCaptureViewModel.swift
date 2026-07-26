@@ -6,7 +6,6 @@ import Observation
 /// The model requests one artifact through a narrow App-owned connection, then
 /// exposes a detached file document to SwiftUI. It never samples Simulation,
 /// resolves a viewpoint, calls Metal directly, or writes a destination itself.
-@MainActor
 @Observable
 final class SnapshotCaptureViewModel {
     /// Deliberate 4K output that stays within the conservative Render limits.

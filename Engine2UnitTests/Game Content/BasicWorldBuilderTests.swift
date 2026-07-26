@@ -2,7 +2,6 @@ import Testing
 import simd
 @testable import Engine2
 
-@MainActor
 struct BasicWorldBuilderTests {
     @Test func seedsDeterministicMaterialSphereScene() {
         let world = BasicWorldBuilder().buildWorld()

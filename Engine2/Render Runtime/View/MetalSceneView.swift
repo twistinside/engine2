@@ -8,7 +8,6 @@ import SwiftUI
 /// coordinator-owned `MetalRenderer` and connects an input sink to the platform
 /// view. Rendering therefore samples completed values instead of reading live
 /// `World` state or directly calling the Simulation Runtime.
-@MainActor
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
     var presentationSource: any PSimulationPresentationSource
@@ -58,7 +57,6 @@ struct MetalSceneView: NSViewRepresentable {
     /// cannot construct the required Metal resources; the host view remains
     /// safe to create and submits no render work. `latestRenderError` retains
     /// the concrete construction failure for App diagnostics.
-    @MainActor
     final class Coordinator {
         var renderer: MetalRenderer?
 

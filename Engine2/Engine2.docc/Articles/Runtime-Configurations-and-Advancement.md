@@ -183,7 +183,10 @@ final class RealtimeAssembly {
 }
 ```
 
-The recipe is an immutable transportable value. The illustrative factory is `@MainActor` because today's App constructs UI- and framework-bound objects there; that annotation governs assembly construction, not the execution placement of every Runtime it retains. A headless or otherwise non-UI configuration may construct its assembly from a different isolation domain.
+The recipe is an immutable transportable value. Because the recipe deliberately opts out of the app target's default
+isolation, its assembly factory states its `MainActor` boundary explicitly. That isolation governs assembly construction,
+not the execution placement of every Runtime it retains. A headless or otherwise non-UI configuration may construct its
+assembly from a different isolation domain.
 
 ``OfflineCaptureConfiguration`` produces a focused ``OfflineCaptureAssembly`` that connects exact Simulation advancement, the implemented offscreen render capability, and selected image-artifact derivation behind one narrow coordinator capability. It deliberately does not include the future artifact sink. ``AgentSessionConfiguration`` privately wraps that assembly rather than reconstructing or exposing its component capabilities. A future `MCPConfiguration` may retain an ``AgentSessionAssembly`` alongside real transport and authentication ownership. These recipes may reuse focused construction helpers, but they should not be represented by one `RuntimeAssembly` value containing twenty optional properties.
 

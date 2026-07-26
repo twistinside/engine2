@@ -10,7 +10,6 @@ import MetalKit
 /// to a view-independent ``MetalFrameEncoder``. It retains drawable cadence,
 /// queue submission, presentation, and screen error policy. It never reads live
 /// ECS storage or controls the Simulation Runtime lifecycle.
-@MainActor
 final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Device-scoped owner for every backend object used by this renderer.
     let resources: MetalResourceStore

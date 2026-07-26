@@ -3,7 +3,6 @@
 /// The assembly deliberately exposes the Runtime's narrow advance and
 /// presentation capabilities while retaining the concrete Runtime for current
 /// App tooling. With no driver in this topology, silence means no progress.
-@MainActor
 final class ManualAssembly {
     let simulationRuntime: SimulationRuntime
 

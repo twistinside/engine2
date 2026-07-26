@@ -3,7 +3,7 @@ import Testing
 @testable import Engine2
 
 struct ManualConfigurationTests {
-    @Test @MainActor func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
+    @Test func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
         let sessionID = SimulationSessionID(
             rawValue: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
         )
@@ -18,7 +18,7 @@ struct ManualConfigurationTests {
         #expect(assembly.presentationSource.latestPresentationSnapshot.cursor == assembly.simulationRuntime.currentCursor)
     }
 
-    @Test @MainActor func exactCallerAloneDeterminesProgress() async throws {
+    @Test func exactCallerAloneDeterminesProgress() async throws {
         let assembly = ManualConfiguration().makeAssembly(
             gameContent: BasicGameContent()
         )
@@ -47,7 +47,7 @@ struct ManualConfigurationTests {
         #expect(assembly.simulationRuntime.currentCursor == result.finalCursor)
     }
 
-    @Test @MainActor func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
+    @Test func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
         let assembly = ManualConfiguration().makeAssembly(
             gameContent: BasicGameContent(
                 worldBuilder: ManualMovingWorldBuilder()
@@ -88,7 +88,7 @@ struct ManualConfigurationTests {
         #expect(worldPosition.z == 0)
     }
 
-    @Test @MainActor func assembliesOwnIndependentSessionsAndWorlds() {
+    @Test func assembliesOwnIndependentSessionsAndWorlds() {
         let configuration = ManualConfiguration()
         let first = configuration.makeAssembly(gameContent: BasicGameContent())
         let second = configuration.makeAssembly(gameContent: BasicGameContent())

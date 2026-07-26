@@ -3,7 +3,6 @@ import Testing
 @testable import Engine2
 
 struct MetalResourceStoreTests {
-    @MainActor
     @Test func ownsMetal4CompilerQueueAndRequiredStateLibraries() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
@@ -74,7 +73,6 @@ struct MetalResourceStoreTests {
         )
     }
 
-    @MainActor
     @Test func opaqueDepthDescriptorWritesOnlyNearerFragments() {
         let descriptor = MetalResourceStore.makeDepthStencilDescriptor(
             for: .opaque
@@ -85,7 +83,6 @@ struct MetalResourceStoreTests {
         #expect(descriptor.isDepthWriteEnabled)
     }
 
-    @MainActor
     @Test func repeatedLookupReturnsTheRetainedResource() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(
@@ -99,7 +96,6 @@ struct MetalResourceStoreTests {
         #expect(first as AnyObject === second as AnyObject)
     }
 
-    @MainActor
     @Test func retainsExactAuthoredMaterialDescriptions() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let catalog = BasicGameContent().renderAssetCatalog
@@ -120,7 +116,6 @@ struct MetalResourceStoreTests {
         }
     }
 
-    @MainActor
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let incompleteCatalog = RenderAssetCatalog(
@@ -151,7 +146,6 @@ struct MetalResourceStoreTests {
         }
     }
 
-    @MainActor
     @Test func residencySetsSeparateStaticAndPerFrameAllocations() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let store = try MetalResourceStore(

@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 struct SimulationRuntimeTests {
-    @Test @MainActor func initBuildsEngineWorldFromBuilder() async throws {
+    @Test func initBuildsEngineWorldFromBuilder() async throws {
         let builder = TestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
 
         let simulation = SimulationRuntime(worldBuilder: builder)
@@ -18,7 +18,7 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
+    @Test func rebuildWorldReplacesEngineWorldUsingStoredBuilder() async throws {
         let builder = IncrementingWorldBuilder()
 
         let simulation = SimulationRuntime(worldBuilder: builder)
@@ -42,7 +42,7 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func replacingBuilderCanDeferWorldReconstruction() throws {
+    @Test func replacingBuilderCanDeferWorldReconstruction() throws {
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
         )
@@ -67,7 +67,7 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func replacingBuilderRebuildsImmediatelyByDefault() throws {
+    @Test func replacingBuilderRebuildsImmediatelyByDefault() throws {
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
         )
@@ -87,7 +87,7 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test @MainActor func explicitInputBaselineEstablishesWorldWithoutReplayingMotion() {
+    @Test func explicitInputBaselineEstablishesWorldWithoutReplayingMotion() {
         let key = KeyboardKey.make(
             keyCode: 13,
             charactersIgnoringModifiers: "w"

@@ -2,7 +2,6 @@ import simd
 import Testing
 @testable import Engine2
 
-@MainActor
 struct PBRSceneParametersTests {
     @Test func layoutMatchesTwoMetalFloat4LightLanes() {
         // Authored material factors moved to GPUInstance. These two scene-

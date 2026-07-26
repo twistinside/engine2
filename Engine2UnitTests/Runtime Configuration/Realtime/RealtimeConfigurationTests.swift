@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 struct RealtimeConfigurationTests {
-    @Test @MainActor func makeAssemblyUsesConfigurationAndGameContent() throws {
+    @Test func makeAssemblyUsesConfigurationAndGameContent() throws {
         let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: RealtimeCatchUpPolicy(
@@ -34,7 +34,7 @@ struct RealtimeConfigurationTests {
         )
     }
 
-    @Test @MainActor func assembliesOwnIsolatedRuntimeInstances() {
+    @Test func assembliesOwnIsolatedRuntimeInstances() {
         let configuration = RealtimeConfiguration(pollInterval: .seconds(60))
         let gameContent = BasicGameContent(
             worldBuilder: RealtimeTestWorldBuilder(position: .zero)

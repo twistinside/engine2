@@ -6,7 +6,6 @@ import Metal
 /// encoder. This type owns the dependency boundary between phases so production
 /// rendering and offscreen validation cannot silently diverge on attachment
 /// policy, the Metal 4 producer barrier, or presentation ordering.
-@MainActor
 final class MetalHDRFramePass {
     private let presentationPass: MetalHDRPresentationPass
 

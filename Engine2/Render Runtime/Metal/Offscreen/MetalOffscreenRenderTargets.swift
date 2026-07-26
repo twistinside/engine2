@@ -7,7 +7,6 @@ import Metal
 /// be detached into a backend-neutral image without a blit pass. Depth remains
 /// private, and one committed residency set groups both request-scoped targets
 /// for explicit attachment to the submitted Metal 4 command buffer.
-@MainActor
 final class MetalOffscreenRenderTargets {
     let size: RenderPixelSize
     let destinationTexture: any MTLTexture

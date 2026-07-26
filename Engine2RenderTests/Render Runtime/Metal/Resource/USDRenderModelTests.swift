@@ -6,14 +6,12 @@ import Testing
 @testable import Engine2
 
 struct USDRenderModelTests {
-    @MainActor
     @Test func modelWithoutMeshesHasNoCompleteDrawableIndexedGeometry() {
         let model = USDRenderModel(meshes: [])
 
         #expect(!model.hasCompleteDrawableIndexedGeometry)
     }
 
-    @MainActor
     @Test func emptyCatalogResolvesToNoBackendModels() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
 
@@ -25,7 +23,6 @@ struct USDRenderModelTests {
         #expect(models.isEmpty)
     }
 
-    @MainActor
     @Test func missingPackagedModelReportsAnError() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let catalog = RenderAssetCatalog(
@@ -47,7 +44,6 @@ struct USDRenderModelTests {
         }
     }
 
-    @MainActor
     @Test func packagedSphereDecodesInterleavedUnitNormalsForEveryMesh() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let models = try USDRenderModel.load(
@@ -136,7 +132,6 @@ struct USDRenderModelTests {
         }
     }
 
-    @MainActor
     @Test func packagedSphereMaintainsAuthoredGeometryDensity() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let models = try USDRenderModel.load(

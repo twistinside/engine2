@@ -7,7 +7,6 @@ import UniformTypeIdentifiers
 @testable import Engine2
 
 struct AgentSessionConfigurationTests {
-    @MainActor
     @Test
     func executesReplaysAndContinuesThroughTheClosedAssemblyBoundary() async throws {
         let agentSessionID = AgentSessionID(

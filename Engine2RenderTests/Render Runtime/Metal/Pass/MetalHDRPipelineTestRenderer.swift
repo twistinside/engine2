@@ -11,7 +11,6 @@ import simd
 /// attachments are CPU-visible solely so tests can inspect the exact value on
 /// each side of the HDR boundary; their pixel formats and usage match the
 /// production path.
-@MainActor
 final class MetalHDRPipelineTestRenderer {
     static let width = 65
     static let height = 65
