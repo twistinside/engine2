@@ -6,19 +6,14 @@ struct BasicWorldBuilderRenderTests {
     @Test func materialSphereSceneUsesOrdinarySnapshotAndRenderFramePath() {
         let world = BasicWorldBuilder().buildWorld()
         let tick = SimulationTick(rawValue: 41)
-        let sessionID = SimulationSessionID()
         let cursor = SimulationCursor(
-            sessionID: sessionID,
+            sessionID: SimulationSessionID(),
             tick: tick
         )
         let snapshot = world.presentationSnapshot(at: cursor)
         let frame = RenderFrame(projecting: snapshot)
         let expectedMeshIDs = Array(
             repeating: MeshID.ball,
-            count: Self.expectedEntityIDs.count
-        )
-        let expectedScales = Array(
-            repeating: Self.expectedProjectedScale,
             count: Self.expectedEntityIDs.count
         )
 
@@ -51,12 +46,15 @@ struct BasicWorldBuilderRenderTests {
         )
         #expect(
             frame.instances.map(\.transform.scale) ==
-                expectedScales
+                Array(
+                    repeating: Self.expectedProjectedScale,
+                    count: Self.expectedEntityIDs.count
+                )
         )
         for instance in frame.instances {
             #expect(
                 instance.transform.rotation.vector ==
-                    Self.identityRotation.vector
+                    simd_quatf.identity.vector
             )
         }
 
@@ -85,7 +83,7 @@ struct BasicWorldBuilderRenderTests {
 
     private func expectReferenceCamera(_ camera: Camera) {
         #expect(camera.position == SIMD3<Float>(0, 0, 8))
-        #expect(camera.rotation.vector == Self.identityRotation.vector)
+        #expect(camera.rotation.vector == simd_quatf.identity.vector)
 
         switch camera.projection {
         case let .perspective(verticalFieldOfView, near, far):
@@ -121,9 +119,4 @@ struct BasicWorldBuilderRenderTests {
     ]
 
     private static let expectedProjectedScale = SIMD3<Float>(repeating: 0.5)
-
-    private static let identityRotation = simd_quatf(
-        angle: 0,
-        axis: SIMD3<Float>(0, 0, 1)
-    )
 }

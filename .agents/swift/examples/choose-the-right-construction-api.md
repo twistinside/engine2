@@ -28,11 +28,15 @@ not call them designated initializers.
 Keep a one-off combination at its composition site when it has no stable domain
 meaning. Do not add a named preset merely because the initializer is long.
 
-### Name Every Constructed Argument
+### Name Construction When the Name Adds Meaning
 
-A constructed value remains a separate decision even when another call
-immediately consumes it. Do not place an explicit initializer inside another
-initializer, method, enum case, macro, or modifier's argument list:
+Initializer nesting is not itself a readability problem. Extract a constructed
+value when the local exposes a separate decision, names a role the surrounding
+syntax does not express, enables reuse or validation, or separates substantial
+construction from the operation that consumes it.
+
+A Runtime remains a separate ownership and debugging boundary even when an
+assembly immediately owns it:
 
 ```swift
 // Avoid: the Simulation Runtime disappears inside assembly punctuation.
@@ -59,43 +63,55 @@ return ManualAssembly(simulationRuntime: simulationRuntime)
 ```
 
 This exposes both construction boundaries and gives later validation,
-configuration, or debugging a natural seam. The rule applies to one-line values
-too:
+configuration, or debugging a natural seam. A local also helps when a
+substantial value would otherwise pass through an unlabeled argument of a
+mutating operation:
 
 ```swift
-// Avoid: constructing the rejection inside the outcome case.
-return .rejected(OffscreenRenderRejection(error))
-
-let rejection = OffscreenRenderRejection(error)
-return .rejected(rejection)
-```
-
-Existing values, literals, and enum cases are not constructions and may remain
-inline. A construction that is itself the surrounding expression's result is
-also not nested. In a SwiftUI result builder, declare a constructed modifier
-input before the builder call when Swift permits it, then pass the named value.
-
-#### Treat Obvious SIMD Values as Vector Literals
-
-`SIMD2`, `SIMD3`, and `SIMD4` use initializer syntax, but a short list of
-numeric lanes reads as directly as a numeric literal. A one-line initializer
-whose lanes—or single `repeating:` value—are numeric literals optionally
-preceded by `+` or `-` may remain inline:
-
-```swift
-let camera = Camera(
-    position: SIMD3<Float>(0, 0, 8),
-    rotation: Transform.identityRotation,
-    projection: .standardPerspective
+let entry = InputHistoryEntry(
+    id: nextEntryID,
+    frameIndex: frameIndex,
+    frameCount: 1,
+    tokens: tokens
 )
-#expect(actualColor == SIMD4<Float>(1, 0.5, 0.5, 1))
+entries.insert(entry, at: 0)
 ```
 
-This exception ends when any lane is computed, the initializer needs multiple
-lines, the value is reused, or a name materially clarifies units, coordinate
-space, or role. Keep those vectors named before the consuming call. For example,
-`warmBaseColor` and `goldBaseColor` later in this article are deliberately
-named because each authored color is reused by several material descriptions.
+When construction is not a separate ownership, validation, reuse, or
+substantial decision, keep it inline if the surrounding syntax already provides
+the name. Direct assignment, initializer delegation, and enum case projection
+are often clearest in that form:
+
+```swift
+init() {
+    self.init(rawValue: UUID())
+}
+
+static let interactive = Self(
+    maximumStepsPerWake: SimulationStepCount(rawValue: 4),
+    backlogTreatment: .discardOverflow
+)
+
+return .rejected(OffscreenRenderRejection(error))
+```
+
+In these examples, `rawValue`, `maximumStepsPerWake`, and `rejected` already
+state each value's role. Locals with the same names would only repeat the labels
+and make the code harder to scan.
+
+Keep a tuple, collection, or builder together when its aggregate shape carries
+the meaning. Matrix columns can remain inside a `columns:` tuple even when
+their lanes are computed; splitting them into `xColumn`, `yColumn`, and
+`zColumn` may restate structure that is clearer in one place.
+
+Small literal-like values follow the same rule. A labeled position or color can
+contain `SIMD3<Float>(0, 0, 8)` directly. A local remains useful when it adds
+units or coordinate-space meaning, is reused, or supports validation. For
+example, `warmBaseColor` and `goldBaseColor` later in this article are named
+because each authored color is reused by several material descriptions.
+
+Line count and initializer syntax do not decide the form. Use the version that
+makes the construction's role and the consuming operation easiest to read.
 
 ### Let Swift Synthesize Plain Memberwise Construction
 
@@ -240,49 +256,44 @@ struct RenderAssetCatalog {
     /// Callers may still construct a curated catalog with
     /// `init(models:materials:)`.
     static let everything: Self = {
-        let ballModel = ModelAssetReference(resourceName: "Ball", format: .usdz)
         let warmBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
-        let warmDielectricSmooth = PBRMaterialDescription(
-            baseColor: warmBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.2
-        )
-        let warmDielectric = PBRMaterialDescription(
-            baseColor: warmBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.5
-        )
-        let warmDielectricRough = PBRMaterialDescription(
-            baseColor: warmBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.8
-        )
         let goldBaseColor = SIMD3<Float>(1, 0.766, 0.336)
-        let goldMetalSmooth = PBRMaterialDescription(
-            baseColor: goldBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.2
-        )
-        let goldMetal = PBRMaterialDescription(
-            baseColor: goldBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.35
-        )
-        let goldMetalRough = PBRMaterialDescription(
-            baseColor: goldBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.8
-        )
 
         return Self(
-            models: [.ball: ballModel],
+            models: [
+                .ball: ModelAssetReference(resourceName: "Ball", format: .usdz)
+            ],
             materials: [
-                .warmDielectricSmooth: warmDielectricSmooth,
-                .warmDielectric: warmDielectric,
-                .warmDielectricRough: warmDielectricRough,
-                .goldMetalSmooth: goldMetalSmooth,
-                .goldMetal: goldMetal,
-                .goldMetalRough: goldMetalRough
+                .warmDielectricSmooth: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.2
+                ),
+                .warmDielectric: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.5
+                ),
+                .warmDielectricRough: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.8
+                ),
+                .goldMetalSmooth: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.2
+                ),
+                .goldMetal: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.35
+                ),
+                .goldMetalRough: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.8
+                )
             ]
         )
     }()

@@ -21,12 +21,9 @@ final class InputMetalView: MTKView {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        let deltaX = Float(event.deltaX)
-        let deltaY = Float(event.deltaY)
-        let delta = SIMD2<Float>(deltaX, deltaY)
         inputSink?.receive(
             .mouseDragged(
-                delta: delta,
+                delta: SIMD2<Float>(Float(event.deltaX), Float(event.deltaY)),
                 position: pointerPosition(from: event)
             )
         )
@@ -65,9 +62,10 @@ final class InputMetalView: MTKView {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        let deltaX = Float(event.scrollingDeltaX)
-        let deltaY = Float(event.scrollingDeltaY)
-        let delta = SIMD2<Float>(deltaX, deltaY)
+        let delta = SIMD2<Float>(
+            Float(event.scrollingDeltaX),
+            Float(event.scrollingDeltaY)
+        )
         inputSink?.receive(.scroll(delta: delta))
     }
 
@@ -93,9 +91,7 @@ final class InputMetalView: MTKView {
 
     private func pointerPosition(from event: NSEvent) -> SIMD2<Float> {
         let position = convert(event.locationInWindow, from: nil)
-        let x = Float(position.x)
-        let y = Float(position.y)
-        return SIMD2<Float>(x, y)
+        return SIMD2<Float>(Float(position.x), Float(position.y))
     }
 
     private func mouseButton(for buttonNumber: Int) -> MouseButton {

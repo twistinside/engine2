@@ -55,9 +55,8 @@ nonisolated final class MetalOffscreenSubmission: @unchecked Sendable {
 
         frame.markAvailable()
         if let feedbackError {
-            let backendDescription = String(describing: feedbackError)
             continuation.resume(
-                throwing: .gpuExecutionFailed(backendDescription)
+                throwing: .gpuExecutionFailed(String(describing: feedbackError))
             )
         } else {
             continuation.resume()

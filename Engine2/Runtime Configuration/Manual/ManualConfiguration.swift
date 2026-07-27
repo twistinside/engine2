@@ -8,10 +8,9 @@ nonisolated struct ManualConfiguration: Equatable, Sendable {
     /// session identity.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent) -> ManualAssembly {
-        let sessionID = SimulationSessionID()
-        return makeAssembly(
+        makeAssembly(
             gameContent: gameContent,
-            sessionID: sessionID
+            sessionID: SimulationSessionID()
         )
     }
 

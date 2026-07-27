@@ -14,18 +14,17 @@ struct MetalDepthRenderingTests {
             frameCount: 1
         )
 
-        let orthographicCamera = Camera(
-            position: SIMD3<Float>(0, 0, 8),
-            rotation: Transform.identityRotation,
-            projection: .orthographic(
-                height: 8,
-                near: 1,
-                far: 20
-            )
-        )
         let cameras = [
             .standard,
-            orthographicCamera
+            Camera(
+                position: SIMD3<Float>(0, 0, 8),
+                rotation: .identity,
+                projection: .orthographic(
+                    height: 8,
+                    near: 1,
+                    far: 20
+                )
+            )
         ]
 
         for camera in cameras {
@@ -138,47 +137,43 @@ private func renderCenterPixel(
     let sharedScale = SIMD3<Float>(4, 4, 1)
     let nearTransform = Transform(
         position: SIMD3<Float>(0, 0, 0),
-        rotation: Transform.identityRotation,
+        rotation: .identity,
         scale: sharedScale
     )
     let farTransform = Transform(
         position: SIMD3<Float>(0, 0, -2),
-        rotation: Transform.identityRotation,
+        rotation: .identity,
         scale: sharedScale
     )
     let transforms = [nearTransform, farTransform]
     let frame = try #require(resources.frames.first)
     frame.commandAllocator.reset()
-    let sessionID = SimulationSessionID()
-    let cursor = SimulationCursor(
-        sessionID: sessionID,
-        tick: .zero
-    )
-    let entityPresentations = transforms.enumerated().map { index, transform in
-        let id = EntityID(index: index, generation: 0)
-        return EntityPresentationSnapshot(
-            id: id,
-            position: transform.position,
-            rotation: transform.rotation,
-            scale: transform.scale,
-            meshID: .ball,
-            materialID: .warmDielectric
-        )
-    }
-    let snapshot = SimulationPresentationSnapshot(
-        cursor: cursor,
-        camera: camera,
-        entityPresentations: entityPresentations
-    )
-    let renderFrame = RenderFrame(projecting: snapshot)
     let preparedFrame = MetalPreparedFrame(
-        renderFrame: renderFrame,
+        renderFrame: RenderFrame(
+            projecting: SimulationPresentationSnapshot(
+                cursor: SimulationCursor(
+                    sessionID: SimulationSessionID(),
+                    tick: .zero
+                ),
+                camera: camera,
+                entityPresentations: transforms.enumerated().map {
+                    index, transform in
+                    EntityPresentationSnapshot(
+                        id: EntityID(index: index, generation: 0),
+                        position: transform.position,
+                        rotation: transform.rotation,
+                        scale: transform.scale,
+                        meshID: .ball,
+                        materialID: .warmDielectric
+                    )
+                }
+            )
+        ),
         resources: resources
     )
-    let drawableSize = CGSize(width: textureSize, height: textureSize)
     frame.write(
         preparedFrame,
-        drawableSize: drawableSize,
+        drawableSize: CGSize(width: textureSize, height: textureSize),
         exposure: .validation
     )
     #expect(preparedFrame.instances.count == transforms.count)
@@ -270,15 +265,11 @@ private func renderCenterPixel(
             mipmapLevel: 0
         )
     }
-    let red = Float(pixel[0])
-    let green = Float(pixel[1])
-    let blue = Float(pixel[2])
-    let alpha = Float(pixel[3])
     return SIMD4<Float>(
-        red,
-        green,
-        blue,
-        alpha
+        Float(pixel[0]),
+        Float(pixel[1]),
+        Float(pixel[2]),
+        Float(pixel[3])
     )
 }
 

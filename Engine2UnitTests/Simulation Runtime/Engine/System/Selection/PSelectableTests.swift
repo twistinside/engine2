@@ -4,9 +4,8 @@ import Testing
 struct PSelectableTests {
     @Test func selectionStateReadsFromWorldStore() async throws {
         let world = World()
-        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestSelectableEntity(
-            unregisteredID: entityID,
+            unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
         let expectedState = CSelectable.SelectionState.highlighted

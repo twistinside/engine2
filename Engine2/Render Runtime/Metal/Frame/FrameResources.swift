@@ -83,14 +83,12 @@ final class FrameResources: @unchecked Sendable {
         // encounters stale NaNs; any nonempty frame has already validated its
         // actual camera at the Render projection boundary.
         let parameterCamera = camera.supportsViewTransform ? camera : .standard
-        let sceneParameters = PBRSceneParameters(camera: parameterCamera)
         pbrSceneParametersBuffer.contents().storeBytes(
-            of: sceneParameters,
+            of: PBRSceneParameters(camera: parameterCamera),
             as: PBRSceneParameters.self
         )
-        let presentationParameters = HDRPresentationParameters(exposure: exposure)
         hdrPresentationParametersBuffer.contents().storeBytes(
-            of: presentationParameters,
+            of: HDRPresentationParameters(exposure: exposure),
             as: HDRPresentationParameters.self
         )
     }

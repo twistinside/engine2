@@ -13,14 +13,15 @@ struct OfflineCaptureCoordinatorTests {
         )
         let encoderFailure = ImageArtifactEncoderError.destinationFinalizationFailed
         let actualRequestID = OffscreenRenderRequestID()
-        let completedResult = OfflineCaptureResult(
-            advanceResult: fixture.advanceResult,
-            artifact: fixture.artifact
-        )
         let mappings: [(OffscreenImageArtifactOutcome, OfflineCaptureOutcome)] = [
             (
                 .completed(fixture.artifact),
-                .completed(completedResult)
+                .completed(
+                    OfflineCaptureResult(
+                        advanceResult: fixture.advanceResult,
+                        artifact: fixture.artifact
+                    )
+                )
             ),
             (
                 .renderRejected(rejection),
@@ -112,14 +113,15 @@ struct OfflineCaptureCoordinatorTests {
         let encoderFailure = ImageArtifactEncoderError.destinationFinalizationFailed
         let actualRequestID = OffscreenRenderRequestID()
         let sourceSnapshot = fixture.initialSnapshot
-        let completedResult = OfflineCurrentCaptureResult(
-            sourceSnapshot: sourceSnapshot,
-            artifact: fixture.artifact
-        )
         let mappings: [(OffscreenImageArtifactOutcome, OfflineCurrentCaptureOutcome)] = [
             (
                 .completed(fixture.artifact),
-                .completed(completedResult)
+                .completed(
+                    OfflineCurrentCaptureResult(
+                        sourceSnapshot: sourceSnapshot,
+                        artifact: fixture.artifact
+                    )
+                )
             ),
             (
                 .renderRejected(rejection),
@@ -227,14 +229,13 @@ struct OfflineCaptureCoordinatorTests {
             stage: .gpuExecution,
             backendDescription: "scripted GPU failure"
         )
-        let mismatchedRequestID = OffscreenRenderRequestID()
         let artifactOutcomes: [OffscreenImageArtifactOutcome] = [
             .completed(fixture.artifact),
             .renderRejected(.runtimeBusy),
             .renderFailed(renderFailure),
             .renderCancellationRequestIDMismatch(
                 expectedRequestID: fixture.request.renderRequestID,
-                actualRequestID: mismatchedRequestID
+                actualRequestID: OffscreenRenderRequestID()
             ),
             .renderCancelledAfterSubmission(fixture.request.renderRequestID),
             .renderResultMismatch(fixture.renderResult),
@@ -296,14 +297,13 @@ struct OfflineCaptureCoordinatorTests {
             stage: .gpuExecution,
             backendDescription: "scripted GPU failure"
         )
-        let mismatchedRequestID = OffscreenRenderRequestID()
         let artifactOutcomes: [OffscreenImageArtifactOutcome] = [
             .completed(fixture.artifact),
             .renderRejected(.runtimeBusy),
             .renderFailed(renderFailure),
             .renderCancellationRequestIDMismatch(
                 expectedRequestID: fixture.request.renderRequestID,
-                actualRequestID: mismatchedRequestID
+                actualRequestID: OffscreenRenderRequestID()
             ),
             .renderCancelledAfterSubmission(fixture.request.renderRequestID),
             .renderResultMismatch(fixture.renderResult),
@@ -353,12 +353,15 @@ struct OfflineCaptureCoordinatorTests {
         )
 
         let outcome = await coordinator.capture(fixture.request)
-        let expectedResult = OfflineCaptureResult(
-            advanceResult: fixture.advanceResult,
-            artifact: fixture.artifact
-        )
 
-        #expect(outcome == .completed(expectedResult))
+        #expect(
+            outcome == .completed(
+                OfflineCaptureResult(
+                    advanceResult: fixture.advanceResult,
+                    artifact: fixture.artifact
+                )
+            )
+        )
         #expect(probe.recordedStages() == [.advance, .render, .encode])
 
         let advanceRequests = await advanceTarget.recordedRequests()
@@ -378,19 +381,20 @@ struct OfflineCaptureCoordinatorTests {
         }
 
         let renderRequests = await renderTarget.recordedRequests()
-        let expectedEncodingInputs = [
-            EncoderInput(
-                renderResult: fixture.renderResult,
-                encoding: fixture.request.encoding
-            )
-        ]
         #expect(renderRequests == [fixture.renderRequest])
         #expect(
             renderRequests.first?.presentationSnapshot ==
             fixture.advanceResult.finalPresentationSnapshot
         )
 
-        #expect(probe.recordedEncodingInputs() == expectedEncodingInputs)
+        #expect(
+            probe.recordedEncodingInputs() == [
+                EncoderInput(
+                    renderResult: fixture.renderResult,
+                    encoding: fixture.request.encoding
+                )
+            ]
+        )
     }
 
     @Test func advanceRejectionStopsBeforeRenderAndEncoding() async throws {
@@ -426,25 +430,23 @@ struct OfflineCaptureCoordinatorTests {
         let returnedFinalCursor = fixture.initialSnapshot.cursor
             .advanced()
             .advanced()
-        let returnedCamera = Camera(
-            position: SIMD3<Float>(3, 5, 9),
-            rotation: Transform.identityRotation,
-            projection: .orthographic(
-                height: 11,
-                near: 0.25,
-                far: 110
-            )
-        )
         let returnedFinalSnapshot = SimulationPresentationSnapshot(
             cursor: returnedFinalCursor,
-            camera: returnedCamera,
+            camera: Camera(
+                position: SIMD3<Float>(3, 5, 9),
+                rotation: .identity,
+                projection: .orthographic(
+                    height: 11,
+                    near: 0.25,
+                    far: 110
+                )
+            ),
             entityPresentations: []
         )
-        let completedStepCount = SimulationCompletedStepCount(rawValue: 2)
         let mismatchedResult = SimulationAdvanceResult(
             initialCursor: fixture.initialSnapshot.cursor,
             finalCursor: returnedFinalCursor,
-            completedStepCount: completedStepCount,
+            completedStepCount: SimulationCompletedStepCount(rawValue: 2),
             finalPresentationSnapshot: returnedFinalSnapshot
         )
         let currentRequest = currentRequest(
@@ -493,28 +495,34 @@ struct OfflineCaptureCoordinatorTests {
         #expect(probe.recordedStages() == [.advance])
 
         let currentOutcome = await coordinator.captureCurrent(currentRequest)
-        let expectedCurrentResult = OfflineCurrentCaptureResult(
-            sourceSnapshot: returnedFinalSnapshot,
-            artifact: currentArtifact
-        )
-        let expectedRenderRequest = OffscreenRenderRequest(
-            id: currentRequest.renderRequestID,
-            presentationSnapshot: returnedFinalSnapshot,
-            viewpoint: currentRequest.viewpoint,
-            settings: currentRequest.renderSettings
-        )
-        let expectedRenderRequests = [expectedRenderRequest]
-        let expectedEncodingInputs = [
-            EncoderInput(
-                renderResult: currentRenderResult,
-                encoding: currentRequest.encoding
-            )
-        ]
 
-        #expect(currentOutcome == .completed(expectedCurrentResult))
+        #expect(
+            currentOutcome == .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: returnedFinalSnapshot,
+                    artifact: currentArtifact
+                )
+            )
+        )
         #expect(await advanceTarget.requestCount() == 1)
-        #expect(await renderTarget.recordedRequests() == expectedRenderRequests)
-        #expect(probe.recordedEncodingInputs() == expectedEncodingInputs)
+        #expect(
+            await renderTarget.recordedRequests() == [
+                OffscreenRenderRequest(
+                    id: currentRequest.renderRequestID,
+                    presentationSnapshot: returnedFinalSnapshot,
+                    viewpoint: currentRequest.viewpoint,
+                    settings: currentRequest.renderSettings
+                )
+            ]
+        )
+        #expect(
+            probe.recordedEncodingInputs() == [
+                EncoderInput(
+                    renderResult: currentRenderResult,
+                    encoding: currentRequest.encoding
+                )
+            ]
+        )
         #expect(probe.recordedStages() == [.advance, .render, .encode])
     }
 
@@ -557,11 +565,10 @@ struct OfflineCaptureCoordinatorTests {
 
     @Test func renderCancellationWithWrongRequestIDReturnsTypedMismatch() async throws {
         let fixture = try makeFixture()
-        let rawWrongRequestID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000498"
-        )!
         let wrongRequestID = OffscreenRenderRequestID(
-            rawValue: rawWrongRequestID
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000498"
+            )!
         )
 
         try await expectRenderTerminal(
@@ -623,12 +630,10 @@ struct OfflineCaptureCoordinatorTests {
             outputMode: .surface,
             exposure: fixture.artifact.renderSettings.exposure
         )
-        let mismatchedSourceRequestID = OffscreenRenderRequestID()
-        let emptyEncodedData = Data()
         let mismatchedArtifacts = [
             artifact(
                 from: fixture.artifact,
-                sourceRequestID: mismatchedSourceRequestID
+                sourceRequestID: OffscreenRenderRequestID()
             ),
             artifact(
                 from: fixture.artifact,
@@ -648,7 +653,7 @@ struct OfflineCaptureCoordinatorTests {
             ),
             artifact(
                 from: fixture.artifact,
-                encodedData: emptyEncodedData
+                encodedData: Data()
             )
         ]
 
@@ -694,11 +699,10 @@ struct OfflineCaptureCoordinatorTests {
             revision: fixture.request.viewpoint.revision.advanced(),
             camera: fixture.request.viewpoint.camera
         )
-        let wrongExposure = ManualExposure(multiplier: 0.5)
         let wrongSettings = OffscreenRenderSettings(
             size: fixture.request.renderSettings.size,
             outputMode: .surface,
-            exposure: wrongExposure
+            exposure: ManualExposure(multiplier: 0.5)
         )
         let wrongImageSize = try RenderPixelSize(width: 5, height: 3)
         let wrongImageBytes = Data(
@@ -709,11 +713,10 @@ struct OfflineCaptureCoordinatorTests {
             size: wrongImageSize,
             bytes: wrongImageBytes
         )
-        let rawWrongRequestID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000499"
-        )!
         let wrongRequestID = OffscreenRenderRequestID(
-            rawValue: rawWrongRequestID
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000499"
+            )!
         )
         let mismatches = [
             OffscreenRenderResult(
@@ -1443,10 +1446,9 @@ struct OfflineCaptureCoordinatorTests {
         for fixture: Fixture,
         expectedCursor: SimulationCursor? = nil
     ) -> OfflineCurrentCaptureRequest {
-        let renderRequestID = OffscreenRenderRequestID()
-        return OfflineCurrentCaptureRequest(
+        OfflineCurrentCaptureRequest(
             expectedCursor: expectedCursor ?? fixture.initialSnapshot.cursor,
-            renderRequestID: renderRequestID,
+            renderRequestID: OffscreenRenderRequestID(),
             viewpoint: fixture.request.viewpoint,
             renderSettings: fixture.request.renderSettings,
             encoding: fixture.request.encoding
@@ -1471,10 +1473,9 @@ struct OfflineCaptureCoordinatorTests {
         sourceSnapshot: SimulationPresentationSnapshot,
         request: OfflineCurrentCaptureRequest
     ) -> RenderedImageArtifact {
-        let encodedData = Data([0xFF, 0xD8, 0x52, 0xFF, 0xD9])
-        return RenderedImageArtifact(
+        RenderedImageArtifact(
             encoding: request.encoding,
-            encodedData: encodedData,
+            encodedData: Data([0xFF, 0xD8, 0x52, 0xFF, 0xD9]),
             sourceRequestID: request.renderRequestID,
             sourceCursor: sourceSnapshot.cursor,
             viewpoint: request.viewpoint,
@@ -1516,20 +1517,18 @@ struct OfflineCaptureCoordinatorTests {
     }
 
     private func makeFixture() throws -> Fixture {
-        let rawSessionID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000401"
-        )!
         let sessionID = SimulationSessionID(
-            rawValue: rawSessionID
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000401"
+            )!
         )
-        let initialTick = SimulationTick(rawValue: 10)
         let initialCursor = SimulationCursor(
             sessionID: sessionID,
-            tick: initialTick
+            tick: SimulationTick(rawValue: 10)
         )
         let initialCamera = Camera(
             position: SIMD3<Float>(9, 8, 7),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .orthographic(
                 height: 12,
                 near: 0.1,
@@ -1541,76 +1540,70 @@ struct OfflineCaptureCoordinatorTests {
             camera: initialCamera,
             entityPresentations: []
         )
-        let finalTick = SimulationTick(rawValue: 13)
         let finalCursor = SimulationCursor(
             sessionID: sessionID,
-            tick: finalTick
+            tick: SimulationTick(rawValue: 13)
         )
         let finalCamera = Camera(
             position: SIMD3<Float>(2, 4, 8),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .orthographic(
                 height: 9,
                 near: 0.2,
                 far: 90
             )
         )
-        let entityID = EntityID(index: 17, generation: 2)
-        let entityPresentation = EntityPresentationSnapshot(
-            id: entityID,
-            position: SIMD3<Float>(1, 2, 3),
-            rotation: Transform.identityRotation,
-            scale: SIMD3<Float>(repeating: 1.5),
-            meshID: .ball,
-            materialID: .goldMetal
-        )
-        let entityPresentations = [entityPresentation]
         let snapshot = SimulationPresentationSnapshot(
             cursor: finalCursor,
             camera: finalCamera,
-            entityPresentations: entityPresentations
+            entityPresentations: [
+                EntityPresentationSnapshot(
+                    id: EntityID(index: 17, generation: 2),
+                    position: SIMD3<Float>(1, 2, 3),
+                    rotation: .identity,
+                    scale: SIMD3<Float>(repeating: 1.5),
+                    meshID: .ball,
+                    materialID: .goldMetal
+                )
+            ]
         )
-        let completedStepCount = SimulationCompletedStepCount(rawValue: 3)
         let advanceResult = SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: finalCursor,
-            completedStepCount: completedStepCount,
+            completedStepCount: SimulationCompletedStepCount(rawValue: 3),
             finalPresentationSnapshot: snapshot
         )
-        let rawViewpointID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000402"
-        )!
-        let viewpointID = RenderViewpointID(rawValue: rawViewpointID)
-        let viewpointRevision = RenderViewpointRevision(rawValue: 7)
         let viewpointCamera = Camera(
             position: SIMD3<Float>(6, 5, 4),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .standardPerspective
         )
         let viewpoint = RenderViewpoint(
-            id: viewpointID,
-            revision: viewpointRevision,
+            id: RenderViewpointID(
+                rawValue: UUID(
+                    uuidString: "00000000-0000-0000-0000-000000000402"
+                )!
+            ),
+            revision: RenderViewpointRevision(rawValue: 7),
             camera: viewpointCamera
         )
         let size = try RenderPixelSize(width: 4, height: 3)
-        let exposure = ManualExposure(multiplier: 1.25)
         let renderSettings = OffscreenRenderSettings(
             size: size,
             outputMode: .viewSpaceNormals,
-            exposure: exposure
+            exposure: ManualExposure(multiplier: 1.25)
         )
-        let jpegQuality = try JPEGQuality(0.76)
-        let encoding = ImageArtifactEncoding.jpeg(quality: jpegQuality)
-        let rawRenderRequestID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000403"
-        )!
+        let encoding = ImageArtifactEncoding.jpeg(
+            quality: try JPEGQuality(0.76)
+        )
         let renderRequestID = OffscreenRenderRequestID(
-            rawValue: rawRenderRequestID
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000403"
+            )!
         )
-        let advanceStepCount = SimulationStepCount(rawValue: 3)
         let advanceRequest = SimulationAdvanceRequest(
             expectedCursor: initialCursor,
-            stepCount: advanceStepCount,
+            stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .none
         )
         let request = OfflineCaptureRequest(
@@ -1638,10 +1631,9 @@ struct OfflineCaptureCoordinatorTests {
             settings: renderSettings,
             image: image
         )
-        let encodedData = Data([0xFF, 0xD8, 0x41, 0xFF, 0xD9])
         let artifact = RenderedImageArtifact(
             encoding: encoding,
-            encodedData: encodedData,
+            encodedData: Data([0xFF, 0xD8, 0x41, 0xFF, 0xD9]),
             sourceRequestID: renderRequestID,
             sourceCursor: finalCursor,
             viewpoint: viewpoint,
@@ -1773,9 +1765,8 @@ struct OfflineCaptureCoordinatorTests {
 
             guard !scripts.isEmpty else {
                 Issue.record("Simulation advanced more times than scripted.")
-                let fallbackSessionID = SimulationSessionID()
                 let cursor = request.expectedCursor ?? SimulationCursor(
-                    sessionID: fallbackSessionID,
+                    sessionID: SimulationSessionID(),
                     tick: .zero
                 )
                 return .rejected(

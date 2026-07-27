@@ -3,10 +3,9 @@ import Testing
 
 struct RenderAssetCatalogTests {
     @Test func completeMaterialVocabularyPassesCoverageValidation() throws {
-        let content = BasicGameContent()
         let catalog = RenderAssetCatalog(
             models: [:],
-            materials: content.renderAssetCatalog.materials
+            materials: BasicGameContent().renderAssetCatalog.materials
         )
 
         try catalog.validateMaterialCoverage()

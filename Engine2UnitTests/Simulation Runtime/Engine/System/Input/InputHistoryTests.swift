@@ -82,13 +82,11 @@ struct InputHistoryTests {
         var pointerMotionTotal = SIMD2<Float>.zero
 
         for index in 0..<5 {
-            let pointerMotionX = Float(index + 1)
-            let pointerMotion = SIMD2<Float>(pointerMotionX, 0)
+            let pointerMotion = SIMD2<Float>(Float(index + 1), 0)
             pointerMotionTotal += pointerMotion
-            let sequence = UInt64(index + 1)
             let publication = snapshot(
                 session: 1,
-                sequence: sequence,
+                sequence: UInt64(index + 1),
                 pointerMotionTotal: pointerMotionTotal
             )
             input.ingest(publication)
@@ -170,9 +168,8 @@ struct InputHistoryTests {
         pressedMouseButtons: Set<MouseButton> = [],
         pressedKeys: Set<KeyboardKey> = []
     ) -> InputSnapshot {
-        let revision = InputRevision(session: session, sequence: sequence)
-        return InputSnapshot(
-            revision: revision,
+        InputSnapshot(
+            revision: InputRevision(session: session, sequence: sequence),
             pointerPosition: .zero,
             pointerMotionTotal: pointerMotionTotal,
             scrollTotal: scrollTotal,

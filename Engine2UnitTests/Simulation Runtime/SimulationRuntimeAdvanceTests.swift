@@ -5,9 +5,8 @@ import Testing
 
 struct SimulationRuntimeAdvanceTests {
     @Test func initialCursorQualifiesTickZeroAndPresentation() {
-        let rawSessionID = UUID(uuidString: "10000000-0000-0000-0000-000000000001")!
         let sessionID = SimulationSessionID(
-            rawValue: rawSessionID
+            rawValue: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!
         )
         let simulation = makeSimulation(sessionID: sessionID)
         let expectedCursor = SimulationCursor(
@@ -22,10 +21,9 @@ struct SimulationRuntimeAdvanceTests {
     @Test func boundedAdvanceRunsCompleteScheduleAndReturnsExactSnapshot() async throws {
         let simulation = makeSimulation()
         let initialCursor = simulation.currentCursor
-        let stepCount = SimulationStepCount(rawValue: 3)
         let request = SimulationAdvanceRequest(
             expectedCursor: initialCursor,
-            stepCount: stepCount,
+            stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .none
         )
 
@@ -34,11 +32,9 @@ struct SimulationRuntimeAdvanceTests {
         let entity = try #require(
             simulation.world.positionComponents.entities.first
         )
-        let expectedTick = SimulationTick(rawValue: 3)
-
         #expect(result.initialCursor == initialCursor)
         #expect(result.finalCursor.sessionID == initialCursor.sessionID)
-        #expect(result.finalCursor.tick == expectedTick)
+        #expect(result.finalCursor.tick == SimulationTick(rawValue: 3))
         #expect(result.completedStepCount.rawValue == 3)
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(simulation.latestPresentationSnapshot == result.finalPresentationSnapshot)
@@ -50,14 +46,12 @@ struct SimulationRuntimeAdvanceTests {
         let simulation = makeSimulation()
         let initialCursor = simulation.currentCursor
         let initialSnapshot = simulation.latestPresentationSnapshot
-        let staleTick = SimulationTick(rawValue: 4)
         let staleCursor = SimulationCursor(
             sessionID: initialCursor.sessionID,
-            tick: staleTick
+            tick: SimulationTick(rawValue: 4)
         )
-        let inputRevision = InputRevision(session: 9, sequence: 2)
         let snapshot = inputSnapshot(
-            revision: inputRevision,
+            revision: InputRevision(session: 9, sequence: 2),
             pointerMotion: SIMD2<Float>(7, 3)
         )
         let request = SimulationAdvanceRequest(
@@ -120,9 +114,8 @@ struct SimulationRuntimeAdvanceTests {
             from: await simulation.advance(secondRequest)
         )
 
-        let expectedTick = SimulationTick(rawValue: 2)
         #expect(simulation.sessionID == sessionID)
-        #expect(simulation.currentCursor.tick == expectedTick)
+        #expect(simulation.currentCursor.tick == SimulationTick(rawValue: 2))
     }
 
     @Test func runtimeDoesNotAdvanceWithoutAnExplicitRequest() async {
@@ -137,17 +130,14 @@ struct SimulationRuntimeAdvanceTests {
     @Test func batchIngestsTransientInputOnlyOnItsFirstTick() async throws {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
-        let stepCount = SimulationStepCount(rawValue: 3)
-        let inputRevision = InputRevision(session: 3, sequence: 1)
-        let pressedKey = KeyboardKey(keyCode: 13, displayName: "W")
         let snapshot = inputSnapshot(
-            revision: inputRevision,
+            revision: InputRevision(session: 3, sequence: 1),
             pointerMotion: SIMD2<Float>(5, 0),
-            pressedKeys: [pressedKey]
+            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
-            stepCount: stepCount,
+            stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .ingest(snapshot)
         )
 
@@ -184,17 +174,14 @@ struct SimulationRuntimeAdvanceTests {
     @Test func rebaseCarriesHeldStateWithoutHistoricalTransients() async throws {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
-        let stepCount = SimulationStepCount(rawValue: 2)
-        let inputRevision = InputRevision(session: 6, sequence: 8)
-        let pressedKey = KeyboardKey(keyCode: 13, displayName: "W")
         let snapshot = inputSnapshot(
-            revision: inputRevision,
+            revision: InputRevision(session: 6, sequence: 8),
             pointerMotion: SIMD2<Float>(12, -4),
-            pressedKeys: [pressedKey]
+            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
-            stepCount: stepCount,
+            stepCount: SimulationStepCount(rawValue: 2),
             inputAssignment: .rebase(snapshot)
         )
 
@@ -210,24 +197,19 @@ struct SimulationRuntimeAdvanceTests {
     @Test func transitionRebasesThenIngestsOnlyPostBaselineInput() async throws {
         let simulation = makeSimulation()
         let initialCamera = simulation.world.camera
-        let baselineRevision = InputRevision(session: 7, sequence: 4)
-        let baselineKey = KeyboardKey(keyCode: 13, displayName: "W")
         let baseline = inputSnapshot(
-            revision: baselineRevision,
+            revision: InputRevision(session: 7, sequence: 4),
             pointerMotion: SIMD2<Float>(12, -4),
-            pressedKeys: [baselineKey]
+            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
         )
-        let subsequentRevision = InputRevision(session: 7, sequence: 9)
-        let subsequentKey = KeyboardKey(keyCode: 2, displayName: "D")
         let subsequentSnapshot = inputSnapshot(
-            revision: subsequentRevision,
+            revision: InputRevision(session: 7, sequence: 9),
             pointerMotion: SIMD2<Float>(17, -1),
-            pressedKeys: [subsequentKey]
+            pressedKeys: [KeyboardKey(keyCode: 2, displayName: "D")]
         )
-        let stepCount = SimulationStepCount(rawValue: 3)
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
-            stepCount: stepCount,
+            stepCount: SimulationStepCount(rawValue: 3),
             inputAssignment: .rebaseThenIngest(
                 baseline: baseline,
                 snapshot: subsequentSnapshot
@@ -274,24 +256,19 @@ struct SimulationRuntimeAdvanceTests {
     @Test func cursorMismatchRejectsTransitionWithoutChangingInput() async {
         let simulation = makeSimulation()
         let currentCursor = simulation.currentCursor
-        let staleTick = SimulationTick(rawValue: 12)
         let staleCursor = SimulationCursor(
             sessionID: currentCursor.sessionID,
-            tick: staleTick
+            tick: SimulationTick(rawValue: 12)
         )
-        let baselineRevision = InputRevision(session: 3, sequence: 2)
-        let baselineKey = KeyboardKey(keyCode: 13, displayName: "W")
         let baseline = inputSnapshot(
-            revision: baselineRevision,
+            revision: InputRevision(session: 3, sequence: 2),
             pointerMotion: SIMD2<Float>(8, 1),
-            pressedKeys: [baselineKey]
+            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
         )
-        let subsequentRevision = InputRevision(session: 3, sequence: 3)
-        let subsequentKey = KeyboardKey(keyCode: 2, displayName: "D")
         let subsequentSnapshot = inputSnapshot(
-            revision: subsequentRevision,
+            revision: InputRevision(session: 3, sequence: 3),
             pointerMotion: SIMD2<Float>(11, 2),
-            pressedKeys: [subsequentKey]
+            pressedKeys: [KeyboardKey(keyCode: 2, displayName: "D")]
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: staleCursor,
@@ -342,8 +319,7 @@ struct SimulationRuntimeAdvanceTests {
 
         #expect(completedCount == 1)
         #expect(rejectedCount == 1)
-        let expectedTick = SimulationTick(rawValue: 1)
-        #expect(simulation.currentCursor.tick == expectedTick)
+        #expect(simulation.currentCursor.tick == SimulationTick(rawValue: 1))
     }
 
     @Test func returnedSnapshotRemainsDetachedFromLaterAdvances() async throws {
@@ -366,19 +342,15 @@ struct SimulationRuntimeAdvanceTests {
             from: await simulation.advance(secondRequest)
         )
 
-        let firstExpectedTick = SimulationTick(rawValue: 1)
-        let secondExpectedTick = SimulationTick(rawValue: 2)
-
-        #expect(first.finalPresentationSnapshot.cursor.tick == firstExpectedTick)
+        #expect(first.finalPresentationSnapshot.cursor.tick == SimulationTick(rawValue: 1))
         #expect(first.finalPresentationSnapshot.entityPresentations.first?.position == SIMD3<Float>(1, 0, 0))
-        #expect(simulation.latestPresentationSnapshot.cursor.tick == secondExpectedTick)
+        #expect(simulation.latestPresentationSnapshot.cursor.tick == SimulationTick(rawValue: 2))
         #expect(simulation.latestPresentationSnapshot.entityPresentations.first?.position == SIMD3<Float>(2, 0, 0))
     }
 
     private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
-        let worldBuilder = MovingWorldBuilder()
-        return SimulationRuntime(
-            worldBuilder: worldBuilder,
+        SimulationRuntime(
+            worldBuilder: MovingWorldBuilder(),
             configuration: .basicGame,
             inputBaseline: nil,
             sessionID: sessionID

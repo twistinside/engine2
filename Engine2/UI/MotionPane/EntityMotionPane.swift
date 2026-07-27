@@ -10,8 +10,6 @@ struct EntityMotionPane: View {
     var body: some View {
         TimelineView(.animation) { _ in
             let rows = EntityMotionRow.extract(from: simulation.world)
-            let rowShape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-            let paneShape = RoundedRectangle(cornerRadius: 18, style: .continuous)
 
             GlassEffectContainer(spacing: 8) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -63,7 +61,7 @@ struct EntityMotionPane: View {
                             .padding(.vertical, 6)
                             .glassEffect(
                                 .clear.interactive(),
-                                in: rowShape
+                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                             )
                         }
                     }
@@ -72,7 +70,7 @@ struct EntityMotionPane: View {
                 .frame(width: 320, alignment: .leading)
                 .glassEffect(
                     .regular.tint(.cyan.opacity(0.08)),
-                    in: paneShape
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                 )
             }
             .accessibilityElement(children: .contain)

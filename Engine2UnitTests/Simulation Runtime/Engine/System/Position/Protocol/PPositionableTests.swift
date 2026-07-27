@@ -4,9 +4,8 @@ import Testing
 struct PPositionableTests {
     @Test func positionReadsFromWorldStore() {
         let world = World()
-        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestPositionableEntity(
-            unregisteredID: entityID,
+            unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
         let expectedPosition = SIMD3<Float>(4, 5, 6)

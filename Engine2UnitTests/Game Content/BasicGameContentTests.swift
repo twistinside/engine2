@@ -22,8 +22,7 @@ struct BasicGameContentTests {
     }
 
     @Test func injectedConstructionUsesCallerWorldBuilderAndCompleteCatalog() {
-        let worldBuilder = EmptyWorldBuilder()
-        let content = BasicGameContent(worldBuilder: worldBuilder)
+        let content = BasicGameContent(worldBuilder: EmptyWorldBuilder())
 
         #expect(content.worldBuilder is EmptyWorldBuilder)
         #expect(content.simulationConfiguration == .basicGame)
@@ -31,11 +30,12 @@ struct BasicGameContentTests {
     }
 
     @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
-        let ballModel = ModelAssetReference(
-            resourceName: "Ball",
-            format: .usdz
-        )
-        let expectedModels: [MeshID: ModelAssetReference] = [.ball: ballModel]
+        let expectedModels: [MeshID: ModelAssetReference] = [
+            .ball: ModelAssetReference(
+                resourceName: "Ball",
+                format: .usdz
+            )
+        ]
         #expect(RenderAssetCatalog.everything.models == expectedModels)
     }
 
@@ -43,43 +43,37 @@ struct BasicGameContentTests {
         let catalog = RenderAssetCatalog.everything
         let warmDielectricBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
         let goldMetalBaseColor = SIMD3<Float>(1, 0.766, 0.336)
-        let warmDielectricSmooth = PBRMaterialDescription(
-            baseColor: warmDielectricBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.2
-        )
-        let warmDielectric = PBRMaterialDescription(
-            baseColor: warmDielectricBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.5
-        )
-        let warmDielectricRough = PBRMaterialDescription(
-            baseColor: warmDielectricBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.8
-        )
-        let goldMetalSmooth = PBRMaterialDescription(
-            baseColor: goldMetalBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.2
-        )
-        let goldMetal = PBRMaterialDescription(
-            baseColor: goldMetalBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.35
-        )
-        let goldMetalRough = PBRMaterialDescription(
-            baseColor: goldMetalBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.8
-        )
         let expectedMaterials: [MaterialID: PBRMaterialDescription] = [
-            .warmDielectricSmooth: warmDielectricSmooth,
-            .warmDielectric: warmDielectric,
-            .warmDielectricRough: warmDielectricRough,
-            .goldMetalSmooth: goldMetalSmooth,
-            .goldMetal: goldMetal,
-            .goldMetalRough: goldMetalRough
+            .warmDielectricSmooth: PBRMaterialDescription(
+                baseColor: warmDielectricBaseColor,
+                metallic: 0,
+                perceptualRoughness: 0.2
+            ),
+            .warmDielectric: PBRMaterialDescription(
+                baseColor: warmDielectricBaseColor,
+                metallic: 0,
+                perceptualRoughness: 0.5
+            ),
+            .warmDielectricRough: PBRMaterialDescription(
+                baseColor: warmDielectricBaseColor,
+                metallic: 0,
+                perceptualRoughness: 0.8
+            ),
+            .goldMetalSmooth: PBRMaterialDescription(
+                baseColor: goldMetalBaseColor,
+                metallic: 1,
+                perceptualRoughness: 0.2
+            ),
+            .goldMetal: PBRMaterialDescription(
+                baseColor: goldMetalBaseColor,
+                metallic: 1,
+                perceptualRoughness: 0.35
+            ),
+            .goldMetalRough: PBRMaterialDescription(
+                baseColor: goldMetalBaseColor,
+                metallic: 1,
+                perceptualRoughness: 0.8
+            )
         ]
 
         // Equality rejects missing, extra, or changed descriptions. Coverage

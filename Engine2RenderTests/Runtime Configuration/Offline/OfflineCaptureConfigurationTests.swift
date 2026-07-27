@@ -9,65 +9,53 @@ import UniformTypeIdentifiers
 struct OfflineCaptureConfigurationTests {
     @Test
     func composesSimulationMetalAndImageArtifactsAcrossCaptures() async throws {
-        let sessionUUID = UUID(
-            uuidString: "40000000-0000-0000-0000-000000000001"
-        )!
         let sessionID = SimulationSessionID(
-            rawValue: sessionUUID
+            rawValue: UUID(
+                uuidString: "40000000-0000-0000-0000-000000000001"
+            )!
         )
-        let configuration = OfflineCaptureConfiguration(
+        let assembly = try OfflineCaptureConfiguration(
             renderLimits: .conservative
-        )
-        let gameContent = BasicGameContent()
-        let assembly = try configuration.makeAssembly(
-            gameContent: gameContent,
+        ).makeAssembly(
+            gameContent: BasicGameContent(),
             sessionID: sessionID
         )
         let captureTarget = assembly.captureTarget
 
-        let viewpointUUID = UUID(
-            uuidString: "40000000-0000-0000-0000-000000000002"
-        )!
         let viewpointID = RenderViewpointID(
-            rawValue: viewpointUUID
-        )
-        let firstViewpointRevision = RenderViewpointRevision(rawValue: 7)
-        let cameraUp = SIMD3<Float>(0, 1, 0)
-        let firstCamera = Camera.lookingAt(
-            .zero,
-            from: SIMD3<Float>(0, 0, 8),
-            up: cameraUp,
-            projection: .standardPerspective
+            rawValue: UUID(
+                uuidString: "40000000-0000-0000-0000-000000000002"
+            )!
         )
         let firstViewpoint = RenderViewpoint(
             id: viewpointID,
-            revision: firstViewpointRevision,
-            camera: firstCamera
+            revision: RenderViewpointRevision(rawValue: 7),
+            camera: Camera.lookingAt(
+                .zero,
+                from: SIMD3<Float>(0, 0, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
+            )
         )
-        let firstRenderSize = try RenderPixelSize(width: 96, height: 64)
         let firstRenderSettings = OffscreenRenderSettings(
-            size: firstRenderSize,
+            size: try RenderPixelSize(width: 96, height: 64),
             outputMode: .surface,
             exposure: .validation
         )
-        let firstJPEGQuality = try JPEGQuality(0.72)
         let firstEncoding = ImageArtifactEncoding.jpeg(
-            quality: firstJPEGQuality
-        )
-        let firstAdvanceRequest = SimulationAdvanceRequest(
-            expectedCursor: assembly.initialCursor,
-            stepCount: .one,
-            inputAssignment: .none
-        )
-        let firstRenderRequestUUID = UUID(
-            uuidString: "40000000-0000-0000-0000-000000000003"
-        )!
-        let firstRenderRequestID = OffscreenRenderRequestID(
-            rawValue: firstRenderRequestUUID
+            quality: try JPEGQuality(0.72)
         )
         let firstRequest = OfflineCaptureRequest(
-            advanceRequest: firstAdvanceRequest,
-            renderRequestID: firstRenderRequestID,
+            advanceRequest: SimulationAdvanceRequest(
+                expectedCursor: assembly.initialCursor,
+                stepCount: .one,
+                inputAssignment: .none
+            ),
+            renderRequestID: OffscreenRenderRequestID(
+                rawValue: UUID(
+                    uuidString: "40000000-0000-0000-0000-000000000003"
+                )!
+            ),
             viewpoint: firstViewpoint,
             renderSettings: firstRenderSettings,
             encoding: firstEncoding
@@ -103,40 +91,33 @@ struct OfflineCaptureConfigurationTests {
             encoding: firstEncoding
         )
 
-        let secondCamera = Camera.lookingAt(
-            .zero,
-            from: SIMD3<Float>(1, 0.5, 8),
-            up: cameraUp,
-            projection: .standardPerspective
-        )
         let secondViewpoint = RenderViewpoint(
             id: viewpointID,
             revision: firstViewpoint.revision.advanced(),
-            camera: secondCamera
+            camera: Camera.lookingAt(
+                .zero,
+                from: SIMD3<Float>(1, 0.5, 8),
+                up: SIMD3<Float>(0, 1, 0),
+                projection: .standardPerspective
+            )
         )
-        let secondRenderSize = try RenderPixelSize(width: 80, height: 60)
-        let secondExposure = ManualExposure(multiplier: 1.25)
         let secondRenderSettings = OffscreenRenderSettings(
-            size: secondRenderSize,
+            size: try RenderPixelSize(width: 80, height: 60),
             outputMode: .viewSpaceNormals,
-            exposure: secondExposure
+            exposure: ManualExposure(multiplier: 1.25)
         )
         let secondEncoding = ImageArtifactEncoding.png
-        let secondStepCount = SimulationStepCount(rawValue: 2)
-        let secondAdvanceRequest = SimulationAdvanceRequest(
-            expectedCursor: firstResult.advanceResult.finalCursor,
-            stepCount: secondStepCount,
-            inputAssignment: .none
-        )
-        let secondRenderRequestUUID = UUID(
-            uuidString: "40000000-0000-0000-0000-000000000004"
-        )!
-        let secondRenderRequestID = OffscreenRenderRequestID(
-            rawValue: secondRenderRequestUUID
-        )
         let secondRequest = OfflineCaptureRequest(
-            advanceRequest: secondAdvanceRequest,
-            renderRequestID: secondRenderRequestID,
+            advanceRequest: SimulationAdvanceRequest(
+                expectedCursor: firstResult.advanceResult.finalCursor,
+                stepCount: SimulationStepCount(rawValue: 2),
+                inputAssignment: .none
+            ),
+            renderRequestID: OffscreenRenderRequestID(
+                rawValue: UUID(
+                    uuidString: "40000000-0000-0000-0000-000000000004"
+                )!
+            ),
             viewpoint: secondViewpoint,
             renderSettings: secondRenderSettings,
             encoding: secondEncoding
@@ -145,8 +126,6 @@ struct OfflineCaptureConfigurationTests {
         let secondResult = try completedResult(
             from: await captureTarget.capture(secondRequest)
         )
-        let expectedSecondInitialTick = SimulationTick(rawValue: 1)
-        let expectedSecondFinalTick = SimulationTick(rawValue: 3)
 
         // The first outcome is the only cursor authority needed to issue the
         // next request. No hidden Runtime read or latest-value sample is used.
@@ -156,11 +135,11 @@ struct OfflineCaptureConfigurationTests {
         )
         #expect(
             secondResult.advanceResult.initialCursor.tick
-                == expectedSecondInitialTick
+                == SimulationTick(rawValue: 1)
         )
         #expect(
             secondResult.advanceResult.finalCursor.tick
-                == expectedSecondFinalTick
+                == SimulationTick(rawValue: 3)
         )
         #expect(secondResult.advanceResult.finalCursor.sessionID == sessionID)
         #expect(secondResult.advanceResult.completedStepCount.rawValue == 2)
@@ -225,19 +204,13 @@ struct OfflineCaptureConfigurationTests {
         switch encoding {
         case .jpeg:
             expectedType = .jpeg
-            let filePrefix = Array(artifact.encodedData.prefix(2))
-            let fileSuffix = Array(artifact.encodedData.suffix(2))
-            #expect(filePrefix == [0xFF, 0xD8])
-            #expect(fileSuffix == [0xFF, 0xD9])
+            #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
+            #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
         case .png:
             expectedType = .png
-            let filePrefix = Array(artifact.encodedData.prefix(8))
             #expect(
-                filePrefix
-                    == [
-                        0x89, 0x50, 0x4E, 0x47,
-                        0x0D, 0x0A, 0x1A, 0x0A
-                    ]
+                Array(artifact.encodedData.prefix(8))
+                    == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
             )
         }
         let source = try #require(

@@ -15,13 +15,9 @@ struct BasicWorldBuilderTests {
             world.renderableComponents.dense.map(\.materialID) ==
                 Self.expectedMaterialIDs
         )
-        let expectedMeshIDs = Array(
-            repeating: MeshID.ball,
-            count: Self.expectedEntityIDs.count
-        )
         #expect(
             world.renderableComponents.dense.map(\.meshID) ==
-                expectedMeshIDs
+                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
         )
         #expect(world.scaleComponents.entities.isEmpty)
         #expect(world.scaleComponents.dense.isEmpty)
@@ -60,8 +56,7 @@ struct BasicWorldBuilderTests {
             at: laterCursor
         )
 
-        let expectedCompletedTick = SimulationTick(rawValue: 120)
-        #expect(engine.completedTick == expectedCompletedTick)
+        #expect(engine.completedTick == SimulationTick(rawValue: 120))
         #expect(
             laterSnapshot.entityPresentations ==
                 initialSnapshot.entityPresentations
@@ -166,8 +161,5 @@ struct BasicWorldBuilderTests {
         .goldMetalRough
     ]
 
-    private static let identityRotation = simd_quatf(
-        angle: 0,
-        axis: SIMD3<Float>(0, 0, 1)
-    )
+    private static let identityRotation = simd_quatf.identity
 }

@@ -3,12 +3,10 @@ import Testing
 
 struct RealtimeAssemblyTests {
     @Test func lifecycleStartsAndStopsTheOwnedRuntimes() async {
-        let configuration = RealtimeConfiguration(
+        let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        )
-        let gameContent = BasicGameContent()
-        let assembly = configuration.makeAssembly(gameContent: gameContent)
+        ).makeAssembly(gameContent: BasicGameContent())
 
         assembly.start()
 
@@ -24,12 +22,10 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func lifecycleIsIdempotent() async {
-        let configuration = RealtimeConfiguration(
+        let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        )
-        let gameContent = BasicGameContent()
-        let assembly = configuration.makeAssembly(gameContent: gameContent)
+        ).makeAssembly(gameContent: BasicGameContent())
 
         assembly.start()
         let startedRevision = assembly.inputRuntime.latestInputSnapshot.revision
@@ -47,12 +43,10 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func userPauseSurvivesAppLifecycleAndLeavesInputLive() async {
-        let configuration = RealtimeConfiguration(
+        let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        )
-        let gameContent = BasicGameContent()
-        let assembly = configuration.makeAssembly(gameContent: gameContent)
+        ).makeAssembly(gameContent: BasicGameContent())
 
         assembly.start()
         assembly.pauseAdvancement()
@@ -75,12 +69,10 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func rebuildCoordinatesSessionCursorAndDriverLifecycle() async {
-        let configuration = RealtimeConfiguration(
+        let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        )
-        let gameContent = BasicGameContent()
-        let assembly = configuration.makeAssembly(gameContent: gameContent)
+        ).makeAssembly(gameContent: BasicGameContent())
         assembly.start()
         let initialCursor = assembly.simulationRuntime.currentCursor
 
@@ -95,12 +87,10 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func pausedInputPublishesWithoutBypassingSimulation() async {
-        let configuration = RealtimeConfiguration(
+        let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        )
-        let gameContent = BasicGameContent()
-        let assembly = configuration.makeAssembly(gameContent: gameContent)
+        ).makeAssembly(gameContent: BasicGameContent())
 
         // Disable advancement before activation so no cadence request can race
         // the invariant this test is proving.

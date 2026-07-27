@@ -17,9 +17,8 @@ struct HDRPresentationParametersTests {
     }
 
     @Test func initializerPacksOnlyTheExposureMultiplier() {
-        let exposure = ManualExposure(multiplier: 2)
         let parameters = HDRPresentationParameters(
-            exposure: exposure
+            exposure: ManualExposure(multiplier: 2)
         )
 
         // Padding stays deterministically zero so captures and tests do not

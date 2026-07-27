@@ -200,11 +200,12 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
     /// Forms a non-consuming rejection at the currently known cursor.
     private func rejected(_ reason: AgentSessionRequestRejectionReason) -> AgentSessionSubmissionOutcome {
-        let rejection = AgentSessionRequestRejection(
-            reason: reason,
-            knownCursor: knownCursor
+        .rejected(
+            AgentSessionRequestRejection(
+                reason: reason,
+                knownCursor: knownCursor
+            )
         )
-        return .rejected(rejection)
     }
 
     /// Resumes every closer only after accepted work reaches a terminal value.

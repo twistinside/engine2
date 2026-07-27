@@ -5,9 +5,8 @@ import Testing
 struct RealtimeAdvanceDriverIntegrationTests {
     @Test func driverCommitsExactRuntimePublicationAndPostStartInput() async throws {
         let inputRuntime = InputRuntime()
-        let worldBuilder = IntegrationMovingWorldBuilder()
         let simulationRuntime = SimulationRuntime(
-            worldBuilder: worldBuilder,
+            worldBuilder: IntegrationMovingWorldBuilder(),
             configuration: .basicGame,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
@@ -89,9 +88,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
     @Test
     func pausedCameraInputIsDiscardedAndFreshInputCommitsAfterResume() async {
         let inputRuntime = InputRuntime()
-        let worldBuilder = BasicWorldBuilder()
         let simulationRuntime = SimulationRuntime(
-            worldBuilder: worldBuilder,
+            worldBuilder: BasicWorldBuilder(),
             configuration: .basicGame,
             inputBaseline: inputRuntime.latestInputSnapshot
         )

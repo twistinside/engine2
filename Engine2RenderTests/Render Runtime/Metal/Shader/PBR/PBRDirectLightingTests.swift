@@ -108,7 +108,6 @@ struct PBRDirectLightingTests {
 
     @Test func asymmetricGeometryMatchesIndependentBRDFReferences() throws {
         let renderer = try MetalPBRProofRenderer()
-        let cameraDirection = SIMD3<Float>(sqrt(0.99), 0, 0.1)
         let parameters = PBRProofParameters(
             baseColor: baseColor,
             metallic: 0.35,
@@ -116,7 +115,7 @@ struct PBRDirectLightingTests {
             directionToLightWorld: SIMD3<Float>(-0.8, 0, 0.6),
             lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: cameraDirection
+            directionToCameraView: SIMD3<Float>(sqrt(0.99), 0, 0.1)
         )
 
         // Here N dot V differs from N dot L, and V dot H differs from both.
@@ -296,14 +295,13 @@ struct PBRDirectLightingTests {
 
         for pixelIndex in shaded.indices where shaded[pixelIndex].w > 0.5 {
             let expected = diffuse[pixelIndex] + specular[pixelIndex]
-            let expectedRGB = SIMD3<Float>(
-                expected.x,
-                expected.y,
-                expected.z
-            )
             expectRGB(
                 shaded[pixelIndex],
-                approximately: expectedRGB,
+                approximately: SIMD3<Float>(
+                    expected.x,
+                    expected.y,
+                    expected.z
+                ),
                 tolerance: 0.004
             )
         }
@@ -313,24 +311,22 @@ struct PBRDirectLightingTests {
         let renderer = try MetalPBRProofRenderer()
         let grazingCosine: Float = 0.01
         let tangent = sqrt(1 - grazingCosine * grazingCosine)
-        let lightDirection = SIMD3<Float>(
-            -tangent,
-            0,
-            grazingCosine
-        )
-        let cameraDirection = SIMD3<Float>(
-            tangent,
-            0,
-            grazingCosine
-        )
         let grazingParameters = PBRProofParameters(
             baseColor: baseColor,
             metallic: 0,
             perceptualRoughness: 0.5,
-            directionToLightWorld: lightDirection,
+            directionToLightWorld: SIMD3<Float>(
+                -tangent,
+                0,
+                grazingCosine
+            ),
             lightColor: SIMD3<Float>(repeating: 1),
             lightIntensity: 1,
-            directionToCameraView: cameraDirection
+            directionToCameraView: SIMD3<Float>(
+                tangent,
+                0,
+                grazingCosine
+            )
         )
         let grazingShaded = try renderer.render(
             .shaded,
@@ -463,10 +459,8 @@ private func radialMoment(of image: [SIMD4<Float>]) -> Float {
             }
 
             let weight = luminance(pixel)
-            let xPosition = Float(x)
-            let yPosition = Float(y)
-            let dx = (xPosition - centerX) / centerX
-            let dy = (yPosition - centerY) / centerY
+            let dx = (Float(x) - centerX) / centerX
+            let dy = (Float(y) - centerY) / centerY
             weightedDistance += weight * (dx * dx + dy * dy)
             totalWeight += weight
         }

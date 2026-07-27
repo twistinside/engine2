@@ -61,11 +61,12 @@ nonisolated enum OfflineCurrentCaptureOutcome: Equatable, Sendable {
     init(artifactOutcome: OffscreenImageArtifactOutcome, sourceSnapshot: SimulationPresentationSnapshot) {
         switch artifactOutcome {
         case let .completed(artifact):
-            let result = OfflineCurrentCaptureResult(
-                sourceSnapshot: sourceSnapshot,
-                artifact: artifact
+            self = .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: sourceSnapshot,
+                    artifact: artifact
+                )
             )
-            self = .completed(result)
 
         case let .renderRejected(rejection):
             self = .renderRejected(

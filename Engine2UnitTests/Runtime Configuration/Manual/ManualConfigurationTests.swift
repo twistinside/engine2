@@ -4,13 +4,11 @@ import Testing
 
 struct ManualConfigurationTests {
     @Test func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
-        let sessionUUID = UUID(
-            uuidString: "20000000-0000-0000-0000-000000000001"
-        )!
-        let sessionID = SimulationSessionID(rawValue: sessionUUID)
-        let gameContent = BasicGameContent()
+        let sessionID = SimulationSessionID(
+            rawValue: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
+        )
         let assembly = ManualConfiguration().makeAssembly(
-            gameContent: gameContent,
+            gameContent: BasicGameContent(),
             sessionID: sessionID
         )
 
@@ -21,19 +19,17 @@ struct ManualConfigurationTests {
     }
 
     @Test func exactCallerAloneDeterminesProgress() async throws {
-        let gameContent = BasicGameContent()
         let assembly = ManualConfiguration().makeAssembly(
-            gameContent: gameContent
+            gameContent: BasicGameContent()
         )
         let initialCursor = assembly.simulationRuntime.currentCursor
 
         await Task.yield()
         #expect(assembly.simulationRuntime.currentCursor == initialCursor)
 
-        let stepCount = SimulationStepCount(rawValue: 4)
         let request = SimulationAdvanceRequest(
             expectedCursor: initialCursor,
-            stepCount: stepCount,
+            stepCount: SimulationStepCount(rawValue: 4),
             inputAssignment: .none
         )
         let outcome = await assembly.advanceTarget.advance(request)
@@ -43,8 +39,7 @@ struct ManualConfigurationTests {
         }
 
         #expect(result.initialCursor == initialCursor)
-        let expectedFinalTick = SimulationTick(rawValue: 4)
-        #expect(result.finalCursor.tick == expectedFinalTick)
+        #expect(result.finalCursor.tick == SimulationTick(rawValue: 4))
         #expect(result.completedStepCount.rawValue == 4)
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(assembly.simulationRuntime.latestPresentationSnapshot == result.finalPresentationSnapshot)
@@ -53,10 +48,10 @@ struct ManualConfigurationTests {
     }
 
     @Test func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
-        let worldBuilder = ManualMovingWorldBuilder()
-        let gameContent = BasicGameContent(worldBuilder: worldBuilder)
         let assembly = ManualConfiguration().makeAssembly(
-            gameContent: gameContent
+            gameContent: BasicGameContent(
+                worldBuilder: ManualMovingWorldBuilder()
+            )
         )
         let initialCursor = assembly.simulationRuntime.currentCursor
         let stepCount = SimulationStepCount(rawValue: 10_000)
@@ -85,8 +80,7 @@ struct ManualConfigurationTests {
 
         #expect(result.initialCursor == initialCursor)
         #expect(result.completedStepCount.rawValue == 10_000)
-        let expectedFinalTick = SimulationTick(rawValue: 10_000)
-        #expect(result.finalCursor.tick == expectedFinalTick)
+        #expect(result.finalCursor.tick == SimulationTick(rawValue: 10_000))
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(presentation.position == worldPosition)
         #expect(abs(worldPosition.x - 10_000) < 1)
@@ -96,10 +90,8 @@ struct ManualConfigurationTests {
 
     @Test func assembliesOwnIndependentSessionsAndWorlds() {
         let configuration = ManualConfiguration()
-        let firstContent = BasicGameContent()
-        let first = configuration.makeAssembly(gameContent: firstContent)
-        let secondContent = BasicGameContent()
-        let second = configuration.makeAssembly(gameContent: secondContent)
+        let first = configuration.makeAssembly(gameContent: BasicGameContent())
+        let second = configuration.makeAssembly(gameContent: BasicGameContent())
 
         #expect(first !== second)
         #expect(first.simulationRuntime !== second.simulationRuntime)
@@ -112,16 +104,15 @@ private extension ManualConfigurationTests {
     private struct ManualMovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()
-            let velocity = SIMD3<Float>(
-                1 / SimulationRuntime.fixedTimeStep.seconds,
-                0,
-                0
-            )
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: velocity
+                velocity: SIMD3<Float>(
+                    1 / SimulationRuntime.fixedTimeStep.seconds,
+                    0,
+                    0
+                )
             )
             return world
         }

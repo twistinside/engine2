@@ -5,9 +5,8 @@ import Testing
 struct BasicGameContentRenderTests {
     @Test func packagedBallModelResolvesIntoRendererOwnedMeshes() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
-        let gameContent = BasicGameContent()
         let models = try USDRenderModel.load(
-            catalog: gameContent.renderAssetCatalog,
+            catalog: BasicGameContent().renderAssetCatalog,
             device: device
         )
 

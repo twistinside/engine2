@@ -3,12 +3,10 @@ import Testing
 
 struct AppDebugOptionsTests {
     @Test func inputHistoryIsHiddenByDefault() {
-        let options = AppDebugOptions()
-        #expect(options.showsInputHistory == false)
+        #expect(AppDebugOptions().showsInputHistory == false)
     }
 
     @Test func surfaceRenderingIsTheDefaultOutput() {
-        let options = AppDebugOptions()
-        #expect(options.renderOutputMode == .surface)
+        #expect(AppDebugOptions().renderOutputMode == .surface)
     }
 }

@@ -41,18 +41,16 @@ struct InputSnapshotTests {
     }
 
     @Test func revisionRemainsPartOfSnapshotValueIdentity() {
-        let firstRevision = InputRevision(session: 1, sequence: 1)
         let first = InputSnapshot(
-            revision: firstRevision,
+            revision: InputRevision(session: 1, sequence: 1),
             pointerPosition: .zero,
             pointerMotionTotal: .zero,
             scrollTotal: .zero,
             pressedMouseButtons: [],
             pressedKeys: []
         )
-        let secondRevision = InputRevision(session: 1, sequence: 2)
         let second = InputSnapshot(
-            revision: secondRevision,
+            revision: InputRevision(session: 1, sequence: 2),
             pointerPosition: .zero,
             pointerMotionTotal: .zero,
             scrollTotal: .zero,

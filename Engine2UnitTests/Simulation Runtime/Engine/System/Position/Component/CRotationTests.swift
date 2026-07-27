@@ -5,9 +5,7 @@ import simd
 
 struct CRotationTests {
     @Test func identityUsesNeutralQuaternion() {
-        let expectedRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
-
-        #expect(CRotation.identity.rotation.vector == expectedRotation.vector)
+        #expect(CRotation.identity.rotation.vector == SIMD4<Float>(0, 0, 0, 1))
     }
 
     @Test func codableRoundTripsQuaternion() throws {

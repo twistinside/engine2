@@ -5,10 +5,9 @@ import Testing
 
 struct AgentSessionCoordinatorTests {
     @Test func sessionIdentitySupportsFreshRawAndCodableRoundTrips() throws {
-        let parsedRawValue = UUID(
-            uuidString: "50000000-0000-0000-0000-000000000000"
+        let rawValue = try #require(
+            UUID(uuidString: "50000000-0000-0000-0000-000000000000")
         )
-        let rawValue = try #require(parsedRawValue)
         let fixed = AgentSessionID(rawValue: rawValue)
         let firstFresh = AgentSessionID()
         let secondFresh = AgentSessionID()
@@ -93,11 +92,10 @@ struct AgentSessionCoordinatorTests {
         let fixture = try makeFixture()
         let request = fixture.currentRequest(sequence: 0)
         let sourceSnapshot = fixture.snapshot(at: fixture.initialCursor)
-        let encodedBytes = Data([0xFF, 0xD8, 0x44, 0xFF, 0xD9])
         let completed = fixture.currentCompletedOutcome(
             request: request,
             sourceSnapshot: sourceSnapshot,
-            encodedBytes: encodedBytes
+            encodedBytes: Data([0xFF, 0xD8, 0x44, 0xFF, 0xD9])
         )
         let target = ScriptedCaptureTarget(
             scripts: [.currentImmediate(completed)]
@@ -126,11 +124,10 @@ struct AgentSessionCoordinatorTests {
     @Test func currentReplayAndChangedSourceShareOneIdentityLane() async throws {
         let fixture = try makeFixture()
         let request = fixture.currentRequest(sequence: 0)
-        let encodedBytes = Data([0xFF, 0xD8, 0x55, 0xFF, 0xD9])
         let completed = fixture.currentCompletedOutcome(
             request: request,
             sourceSnapshot: fixture.snapshot(at: fixture.initialCursor),
-            encodedBytes: encodedBytes
+            encodedBytes: Data([0xFF, 0xD8, 0x55, 0xFF, 0xD9])
         )
         let target = ScriptedCaptureTarget(
             scripts: [.currentImmediate(completed)]
@@ -153,12 +150,13 @@ struct AgentSessionCoordinatorTests {
             renderSettings: request.renderSettings,
             encoding: request.encoding
         )
-        let rejection = AgentSessionRequestRejection(
-            reason: .requestConflict(request.id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(changedSource) == .rejected(rejection)
+            await coordinator.capture(changedSource) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .requestConflict(request.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -184,12 +182,13 @@ struct AgentSessionCoordinatorTests {
         }
         await target.waitForRequestCount(1)
 
-        let rejection = AgentSessionRequestRejection(
-            reason: .requestConflict(currentRequest.id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(changedSource) == .rejected(rejection)
+            await coordinator.capture(changedSource) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .requestConflict(currentRequest.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.recordedRequests().isEmpty)
         #expect(await target.recordedCurrentRequests().count == 1)
@@ -208,11 +207,10 @@ struct AgentSessionCoordinatorTests {
             maximumRetainedResultCount: 4,
             maximumRetainedImageBytes: 3
         )
-        let encodedBytes = Data([0xFF, 0xD8, 0x66, 0xFF, 0xD9])
         let completed = fixture.currentCompletedOutcome(
             request: request,
             sourceSnapshot: fixture.snapshot(at: fixture.initialCursor),
-            encodedBytes: encodedBytes
+            encodedBytes: Data([0xFF, 0xD8, 0x66, 0xFF, 0xD9])
         )
         let target = ScriptedCaptureTarget(
             scripts: [.currentImmediate(completed)]
@@ -227,12 +225,13 @@ struct AgentSessionCoordinatorTests {
             from: await coordinator.capture(request)
         )
         #expect(response.outcome == .currentCapture(completed))
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(request.id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(request) == .rejected(rejection)
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -270,12 +269,13 @@ struct AgentSessionCoordinatorTests {
         )
         #expect(response.outcome == .currentCapture(failure))
         #expect(response.knownCursor == sourceSnapshot.cursor)
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(request.id),
-            knownCursor: sourceSnapshot.cursor
-        )
         #expect(
-            await coordinator.capture(request) == .rejected(rejection)
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: sourceSnapshot.cursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -309,11 +309,10 @@ struct AgentSessionCoordinatorTests {
             request: request,
             cursor: sourceSnapshot.cursor
         )
-        let encodedBytes = Data(repeating: 0x50, count: 8)
         let artifact = fixture.artifact(
             request: request,
             cursor: sourceSnapshot.cursor,
-            encodedBytes: encodedBytes,
+            encodedBytes: Data(repeating: 0x50, count: 8),
             encoding: .png
         )
         #expect(rawResult.image.bytes.count == 16)
@@ -326,15 +325,14 @@ struct AgentSessionCoordinatorTests {
         let target = ScriptedCaptureTarget(
             scripts: [.currentImmediate(outcome)]
         )
-        let limits = AgentSessionLimits(
-            maximumStepCount: .one,
-            maximumRetainedResultCount: 4,
-            maximumRetainedImageBytes: 23
-        )
         let coordinator = coordinator(
             fixture: fixture,
             target: target,
-            limits: limits
+            limits: AgentSessionLimits(
+                maximumStepCount: .one,
+                maximumRetainedResultCount: 4,
+                maximumRetainedImageBytes: 23
+            )
         )
 
         let response = try executedResponse(
@@ -342,12 +340,13 @@ struct AgentSessionCoordinatorTests {
         )
         #expect(response.knownCursor == sourceSnapshot.cursor)
         #expect(response.outcome == .currentCapture(outcome))
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(request.id),
-            knownCursor: sourceSnapshot.cursor
-        )
         #expect(
-            await coordinator.capture(request) == .rejected(rejection)
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: sourceSnapshot.cursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -381,10 +380,9 @@ struct AgentSessionCoordinatorTests {
     @Test func changedPayloadConflictsForCachedAndInFlightIdentity() async throws {
         let fixture = try makeFixture()
         let request = fixture.request(sequence: 0)
-        let changedStepCount = SimulationStepCount(rawValue: 2)
         let changed = changingStepCount(
             of: request,
-            to: changedStepCount
+            to: SimulationStepCount(rawValue: 2)
         )
         let changedEncoding = changingEncoding(
             of: request,
@@ -461,12 +459,15 @@ struct AgentSessionCoordinatorTests {
                 knownCursor: fixture.initialCursor
             )
         )
-        let busyRejection = AgentSessionRequestRejection(
-            reason: .anotherRequestBusy(activeRequestID: firstRequest.id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(nextRequest) == .rejected(busyRejection)
+            await coordinator.capture(nextRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .anotherRequestBusy(
+                        activeRequestID: firstRequest.id
+                    ),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
 
@@ -487,28 +488,29 @@ struct AgentSessionCoordinatorTests {
             sessionID: otherSession,
             sequence: 0
         )
-        let wrongSessionRejection = AgentSessionRequestRejection(
-            reason: .wrongSession(
-                expected: fixture.agentSessionID,
-                actual: otherSession
-            ),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(wrongSession)
-                == .rejected(wrongSessionRejection)
+            await coordinator.capture(wrongSession) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .wrongSession(
+                        expected: fixture.agentSessionID,
+                        actual: otherSession
+                    ),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
 
         let gap = fixture.request(sequence: 1)
-        let sequenceRejection = AgentSessionRequestRejection(
-            reason: .unexpectedSequence(
-                expected: .first,
-                actual: gap.id.sequence
-            ),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(gap) == .rejected(sequenceRejection)
+            await coordinator.capture(gap) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .unexpectedSequence(
+                        expected: .first,
+                        actual: gap.id.sequence
+                    ),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
 
         let cancelled = await Task {
@@ -517,12 +519,13 @@ struct AgentSessionCoordinatorTests {
             }
             return await coordinator.capture(first)
         }.value
-        let cancellationRejection = AgentSessionRequestRejection(
-            reason: .cancelledBeforeAcceptance,
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            cancelled == .rejected(cancellationRejection)
+            cancelled == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .cancelledBeforeAcceptance,
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 0)
 
@@ -535,10 +538,9 @@ struct AgentSessionCoordinatorTests {
     @Test func nonreflexivePayloadPreservesIdentityStatusAndFirstSequence() async throws {
         let fixture = try makeFixture()
         let validRequest = fixture.request(sequence: 0)
-        let invalidCameraPosition = SIMD3<Float>(.nan, 3, 8)
         let invalidCamera = Camera(
-            position: invalidCameraPosition,
-            rotation: Transform.identityRotation,
+            position: SIMD3<Float>(.nan, 3, 8),
+            rotation: .identity,
             projection: .standardPerspective
         )
         let invalidViewpoint = RenderViewpoint(
@@ -560,9 +562,8 @@ struct AgentSessionCoordinatorTests {
                 .immediate(.coordinatorBusy)
             ]
         )
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 4),
             maximumRetainedResultCount: 1,
             maximumRetainedImageBytes: 1_024
         )
@@ -573,13 +574,13 @@ struct AgentSessionCoordinatorTests {
         )
 
         #expect(invalidRequest != invalidRequest)
-        let invalidPayloadRejection = AgentSessionRequestRejection(
-            reason: .invalidPayload,
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(invalidRequest)
-                == .rejected(invalidPayloadRejection)
+            await coordinator.capture(invalidRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .invalidPayload,
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 0)
 
@@ -588,13 +589,13 @@ struct AgentSessionCoordinatorTests {
         )
         #expect(await target.requestCount() == 1)
 
-        let conflictRejection = AgentSessionRequestRejection(
-            reason: .requestConflict(validRequest.id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(invalidRequest)
-                == .rejected(conflictRejection)
+            await coordinator.capture(invalidRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .requestConflict(validRequest.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
 
@@ -602,22 +603,21 @@ struct AgentSessionCoordinatorTests {
         _ = try executedResponse(
             from: await coordinator.capture(nextRequest)
         )
-        let evictedRejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(validRequest.id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(invalidRequest)
-                == .rejected(evictedRejection)
+            await coordinator.capture(invalidRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(validRequest.id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 2)
     }
 
     @Test func stepLimitTerminalIsCachedAndNextSequenceCanRun() async throws {
         let fixture = try makeFixture()
-        let maximumStepCount = SimulationStepCount(rawValue: 2)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 2),
             maximumRetainedResultCount: 4,
             maximumRetainedImageBytes: 1_024
         )
@@ -629,10 +629,9 @@ struct AgentSessionCoordinatorTests {
             target: target,
             limits: limits
         )
-        let requestedStepCount = SimulationStepCount(rawValue: 3)
         let oversizedWork = fixture.request(
             sequence: 0,
-            stepCount: requestedStepCount
+            stepCount: SimulationStepCount(rawValue: 3)
         )
 
         let terminal = try executedResponse(
@@ -663,13 +662,11 @@ struct AgentSessionCoordinatorTests {
             maximumImageBytes: 1_024
         )
         let entries = (0...2).map { sequence in
-            let requestSequence = UInt64(sequence)
-            let request = fixture.request(sequence: requestSequence)
-            let requestedStepCount = SimulationStepCount(rawValue: 2)
+            let request = fixture.request(sequence: UInt64(sequence))
             let response = AgentSessionResponse(
                 requestID: request.id,
                 outcome: .stepLimitExceeded(
-                    requested: requestedStepCount,
+                    requested: SimulationStepCount(rawValue: 2),
                     maximum: .one
                 ),
                 knownCursor: fixture.initialCursor
@@ -700,26 +697,22 @@ struct AgentSessionCoordinatorTests {
             maximumImageBytes: 6
         )
         let requests = (0...2).map {
-            let requestSequence = UInt64($0)
-            return fixture.currentRequest(sequence: requestSequence)
+            fixture.currentRequest(sequence: UInt64($0))
         }
         let entries = requests.enumerated().map { index, request in
             let byteCount = index == 2 ? 7 : 4
-            let byte = UInt8(index)
-            let encodedBytes = Data(repeating: byte, count: byteCount)
             let outcome = fixture.currentCompletedOutcome(
                 request: request,
                 sourceSnapshot: fixture.snapshot(at: fixture.initialCursor),
-                encodedBytes: encodedBytes
-            )
-            let response = AgentSessionResponse(
-                requestID: request.id,
-                outcome: .currentCapture(outcome),
-                knownCursor: fixture.initialCursor
+                encodedBytes: Data(repeating: UInt8(index), count: byteCount)
             )
             return AgentSessionReplayEntry(
                 request: request,
-                response: response
+                response: AgentSessionResponse(
+                    requestID: request.id,
+                    outcome: .currentCapture(outcome),
+                    knownCursor: fixture.initialCursor
+                )
             )
         }
         #expect(entries.map(\.retainedImageByteCount) == [4, 4, 7])
@@ -747,11 +740,10 @@ struct AgentSessionCoordinatorTests {
             request: request,
             cursor: advance.finalCursor
         )
-        let encodedBytes = Data(repeating: 0x50, count: 8)
         let artifact = fixture.artifact(
             request: request,
             cursor: advance.finalCursor,
-            encodedBytes: encodedBytes,
+            encodedBytes: Data(repeating: 0x50, count: 8),
             encoding: .png
         )
         #expect(rawResult.image.bytes.count == 16)
@@ -785,9 +777,8 @@ struct AgentSessionCoordinatorTests {
 
     @Test func countRetentionEvictsOldestResponseInFIFOOrder() async throws {
         let fixture = try makeFixture()
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 4),
             maximumRetainedResultCount: 2,
             maximumRetainedImageBytes: 1_024
         )
@@ -803,10 +794,7 @@ struct AgentSessionCoordinatorTests {
             target: target,
             limits: limits
         )
-        let requests = (0...2).map {
-            let requestSequence = UInt64($0)
-            return fixture.request(sequence: requestSequence)
-        }
+        let requests = (0...2).map { fixture.request(sequence: UInt64($0)) }
         var responses: [AgentSessionResponse] = []
 
         for request in requests {
@@ -817,12 +805,13 @@ struct AgentSessionCoordinatorTests {
             )
         }
 
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(requests[0].id),
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(requests[0]) == .rejected(rejection)
+            await coordinator.capture(requests[0]) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(requests[0].id),
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(
             await coordinator.capture(requests[1]) == .replayed(responses[1])
@@ -832,9 +821,8 @@ struct AgentSessionCoordinatorTests {
 
     @Test func imageByteBudgetEvictsOldestResponse() async throws {
         let fixture = try makeFixture()
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 4),
             maximumRetainedResultCount: 8,
             maximumRetainedImageBytes: 6
         )
@@ -851,22 +839,22 @@ struct AgentSessionCoordinatorTests {
             from: firstAdvance.finalCursor,
             by: try advanceStepCount(of: secondRequest)
         )
-        let firstBytes = Data([1, 2, 3, 4])
-        let firstOutcome = fixture.completedOutcome(
-            request: firstRequest,
-            advanceResult: firstAdvance,
-            encodedBytes: firstBytes
-        )
-        let secondBytes = Data([5, 6, 7, 8])
-        let secondOutcome = fixture.completedOutcome(
-            request: secondRequest,
-            advanceResult: secondAdvance,
-            encodedBytes: secondBytes
-        )
         let target = ScriptedCaptureTarget(
             scripts: [
-                .immediate(firstOutcome),
-                .immediate(secondOutcome)
+                .immediate(
+                    fixture.completedOutcome(
+                        request: firstRequest,
+                        advanceResult: firstAdvance,
+                        encodedBytes: Data([1, 2, 3, 4])
+                    )
+                ),
+                .immediate(
+                    fixture.completedOutcome(
+                        request: secondRequest,
+                        advanceResult: secondAdvance,
+                        encodedBytes: Data([5, 6, 7, 8])
+                    )
+                )
             ]
         )
         let coordinator = coordinator(
@@ -882,12 +870,13 @@ struct AgentSessionCoordinatorTests {
             from: await coordinator.capture(secondRequest)
         )
 
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(firstRequest.id),
-            knownCursor: secondAdvance.finalCursor
-        )
         #expect(
-            await coordinator.capture(firstRequest) == .rejected(rejection)
+            await coordinator.capture(firstRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(firstRequest.id),
+                    knownCursor: secondAdvance.finalCursor
+                )
+            )
         )
         #expect(
             await coordinator.capture(secondRequest) == .replayed(secondResponse)
@@ -897,9 +886,8 @@ struct AgentSessionCoordinatorTests {
 
     @Test func oversizeResponseStaysEvictedWithoutRepeatingWork() async throws {
         let fixture = try makeFixture()
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 4),
             maximumRetainedResultCount: 8,
             maximumRetainedImageBytes: 3
         )
@@ -912,15 +900,15 @@ struct AgentSessionCoordinatorTests {
             sequence: 1,
             expectedCursor: firstAdvance.finalCursor
         )
-        let encodedBytes = Data([1, 2, 3, 4])
-        let completed = fixture.completedOutcome(
-            request: firstRequest,
-            advanceResult: firstAdvance,
-            encodedBytes: encodedBytes
-        )
         let target = ScriptedCaptureTarget(
             scripts: [
-                .immediate(completed),
+                .immediate(
+                    fixture.completedOutcome(
+                        request: firstRequest,
+                        advanceResult: firstAdvance,
+                        encodedBytes: Data([1, 2, 3, 4])
+                    )
+                ),
                 .immediate(.coordinatorBusy)
             ]
         )
@@ -933,11 +921,12 @@ struct AgentSessionCoordinatorTests {
         _ = try executedResponse(
             from: await coordinator.capture(firstRequest)
         )
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(firstRequest.id),
-            knownCursor: firstAdvance.finalCursor
+        let expectedEviction = AgentSessionSubmissionOutcome.rejected(
+            AgentSessionRequestRejection(
+                reason: .resultEvicted(firstRequest.id),
+                knownCursor: firstAdvance.finalCursor
+            )
         )
-        let expectedEviction = AgentSessionSubmissionOutcome.rejected(rejection)
         #expect(await coordinator.capture(firstRequest) == expectedEviction)
         #expect(await coordinator.capture(firstRequest) == expectedEviction)
         #expect(await target.requestCount() == 1)
@@ -951,9 +940,8 @@ struct AgentSessionCoordinatorTests {
 
     @Test func oversizeRawFailureCountsImageBytesAndNeverReforwards() async throws {
         let fixture = try makeFixture()
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 4),
             maximumRetainedResultCount: 8,
             maximumRetainedImageBytes: 3
         )
@@ -988,12 +976,13 @@ struct AgentSessionCoordinatorTests {
         _ = try executedResponse(
             from: await coordinator.capture(request)
         )
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(request.id),
-            knownCursor: advance.finalCursor
-        )
         #expect(
-            await coordinator.capture(request) == .rejected(rejection)
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: advance.finalCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -1009,11 +998,10 @@ struct AgentSessionCoordinatorTests {
             request: request,
             cursor: advance.finalCursor
         )
-        let encodedBytes = Data(repeating: 0x50, count: 8)
         let artifact = fixture.artifact(
             request: request,
             cursor: advance.finalCursor,
-            encodedBytes: encodedBytes,
+            encodedBytes: Data(repeating: 0x50, count: 8),
             encoding: .png
         )
         #expect(rawResult.image.bytes.count == 16)
@@ -1026,16 +1014,14 @@ struct AgentSessionCoordinatorTests {
         let target = ScriptedCaptureTarget(
             scripts: [.immediate(mismatch)]
         )
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
-        let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
-            maximumRetainedResultCount: 4,
-            maximumRetainedImageBytes: 23
-        )
         let coordinator = coordinator(
             fixture: fixture,
             target: target,
-            limits: limits
+            limits: AgentSessionLimits(
+                maximumStepCount: SimulationStepCount(rawValue: 4),
+                maximumRetainedResultCount: 4,
+                maximumRetainedImageBytes: 23
+            )
         )
 
         let response = try executedResponse(
@@ -1043,12 +1029,13 @@ struct AgentSessionCoordinatorTests {
         )
         #expect(response.knownCursor == advance.finalCursor)
         #expect(response.outcome == .capture(mismatch))
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(request.id),
-            knownCursor: advance.finalCursor
-        )
         #expect(
-            await coordinator.capture(request) == .rejected(rejection)
+            await coordinator.capture(request) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(request.id),
+                    knownCursor: advance.finalCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -1065,23 +1052,16 @@ struct AgentSessionCoordinatorTests {
             request: request,
             cursor: advance.finalCursor
         )
-        let completedBytes = Data([0xFF, 0xD8, 0xFF, 0xD9])
         let completed = fixture.completedOutcome(
             request: request,
             advanceResult: advance,
-            encodedBytes: completedBytes
+            encodedBytes: Data([0xFF, 0xD8, 0xFF, 0xD9])
         )
-        let mismatchedBytes = Data([0x89, 0x50, 0x4E, 0x47])
         let mismatchedArtifact = fixture.artifact(
             request: request,
             cursor: advance.finalCursor,
-            encodedBytes: mismatchedBytes,
+            encodedBytes: Data([0x89, 0x50, 0x4E, 0x47]),
             encoding: .png
-        )
-        let wrongRenderRequestID = OffscreenRenderRequestID()
-        let renderFailure = OffscreenRenderFailure(
-            stage: .gpuExecution,
-            backendDescription: "scripted"
         )
         let postAdvanceOutcomes: [OfflineCaptureOutcome] = [
             completed,
@@ -1098,12 +1078,15 @@ struct AgentSessionCoordinatorTests {
             ),
             .renderFailed(
                 advanceResult: advance,
-                failure: renderFailure
+                failure: OffscreenRenderFailure(
+                    stage: .gpuExecution,
+                    backendDescription: "scripted"
+                )
             ),
             .renderCancellationRequestIDMismatch(
                 advanceResult: advance,
                 expectedRequestID: request.renderRequestID,
-                actualRequestID: wrongRenderRequestID
+                actualRequestID: OffscreenRenderRequestID()
             ),
             .renderCancelledAfterSubmission(
                 advanceResult: advance,
@@ -1142,10 +1125,9 @@ struct AgentSessionCoordinatorTests {
             #expect(await target.requestCount() == 1)
         }
 
-        let recoveredTick = SimulationTick(rawValue: 99)
         let recoveredCursor = SimulationCursor(
             sessionID: fixture.initialCursor.sessionID,
-            tick: recoveredTick
+            tick: SimulationTick(rawValue: 99)
         )
         let mismatch = OfflineCaptureOutcome.advanceRejected(
             .cursorMismatch(
@@ -1245,13 +1227,13 @@ struct AgentSessionCoordinatorTests {
         #expect(
             await coordinator.capture(activeRequest) == .replayed(activeResponse)
         )
-        let closedSubmissionRejection = AgentSessionRequestRejection(
-            reason: .sessionClosed,
-            knownCursor: fixture.initialCursor
-        )
         #expect(
-            await coordinator.capture(newRequest)
-                == .rejected(closedSubmissionRejection)
+            await coordinator.capture(newRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .sessionClosed,
+                    knownCursor: fixture.initialCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 2)
     }
@@ -1307,21 +1289,20 @@ struct AgentSessionCoordinatorTests {
             from: fixture.initialCursor,
             by: try advanceStepCount(of: maximumRequest)
         )
-        let maximumStepCount = SimulationStepCount(rawValue: 4)
         let limits = AgentSessionLimits(
-            maximumStepCount: maximumStepCount,
+            maximumStepCount: SimulationStepCount(rawValue: 4),
             maximumRetainedResultCount: 4,
             maximumRetainedImageBytes: 0
         )
-        let encodedBytes = Data([0xFF, 0xD8, 0xFF, 0xD9])
-        let completed = fixture.completedOutcome(
-            request: maximumRequest,
-            advanceResult: maximumAdvance,
-            encodedBytes: encodedBytes
-        )
         let target = ScriptedCaptureTarget(
             scripts: [
-                .immediate(completed)
+                .immediate(
+                    fixture.completedOutcome(
+                        request: maximumRequest,
+                        advanceResult: maximumAdvance,
+                        encodedBytes: Data([0xFF, 0xD8, 0xFF, 0xD9])
+                    )
+                )
             ]
         )
         let coordinator = coordinator(
@@ -1334,12 +1315,13 @@ struct AgentSessionCoordinatorTests {
             from: await coordinator.capture(maximumRequest)
         )
 
-        let rejection = AgentSessionRequestRejection(
-            reason: .resultEvicted(maximumRequest.id),
-            knownCursor: maximumAdvance.finalCursor
-        )
         #expect(
-            await coordinator.capture(maximumRequest) == .rejected(rejection)
+            await coordinator.capture(maximumRequest) == .rejected(
+                AgentSessionRequestRejection(
+                    reason: .resultEvicted(maximumRequest.id),
+                    knownCursor: maximumAdvance.finalCursor
+                )
+            )
         )
         #expect(await target.requestCount() == 1)
     }
@@ -1449,46 +1431,41 @@ struct AgentSessionCoordinatorTests {
     }
 
     private func makeFixture() throws -> Fixture {
-        let simulationSessionUUID = UUID(
-            uuidString: "50000000-0000-0000-0000-000000000001"
-        )!
         let simulationSessionID = SimulationSessionID(
-            rawValue: simulationSessionUUID
+            rawValue: UUID(
+                uuidString: "50000000-0000-0000-0000-000000000001"
+            )!
         )
-        let agentSessionUUID = UUID(
-            uuidString: "50000000-0000-0000-0000-000000000002"
-        )!
         let agentSessionID = AgentSessionID(
-            rawValue: agentSessionUUID
+            rawValue: UUID(
+                uuidString: "50000000-0000-0000-0000-000000000002"
+            )!
         )
-        let initialTick = SimulationTick(rawValue: 10)
         let initialCursor = SimulationCursor(
             sessionID: simulationSessionID,
-            tick: initialTick
-        )
-        let viewpointUUID = UUID(
-            uuidString: "50000000-0000-0000-0000-000000000003"
-        )!
-        let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
-        let viewpointRevision = RenderViewpointRevision(rawValue: 4)
-        let camera = Camera(
-            position: SIMD3<Float>(2, 3, 8),
-            rotation: Transform.identityRotation,
-            projection: .standardPerspective
+            tick: SimulationTick(rawValue: 10)
         )
         let viewpoint = RenderViewpoint(
-            id: viewpointID,
-            revision: viewpointRevision,
-            camera: camera
+            id: RenderViewpointID(
+                rawValue: UUID(
+                    uuidString: "50000000-0000-0000-0000-000000000003"
+                )!
+            ),
+            revision: RenderViewpointRevision(rawValue: 4),
+            camera: Camera(
+                position: SIMD3<Float>(2, 3, 8),
+                rotation: .identity,
+                projection: .standardPerspective
+            )
         )
-        let renderSize = try RenderPixelSize(width: 2, height: 2)
         let renderSettings = OffscreenRenderSettings(
-            size: renderSize,
+            size: try RenderPixelSize(width: 2, height: 2),
             outputMode: .surface,
             exposure: .validation
         )
-        let jpegQuality = try JPEGQuality(0.8)
-        let encoding = ImageArtifactEncoding.jpeg(quality: jpegQuality)
+        let encoding = ImageArtifactEncoding.jpeg(
+            quality: try JPEGQuality(0.8)
+        )
 
         return Fixture(
             agentSessionID: agentSessionID,
@@ -1512,19 +1489,16 @@ struct AgentSessionCoordinatorTests {
             expectedCursor: SimulationCursor? = nil,
             stepCount: SimulationStepCount = .one
         ) -> AgentCaptureRequest {
-            let requestSequence = AgentSessionRequestSequence(rawValue: sequence)
-            let requestID = AgentSessionRequestID(
-                sessionID: sessionID ?? agentSessionID,
-                sequence: requestSequence
-            )
-            let renderRequestID = OffscreenRenderRequestID()
-            return AgentCaptureRequest(
-                id: requestID,
+            AgentCaptureRequest(
+                id: AgentSessionRequestID(
+                    sessionID: sessionID ?? agentSessionID,
+                    sequence: AgentSessionRequestSequence(rawValue: sequence)
+                ),
                 source: .advance(
                     expectedCursor: expectedCursor ?? initialCursor,
                     stepCount: stepCount
                 ),
-                renderRequestID: renderRequestID,
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint,
                 renderSettings: renderSettings,
                 encoding: encoding
@@ -1537,16 +1511,13 @@ struct AgentSessionCoordinatorTests {
             expectedCursor: SimulationCursor? = nil,
             viewpoint: RenderViewpoint? = nil
         ) -> AgentCaptureRequest {
-            let requestSequence = AgentSessionRequestSequence(rawValue: sequence)
-            let requestID = AgentSessionRequestID(
-                sessionID: sessionID ?? agentSessionID,
-                sequence: requestSequence
-            )
-            let renderRequestID = OffscreenRenderRequestID()
-            return AgentCaptureRequest(
-                id: requestID,
+            AgentCaptureRequest(
+                id: AgentSessionRequestID(
+                    sessionID: sessionID ?? agentSessionID,
+                    sequence: AgentSessionRequestSequence(rawValue: sequence)
+                ),
                 source: .current(expectedCursor: expectedCursor ?? initialCursor),
-                renderRequestID: renderRequestID,
+                renderRequestID: OffscreenRenderRequestID(),
                 viewpoint: viewpoint ?? self.viewpoint,
                 renderSettings: renderSettings,
                 encoding: encoding
@@ -1575,13 +1546,12 @@ struct AgentSessionCoordinatorTests {
                 camera: viewpoint.camera,
                 entityPresentations: []
             )
-            let completedStepCount = SimulationCompletedStepCount(
-                rawValue: stepCount.rawValue
-            )
             return SimulationAdvanceResult(
                 initialCursor: initialCursor,
                 finalCursor: finalCursor,
-                completedStepCount: completedStepCount,
+                completedStepCount: SimulationCompletedStepCount(
+                    rawValue: stepCount.rawValue
+                ),
                 finalPresentationSnapshot: snapshot
             )
         }
@@ -1596,11 +1566,12 @@ struct AgentSessionCoordinatorTests {
                 cursor: advanceResult.finalCursor,
                 encodedBytes: encodedBytes
             )
-            let result = OfflineCaptureResult(
-                advanceResult: advanceResult,
-                artifact: artifact
+            return .completed(
+                OfflineCaptureResult(
+                    advanceResult: advanceResult,
+                    artifact: artifact
+                )
             )
-            return .completed(result)
         }
 
         func currentCompletedOutcome(
@@ -1613,11 +1584,12 @@ struct AgentSessionCoordinatorTests {
                 cursor: sourceSnapshot.cursor,
                 encodedBytes: encodedBytes
             )
-            let result = OfflineCurrentCaptureResult(
-                sourceSnapshot: sourceSnapshot,
-                artifact: artifact
+            return .completed(
+                OfflineCurrentCaptureResult(
+                    sourceSnapshot: sourceSnapshot,
+                    artifact: artifact
+                )
             )
-            return .completed(result)
         }
 
         func artifact(

@@ -16,34 +16,25 @@ final class Engine {
 
     /// Constructs the invariant production schedule from one validated Simulation policy.
     convenience init(world: World, fixedTimeStep: Duration, configuration: SimulationConfiguration) {
-        let inputMapping = SInputMapping(
-            pointerOrbitSensitivity: configuration.pointerOrbitSensitivity,
-            scrollZoomSensitivity: configuration.scrollZoomSensitivity
-        )
-        let cameraInput = SCameraInput(
-            target: configuration.cameraOrbitTarget,
-            minimumRadius: configuration.minimumCameraOrbitRadius,
-            maximumRadius: configuration.maximumCameraOrbitRadius
-        )
-        let inputHistory = SInputHistory()
-        let inputCleanup = SInputCleanup()
-        let accelerationIntent = SAccelerationIntent()
-        let movement = SMovement()
-        let rotation = SRotation()
-        let systems: [any PSystem] = [
-            inputMapping,
-            cameraInput,
-            inputHistory,
-            inputCleanup,
-            accelerationIntent,
-            movement,
-            rotation
-        ]
-
         self.init(
             world: world,
             fixedTimeStep: fixedTimeStep,
-            systems: systems
+            systems: [
+                SInputMapping(
+                    pointerOrbitSensitivity: configuration.pointerOrbitSensitivity,
+                    scrollZoomSensitivity: configuration.scrollZoomSensitivity
+                ),
+                SCameraInput(
+                    target: configuration.cameraOrbitTarget,
+                    minimumRadius: configuration.minimumCameraOrbitRadius,
+                    maximumRadius: configuration.maximumCameraOrbitRadius
+                ),
+                SInputHistory(),
+                SInputCleanup(),
+                SAccelerationIntent(),
+                SMovement(),
+                SRotation()
+            ]
         )
     }
 

@@ -7,8 +7,7 @@ struct PBRProofOutputTests {
         )
 
         #expect(PBRProofOutput.allCases.count == 8)
-        let uniqueFunctionNames = Set(functionNames)
-        #expect(uniqueFunctionNames.count == functionNames.count)
+        #expect(Set(functionNames).count == functionNames.count)
         #expect(functionNames.allSatisfy { $0.hasPrefix("pbrProof") })
     }
 }

@@ -10,10 +10,9 @@ struct InputRuntimeTests {
 
         runtime.start()
         let firstSession = runtime.latestInputSnapshot
-        let firstRevision = InputRevision(session: 1, sequence: 0)
 
         #expect(runtime.isRunning)
-        #expect(firstSession.revision == firstRevision)
+        #expect(firstSession.revision == InputRevision(session: 1, sequence: 0))
         #expect(firstSession.pointerPosition == .zero)
         #expect(firstSession.pointerMotionTotal == .zero)
         #expect(firstSession.scrollTotal == .zero)
@@ -32,8 +31,7 @@ struct InputRuntimeTests {
 
         runtime.start()
 
-        let secondRevision = InputRevision(session: 2, sequence: 0)
-        #expect(runtime.latestInputSnapshot.revision == secondRevision)
+        #expect(runtime.latestInputSnapshot.revision == InputRevision(session: 2, sequence: 0))
         #expect(runtime.latestInputSnapshot.pointerPosition == .zero)
         #expect(runtime.latestInputSnapshot.pointerMotionTotal == .zero)
         #expect(runtime.latestInputSnapshot.scrollTotal == .zero)
@@ -49,15 +47,12 @@ struct InputRuntimeTests {
         let heldSnapshot = runtime.latestInputSnapshot
         runtime.receive(.keyUp(key))
 
-        let neutralRevision = InputRevision(session: 1, sequence: 0)
-        let heldRevision = InputRevision(session: 1, sequence: 1)
-        let releasedRevision = InputRevision(session: 1, sequence: 2)
         #expect(neutralSnapshot.pressedKeys.isEmpty)
-        #expect(neutralSnapshot.revision == neutralRevision)
+        #expect(neutralSnapshot.revision == InputRevision(session: 1, sequence: 0))
         #expect(heldSnapshot.pressedKeys == [key])
-        #expect(heldSnapshot.revision == heldRevision)
+        #expect(heldSnapshot.revision == InputRevision(session: 1, sequence: 1))
         #expect(runtime.latestInputSnapshot.pressedKeys.isEmpty)
-        #expect(runtime.latestInputSnapshot.revision == releasedRevision)
+        #expect(runtime.latestInputSnapshot.revision == InputRevision(session: 1, sequence: 2))
     }
 
     @Test func pointerAndScrollTotalsAccumulateAcrossPublications() {
@@ -80,11 +75,10 @@ struct InputRuntimeTests {
         runtime.receive(.scroll(delta: SIMD2<Float>(-1, 0.5)))
 
         let snapshot = runtime.latestInputSnapshot
-        let expectedRevision = InputRevision(session: 1, sequence: 4)
         #expect(snapshot.pointerPosition == SIMD2<Float>(11, 25))
         #expect(snapshot.pointerMotionTotal == SIMD2<Float>(1, 3))
         #expect(snapshot.scrollTotal == SIMD2<Float>(3, -2.5))
-        #expect(snapshot.revision == expectedRevision)
+        #expect(snapshot.revision == InputRevision(session: 1, sequence: 4))
     }
 
     @Test func buttonAndKeyTransitionsPublishHeldState() {
@@ -128,9 +122,8 @@ struct InputRuntimeTests {
         runtime.stop()
 
         let stoppedSnapshot = runtime.latestInputSnapshot
-        let expectedRevision = InputRevision(session: 1, sequence: 5)
         #expect(runtime.isRunning == false)
-        #expect(stoppedSnapshot.revision == expectedRevision)
+        #expect(stoppedSnapshot.revision == InputRevision(session: 1, sequence: 5))
         #expect(stoppedSnapshot.pressedMouseButtons.isEmpty)
         #expect(stoppedSnapshot.pressedKeys.isEmpty)
         #expect(stoppedSnapshot.pointerPosition == activeSnapshot.pointerPosition)
@@ -177,9 +170,7 @@ struct InputRuntimeTests {
         #expect(secondRuntime.latestInputSnapshot.pressedKeys.isEmpty)
         #expect(secondRuntime.latestInputSnapshot.scrollTotal == .zero)
 
-        secondRuntime.receive(
-            .mouseButtonDown(.right, position: SIMD2<Float>(3, 4))
-        )
+        secondRuntime.receive(.mouseButtonDown(.right, position: SIMD2<Float>(3, 4)))
 
         #expect(firstRuntime.latestInputSnapshot.pressedMouseButtons.isEmpty)
         #expect(secondRuntime.latestInputSnapshot.pressedMouseButtons == [.right])

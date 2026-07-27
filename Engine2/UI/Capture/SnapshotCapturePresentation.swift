@@ -17,9 +17,8 @@ enum SnapshotCapturePresentation: Equatable {
     init(jpegCaptureOutcome outcome: RealtimeSnapshotCaptureOutcome) {
         switch outcome {
         case let .completed(sourceSnapshot, artifact):
-            let document = JPEGArtifactDocument(artifact: artifact)
             self = .exporter(
-                document: document,
+                document: JPEGArtifactDocument(artifact: artifact),
                 defaultFilename: "Engine2-tick-\(sourceSnapshot.cursor.tick.rawValue)"
             )
 

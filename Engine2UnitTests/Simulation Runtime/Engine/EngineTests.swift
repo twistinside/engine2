@@ -16,9 +16,8 @@ struct EngineTests {
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             configuration: .basicGame
         )
-        let revision = InputRevision(session: 1, sequence: 1)
         let snapshot = InputSnapshot(
-            revision: revision,
+            revision: InputRevision(session: 1, sequence: 1),
             pointerPosition: .zero,
             pointerMotionTotal: SIMD2<Float>(40, 0),
             scrollTotal: SIMD2<Float>(0, 30),
@@ -49,11 +48,9 @@ struct EngineTests {
 
         engine.step()
 
-        let expectedTick = SimulationTick(rawValue: 2)
-
         #expect(world.camera == cameraAfterInput)
         #expect(world.inputHistory.entries.count == 1)
-        #expect(engine.completedTick == expectedTick)
+        #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
     @Test func malformedRawInputCannotPoisonCameraOrCrashHistory() {
@@ -64,11 +61,10 @@ struct EngineTests {
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             configuration: .basicGame
         )
-        let revision = InputRevision(session: 1, sequence: 1)
         let pointerMotionTotal = SIMD2<Float>(.nan, .infinity)
         let scrollTotal = SIMD2<Float>(0, -.infinity)
         let snapshot = InputSnapshot(
-            revision: revision,
+            revision: InputRevision(session: 1, sequence: 1),
             pointerPosition: .zero,
             pointerMotionTotal: pointerMotionTotal,
             scrollTotal: scrollTotal,
@@ -89,8 +85,7 @@ struct EngineTests {
         #expect(world.input.mouse.scrollDelta == .zero)
         #expect(world.input.actions.cameraOrbitYawDelta == 0)
         #expect(world.input.actions.cameraZoomDelta == 0)
-        let expectedTick = SimulationTick(rawValue: 1)
-        #expect(engine.completedTick == expectedTick)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
     @Test func exactStepUsesTheInjectedSystemTestDuration() throws {
@@ -108,53 +103,45 @@ struct EngineTests {
             for: entity
         )
         world.motionComponents.insert(motion, for: entity)
-        let systems: [any PSystem] = [SMovement()]
         let engine = Engine(
             world: world,
             fixedTimeStep: .milliseconds(500),
-            systems: systems
+            systems: [SMovement()]
         )
 
         engine.step()
 
-        let expectedTick = SimulationTick(rawValue: 1)
-
         #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
         #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
-        #expect(engine.completedTick == expectedTick)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
     @Test func eachStepRunsTheEntireScheduleInDeclarationOrder() {
         let recorder = ExecutionRecorder()
-        let world = World()
-        let systems: [any PSystem] = [
-            RecordingSystem(name: "input", recorder: recorder),
-            RecordingSystem(name: "simulation", recorder: recorder)
-        ]
         let engine = Engine(
-            world: world,
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
-            systems: systems
+            systems: [
+                RecordingSystem(name: "input", recorder: recorder),
+                RecordingSystem(name: "simulation", recorder: recorder)
+            ]
         )
 
         engine.step()
 
-        let expectedTick = SimulationTick(rawValue: 1)
         #expect(recorder.entries == ["input", "simulation"])
-        #expect(engine.completedTick == expectedTick)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
     @Test func transientInputIsConsumedOnlyByItsAttributedStep() {
         let world = World()
-        let systems: [any PSystem] = [SInputHistory(), SInputCleanup()]
         let engine = Engine(
             world: world,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
-            systems: systems
+            systems: [SInputHistory(), SInputCleanup()]
         )
-        let revision = InputRevision(session: 1, sequence: 1)
         let snapshot = InputSnapshot(
-            revision: revision,
+            revision: InputRevision(session: 1, sequence: 1),
             pointerPosition: .zero,
             pointerMotionTotal: SIMD2<Float>(3, -2),
             scrollTotal: .zero,
@@ -169,23 +156,20 @@ struct EngineTests {
         #expect(world.inputHistory.entries.first?.tokens == ["Mouse dx:+3 dy:-2"])
         #expect(world.inputHistory.entries.first?.frameCount == 1)
         #expect(world.input.mouse.delta == .zero)
-        let expectedTick = SimulationTick(rawValue: 2)
-        #expect(engine.completedTick == expectedTick)
+        #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
     @Test func replacingWorldStartsANewTimelineAndAppliesOnlyTheBaseline() {
-        let initialWorld = World()
         let engine = Engine(
-            world: initialWorld,
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             systems: []
         )
         engine.step()
         let replacement = World()
-        let revision = InputRevision(session: 2, sequence: 10)
         let pointerPosition = SIMD2<Float>(8, 9)
         let baseline = InputSnapshot(
-            revision: revision,
+            revision: InputRevision(session: 2, sequence: 10),
             pointerPosition: pointerPosition,
             pointerMotionTotal: SIMD2<Float>(100, 0),
             scrollTotal: SIMD2<Float>(0, 40),
@@ -209,9 +193,8 @@ struct EngineTests {
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             configuration: .basicGame
         )
-        let initialRevision = InputRevision(session: 1, sequence: 1)
         let initialSnapshot = InputSnapshot(
-            revision: initialRevision,
+            revision: InputRevision(session: 1, sequence: 1),
             pointerPosition: .zero,
             pointerMotionTotal: SIMD2<Float>(100, 0),
             scrollTotal: .zero,
@@ -234,9 +217,8 @@ struct EngineTests {
         )
         engine.replaceWorld(with: replacement, inputBaseline: nil)
 
-        let replacementRevision = InputRevision(session: 2, sequence: 1)
         let replacementSnapshot = InputSnapshot(
-            revision: replacementRevision,
+            revision: InputRevision(session: 2, sequence: 1),
             pointerPosition: .zero,
             pointerMotionTotal: SIMD2<Float>(10, 0),
             scrollTotal: .zero,
@@ -256,14 +238,10 @@ struct EngineTests {
 
     @Test func appendedSystemsRunAfterTheFoundationalSchedule() {
         let recorder = ExecutionRecorder()
-        let world = World()
-        let foundationalSystems: [any PSystem] = [
-            RecordingSystem(name: "foundation", recorder: recorder)
-        ]
         let engine = Engine(
-            world: world,
+            world: World(),
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
-            systems: foundationalSystems
+            systems: [RecordingSystem(name: "foundation", recorder: recorder)]
         )
 
         let extensionSystem = RecordingSystem(

@@ -4,19 +4,16 @@ import Testing
 
 struct SimulationAdvanceRejectionTests {
     @Test func cursorMismatchCarriesExpectedAndCurrentPositions() {
-        let rawSessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000013")!
         let sessionID = SimulationSessionID(
-            rawValue: rawSessionID
+            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000013")!
         )
-        let expectedTick = SimulationTick(rawValue: 2)
         let expected = SimulationCursor(
             sessionID: sessionID,
-            tick: expectedTick
+            tick: SimulationTick(rawValue: 2)
         )
-        let currentTick = SimulationTick(rawValue: 4)
         let current = SimulationCursor(
             sessionID: sessionID,
-            tick: currentTick
+            tick: SimulationTick(rawValue: 4)
         )
         let rejection = SimulationAdvanceRejection.cursorMismatch(
             expected: expected,

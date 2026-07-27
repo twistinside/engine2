@@ -11,12 +11,10 @@ nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
     /// session identities.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent) throws -> AgentSessionAssembly {
-        let agentSessionID = AgentSessionID()
-        let simulationSessionID = SimulationSessionID()
-        return try makeAssembly(
+        try makeAssembly(
             gameContent: gameContent,
-            agentSessionID: agentSessionID,
-            simulationSessionID: simulationSessionID
+            agentSessionID: AgentSessionID(),
+            simulationSessionID: SimulationSessionID()
         )
     }
 

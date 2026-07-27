@@ -28,7 +28,7 @@ struct RenderInstance: Equatable {
 
         let transform = Transform(
             position: position,
-            rotation: entity.rotation ?? Transform.identityRotation,
+            rotation: entity.rotation ?? .identity,
             scale: entity.scale ?? Self.defaultScale
         )
 
@@ -54,23 +54,24 @@ struct RenderInstance: Equatable {
         // collapse the combined linear transform, while an ill-conditioned
         // inverse can overflow. Validate the exact normal-matrix operation
         // before `GPUInstance` performs it under a precondition.
-        let xColumn = SIMD3<Float>(
-            modelViewMatrix.columns.0.x,
-            modelViewMatrix.columns.0.y,
-            modelViewMatrix.columns.0.z
-        )
-        let yColumn = SIMD3<Float>(
-            modelViewMatrix.columns.1.x,
-            modelViewMatrix.columns.1.y,
-            modelViewMatrix.columns.1.z
-        )
-        let zColumn = SIMD3<Float>(
-            modelViewMatrix.columns.2.x,
-            modelViewMatrix.columns.2.y,
-            modelViewMatrix.columns.2.z
-        )
         let linearModelView = simd_float3x3(
-            columns: (xColumn, yColumn, zColumn)
+            columns: (
+                SIMD3<Float>(
+                    modelViewMatrix.columns.0.x,
+                    modelViewMatrix.columns.0.y,
+                    modelViewMatrix.columns.0.z
+                ),
+                SIMD3<Float>(
+                    modelViewMatrix.columns.1.x,
+                    modelViewMatrix.columns.1.y,
+                    modelViewMatrix.columns.1.z
+                ),
+                SIMD3<Float>(
+                    modelViewMatrix.columns.2.x,
+                    modelViewMatrix.columns.2.y,
+                    modelViewMatrix.columns.2.z
+                )
+            )
         )
         let determinant = simd_determinant(linearModelView)
         let inverse = simd_inverse(linearModelView)

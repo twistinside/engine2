@@ -5,9 +5,8 @@ import simd
 struct POrientableTests {
     @Test func rotationReadsFromWorldStore() async throws {
         let world = World()
-        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestRotatableEntity(
-            unregisteredID: entityID,
+            unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
         let expectedRotation = simd_quatf(angle: .pi / 4, axis: SIMD3<Float>(0, 1, 0))

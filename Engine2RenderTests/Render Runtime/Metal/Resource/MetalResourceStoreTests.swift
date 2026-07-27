@@ -104,9 +104,8 @@ struct MetalResourceStoreTests {
 
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
-        let gameContent = BasicGameContent()
         let warmDielectric = try #require(
-            gameContent.renderAssetCatalog.materials[.warmDielectric]
+            BasicGameContent().renderAssetCatalog.materials[.warmDielectric]
         )
         let incompleteCatalog = RenderAssetCatalog(
             models: [:],
@@ -135,10 +134,9 @@ struct MetalResourceStoreTests {
 
     @Test func residencySetsSeparateStaticAndPerFrameAllocations() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
-        let gameContent = BasicGameContent()
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: gameContent.renderAssetCatalog,
+            renderAssetCatalog: BasicGameContent().renderAssetCatalog,
             frameCount: 2
         )
         let model = try #require(store.model(for: .ball))

@@ -83,9 +83,8 @@ final class SnapshotCaptureViewModel {
             outputMode: outputMode,
             exposure: .validation
         )
-        let renderRequestID = OffscreenRenderRequestID()
         let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: renderRequestID,
+            renderRequestID: OffscreenRenderRequestID(),
             renderSettings: renderSettings,
             encoding: .jpeg(quality: .maximum)
         )

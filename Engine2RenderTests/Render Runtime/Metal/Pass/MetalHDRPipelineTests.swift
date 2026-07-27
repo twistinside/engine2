@@ -109,31 +109,25 @@ struct MetalHDRPipelineTests {
         // therefore catch order, address, packing, and fragment-lane mistakes.
         for index in materialIDs.indices {
             let description = descriptions[index]
-            let expectedBaseColor = SIMD4<Float>(
-                description.baseColor,
-                1
-            )
             expectStoredHalfRGBA(
                 baseColors[index],
-                approximately: expectedBaseColor
+                approximately: SIMD4<Float>(description.baseColor, 1)
             )
-            let expectedMetallic = SIMD4<Float>(
-                repeating: description.metallic
-            ).replacingW(with: 1)
             expectStoredHalfRGBA(
                 metallicValues[index],
-                approximately: expectedMetallic
+                approximately: SIMD4<Float>(
+                    repeating: description.metallic
+                ).replacingW(with: 1)
             )
             let effectiveRoughness = max(
                 description.perceptualRoughness,
                 0.089
             )
-            let expectedRoughness = SIMD4<Float>(
-                repeating: effectiveRoughness
-            ).replacingW(with: 1)
             expectStoredHalfRGBA(
                 roughnessValues[index],
-                approximately: expectedRoughness
+                approximately: SIMD4<Float>(
+                    repeating: effectiveRoughness
+                ).replacingW(with: 1)
             )
         }
     }
@@ -217,13 +211,12 @@ struct MetalHDRPipelineTests {
 
     @Test func normalDiagnosticBypassesExposureAndReinhard() throws {
         let renderer = try MetalHDRPipelineTestRenderer()
-        let exposure = ManualExposure(multiplier: 8)
         let result = try renderer.render(
             outputMode: .viewSpaceNormals,
             normal: SIMD3<Float>(1, 0, 0),
             // A deliberately large exposure makes accidental use of the
             // surface presentation pipeline unmistakable.
-            exposure: exposure
+            exposure: ManualExposure(multiplier: 8)
         )
 
         let expectedLinear = SIMD4<Float>(1, 0.5, 0.5, 1)
@@ -246,10 +239,9 @@ struct MetalHDRPipelineTests {
 
     @Test func maximumFiniteExposureRollsOverflowingProductsToWhite() throws {
         let renderer = try MetalHDRPipelineTestRenderer()
-        let exposure = ManualExposure(multiplier: .greatestFiniteMagnitude)
         let result = try renderer.render(
             outputMode: .surface,
-            exposure: exposure
+            exposure: ManualExposure(multiplier: .greatestFiniteMagnitude)
         )
 
         // The largest accepted finite exposure pushes every positive channel
@@ -279,10 +271,8 @@ private func expectBGRA8(_ actual: SIMD4<UInt8>, approximately expected: SIMD4<U
     // step across GPUs, while any missing or duplicate transfer differs by
     // dozens of byte values in the selected validation colors.
     for componentIndex in 0..<4 {
-        let actualComponent = Int(actual[componentIndex])
-        let expectedComponent = Int(expected[componentIndex])
         #expect(
-            abs(actualComponent - expectedComponent)
+            abs(Int(actual[componentIndex]) - Int(expected[componentIndex]))
                 <= maximumByteDistance
         )
     }
@@ -327,9 +317,7 @@ private func quantizedUNorm8(_ value: Float) -> UInt8 {
 
 private func byteDistance(_ lhs: SIMD4<UInt8>, _ rhs: SIMD4<UInt8>) -> Int {
     (0..<4).reduce(into: 0) { distance, componentIndex in
-        let lhsComponent = Int(lhs[componentIndex])
-        let rhsComponent = Int(rhs[componentIndex])
-        distance += abs(lhsComponent - rhsComponent)
+        distance += abs(Int(lhs[componentIndex]) - Int(rhs[componentIndex]))
     }
 }
 

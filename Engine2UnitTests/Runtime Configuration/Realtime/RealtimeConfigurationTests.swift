@@ -3,19 +3,16 @@ import Testing
 
 struct RealtimeConfigurationTests {
     @Test func makeAssemblyUsesConfigurationAndGameContent() throws {
-        let maximumStepsPerWake = SimulationStepCount(rawValue: 2)
-        let catchUpPolicy = RealtimeCatchUpPolicy(
-            maximumStepsPerWake: maximumStepsPerWake,
-            backlogTreatment: .preserve
-        )
         let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
-            catchUpPolicy: catchUpPolicy
+            catchUpPolicy: RealtimeCatchUpPolicy(
+                maximumStepsPerWake: SimulationStepCount(rawValue: 2),
+                backlogTreatment: .preserve
+            )
         )
         let expectedPosition = SIMD3<Float>(3, 4, 5)
-        let worldBuilder = RealtimeTestWorldBuilder(position: expectedPosition)
         let gameContent = BasicGameContent(
-            worldBuilder: worldBuilder
+            worldBuilder: RealtimeTestWorldBuilder(position: expectedPosition)
         )
 
         let assembly = configuration.makeAssembly(gameContent: gameContent)
@@ -43,9 +40,8 @@ struct RealtimeConfigurationTests {
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
         )
-        let worldBuilder = RealtimeTestWorldBuilder(position: .zero)
         let gameContent = BasicGameContent(
-            worldBuilder: worldBuilder
+            worldBuilder: RealtimeTestWorldBuilder(position: .zero)
         )
 
         let first = configuration.makeAssembly(gameContent: gameContent)
@@ -64,8 +60,7 @@ struct RealtimeConfigurationTests {
             catchUpPolicy: .interactive
         )
 
-        let gameContent = BasicGameContent()
-        let assembly = configuration.makeAssembly(gameContent: gameContent)
+        let assembly = configuration.makeAssembly(gameContent: BasicGameContent())
 
         #expect(assembly.advanceDriver.pollInterval == SimulationRuntime.fixedTimeStep)
     }

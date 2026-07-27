@@ -15,7 +15,7 @@ struct SimulationPresentationSnapshotTests {
         let cameraPosition = SIMD3<Float>(1, 2, 8)
         world.camera = Camera(
             position: cameraPosition,
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .orthographic(
                 height: 10,
                 near: 0.1,
@@ -73,10 +73,9 @@ struct SimulationPresentationSnapshotTests {
         ) { renderable in
             renderable.materialID = .goldMetal
         }
-        let laterTick = SimulationTick(rawValue: 13)
         let laterCursor = SimulationCursor(
             sessionID: sessionID,
-            tick: laterTick
+            tick: SimulationTick(rawValue: 13)
         )
         let laterSnapshot = world.presentationSnapshot(
             at: laterCursor

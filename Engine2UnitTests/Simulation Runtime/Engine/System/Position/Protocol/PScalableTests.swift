@@ -4,9 +4,8 @@ import Testing
 struct PScalableTests {
     @Test func scaleReadsFromWorldStore() async throws {
         let world = World()
-        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestScalableEntity(
-            unregisteredID: entityID,
+            unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
         let expectedScale = SIMD3<Float>(1.5, 2, 0.5)

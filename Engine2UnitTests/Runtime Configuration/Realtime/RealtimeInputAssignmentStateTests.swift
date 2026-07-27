@@ -78,9 +78,8 @@ struct RealtimeInputAssignmentStateTests {
     }
 
     private func makeSnapshot(sequence: UInt64) -> InputSnapshot {
-        let revision = InputRevision(session: 1, sequence: sequence)
-        return InputSnapshot(
-            revision: revision,
+        InputSnapshot(
+            revision: InputRevision(session: 1, sequence: sequence),
             pointerPosition: .zero,
             pointerMotionTotal: .zero,
             scrollTotal: .zero,

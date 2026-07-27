@@ -4,9 +4,8 @@ import Testing
 struct PMovableTests {
     @Test func motionReadsFromWorldStore() {
         let world = World()
-        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestMovableEntity(
-            unregisteredID: entityID,
+            unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
         let expectedVelocity = SIMD3<Float>(1, 2, 3)

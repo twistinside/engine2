@@ -8,27 +8,24 @@ import UniformTypeIdentifiers
 
 struct ImageIOArtifactEncoderTests {
     @Test func qualityRequiresFiniteClosedUnitIntervalAndProvidesValidatedPresets() throws {
-        let minimum = try JPEGQuality(0)
-        let ordinary = try JPEGQuality(0.375)
-        let maximum = try JPEGQuality(1)
-        #expect(minimum.value == 0)
-        #expect(ordinary.value == 0.375)
-        #expect(maximum.value == 1)
+        #expect(try JPEGQuality(0).value == 0)
+        #expect(try JPEGQuality(0.375).value == 0.375)
+        #expect(try JPEGQuality(1).value == 1)
 
         #expect(throws: JPEGQualityError.notFinite) {
-            try quality(.nan)
+            try JPEGQuality(.nan)
         }
         #expect(throws: JPEGQualityError.notFinite) {
-            try quality(.infinity)
+            try JPEGQuality(.infinity)
         }
         #expect(throws: JPEGQualityError.notFinite) {
-            try quality(-.infinity)
+            try JPEGQuality(-.infinity)
         }
         #expect(throws: JPEGQualityError.outsideClosedUnitInterval) {
-            try quality(-0.001)
+            try JPEGQuality(-0.001)
         }
         #expect(throws: JPEGQualityError.outsideClosedUnitInterval) {
-            try quality(1.001)
+            try JPEGQuality(1.001)
         }
 
         #expect(JPEGQuality.observation.value == 0.85)
@@ -46,8 +43,9 @@ struct ImageIOArtifactEncoderTests {
                 red: 211
             )
         )
-        let quality = try JPEGQuality(qualityValue)
-        let encoding = ImageArtifactEncoding.jpeg(quality: quality)
+        let encoding = ImageArtifactEncoding.jpeg(
+            quality: try JPEGQuality(qualityValue)
+        )
 
         let artifact = try await ImageIOArtifactEncoder().encode(
             result,
@@ -56,10 +54,8 @@ struct ImageIOArtifactEncoderTests {
 
         #expect(artifact.encoding == encoding)
         #expect(!artifact.encodedData.isEmpty)
-        let prefix = Array(artifact.encodedData.prefix(2))
-        let suffix = Array(artifact.encodedData.suffix(2))
-        #expect(prefix == [0xFF, 0xD8])
-        #expect(suffix == [0xFF, 0xD9])
+        #expect(Array(artifact.encodedData.prefix(2)) == [0xFF, 0xD8])
+        #expect(Array(artifact.encodedData.suffix(2)) == [0xFF, 0xD9])
 
         let source = try #require(
             CGImageSourceCreateWithData(artifact.encodedData as CFData, nil)
@@ -138,8 +134,10 @@ struct ImageIOArtifactEncoderTests {
             as: .png
         )
 
-        let signature = Array(artifact.encodedData.prefix(8))
-        #expect(signature == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        #expect(
+            Array(artifact.encodedData.prefix(8))
+                == [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        )
         #expect(artifact.encoding == .png)
         #expect(artifact.sourceRequestID == result.requestID)
         #expect(artifact.sourceCursor == result.sourceCursor)
@@ -168,10 +166,8 @@ struct ImageIOArtifactEncoderTests {
             y: size.height * 3 / 4,
             width: size.width
         )
-        let topPixel = Array(rgba[topOffset..<(topOffset + 3)])
-        let bottomPixel = Array(rgba[bottomOffset..<(bottomOffset + 3)])
-        #expect(topPixel == [250, 20, 80])
-        #expect(bottomPixel == [10, 100, 250])
+        #expect(Array(rgba[topOffset..<(topOffset + 3)]) == [250, 20, 80])
+        #expect(Array(rgba[bottomOffset..<(bottomOffset + 3)]) == [10, 100, 250])
     }
 
     @Test func completionWinsAfterEncodingIsInvokedByCancelledTask() async throws {
@@ -201,43 +197,40 @@ struct ImageIOArtifactEncoderTests {
     }
 
     private func makeResult(image: RenderedBGRA8SRGBImage) throws -> OffscreenRenderResult {
-        let requestUUID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000301"
-        )!
-        let requestID = OffscreenRenderRequestID(rawValue: requestUUID)
-        let sessionUUID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000302"
-        )!
-        let sessionID = SimulationSessionID(rawValue: sessionUUID)
-        let tick = SimulationTick(rawValue: 41)
-        let cursor = SimulationCursor(
-            sessionID: sessionID,
-            tick: tick
+        let requestID = OffscreenRenderRequestID(
+            rawValue: UUID(
+                uuidString: "00000000-0000-0000-0000-000000000301"
+            )!
         )
-        let viewpointUUID = UUID(
-            uuidString: "00000000-0000-0000-0000-000000000303"
-        )!
-        let viewpointID = RenderViewpointID(rawValue: viewpointUUID)
-        let viewpointRevision = RenderViewpointRevision(rawValue: 43)
-        let camera = Camera(
-            position: SIMD3<Float>(3, 5, 7),
-            rotation: Transform.identityRotation,
-            projection: .orthographic(
-                height: 11,
-                near: 0.25,
-                far: 250
-            )
+        let cursor = SimulationCursor(
+            sessionID: SimulationSessionID(
+                rawValue: UUID(
+                    uuidString: "00000000-0000-0000-0000-000000000302"
+                )!
+            ),
+            tick: SimulationTick(rawValue: 41)
         )
         let viewpoint = RenderViewpoint(
-            id: viewpointID,
-            revision: viewpointRevision,
-            camera: camera
+            id: RenderViewpointID(
+                rawValue: UUID(
+                    uuidString: "00000000-0000-0000-0000-000000000303"
+                )!
+            ),
+            revision: RenderViewpointRevision(rawValue: 43),
+            camera: Camera(
+                position: SIMD3<Float>(3, 5, 7),
+                rotation: .identity,
+                projection: .orthographic(
+                    height: 11,
+                    near: 0.25,
+                    far: 250
+                )
+            )
         )
-        let exposure = ManualExposure(multiplier: 1.75)
         let settings = OffscreenRenderSettings(
             size: image.size,
             outputMode: .viewSpaceNormals,
-            exposure: exposure
+            exposure: ManualExposure(multiplier: 1.75)
         )
 
         return OffscreenRenderResult(
@@ -262,10 +255,9 @@ struct ImageIOArtifactEncoderTests {
             bytes.append(contentsOf: [blue, green, red, 255])
         }
 
-        let data = Data(bytes)
         return try RenderedBGRA8SRGBImage(
             size: size,
-            bytes: data
+            bytes: Data(bytes)
         )
     }
 
@@ -286,16 +278,16 @@ struct ImageIOArtifactEncoderTests {
             }
         }
 
-        let data = Data(bytes)
         return try RenderedBGRA8SRGBImage(
             size: size,
-            bytes: data
+            bytes: Data(bytes)
         )
     }
 
     private func drawTopLeftRGBA(_ image: CGImage) throws -> [UInt8] {
-        let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB)
-        let colorSpace = try #require(sRGBColorSpace)
+        let colorSpace = try #require(
+            CGColorSpace(name: CGColorSpace.sRGB)
+        )
         let bytesPerRow = image.width * 4
         var rgba = [UInt8](
             repeating: 0,
@@ -327,12 +319,14 @@ struct ImageIOArtifactEncoderTests {
             // Preserve the decoded CGImage's native scanline order in this raw
             // offscreen bitmap. A UI/view-coordinate flip here would reverse
             // the rows returned in `rgba` and test the helper, not the JPEG.
-            let width = CGFloat(image.width)
-            let height = CGFloat(image.height)
-            let bounds = CGRect(x: 0, y: 0, width: width, height: height)
             context.draw(
                 image,
-                in: bounds
+                in: CGRect(
+                    x: 0,
+                    y: 0,
+                    width: CGFloat(image.width),
+                    height: CGFloat(image.height)
+                )
             )
             return true
         }
@@ -342,9 +336,5 @@ struct ImageIOArtifactEncoderTests {
 
     private func rgbaOffset(x: Int, y: Int, width: Int) -> Int {
         (y * width + x) * 4
-    }
-
-    private func quality(_ value: Double) throws -> JPEGQuality {
-        try JPEGQuality(value)
     }
 }

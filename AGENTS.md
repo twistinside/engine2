@@ -75,12 +75,10 @@ Current example ownership:
 - Never add Xcode-style file header comments that repeat a filename or project name or record who created a file, when it was created, or a boilerplate copyright notice. Remove these headers whenever you encounter them.
 - Give production types meaningful `///` documentation comments that make Xcode Quick Help useful. Explain the type's role, ownership, important invariants, and intended boundary rather than merely restating its name.
 - One type per file is a project rule. Name the file after the type. Keep extensions of repository-owned types in the owning type's file; never extend one repository type from another type's file. Put extensions of framework or other externally owned types in dedicated, appropriately named files under `Extension/`. Do not create a separate extension file solely for one static member; keep that member with the repository type's primary declaration. A documented test-target-only extension may remain in a clearly named test-support file when putting fixture API in the production declaration would be the only alternative.
-- Never construct a value inside another call's arguments. Bind every explicit initializer result to a role-named local
-  before passing it to an initializer, method, enum case, macro, or modifier, even when it fits on one line. Existing
-  values, literals, and enum cases may remain inline; a construction that is the surrounding result is not nested.
-  One-line `SIMD2`, `SIMD3`, and `SIMD4` initializers whose lanes—or single `repeating:` value—are numeric literals
-  with optional unary signs are vector literals and may also remain inline. Keep computed, multiline, reused, or
-  role-clarifying vectors named.
+- Extract a constructed value when the local adds a nonredundant role or separates substantial construction from the
+  operation that consumes it. Otherwise, keep construction inline when an argument, property, or enum case label,
+  direct assignment, or aggregate shape already supplies the meaning. A label does not erase a separate ownership,
+  validation, reuse, or substantial construction decision. Do not add a local that merely repeats nearby syntax.
 - Swift is strongly typed. Prefer a domain type whenever an `Int` or `String` would permit meaningless arithmetic, concatenation, or invalid values.
 - If a value has a known, finite list of possibilities, use an `enum`.
 - Using `String` or a string-backed wrapper in place of an enum for a closed set is heavily discouraged. Any exception must be justified with a code or documentation comment explaining why the vocabulary is genuinely open-ended or why an external API requires strings.

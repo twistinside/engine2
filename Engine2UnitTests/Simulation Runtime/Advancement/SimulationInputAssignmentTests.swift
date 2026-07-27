@@ -4,9 +4,8 @@ import Testing
 
 struct SimulationInputAssignmentTests {
     @Test func distinguishesNoInputIngestionAndRebasing() {
-        let revision = InputRevision(session: 4, sequence: 12)
         let publication = InputSnapshot(
-            revision: revision,
+            revision: InputRevision(session: 4, sequence: 12),
             pointerPosition: SIMD2<Float>(3, 5),
             pointerMotionTotal: SIMD2<Float>(8, -2),
             scrollTotal: SIMD2<Float>(0, 7),

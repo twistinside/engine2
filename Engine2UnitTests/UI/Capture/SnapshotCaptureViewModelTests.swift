@@ -119,8 +119,7 @@ struct SnapshotCaptureViewModelTests {
             return
         }
 
-        let saveError = SyntheticSaveError()
-        model.exportCompleted(.failure(saveError))
+        model.exportCompleted(.failure(SyntheticSaveError()))
 
         guard case let .exportFailure(message, retainedDocument, retainedFilename) = model.presentedModal else {
             Issue.record("Expected a failed save to retain retryable export state.")
@@ -139,8 +138,9 @@ struct SnapshotCaptureViewModelTests {
         )
         #expect(target.requests.count == 1)
 
-        let savedURL = URL(fileURLWithPath: "/tmp/Engine2-tick-73.jpeg")
-        model.exportCompleted(.success(savedURL))
+        model.exportCompleted(
+            .success(URL(fileURLWithPath: "/tmp/Engine2-tick-73.jpeg"))
+        )
 
         #expect(model.presentedModal == nil)
         #expect(target.requests.count == 1)
@@ -354,11 +354,10 @@ struct SnapshotCaptureViewModelTests {
         ]
 
         for scenario in scenarios {
-            let presentation = SnapshotCapturePresentation(
-                jpegCaptureOutcome: scenario.outcome
-            )
             #expect(
-                presentation
+                SnapshotCapturePresentation(
+                    jpegCaptureOutcome: scenario.outcome
+                )
                     == .captureFailure(message: scenario.expectedMessage)
             )
         }
@@ -384,11 +383,9 @@ struct SnapshotCaptureViewModelTests {
         snapshot: SimulationPresentationSnapshot,
         artifact: RenderedImageArtifact
     ) {
-        let sessionID = SimulationSessionID()
-        let simulationTick = SimulationTick(rawValue: tick)
         let cursor = SimulationCursor(
-            sessionID: sessionID,
-            tick: simulationTick
+            sessionID: SimulationSessionID(),
+            tick: SimulationTick(rawValue: tick)
         )
         let camera = Camera.lookingAt(
             .zero,
@@ -401,11 +398,8 @@ struct SnapshotCaptureViewModelTests {
             camera: camera,
             entityPresentations: []
         )
-        let encodedData = Data([0xFF, 0xD8, 0xFF, 0xD9])
-        let sourceRequestID = OffscreenRenderRequestID()
-        let viewpointID = RenderViewpointID()
         let viewpoint = RenderViewpoint(
-            id: viewpointID,
+            id: RenderViewpointID(),
             revision: .zero,
             camera: snapshot.camera
         )
@@ -416,8 +410,8 @@ struct SnapshotCaptureViewModelTests {
         )
         let artifact = RenderedImageArtifact(
             encoding: .jpeg(quality: .maximum),
-            encodedData: encodedData,
-            sourceRequestID: sourceRequestID,
+            encodedData: Data([0xFF, 0xD8, 0xFF, 0xD9]),
+            sourceRequestID: OffscreenRenderRequestID(),
             sourceCursor: snapshot.cursor,
             viewpoint: viewpoint,
             renderSettings: renderSettings
@@ -429,8 +423,10 @@ struct SnapshotCaptureViewModelTests {
         artifact: RenderedImageArtifact,
         size: RenderPixelSize
     ) throws -> OffscreenRenderResult {
-        let bytes = Data(repeating: 0xFF, count: size.bgra8ByteCount)
-        let image = try RenderedBGRA8SRGBImage(size: size, bytes: bytes)
+        let image = try RenderedBGRA8SRGBImage(
+            size: size,
+            bytes: Data(repeating: 0xFF, count: size.bgra8ByteCount)
+        )
         return OffscreenRenderResult(
             requestID: artifact.sourceRequestID,
             sourceCursor: artifact.sourceCursor,

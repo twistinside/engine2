@@ -5,13 +5,10 @@
 /// never changes Simulation tick identity or skips an authoritative tick.
 nonisolated struct RealtimeCatchUpPolicy: Equatable, Sendable {
     /// Responsive default for the current MainActor-hosted interactive App.
-    static let interactive: Self = {
-        let maximumStepsPerWake = SimulationStepCount(rawValue: 4)
-        return Self(
-            maximumStepsPerWake: maximumStepsPerWake,
-            backlogTreatment: .discardOverflow
-        )
-    }()
+    static let interactive = Self(
+        maximumStepsPerWake: SimulationStepCount(rawValue: 4),
+        backlogTreatment: .discardOverflow
+    )
 
     let maximumStepsPerWake: SimulationStepCount
     let backlogTreatment: RealtimeBacklogTreatment

@@ -245,9 +245,8 @@ struct InputStateTests {
         pressedMouseButtons: Set<MouseButton> = [],
         pressedKeys: Set<KeyboardKey> = []
     ) -> InputSnapshot {
-        let revision = InputRevision(session: session, sequence: sequence)
-        return InputSnapshot(
-            revision: revision,
+        InputSnapshot(
+            revision: InputRevision(session: session, sequence: sequence),
             pointerPosition: position,
             pointerMotionTotal: pointerMotionTotal,
             scrollTotal: scrollTotal,

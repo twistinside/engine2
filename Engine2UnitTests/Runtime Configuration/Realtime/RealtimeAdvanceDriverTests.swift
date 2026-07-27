@@ -15,13 +15,12 @@ struct RealtimeAdvanceDriverTests {
                 baseInstant.advanced(by: .milliseconds(120))
             ]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
             results: [
                 .success(()),
                 .success(()),
                 .success(()),
-                .failure(cancellation)
+                .failure(CancellationError())
             ]
         )
         let driver = makeDriver(
@@ -58,9 +57,8 @@ struct RealtimeAdvanceDriverTests {
                 baseInstant.advanced(by: .milliseconds(300))
             ]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(cancellation)]
+            results: [.success(()), .success(()), .failure(CancellationError())]
         )
         let driver = makeDriver(
             target: target,
@@ -80,11 +78,10 @@ struct RealtimeAdvanceDriverTests {
         driver.stop()
 
         let requests = await target.recordedRequests()
-        let expectedSecondTick = SimulationTick(rawValue: 2)
         #expect(didRecordRequests)
         #expect(requests.map(\.stepCount.rawValue) == [2, 1])
         #expect(requests[0].expectedCursor == cursor)
-        #expect(requests[1].expectedCursor?.tick == expectedSecondTick)
+        #expect(requests[1].expectedCursor?.tick == SimulationTick(rawValue: 2))
     }
 
     @Test func preservePolicyCapsOneWakeThenDrainsBacklog() async {
@@ -98,14 +95,8 @@ struct RealtimeAdvanceDriverTests {
                 baseInstant.advanced(by: .milliseconds(550))
             ]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(cancellation)]
-        )
-        let maximumStepsPerWake = SimulationStepCount(rawValue: 3)
-        let catchUpPolicy = RealtimeCatchUpPolicy(
-            maximumStepsPerWake: maximumStepsPerWake,
-            backlogTreatment: .preserve
+            results: [.success(()), .success(()), .failure(CancellationError())]
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -113,7 +104,10 @@ struct RealtimeAdvanceDriverTests {
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            catchUpPolicy: catchUpPolicy,
+            catchUpPolicy: RealtimeCatchUpPolicy(
+                maximumStepsPerWake: SimulationStepCount(rawValue: 3),
+                backlogTreatment: .preserve
+            ),
             isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
@@ -141,14 +135,8 @@ struct RealtimeAdvanceDriverTests {
                 baseInstant.advanced(by: .milliseconds(600))
             ]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(cancellation)]
-        )
-        let maximumStepsPerWake = SimulationStepCount(rawValue: 3)
-        let catchUpPolicy = RealtimeCatchUpPolicy(
-            maximumStepsPerWake: maximumStepsPerWake,
-            backlogTreatment: .discardOverflow
+            results: [.success(()), .success(()), .failure(CancellationError())]
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -156,7 +144,10 @@ struct RealtimeAdvanceDriverTests {
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            catchUpPolicy: catchUpPolicy,
+            catchUpPolicy: RealtimeCatchUpPolicy(
+                maximumStepsPerWake: SimulationStepCount(rawValue: 3),
+                backlogTreatment: .discardOverflow
+            ),
             isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
@@ -181,14 +172,8 @@ struct RealtimeAdvanceDriverTests {
                 baseInstant.advanced(by: .milliseconds(400))
             ]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(cancellation)]
-        )
-        let maximumStepsPerWake = SimulationStepCount(rawValue: 3)
-        let catchUpPolicy = RealtimeCatchUpPolicy(
-            maximumStepsPerWake: maximumStepsPerWake,
-            backlogTreatment: .discardOverflow
+            results: [.success(()), .success(()), .failure(CancellationError())]
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -196,7 +181,10 @@ struct RealtimeAdvanceDriverTests {
             initialCursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            catchUpPolicy: catchUpPolicy,
+            catchUpPolicy: RealtimeCatchUpPolicy(
+                maximumStepsPerWake: SimulationStepCount(rawValue: 3),
+                backlogTreatment: .discardOverflow
+            ),
             isAdvancementEnabled: true,
             clockFactory: { SystemClock(timeSource: elapsedSource.next) },
             scheduleTimeSource: { baseInstant },
@@ -216,14 +204,12 @@ struct RealtimeAdvanceDriverTests {
     @Test func startBaselinePreservesInputPublishedBeforeFirstTick() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
-        let expectedRevision = InputRevision(session: 4, sequence: 7)
         let expectedSnapshot = inputSnapshot(
-            revision: expectedRevision,
+            revision: InputRevision(session: 4, sequence: 7),
             pointerMotionTotal: SIMD2<Float>(12, -3)
         )
-        let laterRevision = InputRevision(session: 4, sequence: 8)
         let laterSnapshot = inputSnapshot(
-            revision: laterRevision,
+            revision: InputRevision(session: 4, sequence: 8),
             pointerMotionTotal: SIMD2<Float>(99, 99)
         )
         let inputSource = SequencedInputSource(
@@ -233,9 +219,8 @@ struct RealtimeAdvanceDriverTests {
         let elapsedSource = SampledInstantSource(
             samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .failure(cancellation)]
+            results: [.success(()), .failure(CancellationError())]
         )
         let driver = makeDriver(
             target: target,
@@ -272,25 +257,23 @@ struct RealtimeAdvanceDriverTests {
     @Test func pauseDiscardsBacklogAndResumeRebasesInput() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
-        let firstRevision = InputRevision(session: 2, sequence: 1)
-        let firstSnapshot = inputSnapshot(
-            revision: firstRevision,
-            pointerMotionTotal: SIMD2<Float>(6, 0)
-        )
-        let secondRevision = InputRevision(session: 2, sequence: 2)
         let secondPointerMotionTotal = SIMD2<Float>(10, 0)
-        let secondSnapshot = inputSnapshot(
-            revision: secondRevision,
-            pointerMotionTotal: secondPointerMotionTotal
-        )
-        let thirdRevision = InputRevision(session: 2, sequence: 3)
         let thirdPointerMotionTotal = SIMD2<Float>(12, 0)
-        let thirdSnapshot = inputSnapshot(
-            revision: thirdRevision,
-            pointerMotionTotal: thirdPointerMotionTotal
-        )
         let inputSource = SequencedInputSource(
-            snapshots: [firstSnapshot, secondSnapshot, thirdSnapshot]
+            snapshots: [
+                inputSnapshot(
+                    revision: InputRevision(session: 2, sequence: 1),
+                    pointerMotionTotal: SIMD2<Float>(6, 0)
+                ),
+                inputSnapshot(
+                    revision: InputRevision(session: 2, sequence: 2),
+                    pointerMotionTotal: secondPointerMotionTotal
+                ),
+                inputSnapshot(
+                    revision: InputRevision(session: 2, sequence: 3),
+                    pointerMotionTotal: thirdPointerMotionTotal
+                )
+            ]
         )
         let baseInstant = SuspendingClock().now
         let elapsedSource = SampledInstantSource(
@@ -433,13 +416,13 @@ struct RealtimeAdvanceDriverTests {
     @Test func enabledStopAndRestartRebasesTheNextInputRequest() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
-        let revision = InputRevision(session: 8, sequence: 1)
-        let snapshot = inputSnapshot(
-            revision: revision,
-            pointerMotionTotal: SIMD2<Float>(3, 1)
-        )
         let inputSource = SequencedInputSource(
-            snapshots: [snapshot]
+            snapshots: [
+                inputSnapshot(
+                    revision: InputRevision(session: 8, sequence: 1),
+                    pointerMotionTotal: SIMD2<Float>(3, 1)
+                )
+            ]
         )
         let baseInstant = SuspendingClock().now
         let firstElapsedSource = SampledInstantSource(
@@ -505,9 +488,8 @@ struct RealtimeAdvanceDriverTests {
         let scheduleSource = SampledInstantSource(
             samples: [baseInstant, baseInstant.advanced(by: .milliseconds(110))]
         )
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .failure(cancellation)]
+            results: [.success(()), .failure(CancellationError())]
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -587,9 +569,8 @@ struct RealtimeAdvanceDriverTests {
 
     @Test func cursorMismatchFaultsUntilTheAppSynchronizes() async throws {
         let initialCursor = makeCursor()
-        let rebuiltSessionID = SimulationSessionID()
         let rebuiltCursor = makeCursor(
-            sessionID: rebuiltSessionID,
+            sessionID: SimulationSessionID(),
             tick: .zero
         )
         let target = RecordingAdvanceTarget(
@@ -605,9 +586,8 @@ struct RealtimeAdvanceDriverTests {
             samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
         )
         var clockCreationCount = 0
-        let cancellation = CancellationError()
         let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(cancellation)]
+            results: [.success(()), .success(()), .failure(CancellationError())]
         )
         let driver = makeDriver(
             target: target,
@@ -780,8 +760,7 @@ struct RealtimeAdvanceDriverTests {
 
     @Test func explicitSynchronizationSupersedesRetiringOldSessionResult() async throws {
         let initialCursor = makeCursor()
-        let synchronizedSessionID = SimulationSessionID()
-        let synchronizedCursor = makeCursor(sessionID: synchronizedSessionID)
+        let synchronizedCursor = makeCursor(sessionID: SimulationSessionID())
         let target = SuspendedAdvanceTarget()
         let baseInstant = SuspendingClock().now
         let firstElapsedSource = SampledInstantSource(
@@ -889,30 +868,28 @@ struct RealtimeAdvanceDriverTests {
         for request: SimulationAdvanceRequest,
         from initialCursor: SimulationCursor
     ) -> SimulationAdvanceOutcome {
-        let rawStepCount = UInt64(request.stepCount.rawValue)
-        let finalTick = SimulationTick(
-            rawValue: initialCursor.tick.rawValue + rawStepCount
-        )
         let finalCursor = SimulationCursor(
             sessionID: initialCursor.sessionID,
-            tick: finalTick
-        )
-        let completedStepCount = SimulationCompletedStepCount(
-            rawValue: request.stepCount.rawValue
+            tick: SimulationTick(
+                rawValue: initialCursor.tick.rawValue + UInt64(request.stepCount.rawValue)
+            )
         )
         let finalPresentationSnapshot = SimulationPresentationSnapshot(
             cursor: finalCursor,
             camera: .standard,
             entityPresentations: []
         )
-        let result = SimulationAdvanceResult(
-            initialCursor: initialCursor,
-            finalCursor: finalCursor,
-            completedStepCount: completedStepCount,
-            finalPresentationSnapshot: finalPresentationSnapshot
-        )
 
-        return .completed(result)
+        return .completed(
+            SimulationAdvanceResult(
+                initialCursor: initialCursor,
+                finalCursor: finalCursor,
+                completedStepCount: SimulationCompletedStepCount(
+                    rawValue: request.stepCount.rawValue
+                ),
+                finalPresentationSnapshot: finalPresentationSnapshot
+            )
+        )
     }
 
     private func completedCursor(from outcome: SimulationAdvanceOutcome) throws -> SimulationCursor {
@@ -1074,31 +1051,29 @@ private extension RealtimeAdvanceDriverTests {
             }
 
             let initialCursor = cursor
-            let rawStepCount = UInt64(request.stepCount.rawValue)
-            let finalTick = SimulationTick(
-                rawValue: cursor.tick.rawValue + rawStepCount
-            )
             let finalCursor = SimulationCursor(
                 sessionID: cursor.sessionID,
-                tick: finalTick
+                tick: SimulationTick(
+                    rawValue: cursor.tick.rawValue + UInt64(request.stepCount.rawValue)
+                )
             )
             cursor = finalCursor
-            let completedStepCount = SimulationCompletedStepCount(
-                rawValue: request.stepCount.rawValue
-            )
             let finalPresentationSnapshot = SimulationPresentationSnapshot(
                 cursor: finalCursor,
                 camera: .standard,
                 entityPresentations: []
             )
-            let result = SimulationAdvanceResult(
-                initialCursor: initialCursor,
-                finalCursor: finalCursor,
-                completedStepCount: completedStepCount,
-                finalPresentationSnapshot: finalPresentationSnapshot
-            )
 
-            return .completed(result)
+            return .completed(
+                SimulationAdvanceResult(
+                    initialCursor: initialCursor,
+                    finalCursor: finalCursor,
+                    completedStepCount: SimulationCompletedStepCount(
+                        rawValue: request.stepCount.rawValue
+                    ),
+                    finalPresentationSnapshot: finalPresentationSnapshot
+                )
+            )
         }
 
         func requestCount() -> Int {

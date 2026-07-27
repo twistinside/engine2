@@ -58,14 +58,12 @@ struct GPUInstanceTests {
         let secondLocalTangent = simd_normalize(
             simd_cross(localNormal, localTangent)
         )
-        let rotationAxis = simd_normalize(SIMD3<Float>(1, 1, 0))
-        let rotation = simd_quatf(
-            angle: .pi / 3,
-            axis: rotationAxis
-        )
         let transform = Transform(
             position: SIMD3<Float>(2, -1, -4),
-            rotation: rotation,
+            rotation: simd_quatf(
+                angle: .pi / 3,
+                axis: simd_normalize(SIMD3<Float>(1, 1, 0))
+            ),
             scale: SIMD3<Float>(2, 0.5, 3)
         )
         let camera = Camera.lookingAt(
@@ -98,23 +96,22 @@ struct GPUInstanceTests {
     }
 
     @Test func cameraTranslationDoesNotChangeNormalTransform() throws {
-        let rotation = simd_quatf(
-            angle: .pi / 4,
-            axis: SIMD3<Float>(0, 1, 0)
-        )
         let transform = Transform(
             position: .zero,
-            rotation: rotation,
+            rotation: simd_quatf(
+                angle: .pi / 4,
+                axis: SIMD3<Float>(0, 1, 0)
+            ),
             scale: SIMD3<Float>(2, 1, 0.5)
         )
         let firstCamera = Camera(
             position: SIMD3<Float>(0, 0, 8),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .standardPerspective
         )
         let translatedCamera = Camera(
             position: SIMD3<Float>(3, -2, 8),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .standardPerspective
         )
         let projection = firstCamera.projectionMatrix(aspectRatio: 1)
@@ -146,9 +143,8 @@ struct GPUInstanceTests {
     }
 
     private func projectedInstance(transform: Transform, viewMatrix: simd_float4x4) throws -> RenderInstance {
-        let entityID = EntityID(index: 0, generation: 0)
         let presentation = EntityPresentationSnapshot(
-            id: entityID,
+            id: EntityID(index: 0, generation: 0),
             position: transform.position,
             rotation: transform.rotation,
             scale: transform.scale,
@@ -169,23 +165,25 @@ struct GPUInstanceTests {
 }
 
 private func upperLeft3x3(of matrix: simd_float4x4) -> simd_float3x3 {
-    let firstColumn = SIMD3<Float>(
-        matrix.columns.0.x,
-        matrix.columns.0.y,
-        matrix.columns.0.z
+    simd_float3x3(
+        columns: (
+            SIMD3<Float>(
+                matrix.columns.0.x,
+                matrix.columns.0.y,
+                matrix.columns.0.z
+            ),
+            SIMD3<Float>(
+                matrix.columns.1.x,
+                matrix.columns.1.y,
+                matrix.columns.1.z
+            ),
+            SIMD3<Float>(
+                matrix.columns.2.x,
+                matrix.columns.2.y,
+                matrix.columns.2.z
+            )
+        )
     )
-    let secondColumn = SIMD3<Float>(
-        matrix.columns.1.x,
-        matrix.columns.1.y,
-        matrix.columns.1.z
-    )
-    let thirdColumn = SIMD3<Float>(
-        matrix.columns.2.x,
-        matrix.columns.2.y,
-        matrix.columns.2.z
-    )
-    let columns = (firstColumn, secondColumn, thirdColumn)
-    return simd_float3x3(columns: columns)
 }
 
 private func matricesAreApproximatelyEqual(_ lhs: simd_float3x3, _ rhs: simd_float3x3, tolerance: Float = 0.0001) -> Bool {

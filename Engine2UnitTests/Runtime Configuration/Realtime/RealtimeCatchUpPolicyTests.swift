@@ -3,9 +3,8 @@ import Testing
 
 struct RealtimeCatchUpPolicyTests {
     @Test func interactiveDefaultBoundsWorkAndDiscardsOverflow() {
-        let maximumStepsPerWake = SimulationStepCount(rawValue: 4)
         let expected = RealtimeCatchUpPolicy(
-            maximumStepsPerWake: maximumStepsPerWake,
+            maximumStepsPerWake: SimulationStepCount(rawValue: 4),
             backlogTreatment: .discardOverflow
         )
         #expect(RealtimeCatchUpPolicy.interactive == expected)

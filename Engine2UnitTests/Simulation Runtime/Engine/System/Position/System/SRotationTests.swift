@@ -8,11 +8,7 @@ struct SRotationTests {
         let entity = EntityID(index: 0, generation: 0)
 
         let initialRotationAxis = SIMD3<Float>(0, 0, 1)
-        let initialRotationValue = simd_quatf(
-            angle: 0,
-            axis: initialRotationAxis
-        )
-        let initialRotation = CRotation(rotation: initialRotationValue)
+        let initialRotation = CRotation(rotation: .identity)
         world.rotationComponents.insert(
             initialRotation,
             for: entity

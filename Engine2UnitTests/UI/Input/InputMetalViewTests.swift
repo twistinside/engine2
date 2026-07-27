@@ -30,8 +30,7 @@ struct InputMetalViewTests {
             return
         }
 
-        let expectedKey = KeyboardKey(keyCode: 13, displayName: "W")
-        #expect(downKey == expectedKey)
+        #expect(downKey == KeyboardKey(keyCode: 13, displayName: "W"))
         #expect(upKey == downKey)
     }
 
@@ -63,11 +62,10 @@ struct InputMetalViewTests {
 
         view.keyDown(with: keyDown)
 
-        let expectedKey = KeyboardKey(keyCode: 13, displayName: "W")
         #expect(inputRuntime.latestInputSnapshot.revision != startingRevision)
         #expect(
             inputRuntime.latestInputSnapshot.pressedKeys
-                == [expectedKey]
+                == [KeyboardKey(keyCode: 13, displayName: "W")]
         )
 
         view.keyUp(with: keyUp)
@@ -83,9 +81,8 @@ struct InputMetalViewTests {
         defer { inputRuntime.stop() }
         view.inputSink = inputRuntime
 
-        let dragLocation = CGPoint(x: 30, y: 40)
         let dragEvent = try makeLeftDragEvent(
-            location: dragLocation,
+            location: CGPoint(x: 30, y: 40),
             deltaX: 7,
             deltaY: -9
         )
@@ -148,21 +145,20 @@ struct InputMetalViewTests {
         let cgEvent = try #require(baseEvent.cgEvent)
         cgEvent.setIntegerValueField(.mouseEventDeltaX, value: deltaX)
         cgEvent.setIntegerValueField(.mouseEventDeltaY, value: deltaY)
-        let event = NSEvent(cgEvent: cgEvent)
-        return try #require(event)
+        return try #require(NSEvent(cgEvent: cgEvent))
     }
 
     private func makePixelScrollEvent(horizontal: Int32, vertical: Int32) throws -> NSEvent {
-        let scrollEvent = CGEvent(
-            scrollWheelEvent2Source: nil,
-            units: .pixel,
-            wheelCount: 2,
-            wheel1: vertical,
-            wheel2: horizontal,
-            wheel3: 0
+        let cgEvent = try #require(
+            CGEvent(
+                scrollWheelEvent2Source: nil,
+                units: .pixel,
+                wheelCount: 2,
+                wheel1: vertical,
+                wheel2: horizontal,
+                wheel3: 0
+            )
         )
-        let cgEvent = try #require(scrollEvent)
-        let event = NSEvent(cgEvent: cgEvent)
-        return try #require(event)
+        return try #require(NSEvent(cgEvent: cgEvent))
     }
 }

@@ -10,55 +10,49 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     /// Callers may still construct a curated catalog with
     /// `init(models:materials:)`.
     static let everything: Self = {
-        let ballModel = ModelAssetReference(resourceName: "Ball", format: .usdz)
-
         // The dielectric row holds one scene-linear base color and metallic
         // factor constant so roughness is the only variable.
         let warmBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
-        let warmDielectricSmooth = PBRMaterialDescription(
-            baseColor: warmBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.2
-        )
-        let warmDielectric = PBRMaterialDescription(
-            baseColor: warmBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.5
-        )
-        let warmDielectricRough = PBRMaterialDescription(
-            baseColor: warmBaseColor,
-            metallic: 0,
-            perceptualRoughness: 0.8
-        )
 
         // The metal row follows the same controlled progression while
         // preserving the established M4 gold baseline at roughness 0.35.
         let goldBaseColor = SIMD3<Float>(1, 0.766, 0.336)
-        let goldMetalSmooth = PBRMaterialDescription(
-            baseColor: goldBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.2
-        )
-        let goldMetal = PBRMaterialDescription(
-            baseColor: goldBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.35
-        )
-        let goldMetalRough = PBRMaterialDescription(
-            baseColor: goldBaseColor,
-            metallic: 1,
-            perceptualRoughness: 0.8
-        )
 
         return Self(
-            models: [.ball: ballModel],
+            models: [
+                .ball: ModelAssetReference(resourceName: "Ball", format: .usdz)
+            ],
             materials: [
-                .warmDielectricSmooth: warmDielectricSmooth,
-                .warmDielectric: warmDielectric,
-                .warmDielectricRough: warmDielectricRough,
-                .goldMetalSmooth: goldMetalSmooth,
-                .goldMetal: goldMetal,
-                .goldMetalRough: goldMetalRough
+                .warmDielectricSmooth: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.2
+                ),
+                .warmDielectric: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.5
+                ),
+                .warmDielectricRough: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.8
+                ),
+                .goldMetalSmooth: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.2
+                ),
+                .goldMetal: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.35
+                ),
+                .goldMetalRough: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.8
+                )
             ]
         )
     }()

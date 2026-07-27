@@ -4,31 +4,27 @@ import Testing
 
 struct SimulationAdvanceResultTests {
     @Test func correlatesCommittedRangeWithFinalSnapshot() {
-        let rawSessionID = UUID(uuidString: "00000000-0000-0000-0000-000000000012")!
         let sessionID = SimulationSessionID(
-            rawValue: rawSessionID
+            rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000012")!
         )
-        let initialTick = SimulationTick(rawValue: 5)
         let initialCursor = SimulationCursor(
             sessionID: sessionID,
-            tick: initialTick
+            tick: SimulationTick(rawValue: 5)
         )
-        let finalTick = SimulationTick(rawValue: 8)
         let finalCursor = SimulationCursor(
             sessionID: sessionID,
-            tick: finalTick
+            tick: SimulationTick(rawValue: 8)
         )
         let snapshot = SimulationPresentationSnapshot(
             cursor: finalCursor,
             camera: .standard,
             entityPresentations: []
         )
-        let completedStepCount = SimulationCompletedStepCount(rawValue: 3)
 
         let result = SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: finalCursor,
-            completedStepCount: completedStepCount,
+            completedStepCount: SimulationCompletedStepCount(rawValue: 3),
             finalPresentationSnapshot: snapshot
         )
 

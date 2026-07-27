@@ -4,10 +4,9 @@ import Testing
 
 struct TransformTests {
     @Test func matrixAppliesScaleRotationThenTranslation() async throws {
-        let rotation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
         let transform = Transform(
             position: SIMD3<Float>(2, 3, 4),
-            rotation: rotation,
+            rotation: simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1)),
             scale: SIMD3<Float>(2, 1, 1)
         )
 
@@ -23,31 +22,23 @@ struct TransformTests {
         #expect(Transform.identity.supportsNormalTransform)
         let degenerate = Transform(
             position: .zero,
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             scale: SIMD3<Float>(1, 0, 1)
-        )
-        let subnormalScale = SIMD3<Float>(
-            Float.leastNonzeroMagnitude,
-            1,
-            1
         )
         let subnormal = Transform(
             position: .zero,
-            rotation: Transform.identityRotation,
-            scale: subnormalScale
+            rotation: .identity,
+            scale: SIMD3<Float>(Float.leastNonzeroMagnitude, 1, 1)
         )
-        let infinitePosition = SIMD3<Float>(.infinity, 0, 0)
-        let unitScale = SIMD3<Float>(repeating: 1)
         let nonfinite = Transform(
-            position: infinitePosition,
-            rotation: Transform.identityRotation,
-            scale: unitScale
+            position: SIMD3<Float>(.infinity, 0, 0),
+            rotation: .identity,
+            scale: SIMD3<Float>(repeating: 1)
         )
-        let invalidRotation = simd_quatf(vector: .zero)
         let invalidOrientation = Transform(
             position: .zero,
-            rotation: invalidRotation,
-            scale: unitScale
+            rotation: simd_quatf(vector: .zero),
+            scale: SIMD3<Float>(repeating: 1)
         )
         #expect(degenerate.supportsNormalTransform == false)
         #expect(subnormal.supportsNormalTransform == false)

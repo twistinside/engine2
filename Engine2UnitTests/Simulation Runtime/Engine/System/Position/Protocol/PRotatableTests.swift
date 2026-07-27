@@ -4,9 +4,8 @@ import Testing
 struct PRotatableTests {
     @Test func angularMotionReadsFromWorldStores() async throws {
         let world = World()
-        let entityID = EntityID(index: 0, generation: 0)
         let entity = TestRotatingEntity(
-            unregisteredID: entityID,
+            unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
         let expectedAngularAcceleration = SIMD3<Float>(0.1, 0.2, 0.3)

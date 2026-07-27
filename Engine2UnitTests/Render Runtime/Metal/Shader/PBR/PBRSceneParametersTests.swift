@@ -49,21 +49,19 @@ struct PBRSceneParametersTests {
     }
 
     @Test func cameraTranslationDoesNotAffectTheViewSpaceLightDirection() {
-        let firstCamera = Camera(
-            position: SIMD3<Float>(0, 0, 8),
-            rotation: Transform.identityRotation,
-            projection: .standardPerspective
-        )
         let first = PBRSceneParameters(
-            camera: firstCamera
-        )
-        let translatedCamera = Camera(
-            position: SIMD3<Float>(37, -12, 4),
-            rotation: Transform.identityRotation,
-            projection: .standardPerspective
+            camera: Camera(
+                position: SIMD3<Float>(0, 0, 8),
+                rotation: .identity,
+                projection: .standardPerspective
+            )
         )
         let translated = PBRSceneParameters(
-            camera: translatedCamera
+            camera: Camera(
+                position: SIMD3<Float>(37, -12, 4),
+                rotation: .identity,
+                projection: .standardPerspective
+            )
         )
 
         // Direction vectors use w=0 semantics. The camera translation can move
@@ -76,13 +74,12 @@ struct PBRSceneParametersTests {
     }
 
     @Test func inverseCameraRotationTransformsWorldLightIntoViewSpace() {
-        let rotation = simd_quatf(
-            angle: .pi / 2,
-            axis: SIMD3<Float>(0, 1, 0)
-        )
         let camera = Camera(
             position: SIMD3<Float>(19, -7, 3),
-            rotation: rotation,
+            rotation: simd_quatf(
+                angle: .pi / 2,
+                axis: SIMD3<Float>(0, 1, 0)
+            ),
             projection: .standardPerspective
         )
         let parameters = PBRSceneParameters(camera: camera)

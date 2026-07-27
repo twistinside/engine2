@@ -10,10 +10,9 @@ extension RenderAssetCatalog {
     /// `BasicGameContent` keeps one source of truth for authored factors and
     /// avoids decoding `Ball.usdz` in tests that never draw that model.
     static var materialOnlyTestCatalog: RenderAssetCatalog {
-        let gameContent = BasicGameContent()
-        return RenderAssetCatalog(
+        RenderAssetCatalog(
             models: [:],
-            materials: gameContent.renderAssetCatalog.materials
+            materials: BasicGameContent().renderAssetCatalog.materials
         )
     }
 }

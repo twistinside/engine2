@@ -74,14 +74,12 @@ struct RealtimeStepAccumulatorTests {
         maximumStepsPerWake: UInt32 = 4,
         backlogTreatment: RealtimeBacklogTreatment = .discardOverflow
     ) -> RealtimeStepAccumulator {
-        let stepCount = SimulationStepCount(rawValue: maximumStepsPerWake)
-        let catchUpPolicy = RealtimeCatchUpPolicy(
-            maximumStepsPerWake: stepCount,
-            backlogTreatment: backlogTreatment
-        )
-        return RealtimeStepAccumulator(
+        RealtimeStepAccumulator(
             fixedTimeStep: fixedTimeStep,
-            catchUpPolicy: catchUpPolicy
+            catchUpPolicy: RealtimeCatchUpPolicy(
+                maximumStepsPerWake: SimulationStepCount(rawValue: maximumStepsPerWake),
+                backlogTreatment: backlogTreatment
+            )
         )
     }
 }

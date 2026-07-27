@@ -33,13 +33,11 @@ final class RealtimeSnapshotCaptureConnection: PRealtimeSnapshotCaptureTarget {
         presentationSource: any PSimulationPresentationSource,
         renderTarget: any POffscreenRenderTarget
     ) throws(ImageArtifactEncoderError) {
-        let viewpointID = RenderViewpointID()
-        let artifactEncoder = try ImageIOArtifactEncoder()
         self.init(
             presentationSource: presentationSource,
             renderTarget: renderTarget,
-            viewpointID: viewpointID,
-            artifactEncoder: artifactEncoder
+            viewpointID: RenderViewpointID(),
+            artifactEncoder: try ImageIOArtifactEncoder()
         )
     }
 

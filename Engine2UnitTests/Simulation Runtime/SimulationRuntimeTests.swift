@@ -4,16 +4,14 @@ import Testing
 struct SimulationRuntimeTests {
     @Test func constructionDistinguishesFreshAndInjectedSessionIdentity() {
         let injectedSessionID = SimulationSessionID()
-        let injectedWorldBuilder = BasicWorldBuilder()
         let injected = SimulationRuntime(
-            worldBuilder: injectedWorldBuilder,
+            worldBuilder: BasicWorldBuilder(),
             configuration: .basicGame,
             inputBaseline: nil,
             sessionID: injectedSessionID
         )
-        let freshWorldBuilder = BasicWorldBuilder()
         let fresh = SimulationRuntime(
-            worldBuilder: freshWorldBuilder,
+            worldBuilder: BasicWorldBuilder(),
             configuration: .basicGame,
             inputBaseline: nil
         )
@@ -132,19 +130,17 @@ struct SimulationRuntimeTests {
             keyCode: 13,
             charactersIgnoringModifiers: "w"
         )
-        let revision = InputRevision(session: 2, sequence: 4)
         let pointerPosition = SIMD2<Float>(20, 30)
         let inputBaseline = InputSnapshot(
-            revision: revision,
+            revision: InputRevision(session: 2, sequence: 4),
             pointerPosition: pointerPosition,
             pointerMotionTotal: SIMD2<Float>(8, -3),
             scrollTotal: SIMD2<Float>(0, 5),
             pressedMouseButtons: [.left],
             pressedKeys: [key]
         )
-        let worldBuilder = TestWorldBuilder(position: .zero)
         let simulation = SimulationRuntime(
-            worldBuilder: worldBuilder,
+            worldBuilder: TestWorldBuilder(position: .zero),
             configuration: .basicGame,
             inputBaseline: inputBaseline
         )
@@ -183,8 +179,7 @@ private extension SimulationRuntimeTests {
             buildCount += 1
 
             let world = World()
-            let positionX = Float(buildCount)
-            let position = SIMD3<Float>(positionX, 0, 0)
+            let position = SIMD3<Float>(Float(buildCount), 0, 0)
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,

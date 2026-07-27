@@ -24,9 +24,10 @@ nonisolated struct SimulationAdvanceResult: Equatable, Sendable {
         precondition(completedStepCount.rawValue > 0, "A completed Simulation advance must contain at least one step.")
         precondition(initialCursor.sessionID == finalCursor.sessionID, "A completed Simulation advance cannot cross session identity.")
 
-        let completedStepCountValue = UInt64(completedStepCount.rawValue)
         let (expectedFinalTick, overflowed) =
-            initialCursor.tick.rawValue.addingReportingOverflow(completedStepCountValue)
+            initialCursor.tick.rawValue.addingReportingOverflow(
+                UInt64(completedStepCount.rawValue)
+            )
         precondition(
             !overflowed && finalCursor.tick.rawValue == expectedFinalTick,
             "A completed Simulation cursor range must match its step count."

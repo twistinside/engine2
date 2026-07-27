@@ -3,9 +3,6 @@ import simd
 @testable import Engine2
 
 struct EntityPresentationSnapshotTests {
-    private static let defaultID = EntityID(index: 4, generation: 0)
-    private static let defaultRotation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 1))
-
     @Test func equalityIncludesQuaternionVectorAndEveryOptionalTransform() {
         let rotation = simd_quatf(angle: .pi / 3, axis: SIMD3<Float>(0, 1, 0))
         let first = makeSnapshot(rotation: rotation)
@@ -23,8 +20,9 @@ struct EntityPresentationSnapshotTests {
 
     @Test func equalityIncludesGenerationalIdentityAndAuthoredMaterial() {
         let baseline = makeSnapshot()
-        let nextGenerationID = EntityID(index: 4, generation: 1)
-        let nextGeneration = makeSnapshot(id: nextGenerationID)
+        let nextGeneration = makeSnapshot(
+            id: EntityID(index: 4, generation: 1)
+        )
         let goldMetal = makeSnapshot(materialID: .goldMetal)
 
         #expect(baseline != nextGeneration)
@@ -32,9 +30,9 @@ struct EntityPresentationSnapshotTests {
     }
 
     private func makeSnapshot(
-        id: EntityID = Self.defaultID,
+        id: EntityID = EntityID(index: 4, generation: 0),
         position: SIMD3<Float>? = SIMD3<Float>(1, 2, 3),
-        rotation: simd_quatf? = Self.defaultRotation,
+        rotation: simd_quatf? = simd_quatf.identity,
         scale: SIMD3<Float>? = SIMD3<Float>(repeating: 2),
         materialID: MaterialID = .warmDielectric
     ) -> EntityPresentationSnapshot {
