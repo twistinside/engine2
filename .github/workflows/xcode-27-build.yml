@@ -1,6 +1,8 @@
 name: Xcode 27 Build
 
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -43,6 +45,29 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Notify via Pushover
+        if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && env.PUSHOVER_TOKEN != '' && env.PUSHOVER_USER != '' }}
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          JOB_STATUS: ${{ job.status }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          short_sha="${GIT_SHA:0:8}"
+          if [ "${JOB_STATUS}" = "success" ]; then
+            title="Engine2 build"
+            message="Build passed for ${short_sha} on main."
+          else
+            title="Engine2 build failed"
+            message="Build failed for ${short_sha} on main. Check logs."
+          fi
+          curl --fail-with-body --silent --show-error \
+            --form-string "token=${PUSHOVER_TOKEN}" \
+            --form-string "user=${PUSHOVER_USER}" \
+            --form-string "title=${title}" \
+            --form-string "message=${message}" \
+            https://api.pushover.net/1/messages.json
 
       # The preview runner hosts macOS 26, which cannot execute macOS 27 tests.
       - name: Run Engine2 tests (requires macOS 27 runner)
