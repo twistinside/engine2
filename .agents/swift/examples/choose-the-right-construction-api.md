@@ -243,6 +243,17 @@ Sometimes a type has a complete value worth naming: `.zero`, `.identity`,
 `.one`, or `.everything`. This is not another initialization path. The member
 names a notable value that callers may deliberately select.
 
+Keep a small distinguished value as a direct stored constant. When its
+initializer already spells the concrete type, let the declaration infer that
+same type rather than mixing redundant type spellings:
+
+```swift
+nonisolated extension simd_quatf {
+    /// Rotation identity that leaves vectors unchanged.
+    static let identity = simd_quatf(real: 1, imag: .zero)
+}
+```
+
 `RenderAssetCatalog` supports caller-selected catalogs through its full
 initializer, but Basic Game Content also has one meaningful complete catalog:
 every model and material it declares.
