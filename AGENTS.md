@@ -68,6 +68,15 @@ Current example ownership:
 - `Ball.usda` and `Ball.usdz` are example Game Content render assets, not reusable Render Runtime implementation.
 - `ModelShaders.metal` is Render Runtime backend implementation unless a future explicit shader/material extension point makes part of it consumer content.
 - Debug panes and app commands are example App tooling.
+## Writing and Documentation
+- Follow `.agents/writing/style-guide.md` for prose added to or substantially revised in this repository, including DocC, README content, Quick Help, code comments, diagnostics, and user-facing text.
+- All code comments must follow the writing guide. This requirement applies to documentation comments, inline comments, block comments, and comments in tests.
+- Write for experienced software engineers unless the document identifies another audience.
+- Lead with the purpose, conclusion, or observable behavior. Prefer concrete subjects and verbs, active voice, short sentences, and one consistent term for each concept. Present common behavior before exceptions and behavior before implementation details.
+- Cut filler, repetition, vague praise, unnecessary modifiers, and unsupported claims. Use technical terms when they are more precise than everyday language, and define unfamiliar terms where they first appear.
+- Preserve necessary technical detail. Brevity must not hide invariants, ownership, lifecycle behavior, failure behavior, preconditions, limitations, provenance, or the distinction between implemented and proposed behavior.
+- Treat style rules as defaults, not mechanical bans. Correctness, precision, source fidelity, and readability take precedence.
+- Do not rewrite unrelated prose solely to apply the style guide.
 ## Code Quality
 - Follow the repository Swift style guide in `.agents/swift/preferences.md`.
   Consult `.agents/swift/examples/` when designing or substantially rewriting
@@ -392,7 +401,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - In systems and other mutation-heavy paths, use `ComponentStore.update(for:_:)` for existing rows instead of `insert`-as-replace.
 - Keep `World.add(_:from:)` as a capability-to-component boundary unless a clearly better spawn API replaces it.
 - Add explicit contribution APIs when needed instead of making many systems or object facades directly overwrite integrated velocity.
-- Comment executable logic generously. If a method does real work, prefer a short doc comment plus inline comments at the important steps so control flow and state changes are obvious when reading the code.
+- Comment executable logic when explanation clarifies intent, ordering, invariants, ownership, or a non-obvious state transition. Do not narrate self-evident statements. Give substantial methods a short documentation comment when their contract is not already clear from the surrounding type.
 - When the user asks for ideas, architecture notes, or future direction to be captured for later, prefer adding or updating DocC content under `Engine2/Engine2.docc/` rather than leaving that intent only in chat or code comments.
 - For not-yet-implemented direction, mark the DocC content clearly as proposed or future work, and link new conceptual articles from the DocC landing page when they represent durable engine design.
 - Preserve or improve `EntityID.generation` semantics.
