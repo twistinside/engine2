@@ -7,13 +7,14 @@ struct WorldTests {
         let entity = TestSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
         let expectedPosition = SIMD3<Float>(1, 2, 3)
         let expectedScale = SIMD3<Float>(2, 2, 2)
+        let initialState = Entity.InitialState(
+            position: expectedPosition,
+            scale: expectedScale
+        )
 
         world.add(
             entity,
-            from: Entity.InitialState(
-                position: expectedPosition,
-                scale: expectedScale
-            )
+            from: initialState
         )
 
         #expect(world.positionComponents[entity.id]?.position == expectedPosition)
@@ -28,10 +29,11 @@ struct WorldTests {
         let world = World()
         let entity = TestMovableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
         let expectedIntent = CMotion.AccelerationIntent.accelerating(SIMD3<Float>(1, 2, 3))
+        let initialState = Entity.InitialState(accelerationIntent: expectedIntent)
 
         world.add(
             entity,
-            from: Entity.InitialState(accelerationIntent: expectedIntent)
+            from: initialState
         )
 
         #expect(world.motionComponents[entity.id]?.accelerationIntent == expectedIntent)
@@ -42,10 +44,11 @@ struct WorldTests {
         let world = World()
         let entity = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
         let expectedState = CSelectable.SelectionState.selected
+        let initialState = Entity.InitialState(selectionState: expectedState)
 
         world.add(
             entity,
-            from: Entity.InitialState(selectionState: expectedState)
+            from: initialState
         )
 
         #expect(world.selectableComponents[entity.id]?.selectionState == expectedState)
@@ -60,13 +63,14 @@ struct WorldTests {
         )
         let expectedMeshID = MeshID.ball
         let expectedMaterialID = MaterialID.goldMetal
+        let renderableInitialState = RenderableInitialState(
+            meshID: expectedMeshID,
+            materialID: expectedMaterialID
+        )
 
         world.add(
             entity,
-            renderable: RenderableInitialState(
-                meshID: expectedMeshID,
-                materialID: expectedMaterialID
-            )
+            renderable: renderableInitialState
         )
 
         #expect(world.renderableComponents[entity.id]?.meshID == expectedMeshID)

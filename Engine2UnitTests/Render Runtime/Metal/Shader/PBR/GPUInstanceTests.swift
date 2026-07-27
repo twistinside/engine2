@@ -106,12 +106,12 @@ struct GPUInstanceTests {
         )
         let firstCamera = Camera(
             position: SIMD3<Float>(0, 0, 8),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .standardPerspective
         )
         let translatedCamera = Camera(
             position: SIMD3<Float>(3, -2, 8),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .standardPerspective
         )
         let projection = firstCamera.projectionMatrix(aspectRatio: 1)
@@ -143,15 +143,16 @@ struct GPUInstanceTests {
     }
 
     private func projectedInstance(transform: Transform, viewMatrix: simd_float4x4) throws -> RenderInstance {
-        try RenderInstance(
-            projecting: EntityPresentationSnapshot(
-                id: EntityID(index: 0, generation: 0),
-                position: transform.position,
-                rotation: transform.rotation,
-                scale: transform.scale,
-                meshID: .ball,
-                materialID: .warmDielectric
-            ),
+        let presentation = EntityPresentationSnapshot(
+            id: EntityID(index: 0, generation: 0),
+            position: transform.position,
+            rotation: transform.rotation,
+            scale: transform.scale,
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
+        return try RenderInstance(
+            projecting: presentation,
             viewMatrix: viewMatrix
         )
     }

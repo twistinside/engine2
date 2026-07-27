@@ -76,10 +76,11 @@ struct RealtimeAdvanceDriverIntegrationTests {
             simulationRuntime.latestPresentationSnapshot.camera ==
             simulationRuntime.world.camera
         )
+        let renderFrame = RenderFrame(
+            projecting: simulationRuntime.latestPresentationSnapshot
+        )
         #expect(
-            RenderFrame(
-                projecting: simulationRuntime.latestPresentationSnapshot
-            ).camera == simulationRuntime.world.camera
+            renderFrame.camera == simulationRuntime.world.camera
         )
         #expect(simulationRuntime.world.inputHistory.entries.first?.tokens == ["Mouse dx:+5 dy:+0"])
     }
@@ -185,13 +186,14 @@ struct RealtimeAdvanceDriverIntegrationTests {
         inputRuntime.stop()
 
         #expect(activeTickCompleted)
+        let expectedCameraPosition = SIMD3<Float>(
+            sinf(0.1) * 8,
+            0,
+            cosf(0.1) * 8
+        )
         #expect(
             simulationRuntime.world.camera.position.isApproximately(
-                SIMD3<Float>(
-                    sinf(0.1) * 8,
-                    0,
-                    cosf(0.1) * 8
-                )
+                expectedCameraPosition
             )
         )
         #expect(
@@ -265,7 +267,8 @@ private extension RealtimeAdvanceDriverIntegrationTests {
 
         func sleep(until deadline: SuspendingClock.Instant) async throws {
             try await withCheckedThrowingContinuation { continuation in
-                waiters.append(Waiter(continuation: continuation))
+                let waiter = Waiter(continuation: continuation)
+                waiters.append(waiter)
                 resumeSatisfiedCountWaiters()
             }
         }

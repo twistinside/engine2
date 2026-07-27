@@ -21,13 +21,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: viewpointID,
             artifactEncoder: CorrelatedArtifactEncoder()
         )
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 8, height: 6),
-                outputMode: .viewSpaceNormals,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 8,
+            height: 6,
+            outputMode: .viewSpaceNormals,
             encoding: .jpeg(quality: .maximum)
         )
 
@@ -49,13 +46,12 @@ struct RealtimeSnapshotCaptureConnectionTests {
         )
 
         #expect(renderRequest.presentationSnapshot == initialSnapshot)
-        #expect(
-            renderRequest.viewpoint == RenderViewpoint(
-                id: viewpointID,
-                revision: .zero,
-                camera: initialSnapshot.camera
-            )
+        let expectedViewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: .zero,
+            camera: initialSnapshot.camera
         )
+        #expect(renderRequest.viewpoint == expectedViewpoint)
         #expect(
             outcome == .completed(
                 sourceSnapshot: initialSnapshot,
@@ -81,22 +77,16 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: viewpointID,
             artifactEncoder: CorrelatedArtifactEncoder()
         )
-        let firstRequest = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let firstRequest = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
-        let secondRequest = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 8, height: 6),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let secondRequest = try captureRequest(
+            width: 8,
+            height: 6,
+            outputMode: .surface,
             encoding: .png
         )
 
@@ -132,20 +122,18 @@ struct RealtimeSnapshotCaptureConnectionTests {
         #expect(secondSelectedSnapshot == secondSnapshot)
         #expect(firstRenderRequest.presentationSnapshot == firstSnapshot)
         #expect(secondRenderRequest.presentationSnapshot == secondSnapshot)
-        #expect(
-            firstArtifact.viewpoint == RenderViewpoint(
-                id: viewpointID,
-                revision: .zero,
-                camera: firstSnapshot.camera
-            )
+        let expectedFirstViewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: .zero,
+            camera: firstSnapshot.camera
         )
-        #expect(
-            secondArtifact.viewpoint == RenderViewpoint(
-                id: viewpointID,
-                revision: .zero,
-                camera: secondSnapshot.camera
-            )
+        let expectedSecondViewpoint = RenderViewpoint(
+            id: viewpointID,
+            revision: .zero,
+            camera: secondSnapshot.camera
         )
+        #expect(firstArtifact.viewpoint == expectedFirstViewpoint)
+        #expect(secondArtifact.viewpoint == expectedSecondViewpoint)
         #expect(firstArtifact.sourceCursor == firstSnapshot.cursor)
         #expect(secondArtifact.sourceCursor == secondSnapshot.cursor)
         #expect(firstArtifact.encoding == firstRequest.encoding)
@@ -164,22 +152,16 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: CorrelatedArtifactEncoder()
         )
-        let firstRequest = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let firstRequest = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
-        let secondRequest = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 6, height: 6),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let secondRequest = try captureRequest(
+            width: 6,
+            height: 6,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
 
@@ -211,22 +193,16 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
-        let firstRequest = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let firstRequest = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
-        let secondRequest = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 6, height: 6),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let secondRequest = try captureRequest(
+            width: 6,
+            height: 6,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
 
@@ -269,13 +245,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: CorrelatedArtifactEncoder()
         )
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
 
@@ -302,13 +275,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: CorrelatedArtifactEncoder()
         )
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
 
@@ -340,13 +310,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
 
@@ -381,13 +348,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
     @Test
     func everyPreEncodingRenderTerminalPreservesTheSelectedSnapshot() async throws {
         let snapshot = snapshot(tick: 37, cameraX: 1)
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
         let rejection = OffscreenRenderRejection.runtimeBusy
@@ -470,13 +434,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .jpeg(quality: .observation)
         )
         let capture = Task {
@@ -507,13 +468,10 @@ struct RealtimeSnapshotCaptureConnectionTests {
             viewpointID: RenderViewpointID(),
             artifactEncoder: encoder
         )
-        let request = RealtimeSnapshotCaptureRequest(
-            renderRequestID: OffscreenRenderRequestID(),
-            renderSettings: OffscreenRenderSettings(
-                size: try RenderPixelSize(width: 4, height: 4),
-                outputMode: .surface,
-                exposure: .validation
-            ),
+        let request = try captureRequest(
+            width: 4,
+            height: 4,
+            outputMode: .surface,
             encoding: .png
         )
 
@@ -553,15 +511,20 @@ struct RealtimeSnapshotCaptureConnectionTests {
             revision: .zero,
             camera: sourceSnapshot.camera
         )
+        let imageBytes = Data(
+            repeating: 0xFF,
+            count: settings.size.bgra8ByteCount
+        )
+        let image = try RenderedBGRA8SRGBImage(
+            size: settings.size,
+            bytes: imageBytes
+        )
         let renderResult = OffscreenRenderResult(
             requestID: requestID,
             sourceCursor: sourceSnapshot.cursor,
             viewpoint: viewpoint,
             settings: settings,
-            image: try RenderedBGRA8SRGBImage(
-                size: settings.size,
-                bytes: Data(repeating: 0xFF, count: settings.size.bgra8ByteCount)
-            )
+            image: image
         )
         let artifact = Self.artifact(
             for: renderResult,
@@ -652,13 +615,31 @@ struct RealtimeSnapshotCaptureConnectionTests {
         ]
 
         for (artifactOutcome, expected) in mappings {
-            #expect(
-                RealtimeSnapshotCaptureOutcome(
-                    artifactOutcome: artifactOutcome,
-                    sourceSnapshot: sourceSnapshot
-                ) == expected
+            let outcome = RealtimeSnapshotCaptureOutcome(
+                artifactOutcome: artifactOutcome,
+                sourceSnapshot: sourceSnapshot
             )
+            #expect(outcome == expected)
         }
+    }
+
+    private func captureRequest(
+        width: Int,
+        height: Int,
+        outputMode: RenderOutputMode,
+        encoding: ImageArtifactEncoding
+    ) throws -> RealtimeSnapshotCaptureRequest {
+        let size = try RenderPixelSize(width: width, height: height)
+        let renderSettings = OffscreenRenderSettings(
+            size: size,
+            outputMode: outputMode,
+            exposure: .validation
+        )
+        return RealtimeSnapshotCaptureRequest(
+            renderRequestID: OffscreenRenderRequestID(),
+            renderSettings: renderSettings,
+            encoding: encoding
+        )
     }
 
     private func snapshot(
@@ -666,34 +647,38 @@ struct RealtimeSnapshotCaptureConnectionTests {
         tick: UInt64,
         cameraX: Float
     ) -> SimulationPresentationSnapshot {
-        SimulationPresentationSnapshot(
-            cursor: SimulationCursor(
-                sessionID: sessionID,
-                tick: SimulationTick(rawValue: tick)
-            ),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(cameraX, 0, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: .standardPerspective
-            ),
+        let cursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: SimulationTick(rawValue: tick)
+        )
+        let camera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(cameraX, 0, 8),
+            up: SIMD3<Float>(0, 1, 0),
+            projection: .standardPerspective
+        )
+        return SimulationPresentationSnapshot(
+            cursor: cursor,
+            camera: camera,
             entityPresentations: []
         )
     }
 
     private func renderResult(for request: OffscreenRenderRequest) throws -> OffscreenRenderResult {
-        OffscreenRenderResult(
+        let imageBytes = Data(
+            repeating: 255,
+            count: request.settings.size.bgra8ByteCount
+        )
+        let image = try RenderedBGRA8SRGBImage(
+            size: request.settings.size,
+            bytes: imageBytes
+        )
+        return OffscreenRenderResult(
             requestID: request.id,
             sourceCursor: request.presentationSnapshot.cursor,
             viewpoint: request.viewpoint,
             settings: request.settings,
-            image: try RenderedBGRA8SRGBImage(
-                size: request.settings.size,
-                bytes: Data(
-                    repeating: 255,
-                    count: request.settings.size.bgra8ByteCount
-                )
-            )
+            image: image
         )
     }
 

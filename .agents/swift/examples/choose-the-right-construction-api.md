@@ -28,11 +28,15 @@ not call them designated initializers.
 Keep a one-off combination at its composition site when it has no stable domain
 meaning. Do not add a named preset merely because the initializer is long.
 
-### Name Meaningful Nested Construction
+### Name Construction When the Name Adds Meaning
 
-A substantial constructed value remains a separate decision even when another
-object immediately owns it. Do not bury that decision inside a second
-multiline initializer:
+Initializer nesting is not itself a readability problem. Extract a constructed
+value when the local exposes a separate decision, names a role the surrounding
+syntax does not express, enables reuse or validation, or separates substantial
+construction from the operation that consumes it.
+
+A Runtime remains a separate ownership and debugging boundary even when an
+assembly immediately owns it:
 
 ```swift
 // Avoid: the Simulation Runtime disappears inside assembly punctuation.
@@ -59,9 +63,55 @@ return ManualAssembly(simulationRuntime: simulationRuntime)
 ```
 
 This exposes both construction boundaries and gives later validation,
-configuration, or debugging a natural seam. Keep tiny value projections, enum
-cases, and declarative builder or modifier values inline when extracting them
-would merely replace a clear label with a redundant local name.
+configuration, or debugging a natural seam. A local also helps when a
+substantial value would otherwise pass through an unlabeled argument of a
+mutating operation:
+
+```swift
+let entry = InputHistoryEntry(
+    id: nextEntryID,
+    frameIndex: frameIndex,
+    frameCount: 1,
+    tokens: tokens
+)
+entries.insert(entry, at: 0)
+```
+
+When construction is not a separate ownership, validation, reuse, or
+substantial decision, keep it inline if the surrounding syntax already provides
+the name. Direct assignment, initializer delegation, and enum case projection
+are often clearest in that form:
+
+```swift
+init() {
+    self.init(rawValue: UUID())
+}
+
+static let interactive = Self(
+    maximumStepsPerWake: SimulationStepCount(rawValue: 4),
+    backlogTreatment: .discardOverflow
+)
+
+return .rejected(OffscreenRenderRejection(error))
+```
+
+In these examples, `rawValue`, `maximumStepsPerWake`, and `rejected` already
+state each value's role. Locals with the same names would only repeat the labels
+and make the code harder to scan.
+
+Keep a tuple, collection, or builder together when its aggregate shape carries
+the meaning. Matrix columns can remain inside a `columns:` tuple even when
+their lanes are computed; splitting them into `xColumn`, `yColumn`, and
+`zColumn` may restate structure that is clearer in one place.
+
+Small literal-like values follow the same rule. A labeled position or color can
+contain `SIMD3<Float>(0, 0, 8)` directly. A local remains useful when it adds
+units or coordinate-space meaning, is reused, or supports validation. For
+example, `warmBaseColor` and `goldBaseColor` later in this article are named
+because each authored color is reused by several material descriptions.
+
+Line count and initializer syntax do not decide the form. Use the version that
+makes the construction's role and the consuming operation easiest to read.
 
 ### Let Swift Synthesize Plain Memberwise Construction
 
@@ -193,6 +243,17 @@ Sometimes a type has a complete value worth naming: `.zero`, `.identity`,
 `.one`, or `.everything`. This is not another initialization path. The member
 names a notable value that callers may deliberately select.
 
+Keep a small distinguished value as a direct stored constant. When its
+initializer already spells the concrete type, let the declaration infer that
+same type rather than mixing redundant type spellings:
+
+```swift
+nonisolated extension simd_quatf {
+    /// Rotation identity that leaves vectors unchanged.
+    static let identity = simd_quatf(real: 1, imag: .zero)
+}
+```
+
 `RenderAssetCatalog` supports caller-selected catalogs through its full
 initializer, but Basic Game Content also has one meaningful complete catalog:
 every model and material it declares.
@@ -205,46 +266,48 @@ struct RenderAssetCatalog {
     ///
     /// Callers may still construct a curated catalog with
     /// `init(models:materials:)`.
-    static let everything = Self(
-        models: [
-            .ball: ModelAssetReference(
-                resourceName: "Ball",
-                format: .usdz
-            )
-        ],
-        materials: [
-            .warmDielectricSmooth: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-                metallic: 0,
-                perceptualRoughness: 0.2
-            ),
-            .warmDielectric: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-                metallic: 0,
-                perceptualRoughness: 0.5
-            ),
-            .warmDielectricRough: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
-                metallic: 0,
-                perceptualRoughness: 0.8
-            ),
-            .goldMetalSmooth: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
-                metallic: 1,
-                perceptualRoughness: 0.2
-            ),
-            .goldMetal: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
-                metallic: 1,
-                perceptualRoughness: 0.35
-            ),
-            .goldMetalRough: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
-                metallic: 1,
-                perceptualRoughness: 0.8
-            )
-        ]
-    )
+    static let everything: Self = {
+        let warmBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
+        let goldBaseColor = SIMD3<Float>(1, 0.766, 0.336)
+
+        return Self(
+            models: [
+                .ball: ModelAssetReference(resourceName: "Ball", format: .usdz)
+            ],
+            materials: [
+                .warmDielectricSmooth: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.2
+                ),
+                .warmDielectric: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.5
+                ),
+                .warmDielectricRough: PBRMaterialDescription(
+                    baseColor: warmBaseColor,
+                    metallic: 0,
+                    perceptualRoughness: 0.8
+                ),
+                .goldMetalSmooth: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.2
+                ),
+                .goldMetal: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.35
+                ),
+                .goldMetalRough: PBRMaterialDescription(
+                    baseColor: goldBaseColor,
+                    metallic: 1,
+                    perceptualRoughness: 0.8
+                )
+            ]
+        )
+    }()
 }
 ```
 

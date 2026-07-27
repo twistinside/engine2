@@ -157,13 +157,14 @@ struct MetalRendererTests {
             renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: MetalResourceStore.defaultFrameCount
         )
+        let simulation = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: nil
+        )
         let renderer = try MetalRenderer(
             resources: resources,
-            presentationSource: SimulationRuntime(
-                worldBuilder: gameContent.worldBuilder,
-                configuration: gameContent.simulationConfiguration,
-                inputBaseline: nil
-            ),
+            presentationSource: simulation,
             outputMode: .surface
         )
 
@@ -376,15 +377,16 @@ struct MetalRendererTests {
                 instanceCount: FrameResources.maximumInstanceCount
             )
         )
+        let drawableSize = CGSize(width: 1_920, height: 1_080)
 
         frame.write(
             empty,
-            drawableSize: CGSize(width: 1_920, height: 1_080),
+            drawableSize: drawableSize,
             exposure: .validation
         )
         frame.write(
             maximum,
-            drawableSize: CGSize(width: 1_920, height: 1_080),
+            drawableSize: drawableSize,
             exposure: .validation
         )
 

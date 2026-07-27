@@ -76,12 +76,8 @@ actor AgentSessionCoordinator: PAgentSessionTarget {
 
         let response = await executeAcceptedRequest(request)
 
-        replayCache.retain(
-            AgentSessionReplayEntry(
-                request: request,
-                response: response
-            )
-        )
+        let replayEntry = AgentSessionReplayEntry(request: request, response: response)
+        replayCache.retain(replayEntry)
         activeRequest = nil
         resumeDrainWaiters()
         return .executed(response)

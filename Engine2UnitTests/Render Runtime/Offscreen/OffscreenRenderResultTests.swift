@@ -25,7 +25,7 @@ struct OffscreenRenderResultTests {
             revision: RenderViewpointRevision(rawValue: 23),
             camera: Camera(
                 position: SIMD3<Float>(7, 8, 9),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )

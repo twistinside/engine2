@@ -9,9 +9,10 @@ struct PPositionableTests {
             in: world
         )
         let expectedPosition = SIMD3<Float>(4, 5, 6)
+        let position = CPosition(position: expectedPosition)
 
         world.positionComponents.insert(
-            CPosition(position: expectedPosition),
+            position,
             for: entity.id
         )
 

@@ -18,7 +18,8 @@ struct SystemClock {
 
     /// Creates a production clock backed by the platform suspending clock.
     init() {
-        self.init(timeSource: { SuspendingClock().now })
+        let clock = SuspendingClock()
+        self.init(timeSource: { clock.now })
     }
 
     /// Creates a clock whose monotonic samples come from an injected source.

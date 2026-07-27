@@ -29,16 +29,13 @@ struct EngineTests {
 
         let cameraAfterInput = world.camera
         let expectedRadius: Float = 6.8
-        #expect(cameraAfterInput != initialCamera)
-        #expect(
-            cameraAfterInput.position.isApproximately(
-                SIMD3<Float>(
-                    sinf(0.4) * expectedRadius,
-                    0,
-                    cosf(0.4) * expectedRadius
-                )
-            )
+        let expectedPosition = SIMD3<Float>(
+            sinf(0.4) * expectedRadius,
+            0,
+            cosf(0.4) * expectedRadius
         )
+        #expect(cameraAfterInput != initialCamera)
+        #expect(cameraAfterInput.position.isApproximately(expectedPosition))
         #expect(cameraAfterInput.projection == initialCamera.projection)
         #expect(world.inputHistory.entries.first?.tokens == [
             "Mouse dx:+40 dy:+0",
@@ -64,11 +61,13 @@ struct EngineTests {
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             configuration: .basicGame
         )
+        let pointerMotionTotal = SIMD2<Float>(.nan, .infinity)
+        let scrollTotal = SIMD2<Float>(0, -.infinity)
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
             pointerPosition: .zero,
-            pointerMotionTotal: SIMD2<Float>(.nan, .infinity),
-            scrollTotal: SIMD2<Float>(0, -.infinity),
+            pointerMotionTotal: pointerMotionTotal,
+            scrollTotal: scrollTotal,
             pressedMouseButtons: [],
             pressedKeys: []
         )
@@ -98,8 +97,9 @@ struct EngineTests {
         )
         motion.accumulator.acceleration = SIMD3<Float>(2, 0, -2)
 
+        let initialPosition = CPosition(position: SIMD3<Float>(1, 2, 3))
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(1, 2, 3)),
+            initialPosition,
             for: entity
         )
         world.motionComponents.insert(motion, for: entity)
@@ -111,14 +111,8 @@ struct EngineTests {
 
         engine.step()
 
-        #expect(
-            world.motionComponents[entity]?.velocity ==
-            SIMD3<Float>(6, 4, 5.5)
-        )
-        #expect(
-            world.positionComponents[entity]?.position ==
-            SIMD3<Float>(4, 4, 5.75)
-        )
+        #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
+        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
@@ -173,9 +167,10 @@ struct EngineTests {
         )
         engine.step()
         let replacement = World()
+        let pointerPosition = SIMD2<Float>(8, 9)
         let baseline = InputSnapshot(
             revision: InputRevision(session: 2, sequence: 10),
-            pointerPosition: SIMD2<Float>(8, 9),
+            pointerPosition: pointerPosition,
             pointerMotionTotal: SIMD2<Float>(100, 0),
             scrollTotal: SIMD2<Float>(0, 40),
             pressedMouseButtons: [.right],
@@ -185,7 +180,7 @@ struct EngineTests {
         engine.replaceWorld(with: replacement, inputBaseline: baseline)
 
         #expect(engine.completedTick == .zero)
-        #expect(replacement.input.mouse.position == SIMD2<Float>(8, 9))
+        #expect(replacement.input.mouse.position == pointerPosition)
         #expect(replacement.input.mouse.buttons == [.right])
         #expect(replacement.input.mouse.delta == .zero)
         #expect(replacement.input.mouse.scrollDelta == .zero)
@@ -198,16 +193,15 @@ struct EngineTests {
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             configuration: .basicGame
         )
-        engine.step(
-            inputSnapshot: InputSnapshot(
-                revision: InputRevision(session: 1, sequence: 1),
-                pointerPosition: .zero,
-                pointerMotionTotal: SIMD2<Float>(100, 0),
-                scrollTotal: .zero,
-                pressedMouseButtons: [],
-                pressedKeys: []
-            )
+        let initialSnapshot = InputSnapshot(
+            revision: InputRevision(session: 1, sequence: 1),
+            pointerPosition: .zero,
+            pointerMotionTotal: SIMD2<Float>(100, 0),
+            scrollTotal: .zero,
+            pressedMouseButtons: [],
+            pressedKeys: []
         )
+        engine.step(inputSnapshot: initialSnapshot)
 
         let replacement = World()
         let replacementProjection = Camera.Projection.orthographic(
@@ -223,26 +217,22 @@ struct EngineTests {
         )
         engine.replaceWorld(with: replacement, inputBaseline: nil)
 
-        engine.step(
-            inputSnapshot: InputSnapshot(
-                revision: InputRevision(session: 2, sequence: 1),
-                pointerPosition: .zero,
-                pointerMotionTotal: SIMD2<Float>(10, 0),
-                scrollTotal: .zero,
-                pressedMouseButtons: [],
-                pressedKeys: []
-            )
+        let replacementSnapshot = InputSnapshot(
+            revision: InputRevision(session: 2, sequence: 1),
+            pointerPosition: .zero,
+            pointerMotionTotal: SIMD2<Float>(10, 0),
+            scrollTotal: .zero,
+            pressedMouseButtons: [],
+            pressedKeys: []
         )
+        engine.step(inputSnapshot: replacementSnapshot)
 
-        #expect(
-            replacement.camera.position.isApproximately(
-                SIMD3<Float>(
-                    sinf(0.1) * 12,
-                    3,
-                    cosf(0.1) * 12
-                )
-            )
+        let expectedPosition = SIMD3<Float>(
+            sinf(0.1) * 12,
+            3,
+            cosf(0.1) * 12
         )
+        #expect(replacement.camera.position.isApproximately(expectedPosition))
         #expect(replacement.camera.projection == replacementProjection)
     }
 
@@ -254,9 +244,11 @@ struct EngineTests {
             systems: [RecordingSystem(name: "foundation", recorder: recorder)]
         )
 
-        engine.addSystem(
-            RecordingSystem(name: "extension", recorder: recorder)
+        let extensionSystem = RecordingSystem(
+            name: "extension",
+            recorder: recorder
         )
+        engine.addSystem(extensionSystem)
         engine.step()
 
         #expect(recorder.entries == ["foundation", "extension"])

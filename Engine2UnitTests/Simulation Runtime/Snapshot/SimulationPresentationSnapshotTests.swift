@@ -12,44 +12,54 @@ struct SimulationPresentationSnapshotTests {
             angle: .pi / 3,
             axis: SIMD3<Float>(0, 1, 0)
         )
+        let cameraPosition = SIMD3<Float>(1, 2, 8)
         world.camera = Camera(
-            position: SIMD3<Float>(1, 2, 8),
-            rotation: Transform.identityRotation,
+            position: cameraPosition,
+            rotation: .identity,
             projection: .orthographic(
                 height: 10,
                 near: 0.1,
                 far: 100
             )
         )
+        let renderable = CRenderable(
+            meshID: .ball,
+            materialID: .warmDielectric
+        )
         world.renderableComponents.insert(
-            CRenderable(
-                meshID: .ball,
-                materialID: .warmDielectric
-            ),
+            renderable,
             for: renderableEntity
         )
+        let renderablePositionValue = SIMD3<Float>(3, 4, 5)
+        let renderablePosition = CPosition(position: renderablePositionValue)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(3, 4, 5)),
+            renderablePosition,
             for: renderableEntity
         )
+        let renderableRotation = CRotation(rotation: expectedRotation)
         world.rotationComponents.insert(
-            CRotation(rotation: expectedRotation),
+            renderableRotation,
             for: renderableEntity
         )
+        let renderableScaleValue = SIMD3<Float>(repeating: 2)
+        let renderableScale = CScale(scale: renderableScaleValue)
         world.scaleComponents.insert(
-            CScale(scale: SIMD3<Float>(repeating: 2)),
+            renderableScale,
             for: renderableEntity
         )
+        let nonRenderablePosition = CPosition(position: SIMD3<Float>(9, 9, 9))
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(9, 9, 9)),
+            nonRenderablePosition,
             for: nonRenderableEntity
         )
 
+        let snapshotTick = SimulationTick(rawValue: 12)
+        let snapshotCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: snapshotTick
+        )
         let snapshot = world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: sessionID,
-                tick: SimulationTick(rawValue: 12)
-            )
+            at: snapshotCursor
         )
 
         // Mutating authoritative state after publication must not mutate the
@@ -63,23 +73,24 @@ struct SimulationPresentationSnapshotTests {
         ) { renderable in
             renderable.materialID = .goldMetal
         }
+        let laterCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: SimulationTick(rawValue: 13)
+        )
         let laterSnapshot = world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: sessionID,
-                tick: SimulationTick(rawValue: 13)
-            )
+            at: laterCursor
         )
 
         #expect(didUpdateMaterial)
         #expect(snapshot.cursor.sessionID == sessionID)
-        #expect(snapshot.tick == SimulationTick(rawValue: 12))
-        #expect(snapshot.camera.position == SIMD3<Float>(1, 2, 8))
+        #expect(snapshot.tick == snapshotTick)
+        #expect(snapshot.camera.position == cameraPosition)
         #expect(snapshot.entityPresentations.map(\.id) == [renderableEntity])
 
         let entity = try #require(snapshot.entityPresentations.first)
-        #expect(entity.position == SIMD3<Float>(3, 4, 5))
+        #expect(entity.position == renderablePositionValue)
         #expect(entity.rotation?.vector == expectedRotation.vector)
-        #expect(entity.scale == SIMD3<Float>(repeating: 2))
+        #expect(entity.scale == renderableScaleValue)
         #expect(entity.meshID == .ball)
         #expect(entity.materialID == .warmDielectric)
 

@@ -80,7 +80,8 @@ struct RenderFrame: Equatable {
         var instances = [RenderInstance]()
         instances.reserveCapacity(snapshot.entityPresentations.count)
         for entity in snapshot.entityPresentations {
-            instances.append(try RenderInstance(projecting: entity, viewMatrix: viewMatrix))
+            let instance = try RenderInstance(projecting: entity, viewMatrix: viewMatrix)
+            instances.append(instance)
         }
 
         self.init(

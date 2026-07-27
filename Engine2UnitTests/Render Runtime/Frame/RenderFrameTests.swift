@@ -5,12 +5,15 @@ import Testing
 struct RenderFrameTests {
     @Test func projectionCreatesInstancesFromPublishedPresentationFacts() async throws {
         let world = World()
-        let cursor = cursor(at: SimulationTick(rawValue: 7))
+        let tick = SimulationTick(rawValue: 7)
+        let cursor = cursor(at: tick)
         let first = EntityID(index: 0, generation: 0)
         let second = EntityID(index: 1, generation: 0)
 
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: first)
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(-1, 3, 0)), for: second)
+        let firstPosition = SIMD3<Float>(2, -4, 0)
+        world.positionComponents.insert(CPosition(position: firstPosition), for: first)
+        let secondPosition = SIMD3<Float>(-1, 3, 0)
+        world.positionComponents.insert(CPosition(position: secondPosition), for: second)
         world.renderableComponents.insert(
             CRenderable(meshID: .ball, materialID: .warmDielectric),
             for: first
@@ -25,25 +28,24 @@ struct RenderFrameTests {
 
         #expect(frame.provenance == .simulation(sourceCursor: cursor))
         #expect(frame.sourceCursor == cursor)
-        #expect(frame.sourceTick == SimulationTick(rawValue: 7))
+        #expect(frame.sourceTick == tick)
         #expect(frame.viewpointID == nil)
         #expect(frame.viewpointRevision == nil)
         #expect(frame.instances.map(\.meshID) == [.ball, .ball])
         #expect(frame.instances.map(\.materialID) == [.warmDielectric, .goldMetal])
-        #expect(
-            frame.instances.map(\.transform) == [
-                Transform(
-                    position: SIMD3<Float>(2, -4, 0),
-                    rotation: Transform.identityRotation,
-                    scale: RenderInstance.defaultScale
-                ),
-                Transform(
-                    position: SIMD3<Float>(-1, 3, 0),
-                    rotation: Transform.identityRotation,
-                    scale: RenderInstance.defaultScale
-                )
-            ]
-        )
+        let expectedTransforms = [
+            Transform(
+                position: firstPosition,
+                rotation: .identity,
+                scale: RenderInstance.defaultScale
+            ),
+            Transform(
+                position: secondPosition,
+                rotation: .identity,
+                scale: RenderInstance.defaultScale
+            )
+        ]
+        #expect(frame.instances.map(\.transform) == expectedTransforms)
         for instance in frame.instances {
             #expect(
                 instance.modelViewMatrix
@@ -73,14 +75,13 @@ struct RenderFrameTests {
             snapshot.entityPresentations.first
         )
         let frameInstance = try #require(frame.instances.first)
-        let laterEntity = try #require(
-            world.presentationSnapshot(
-                at: SimulationCursor(
-                    sessionID: sessionID,
-                    tick: SimulationTick(rawValue: 1)
-                )
-            ).entityPresentations.first
+        let laterSnapshot = world.presentationSnapshot(
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: SimulationTick(rawValue: 1)
+            )
         )
+        let laterEntity = try #require(laterSnapshot.entityPresentations.first)
 
         #expect(didUpdateMaterial)
         #expect(snapshotEntity.materialID == .warmDielectric)
@@ -122,14 +123,15 @@ struct RenderFrameTests {
 
         world.camera = Camera(
             position: SIMD3<Float>(1, 2, 3),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .orthographic(
                 height: 12,
                 near: 0.1,
                 far: 100
             )
         )
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(3, 4, 5)), for: entity)
+        let position = SIMD3<Float>(3, 4, 5)
+        world.positionComponents.insert(CPosition(position: position), for: entity)
         world.renderableComponents.insert(
             CRenderable(meshID: .ball, materialID: .warmDielectric),
             for: entity
@@ -147,13 +149,12 @@ struct RenderFrameTests {
         #expect(frame.instances.count == 1)
         #expect(instance.meshID == .ball)
         #expect(instance.materialID == .warmDielectric)
-        #expect(
-            instance.transform == Transform(
-                position: SIMD3<Float>(3, 4, 5),
-                rotation: rotation,
-                scale: scale
-            )
+        let expectedTransform = Transform(
+            position: position,
+            rotation: rotation,
+            scale: scale
         )
+        #expect(instance.transform == expectedTransform)
         #expect(
             instance.modelViewMatrix
                 == frame.camera.viewMatrix * instance.transform.matrix
@@ -179,7 +180,7 @@ struct RenderFrameTests {
             revision: RenderViewpointRevision(rawValue: 2),
             camera: Camera(
                 position: SIMD3<Float>(0, 0, 6),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )
@@ -188,7 +189,7 @@ struct RenderFrameTests {
             revision: RenderViewpointRevision(rawValue: 9),
             camera: Camera(
                 position: SIMD3<Float>(6, 2, 0),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )
@@ -269,7 +270,8 @@ struct RenderFrameTests {
 
     @Test func projectionProducesNoInstancesForAnInvalidCameraTransform() {
         let world = World()
-        let cursor = cursor(at: SimulationTick(rawValue: 3))
+        let tick = SimulationTick(rawValue: 3)
+        let cursor = cursor(at: tick)
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(CPosition(position: .zero), for: entity)
         world.renderableComponents.insert(
@@ -282,7 +284,7 @@ struct RenderFrameTests {
         let frame = RenderFrame(projecting: snapshot)
 
         #expect(frame.sourceCursor == cursor)
-        #expect(frame.sourceTick == SimulationTick(rawValue: 3))
+        #expect(frame.sourceTick == tick)
         #expect(frame.camera == snapshot.camera)
         #expect(frame.instances.isEmpty)
     }
@@ -310,8 +312,9 @@ struct RenderFrameTests {
         let world = World()
         let cursor = cursor(at: SimulationTick(rawValue: 13))
         let entity = EntityID(index: 5, generation: 1)
+        let position = SIMD3<Float>(1, 2, 3)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(1, 2, 3)),
+            CPosition(position: position),
             for: entity
         )
         world.renderableComponents.insert(
@@ -324,7 +327,7 @@ struct RenderFrameTests {
             revision: RenderViewpointRevision(rawValue: 6),
             camera: Camera(
                 position: SIMD3<Float>(0, 0, 10),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )
@@ -342,13 +345,12 @@ struct RenderFrameTests {
         #expect(exact.instances.count == 1)
         #expect(instance.meshID == .ball)
         #expect(instance.materialID == .goldMetal)
-        #expect(
-            instance.transform == Transform(
-                position: SIMD3<Float>(1, 2, 3),
-                rotation: Transform.identityRotation,
-                scale: RenderInstance.defaultScale
-            )
+        let expectedTransform = Transform(
+            position: position,
+            rotation: .identity,
+            scale: RenderInstance.defaultScale
         )
+        #expect(instance.transform == expectedTransform)
         #expect(
             instance.modelViewMatrix
                 == viewpoint.camera.viewMatrix * instance.transform.matrix
@@ -432,9 +434,7 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 29, generation: 5)
         world.positionComponents.insert(
-            CPosition(
-                position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)
-            ),
+            CPosition(position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)),
             for: entity
         )
         world.renderableComponents.insert(
@@ -445,7 +445,7 @@ struct RenderFrameTests {
         let viewpoint = viewpoint(
             camera: Camera(
                 position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )
@@ -466,9 +466,7 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(
-            CPosition(
-                position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)
-            ),
+            CPosition(position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)),
             for: entity
         )
         world.renderableComponents.insert(
@@ -477,7 +475,7 @@ struct RenderFrameTests {
         )
         world.camera = Camera(
             position: SIMD3<Float>(-.greatestFiniteMagnitude, 0, 0),
-            rotation: Transform.identityRotation,
+            rotation: .identity,
             projection: .standardPerspective
         )
 

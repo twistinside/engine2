@@ -27,13 +27,12 @@ struct ManualConfigurationTests {
         await Task.yield()
         #expect(assembly.simulationRuntime.currentCursor == initialCursor)
 
-        let outcome = await assembly.advanceTarget.advance(
-            SimulationAdvanceRequest(
-                expectedCursor: initialCursor,
-                stepCount: SimulationStepCount(rawValue: 4),
-                inputAssignment: .none
-            )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: initialCursor,
+            stepCount: SimulationStepCount(rawValue: 4),
+            inputAssignment: .none
         )
+        let outcome = await assembly.advanceTarget.advance(request)
         guard case let .completed(result) = outcome else {
             Issue.record("Expected a completed manual advance")
             return
@@ -57,13 +56,12 @@ struct ManualConfigurationTests {
         let initialCursor = assembly.simulationRuntime.currentCursor
         let stepCount = SimulationStepCount(rawValue: 10_000)
 
-        let outcome = await assembly.advanceTarget.advance(
-            SimulationAdvanceRequest(
-                expectedCursor: initialCursor,
-                stepCount: stepCount,
-                inputAssignment: .none
-            )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: initialCursor,
+            stepCount: stepCount,
+            inputAssignment: .none
         )
+        let outcome = await assembly.advanceTarget.advance(request)
         guard case let .completed(result) = outcome else {
             Issue.record("Expected the large manual advance to complete")
             return

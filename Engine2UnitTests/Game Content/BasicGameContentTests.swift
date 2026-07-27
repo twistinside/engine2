@@ -30,46 +30,47 @@ struct BasicGameContentTests {
     }
 
     @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
-        #expect(
-            RenderAssetCatalog.everything.models == [
-                .ball: ModelAssetReference(
-                    resourceName: "Ball",
-                    format: .usdz
-                )
-            ]
-        )
+        let expectedModels: [MeshID: ModelAssetReference] = [
+            .ball: ModelAssetReference(
+                resourceName: "Ball",
+                format: .usdz
+            )
+        ]
+        #expect(RenderAssetCatalog.everything.models == expectedModels)
     }
 
     @Test func suppliesExactAuthoredMaterialValidationMatrix() throws {
         let catalog = RenderAssetCatalog.everything
+        let warmDielectricBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
+        let goldMetalBaseColor = SIMD3<Float>(1, 0.766, 0.336)
         let expectedMaterials: [MaterialID: PBRMaterialDescription] = [
             .warmDielectricSmooth: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+                baseColor: warmDielectricBaseColor,
                 metallic: 0,
                 perceptualRoughness: 0.2
             ),
             .warmDielectric: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+                baseColor: warmDielectricBaseColor,
                 metallic: 0,
                 perceptualRoughness: 0.5
             ),
             .warmDielectricRough: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
+                baseColor: warmDielectricBaseColor,
                 metallic: 0,
                 perceptualRoughness: 0.8
             ),
             .goldMetalSmooth: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
+                baseColor: goldMetalBaseColor,
                 metallic: 1,
                 perceptualRoughness: 0.2
             ),
             .goldMetal: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
+                baseColor: goldMetalBaseColor,
                 metallic: 1,
                 perceptualRoughness: 0.35
             ),
             .goldMetalRough: PBRMaterialDescription(
-                baseColor: SIMD3<Float>(1, 0.766, 0.336),
+                baseColor: goldMetalBaseColor,
                 metallic: 1,
                 perceptualRoughness: 0.8
             )

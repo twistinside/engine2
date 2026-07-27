@@ -18,7 +18,7 @@ struct MetalDepthRenderingTests {
             .standard,
             Camera(
                 position: SIMD3<Float>(0, 0, 8),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .orthographic(
                     height: 8,
                     near: 1,
@@ -134,18 +134,18 @@ private func renderCenterPixel(
     }
     residencySet.commit()
 
-    let transforms = [
-        Transform(
-            position: SIMD3<Float>(0, 0, 0),
-            rotation: Transform.identityRotation,
-            scale: SIMD3<Float>(4, 4, 1)
-        ),
-        Transform(
-            position: SIMD3<Float>(0, 0, -2),
-            rotation: Transform.identityRotation,
-            scale: SIMD3<Float>(4, 4, 1)
-        )
-    ]
+    let sharedScale = SIMD3<Float>(4, 4, 1)
+    let nearTransform = Transform(
+        position: SIMD3<Float>(0, 0, 0),
+        rotation: .identity,
+        scale: sharedScale
+    )
+    let farTransform = Transform(
+        position: SIMD3<Float>(0, 0, -2),
+        rotation: .identity,
+        scale: sharedScale
+    )
+    let transforms = [nearTransform, farTransform]
     let frame = try #require(resources.frames.first)
     frame.commandAllocator.reset()
     let preparedFrame = MetalPreparedFrame(
@@ -215,9 +215,12 @@ private func renderCenterPixel(
             vertexBuffers[instanceIndex].gpuAddress,
             index: 0
         )
+        let instanceOffset = UInt64(
+            instanceIndex * MemoryLayout<GPUInstance>.stride
+        )
+        let instanceAddress = frame.instanceBuffer.gpuAddress + instanceOffset
         argumentTable.setAddress(
-            frame.instanceBuffer.gpuAddress
-                + UInt64(instanceIndex * MemoryLayout<GPUInstance>.stride),
+            instanceAddress,
             index: 1
         )
         encoder.setArgumentTable(argumentTable, stages: .vertex)
@@ -306,9 +309,9 @@ private func expectLinearRGBA(_ actual: SIMD4<Float>, approximately expected: SI
     for componentIndex in 0..<4 {
         let actualHalf = Float16(actual[componentIndex])
         let expectedHalf = Float16(expected[componentIndex])
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
 }

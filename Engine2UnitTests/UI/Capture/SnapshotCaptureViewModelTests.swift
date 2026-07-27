@@ -383,34 +383,38 @@ struct SnapshotCaptureViewModelTests {
         snapshot: SimulationPresentationSnapshot,
         artifact: RenderedImageArtifact
     ) {
+        let cursor = SimulationCursor(
+            sessionID: SimulationSessionID(),
+            tick: SimulationTick(rawValue: tick)
+        )
+        let camera = Camera.lookingAt(
+            .zero,
+            from: SIMD3<Float>(0, 0, 8),
+            up: SIMD3<Float>(0, 1, 0),
+            projection: .standardPerspective
+        )
         let snapshot = SimulationPresentationSnapshot(
-            cursor: SimulationCursor(
-                sessionID: SimulationSessionID(),
-                tick: SimulationTick(rawValue: tick)
-            ),
-            camera: Camera.lookingAt(
-                .zero,
-                from: SIMD3<Float>(0, 0, 8),
-                up: SIMD3<Float>(0, 1, 0),
-                projection: .standardPerspective
-            ),
+            cursor: cursor,
+            camera: camera,
             entityPresentations: []
+        )
+        let viewpoint = RenderViewpoint(
+            id: RenderViewpointID(),
+            revision: .zero,
+            camera: snapshot.camera
+        )
+        let renderSettings = OffscreenRenderSettings(
+            size: size,
+            outputMode: .surface,
+            exposure: .validation
         )
         let artifact = RenderedImageArtifact(
             encoding: .jpeg(quality: .maximum),
             encodedData: Data([0xFF, 0xD8, 0xFF, 0xD9]),
             sourceRequestID: OffscreenRenderRequestID(),
             sourceCursor: snapshot.cursor,
-            viewpoint: RenderViewpoint(
-                id: RenderViewpointID(),
-                revision: .zero,
-                camera: snapshot.camera
-            ),
-            renderSettings: OffscreenRenderSettings(
-                size: size,
-                outputMode: .surface,
-                exposure: .validation
-            )
+            viewpoint: viewpoint,
+            renderSettings: renderSettings
         )
         return (snapshot, artifact)
     }
@@ -419,15 +423,16 @@ struct SnapshotCaptureViewModelTests {
         artifact: RenderedImageArtifact,
         size: RenderPixelSize
     ) throws -> OffscreenRenderResult {
-        OffscreenRenderResult(
+        let image = try RenderedBGRA8SRGBImage(
+            size: size,
+            bytes: Data(repeating: 0xFF, count: size.bgra8ByteCount)
+        )
+        return OffscreenRenderResult(
             requestID: artifact.sourceRequestID,
             sourceCursor: artifact.sourceCursor,
             viewpoint: artifact.viewpoint,
             settings: artifact.renderSettings,
-            image: try RenderedBGRA8SRGBImage(
-                size: size,
-                bytes: Data(repeating: 0xFF, count: size.bgra8ByteCount)
-            )
+            image: image
         )
     }
 }

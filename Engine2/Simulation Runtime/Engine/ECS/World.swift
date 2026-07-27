@@ -75,10 +75,8 @@ class World {
         // PPositionable
         precondition(state.position == nil || entity is PPositionable, "Initial state.position requires PPositionable conformance")
         if entity is PPositionable {
-            positionComponents.insert(
-                CPosition(position: state.position ?? .zero),
-                for: entity.id
-            )
+            let position = CPosition(position: state.position ?? .zero)
+            positionComponents.insert(position, for: entity.id)
         }
 
         // PMovable
@@ -91,23 +89,19 @@ class World {
             "Initial movement state requires PMovable conformance"
         )
         if entity is PMovable {
-            motionComponents.insert(
-                CMotion(
-                    velocity: state.velocity ?? .zero,
-                    accelerationIntent: state.accelerationIntent ?? .idle,
-                    impulse: state.impulse ?? .zero
-                ),
-                for: entity.id
+            let motion = CMotion(
+                velocity: state.velocity ?? .zero,
+                accelerationIntent: state.accelerationIntent ?? .idle,
+                impulse: state.impulse ?? .zero
             )
+            motionComponents.insert(motion, for: entity.id)
         }
 
         // POrientable
         precondition(state.rotation == nil || entity is POrientable, "Initial state.rotation requires POrientable conformance")
         if entity is POrientable {
-            rotationComponents.insert(
-                state.rotation.map(CRotation.init(rotation:)) ?? .identity,
-                for: entity.id
-            )
+            let rotation = state.rotation.map { CRotation(rotation: $0) } ?? .identity
+            rotationComponents.insert(rotation, for: entity.id)
         }
 
         // PRotatable
@@ -116,48 +110,41 @@ class World {
             "Initial angular state requires PRotatable conformance"
         )
         if entity is PRotatable {
-            angularVelocityComponents.insert(
-                CAngularVelocity(angularVelocity: state.angularVelocity ?? .zero),
-                for: entity.id
+            let angularVelocity = CAngularVelocity(
+                angularVelocity: state.angularVelocity ?? .zero
             )
-            angularMotionAccumulatorComponents.insert(
-                CAngularMotionAccumulator(
-                    angularAcceleration: state.angularAcceleration ?? .zero,
-                    angularImpulse: state.angularImpulse ?? .zero
-                ),
-                for: entity.id
+            angularVelocityComponents.insert(angularVelocity, for: entity.id)
+
+            let angularMotionAccumulator = CAngularMotionAccumulator(
+                angularAcceleration: state.angularAcceleration ?? .zero,
+                angularImpulse: state.angularImpulse ?? .zero
             )
+            angularMotionAccumulatorComponents.insert(angularMotionAccumulator, for: entity.id)
         }
 
         // PScalable
         precondition(state.scale == nil || entity is PScalable, "Initial state.scale requires PScalable conformance")
         if entity is PScalable {
-            scaleComponents.insert(
-                CScale(scale: state.scale ?? SIMD3<Float>(repeating: 1)),
-                for: entity.id
-            )
+            let scale = CScale(scale: state.scale ?? SIMD3<Float>(repeating: 1))
+            scaleComponents.insert(scale, for: entity.id)
         }
 
         // PRenderable
         precondition(renderableState == nil || entity is PRenderable, "Renderable initial state requires PRenderable conformance")
         precondition(!(entity is PRenderable) || renderableState != nil, "PRenderable conformance requires renderable initial state")
         if let renderableState {
-            renderableComponents.insert(
-                CRenderable(
-                    meshID: renderableState.meshID,
-                    materialID: renderableState.materialID
-                ),
-                for: entity.id
+            let renderable = CRenderable(
+                meshID: renderableState.meshID,
+                materialID: renderableState.materialID
             )
+            renderableComponents.insert(renderable, for: entity.id)
         }
 
         // PSelectable
         precondition(state.selectionState == nil || entity is PSelectable, "Initial state.selectionState requires PSelectable conformance")
         if entity is PSelectable {
-            selectableComponents.insert(
-                CSelectable(selectionState: state.selectionState ?? .unselected),
-                for: entity.id
-            )
+            let selectable = CSelectable(selectionState: state.selectionState ?? .unselected)
+            selectableComponents.insert(selectable, for: entity.id)
         }
 
         return entity.id

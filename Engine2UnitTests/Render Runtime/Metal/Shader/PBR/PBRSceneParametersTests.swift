@@ -52,14 +52,14 @@ struct PBRSceneParametersTests {
         let first = PBRSceneParameters(
             camera: Camera(
                 position: SIMD3<Float>(0, 0, 8),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )
         let translated = PBRSceneParameters(
             camera: Camera(
                 position: SIMD3<Float>(37, -12, 4),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )

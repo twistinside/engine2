@@ -20,34 +20,30 @@ struct TransformTests {
 
     @Test func normalTransformSupportRejectsDegenerateOrNonfiniteInputs() {
         #expect(Transform.identity.supportsNormalTransform)
-        #expect(
-            Transform(
-                position: .zero,
-                rotation: Transform.identityRotation,
-                scale: SIMD3<Float>(1, 0, 1)
-            ).supportsNormalTransform == false
+        let degenerate = Transform(
+            position: .zero,
+            rotation: .identity,
+            scale: SIMD3<Float>(1, 0, 1)
         )
-        #expect(
-            Transform(
-                position: .zero,
-                rotation: Transform.identityRotation,
-                scale: SIMD3<Float>(Float.leastNonzeroMagnitude, 1, 1)
-            ).supportsNormalTransform == false
+        let subnormal = Transform(
+            position: .zero,
+            rotation: .identity,
+            scale: SIMD3<Float>(Float.leastNonzeroMagnitude, 1, 1)
         )
-        #expect(
-            Transform(
-                position: SIMD3<Float>(.infinity, 0, 0),
-                rotation: Transform.identityRotation,
-                scale: SIMD3<Float>(repeating: 1)
-            ).supportsNormalTransform == false
+        let nonfinite = Transform(
+            position: SIMD3<Float>(.infinity, 0, 0),
+            rotation: .identity,
+            scale: SIMD3<Float>(repeating: 1)
         )
-        #expect(
-            Transform(
-                position: .zero,
-                rotation: simd_quatf(vector: .zero),
-                scale: SIMD3<Float>(repeating: 1)
-            ).supportsNormalTransform == false
+        let invalidOrientation = Transform(
+            position: .zero,
+            rotation: simd_quatf(vector: .zero),
+            scale: SIMD3<Float>(repeating: 1)
         )
+        #expect(degenerate.supportsNormalTransform == false)
+        #expect(subnormal.supportsNormalTransform == false)
+        #expect(nonfinite.supportsNormalTransform == false)
+        #expect(invalidOrientation.supportsNormalTransform == false)
     }
 
     @Test func identityTransformLeavesLocalPositionsUnchanged() {
