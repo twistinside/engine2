@@ -28,12 +28,11 @@ struct PBRProofParametersTests {
     }
 
     @Test func initializerNormalizesDirectionsAndPreservesSemanticFactors() {
-        let worldToView = simd_float3x3(
-            simd_quatf(
-                angle: .pi / 2,
-                axis: SIMD3<Float>(0, 1, 0)
-            )
+        let rotation = simd_quatf(
+            angle: .pi / 2,
+            axis: SIMD3<Float>(0, 1, 0)
         )
+        let worldToView = simd_float3x3(rotation)
         let parameters = PBRProofParameters(
             baseColor: SIMD3<Float>(0.2, 0.4, 0.8),
             metallic: 0.75,

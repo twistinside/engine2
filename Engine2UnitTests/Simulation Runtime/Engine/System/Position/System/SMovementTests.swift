@@ -11,7 +11,8 @@ struct SMovementTests {
         )
         motion.accumulator.acceleration = SIMD3<Float>(2, 0, -2)
 
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(1, 2, 3)), for: entity)
+        let initialPosition = CPosition(position: SIMD3<Float>(1, 2, 3))
+        world.positionComponents.insert(initialPosition, for: entity)
         world.motionComponents.insert(motion, for: entity)
 
         var system = SMovement()

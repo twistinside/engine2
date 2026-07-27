@@ -104,14 +104,13 @@ struct MetalResourceStoreTests {
 
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let warmDielectric = try #require(
+            BasicGameContent().renderAssetCatalog.materials[.warmDielectric]
+        )
         let incompleteCatalog = RenderAssetCatalog(
             models: [:],
             materials: [
-                .warmDielectric: try #require(
-                    BasicGameContent().renderAssetCatalog.materials[
-                        .warmDielectric
-                    ]
-                )
+                .warmDielectric: warmDielectric
             ]
         )
 

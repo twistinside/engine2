@@ -34,15 +34,13 @@ struct InputHistory {
             return
         }
 
-        entries.insert(
-            InputHistoryEntry(
-                id: nextEntryID,
-                frameIndex: frameIndex,
-                frameCount: 1,
-                tokens: tokens
-            ),
-            at: 0
+        let entry = InputHistoryEntry(
+            id: nextEntryID,
+            frameIndex: frameIndex,
+            frameCount: 1,
+            tokens: tokens
         )
+        entries.insert(entry, at: 0)
         nextEntryID += 1
 
         if entries.count > maximumEntryCount {

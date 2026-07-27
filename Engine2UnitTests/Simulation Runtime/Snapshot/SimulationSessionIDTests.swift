@@ -4,7 +4,10 @@ import Testing
 
 struct SimulationSessionIDTests {
     @Test func defaultInitializationCreatesOpaqueUniqueIdentities() {
-        #expect(SimulationSessionID() != SimulationSessionID())
+        let first = SimulationSessionID()
+        let second = SimulationSessionID()
+
+        #expect(first != second)
     }
 
     @Test func rawIdentitySupportsDeterministicRestorationAndCoding() throws {

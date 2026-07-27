@@ -21,10 +21,12 @@ When working in Swift:
   string, declaration, method signature, enum case, pattern, or call would make it harder to scan—especially when one
   readable line would become three or four. Break lines for semantic grouping, not merely to satisfy a counter.
 
-- Bind a substantial multiline construction to a role-named local before passing it into another initializer or
-  operation. This keeps each construction decision independently readable and avoids deep punctuation-driven nesting.
-  Keep tiny value projections, enum cases, and declarative builder or modifier values inline when a local name would add
-  no meaning.
+- Extract a constructed value when the local adds a nonredundant role, exposes validation or reuse, or separates a
+  substantial construction from the operation that consumes it. Otherwise, keep construction inline when an argument,
+  property, or enum case label already states the role, direct assignment or initializer delegation is clearer, or a
+  tuple, collection, or builder should read as one aggregate. A label does not erase a separate ownership, validation,
+  reuse, or substantial construction decision. Do not add a local that merely repeats nearby syntax. Apply the same
+  judgment to `SIMD` values and small domain wrappers; initializer syntax alone does not require extraction.
 
 - Use Swift's synthesized initializers when they express the intended construction API. Do not write a structure
   initializer that only assigns same-named parameters to stored properties. Keep an explicit initializer when it

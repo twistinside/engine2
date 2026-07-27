@@ -9,15 +9,16 @@ struct SimulationAdvanceOutcomeTests {
         )
         let initialCursor = SimulationCursor(sessionID: sessionID, tick: .zero)
         let finalCursor = initialCursor.advanced()
+        let finalPresentationSnapshot = SimulationPresentationSnapshot(
+            cursor: finalCursor,
+            camera: .standard,
+            entityPresentations: []
+        )
         let result = SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: finalCursor,
             completedStepCount: SimulationCompletedStepCount(rawValue: 1),
-            finalPresentationSnapshot: SimulationPresentationSnapshot(
-                cursor: finalCursor,
-                camera: .standard,
-                entityPresentations: []
-            )
+            finalPresentationSnapshot: finalPresentationSnapshot
         )
         let rejection = SimulationAdvanceRejection.cursorMismatch(
             expected: initialCursor,

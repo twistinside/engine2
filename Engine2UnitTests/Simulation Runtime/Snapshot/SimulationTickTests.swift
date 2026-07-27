@@ -18,12 +18,14 @@ struct SimulationTickTests {
             SimulationTick(rawValue: 1)
         ]
 
-        #expect(values.sorted() == [
-            .zero,
-            SimulationTick(rawValue: 1),
-            SimulationTick(rawValue: .max - 1),
-            SimulationTick(rawValue: .max)
-        ])
+        #expect(
+            values.sorted() == [
+                SimulationTick.zero,
+                SimulationTick(rawValue: 1),
+                SimulationTick(rawValue: .max - 1),
+                SimulationTick(rawValue: .max)
+            ]
+        )
         requireRawRepresentable(SimulationTick.zero)
     }
 

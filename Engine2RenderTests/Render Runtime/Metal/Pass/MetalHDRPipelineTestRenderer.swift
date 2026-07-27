@@ -17,7 +17,7 @@ final class MetalHDRPipelineTestRenderer {
 
     private static let camera = Camera(
         position: SIMD3<Float>(0, 0, 1),
-        rotation: Transform.identityRotation,
+        rotation: .identity,
         projection: .orthographic(
             height: 2,
             near: 0.1,
@@ -225,7 +225,7 @@ final class MetalHDRPipelineTestRenderer {
                         EntityPresentationSnapshot(
                             id: EntityID(index: index, generation: 0),
                             position: .zero,
-                            rotation: Transform.identityRotation,
+                            rotation: .identity,
                             scale: SIMD3<Float>(repeating: 1),
                             meshID: .ball,
                             materialID: materialID
@@ -420,22 +420,20 @@ final class MetalHDRPipelineTestRenderer {
                 + availableWidth * (drawIndex + 1) / drawCount
             let regionWidth = endX - startX
 
-            scissorRects.append(
-                MTLScissorRect(
-                    x: startX,
-                    y: 0,
-                    width: regionWidth,
-                    height: Self.height
-                )
+            let scissorRect = MTLScissorRect(
+                x: startX,
+                y: 0,
+                width: regionWidth,
+                height: Self.height
             )
-            sampleRegions.append(
-                MTLRegionMake2D(
-                    startX + regionWidth / 2,
-                    Self.height / 2,
-                    1,
-                    1
-                )
+            scissorRects.append(scissorRect)
+            let sampleRegion = MTLRegionMake2D(
+                startX + regionWidth / 2,
+                Self.height / 2,
+                1,
+                1
             )
+            sampleRegions.append(sampleRegion)
         }
 
         return (scissorRects, sampleRegions)

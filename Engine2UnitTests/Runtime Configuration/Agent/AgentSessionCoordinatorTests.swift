@@ -400,21 +400,17 @@ struct AgentSessionCoordinatorTests {
             from: await cachedCoordinator.capture(request)
         )
 
-        #expect(
-            await cachedCoordinator.capture(changed) == .rejected(
-                AgentSessionRequestRejection(
-                    reason: .requestConflict(request.id),
-                    knownCursor: fixture.initialCursor
-                )
-            )
+        let cachedRejection = AgentSessionRequestRejection(
+            reason: .requestConflict(request.id),
+            knownCursor: fixture.initialCursor
         )
         #expect(
-            await cachedCoordinator.capture(changedEncoding) == .rejected(
-                AgentSessionRequestRejection(
-                    reason: .requestConflict(request.id),
-                    knownCursor: fixture.initialCursor
-                )
-            )
+            await cachedCoordinator.capture(changed)
+                == .rejected(cachedRejection)
+        )
+        #expect(
+            await cachedCoordinator.capture(changedEncoding)
+                == .rejected(cachedRejection)
         )
         #expect(await cachedTarget.requestCount() == 1)
 
@@ -428,21 +424,17 @@ struct AgentSessionCoordinatorTests {
         }
         await inFlightTarget.waitForRequestCount(1)
 
-        #expect(
-            await inFlightCoordinator.capture(changed) == .rejected(
-                AgentSessionRequestRejection(
-                    reason: .requestConflict(request.id),
-                    knownCursor: fixture.initialCursor
-                )
-            )
+        let inFlightRejection = AgentSessionRequestRejection(
+            reason: .requestConflict(request.id),
+            knownCursor: fixture.initialCursor
         )
         #expect(
-            await inFlightCoordinator.capture(changedEncoding) == .rejected(
-                AgentSessionRequestRejection(
-                    reason: .requestConflict(request.id),
-                    knownCursor: fixture.initialCursor
-                )
-            )
+            await inFlightCoordinator.capture(changed)
+                == .rejected(inFlightRejection)
+        )
+        #expect(
+            await inFlightCoordinator.capture(changedEncoding)
+                == .rejected(inFlightRejection)
         )
         #expect(await inFlightTarget.requestCount() == 1)
 
@@ -546,14 +538,15 @@ struct AgentSessionCoordinatorTests {
     @Test func nonreflexivePayloadPreservesIdentityStatusAndFirstSequence() async throws {
         let fixture = try makeFixture()
         let validRequest = fixture.request(sequence: 0)
+        let invalidCamera = Camera(
+            position: SIMD3<Float>(.nan, 3, 8),
+            rotation: .identity,
+            projection: .standardPerspective
+        )
         let invalidViewpoint = RenderViewpoint(
             id: validRequest.viewpoint.id,
             revision: validRequest.viewpoint.revision,
-            camera: Camera(
-                position: SIMD3<Float>(.nan, 3, 8),
-                rotation: Transform.identityRotation,
-                projection: .standardPerspective
-            )
+            camera: invalidCamera
         )
         let invalidRequest = AgentCaptureRequest(
             id: validRequest.id,
@@ -1070,7 +1063,6 @@ struct AgentSessionCoordinatorTests {
             encodedBytes: Data([0x89, 0x50, 0x4E, 0x47]),
             encoding: .png
         )
-        let wrongRenderRequestID = OffscreenRenderRequestID()
         let postAdvanceOutcomes: [OfflineCaptureOutcome] = [
             completed,
             .advanceResultMismatch(
@@ -1094,7 +1086,7 @@ struct AgentSessionCoordinatorTests {
             .renderCancellationRequestIDMismatch(
                 advanceResult: advance,
                 expectedRequestID: request.renderRequestID,
-                actualRequestID: wrongRenderRequestID
+                actualRequestID: OffscreenRenderRequestID()
             ),
             .renderCancelledAfterSubmission(
                 advanceResult: advance,
@@ -1217,12 +1209,11 @@ struct AgentSessionCoordinatorTests {
             request: newRequest,
             activeRequestID: activeRequest.id
         )
-        #expect(
-            closedRejection == AgentSessionRequestRejection(
-                reason: .sessionClosed,
-                knownCursor: fixture.initialCursor
-            )
+        let expectedClosedRejection = AgentSessionRequestRejection(
+            reason: .sessionClosed,
+            knownCursor: fixture.initialCursor
         )
+        #expect(closedRejection == expectedClosedRejection)
         let drainedBeforeResume = await drainCompletion.isComplete()
         #expect(!drainedBeforeResume)
         #expect(
@@ -1463,7 +1454,7 @@ struct AgentSessionCoordinatorTests {
             revision: RenderViewpointRevision(rawValue: 4),
             camera: Camera(
                 position: SIMD3<Float>(2, 3, 8),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )
@@ -1622,15 +1613,16 @@ struct AgentSessionCoordinatorTests {
                 repeating: 0x7F,
                 count: request.renderSettings.size.bgra8ByteCount
             )
+            let image = try RenderedBGRA8SRGBImage(
+                size: request.renderSettings.size,
+                bytes: bytes
+            )
             return OffscreenRenderResult(
                 requestID: request.renderRequestID,
                 sourceCursor: cursor,
                 viewpoint: request.viewpoint,
                 settings: request.renderSettings,
-                image: try RenderedBGRA8SRGBImage(
-                    size: request.renderSettings.size,
-                    bytes: bytes
-                )
+                image: image
             )
         }
     }
@@ -1728,9 +1720,11 @@ struct AgentSessionCoordinatorTests {
                 return
             }
             await withCheckedContinuation { continuation in
-                countWaiters.append(
-                    CountWaiter(count: count, continuation: continuation)
+                let waiter = CountWaiter(
+                    count: count,
+                    continuation: continuation
                 )
+                countWaiters.append(waiter)
             }
         }
 

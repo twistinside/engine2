@@ -257,6 +257,8 @@ struct RealtimeAdvanceDriverTests {
     @Test func pauseDiscardsBacklogAndResumeRebasesInput() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
+        let secondPointerMotionTotal = SIMD2<Float>(10, 0)
+        let thirdPointerMotionTotal = SIMD2<Float>(12, 0)
         let inputSource = SequencedInputSource(
             snapshots: [
                 inputSnapshot(
@@ -265,11 +267,11 @@ struct RealtimeAdvanceDriverTests {
                 ),
                 inputSnapshot(
                     revision: InputRevision(session: 2, sequence: 2),
-                    pointerMotionTotal: SIMD2<Float>(10, 0)
+                    pointerMotionTotal: secondPointerMotionTotal
                 ),
                 inputSnapshot(
                     revision: InputRevision(session: 2, sequence: 3),
-                    pointerMotionTotal: SIMD2<Float>(12, 0)
+                    pointerMotionTotal: thirdPointerMotionTotal
                 )
             ]
         )
@@ -331,8 +333,8 @@ struct RealtimeAdvanceDriverTests {
 
         #expect(didRecordRequest)
         #expect(request.stepCount.rawValue == 1)
-        #expect(baseline.pointerMotionTotal == SIMD2<Float>(10, 0))
-        #expect(snapshot.pointerMotionTotal == SIMD2<Float>(12, 0))
+        #expect(baseline.pointerMotionTotal == secondPointerMotionTotal)
+        #expect(snapshot.pointerMotionTotal == thirdPointerMotionTotal)
     }
 
     @Test func startAndStopAreIdempotentAndPreservePausePreference() async {
@@ -872,6 +874,11 @@ struct RealtimeAdvanceDriverTests {
                 rawValue: initialCursor.tick.rawValue + UInt64(request.stepCount.rawValue)
             )
         )
+        let finalPresentationSnapshot = SimulationPresentationSnapshot(
+            cursor: finalCursor,
+            camera: .standard,
+            entityPresentations: []
+        )
 
         return .completed(
             SimulationAdvanceResult(
@@ -880,11 +887,7 @@ struct RealtimeAdvanceDriverTests {
                 completedStepCount: SimulationCompletedStepCount(
                     rawValue: request.stepCount.rawValue
                 ),
-                finalPresentationSnapshot: SimulationPresentationSnapshot(
-                    cursor: finalCursor,
-                    camera: .standard,
-                    entityPresentations: []
-                )
+                finalPresentationSnapshot: finalPresentationSnapshot
             )
         )
     }
@@ -979,7 +982,8 @@ private extension RealtimeAdvanceDriverTests {
 
         func sleep(until deadline: SuspendingClock.Instant) async throws {
             try await withCheckedThrowingContinuation { continuation in
-                waiters.append(Waiter(continuation: continuation))
+                let waiter = Waiter(continuation: continuation)
+                waiters.append(waiter)
                 resumeSatisfiedCountWaiters()
             }
         }
@@ -1054,6 +1058,11 @@ private extension RealtimeAdvanceDriverTests {
                 )
             )
             cursor = finalCursor
+            let finalPresentationSnapshot = SimulationPresentationSnapshot(
+                cursor: finalCursor,
+                camera: .standard,
+                entityPresentations: []
+            )
 
             return .completed(
                 SimulationAdvanceResult(
@@ -1062,11 +1071,7 @@ private extension RealtimeAdvanceDriverTests {
                     completedStepCount: SimulationCompletedStepCount(
                         rawValue: request.stepCount.rawValue
                     ),
-                    finalPresentationSnapshot: SimulationPresentationSnapshot(
-                        cursor: finalCursor,
-                        camera: .standard,
-                        entityPresentations: []
-                    )
+                    finalPresentationSnapshot: finalPresentationSnapshot
                 )
             )
         }
@@ -1095,7 +1100,10 @@ private extension RealtimeAdvanceDriverTests {
             requests.append(request)
 
             return await withCheckedContinuation { continuation in
-                pendingAdvances.append(PendingAdvance(continuation: continuation))
+                let pendingAdvance = PendingAdvance(
+                    continuation: continuation
+                )
+                pendingAdvances.append(pendingAdvance)
                 resumeSatisfiedCountWaiters()
             }
         }

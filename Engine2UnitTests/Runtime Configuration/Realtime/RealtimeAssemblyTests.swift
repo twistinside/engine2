@@ -103,13 +103,15 @@ struct RealtimeAssemblyTests {
         let hostSink: any PInputEventSink = assembly.inputRuntime
         let heldKey = KeyboardKey(keyCode: 13, displayName: "W")
 
+        let pointerDelta = SIMD2<Float>(50, 0)
         hostSink.receive(
             .mouseDragged(
-                delta: SIMD2<Float>(50, 0),
+                delta: pointerDelta,
                 position: SIMD2<Float>(10, 20)
             )
         )
-        hostSink.receive(.scroll(delta: SIMD2<Float>(0, 25)))
+        let scrollDelta = SIMD2<Float>(0, 25)
+        hostSink.receive(.scroll(delta: scrollDelta))
         hostSink.receive(.keyDown(heldKey))
 
         #expect(assembly.simulationRuntime.currentCursor == cursor)
@@ -122,11 +124,11 @@ struct RealtimeAssemblyTests {
         )
         #expect(
             assembly.inputRuntime.latestInputSnapshot.pointerMotionTotal ==
-            SIMD2<Float>(50, 0)
+            pointerDelta
         )
         #expect(
             assembly.inputRuntime.latestInputSnapshot.scrollTotal
-                == SIMD2<Float>(0, 25)
+                == scrollDelta
         )
 
         let pausedFrame = RenderFrame(

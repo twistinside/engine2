@@ -10,8 +10,9 @@ struct RealtimeConfigurationTests {
                 backlogTreatment: .preserve
             )
         )
+        let expectedPosition = SIMD3<Float>(3, 4, 5)
         let gameContent = BasicGameContent(
-            worldBuilder: RealtimeTestWorldBuilder(position: SIMD3<Float>(3, 4, 5))
+            worldBuilder: RealtimeTestWorldBuilder(position: expectedPosition)
         )
 
         let assembly = configuration.makeAssembly(gameContent: gameContent)
@@ -24,7 +25,7 @@ struct RealtimeConfigurationTests {
         #expect(assembly.advanceDriver.catchUpPolicy == configuration.catchUpPolicy)
         #expect(
             assembly.simulationRuntime.world.positionComponents[entity]?.position ==
-            SIMD3<Float>(3, 4, 5)
+            expectedPosition
         )
         #expect(assembly.inputRuntime.isRunning == false)
         #expect(assembly.advanceDriver.isRunning == false)

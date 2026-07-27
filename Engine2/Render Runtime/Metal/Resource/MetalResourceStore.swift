@@ -150,14 +150,13 @@ final class MetalResourceStore {
             ] {
                 residency.addFrameAllocation(allocation)
             }
-            frames.append(
-                FrameResources(
-                    commandAllocator: commandAllocator,
-                    instanceBuffer: instanceBuffer,
-                    pbrSceneParametersBuffer: pbrSceneParametersBuffer,
-                    hdrPresentationParametersBuffer: hdrPresentationParametersBuffer
-                )
+            let frame = FrameResources(
+                commandAllocator: commandAllocator,
+                instanceBuffer: instanceBuffer,
+                pbrSceneParametersBuffer: pbrSceneParametersBuffer,
+                hdrPresentationParametersBuffer: hdrPresentationParametersBuffer
             )
+            frames.append(frame)
         }
 
         // One commit makes every buffer in the completed frame ring visible to

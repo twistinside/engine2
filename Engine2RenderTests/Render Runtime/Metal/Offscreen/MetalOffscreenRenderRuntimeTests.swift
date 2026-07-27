@@ -157,7 +157,7 @@ struct MetalOffscreenRenderRuntimeTests {
             revision: .zero,
             camera: Camera(
                 position: SIMD3<Float>(.nan, 0, 8),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )

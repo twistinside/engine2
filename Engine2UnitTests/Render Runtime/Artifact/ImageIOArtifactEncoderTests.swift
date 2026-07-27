@@ -167,10 +167,7 @@ struct ImageIOArtifactEncoderTests {
             width: size.width
         )
         #expect(Array(rgba[topOffset..<(topOffset + 3)]) == [250, 20, 80])
-        #expect(
-            Array(rgba[bottomOffset..<(bottomOffset + 3)])
-                == [10, 100, 250]
-        )
+        #expect(Array(rgba[bottomOffset..<(bottomOffset + 3)]) == [10, 100, 250])
     }
 
     @Test func completionWinsAfterEncodingIsInvokedByCancelledTask() async throws {
@@ -222,7 +219,7 @@ struct ImageIOArtifactEncoderTests {
             revision: RenderViewpointRevision(rawValue: 43),
             camera: Camera(
                 position: SIMD3<Float>(3, 5, 7),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .orthographic(
                     height: 11,
                     near: 0.25,
@@ -298,11 +295,10 @@ struct ImageIOArtifactEncoderTests {
         )
         // Big-endian words with premultiplied alpha last produce unambiguous
         // in-memory RGBA bytes, which match the offsets sampled below.
-        let bitmapInfo = CGBitmapInfo.byteOrder32Big.union(
-            CGBitmapInfo(
-                rawValue: CGImageAlphaInfo.premultipliedLast.rawValue
-            )
+        let alphaInfo = CGBitmapInfo(
+            rawValue: CGImageAlphaInfo.premultipliedLast.rawValue
         )
+        let bitmapInfo = CGBitmapInfo.byteOrder32Big.union(alphaInfo)
 
         let drewImage = rgba.withUnsafeMutableBytes { buffer -> Bool in
             guard

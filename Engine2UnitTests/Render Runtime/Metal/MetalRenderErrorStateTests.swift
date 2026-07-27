@@ -57,9 +57,11 @@ struct MetalRenderErrorStateTests {
         let firstResult = state.performIfHealthy {
             actionCount += 1
         }
-        state.record(
-            NSError(domain: "MetalRenderErrorStateTests.terminal", code: 3)
+        let terminalError = NSError(
+            domain: "MetalRenderErrorStateTests.terminal",
+            code: 3
         )
+        state.record(terminalError)
         let secondResult = state.performIfHealthy {
             actionCount += 1
         }

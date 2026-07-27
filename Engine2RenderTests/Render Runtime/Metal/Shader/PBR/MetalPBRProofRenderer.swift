@@ -192,14 +192,13 @@ final class MetalPBRProofRenderer {
             to: halfComponents.count,
             by: 4
         ) {
-            pixels.append(
-                SIMD4<Float>(
-                    Float(halfComponents[componentIndex]),
-                    Float(halfComponents[componentIndex + 1]),
-                    Float(halfComponents[componentIndex + 2]),
-                    Float(halfComponents[componentIndex + 3])
-                )
+            let pixel = SIMD4<Float>(
+                Float(halfComponents[componentIndex]),
+                Float(halfComponents[componentIndex + 1]),
+                Float(halfComponents[componentIndex + 2]),
+                Float(halfComponents[componentIndex + 3])
             )
+            pixels.append(pixel)
         }
         return pixels
     }

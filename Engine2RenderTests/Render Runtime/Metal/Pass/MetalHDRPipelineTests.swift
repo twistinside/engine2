@@ -14,12 +14,7 @@ struct MetalHDRPipelineTests {
         // without changing the established HDR pathway.
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
-            approximately: SIMD4<Float>(
-                1.62974664,
-                0.5092958,
-                0.17825354,
-                1
-            )
+            approximately: SIMD4<Float>(1.62974664, 0.5092958, 0.17825354, 1)
         )
         #expect(result.sceneLinearRGBA.x > 1)
 
@@ -60,12 +55,7 @@ struct MetalHDRPipelineTests {
         // surface fragment rather than a retained renderer fallback.
         expectStoredHalfRGBA(
             result.sceneLinearRGBA,
-            approximately: SIMD4<Float>(
-                42.42364164,
-                16.24825475,
-                3.5635859,
-                1
-            )
+            approximately: SIMD4<Float>(42.42364164, 16.24825475, 3.5635859, 1)
         )
     }
 
@@ -269,9 +259,9 @@ private func expectStoredHalfRGBA(_ actual: SIMD4<Float>, approximately expected
     for componentIndex in 0..<4 {
         let actualHalf = Float16(actual[componentIndex])
         let expectedHalf = Float16(expected[componentIndex])
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
 }
@@ -299,9 +289,9 @@ private func expectStoredHalfRGBSum(
         let expectedHalf = Float16(
             first[componentIndex] + second[componentIndex]
         )
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
     #expect(actual.w == 1)

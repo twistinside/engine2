@@ -4,11 +4,15 @@ import Testing
 struct PSelectableTests {
     @Test func selectionStateReadsFromWorldStore() async throws {
         let world = World()
-        let entity = TestSelectableEntity(unregisteredID: EntityID(index: 0, generation: 0), in: world)
+        let entity = TestSelectableEntity(
+            unregisteredID: EntityID(index: 0, generation: 0),
+            in: world
+        )
         let expectedState = CSelectable.SelectionState.highlighted
+        let selectable = CSelectable(selectionState: expectedState)
 
         world.selectableComponents.insert(
-            CSelectable(selectionState: expectedState),
+            selectable,
             for: entity.id
         )
 

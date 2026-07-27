@@ -29,8 +29,12 @@ struct BasicWorldBuilderTests {
     @Test func materialSphereSceneRemainsQuiescentAcrossFixedSteps() {
         let initialWorld = BasicWorldBuilder().buildWorld()
         let sessionID = SimulationSessionID()
+        let initialCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: .zero
+        )
         let initialSnapshot = initialWorld.presentationSnapshot(
-            at: SimulationCursor(sessionID: sessionID, tick: .zero)
+            at: initialCursor
         )
         let engine = Engine(
             world: initialWorld,
@@ -44,11 +48,12 @@ struct BasicWorldBuilderTests {
             engine.step()
         }
 
+        let laterCursor = SimulationCursor(
+            sessionID: sessionID,
+            tick: engine.completedTick
+        )
         let laterSnapshot = engine.world.presentationSnapshot(
-            at: SimulationCursor(
-                sessionID: sessionID,
-                tick: engine.completedTick
-            )
+            at: laterCursor
         )
 
         #expect(engine.completedTick == SimulationTick(rawValue: 120))
@@ -156,8 +161,5 @@ struct BasicWorldBuilderTests {
         .goldMetalRough
     ]
 
-    private static let identityRotation = simd_quatf(
-        angle: 0,
-        axis: SIMD3<Float>(0, 0, 1)
-    )
+    private static let identityRotation = simd_quatf.identity
 }

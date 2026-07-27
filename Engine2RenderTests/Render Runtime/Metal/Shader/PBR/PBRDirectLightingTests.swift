@@ -89,11 +89,7 @@ struct PBRDirectLightingTests {
 
         expectStoredRGB(
             dielectricDiffuse,
-            approximately: SIMD3<Float>(
-                0.15278875,
-                0.07639437,
-                0.03819719
-            )
+            approximately: SIMD3<Float>(0.15278875, 0.07639437, 0.03819719)
         )
         expectStoredRGB(
             dielectricSpecular,
@@ -101,19 +97,11 @@ struct PBRDirectLightingTests {
         )
         expectStoredRGB(
             dielectricShaded,
-            approximately: SIMD3<Float>(
-                0.20371833,
-                0.12732395,
-                0.08912677
-            )
+            approximately: SIMD3<Float>(0.20371833, 0.12732395, 0.08912677)
         )
         expectStoredRGB(
             metalShaded,
-            approximately: SIMD3<Float>(
-                0.63661977,
-                0.31830989,
-                0.15915494
-            )
+            approximately: SIMD3<Float>(0.63661977, 0.31830989, 0.15915494)
         )
         expectStoredRGB(metalDiffuse, approximately: .zero)
     }
@@ -136,27 +124,15 @@ struct PBRDirectLightingTests {
         // duplicated.
         expectStoredRGB(
             center(try renderer.render(.diffuse, parameters: parameters)),
-            approximately: SIMD3<Float>(
-                0.044403076171875,
-                0.024627685546875,
-                0.0129241943359375
-            )
+            approximately: SIMD3<Float>(0.044403076171875, 0.024627685546875, 0.0129241943359375)
         )
         expectStoredRGB(
             center(try renderer.render(.specular, parameters: parameters)),
-            approximately: SIMD3<Float>(
-                0.328857421875,
-                0.23828125,
-                0.193115234375
-            )
+            approximately: SIMD3<Float>(0.328857421875, 0.23828125, 0.193115234375)
         )
         expectStoredRGB(
             center(try renderer.render(.shaded, parameters: parameters)),
-            approximately: SIMD3<Float>(
-                0.373291015625,
-                0.262939453125,
-                0.2059326171875
-            )
+            approximately: SIMD3<Float>(0.373291015625, 0.262939453125, 0.2059326171875)
         )
     }
 
@@ -240,11 +216,7 @@ struct PBRDirectLightingTests {
         expectStoredRGB(linearBaseColor, approximately: baseColor)
         expectStoredRGB(
             hdrShaded,
-            approximately: SIMD3<Float>(
-                1.6297466,
-                0.5092958,
-                0.17825353
-            )
+            approximately: SIMD3<Float>(1.6297466, 0.5092958, 0.17825353)
         )
         #expect(hdrShaded.x > 1)
     }
@@ -369,11 +341,7 @@ struct PBRDirectLightingTests {
         )
         expectRGB(
             centerPixel,
-            approximately: SIMD3<Float>(
-                4.849776,
-                4.849738,
-                4.849720
-            ),
+            approximately: SIMD3<Float>(4.849776, 4.849738, 4.849720),
             tolerance: 0.02
         )
 
@@ -464,18 +432,17 @@ private func expectStoredRGB(_ actual: SIMD4<Float>, approximately expected: SIM
     for componentIndex in actualComponents.indices {
         let actualHalf = Float16(actualComponents[componentIndex])
         let expectedHalf = Float16(expectedComponents[componentIndex])
-        let ulpDistance = abs(
-            Int(actualHalf.bitPattern) - Int(expectedHalf.bitPattern)
-        )
+        let actualBitPattern = Int(actualHalf.bitPattern)
+        let expectedBitPattern = Int(expectedHalf.bitPattern)
+        let ulpDistance = abs(actualBitPattern - expectedBitPattern)
         #expect(ulpDistance <= maximumHalfULPDistance)
     }
 }
 
 private func luminance(_ pixel: SIMD4<Float>) -> Float {
-    simd_dot(
-        SIMD3<Float>(pixel.x, pixel.y, pixel.z),
-        SIMD3<Float>(0.2126, 0.7152, 0.0722)
-    )
+    let rgb = SIMD3<Float>(pixel.x, pixel.y, pixel.z)
+    let coefficients = SIMD3<Float>(0.2126, 0.7152, 0.0722)
+    return simd_dot(rgb, coefficients)
 }
 
 private func radialMoment(of image: [SIMD4<Float>]) -> Float {

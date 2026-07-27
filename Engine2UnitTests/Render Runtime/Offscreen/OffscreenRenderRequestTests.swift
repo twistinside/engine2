@@ -33,7 +33,7 @@ struct OffscreenRenderRequestTests {
             cursor: cursor,
             camera: Camera(
                 position: SIMD3<Float>(1, 2, 3),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             ),
             entityPresentations: []
@@ -80,7 +80,7 @@ struct OffscreenRenderRequestTests {
             revision: RenderViewpointRevision(rawValue: revision),
             camera: Camera(
                 position: SIMD3<Float>(4, 5, 6),
-                rotation: Transform.identityRotation,
+                rotation: .identity,
                 projection: .standardPerspective
             )
         )

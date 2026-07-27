@@ -4,8 +4,9 @@ import Testing
 
 struct PBRMaterialDescriptionTests {
     @Test func preservesAuthoredSceneLinearFactors() {
+        let baseColor = SIMD3<Float>(0.125, 0.5, 1)
         let description = PBRMaterialDescription(
-            baseColor: SIMD3<Float>(0.125, 0.5, 1),
+            baseColor: baseColor,
             metallic: 0.75,
             perceptualRoughness: 0.25
         )
@@ -13,7 +14,7 @@ struct PBRMaterialDescriptionTests {
         // The contract preserves authored factors exactly. Roughness flooring
         // and any defensive shader clamping remain evaluation policy rather
         // than silently changing Game Content at this boundary.
-        #expect(description.baseColor == SIMD3<Float>(0.125, 0.5, 1))
+        #expect(description.baseColor == baseColor)
         #expect(description.metallic == 0.75)
         #expect(description.perceptualRoughness == 0.25)
     }
@@ -60,26 +61,19 @@ struct PBRMaterialDescriptionTests {
 
         // Exercise each vector lane independently so deleting any one channel
         // check would weaken the authored base-color precondition observably.
-        #expect(
-            PBRMaterialDescription.acceptsBaseColor(
-                SIMD3<Float>(0, 0.5, 1)
-            )
-        )
+        #expect(PBRMaterialDescription.acceptsBaseColor(SIMD3<Float>(0, 0.5, 1)))
         for invalid in invalidScalars {
+            let invalidRed = SIMD3<Float>(invalid, 0.5, 0.5)
+            let invalidGreen = SIMD3<Float>(0.5, invalid, 0.5)
+            let invalidBlue = SIMD3<Float>(0.5, 0.5, invalid)
             #expect(
-                !PBRMaterialDescription.acceptsBaseColor(
-                    SIMD3<Float>(invalid, 0.5, 0.5)
-                )
+                !PBRMaterialDescription.acceptsBaseColor(invalidRed)
             )
             #expect(
-                !PBRMaterialDescription.acceptsBaseColor(
-                    SIMD3<Float>(0.5, invalid, 0.5)
-                )
+                !PBRMaterialDescription.acceptsBaseColor(invalidGreen)
             )
             #expect(
-                !PBRMaterialDescription.acceptsBaseColor(
-                    SIMD3<Float>(0.5, 0.5, invalid)
-                )
+                !PBRMaterialDescription.acceptsBaseColor(invalidBlue)
             )
         }
     }

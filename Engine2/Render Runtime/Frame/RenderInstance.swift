@@ -28,7 +28,7 @@ struct RenderInstance: Equatable {
 
         let transform = Transform(
             position: position,
-            rotation: entity.rotation ?? Transform.identityRotation,
+            rotation: entity.rotation ?? .identity,
             scale: entity.scale ?? Self.defaultScale
         )
 

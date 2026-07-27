@@ -4,8 +4,9 @@ import Testing
 
 struct MetalOffscreenTestSubmissionTests {
     @Test func successfulFeedbackReleasesTheWaiter() throws {
+        let retainedOwner = NSObject()
         let submission = MetalOffscreenTestSubmission(
-            retaining: [NSObject()]
+            retaining: [retainedOwner]
         )
 
         submission.complete(feedbackError: nil)
@@ -14,8 +15,9 @@ struct MetalOffscreenTestSubmissionTests {
     }
 
     @Test func gpuFeedbackErrorIsPropagated() {
+        let retainedOwner = NSObject()
         let submission = MetalOffscreenTestSubmission(
-            retaining: [NSObject()]
+            retaining: [retainedOwner]
         )
         let expectedError = NSError(
             domain: "MetalOffscreenTestSubmissionTests",
@@ -39,8 +41,9 @@ struct MetalOffscreenTestSubmissionTests {
     }
 
     @Test func missingFeedbackIsReportedAsTimeout() {
+        let retainedOwner = NSObject()
         let submission = MetalOffscreenTestSubmission(
-            retaining: [NSObject()]
+            retaining: [retainedOwner]
         )
 
         do {
