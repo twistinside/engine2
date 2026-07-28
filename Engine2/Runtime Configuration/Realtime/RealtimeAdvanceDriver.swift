@@ -8,18 +8,6 @@ import Observation
 /// publication of completed results.
 @Observable
 final class RealtimeAdvanceDriver {
-    /// Factory that creates a fresh elapsed-time sampler for each driver run.
-    typealias ClockFactory = () -> SystemClock
-
-    /// Monotonic source used to schedule absolute polling deadlines.
-    typealias TimeSource = () -> SystemClock.Instant
-
-    /// Injectable suspension boundary that sleeps until an absolute deadline.
-    typealias Sleeper = @Sendable (SystemClock.Instant) async throws -> Void
-
-    /// Weakly resolving source used by the polling task between wake cycles.
-    typealias DriverSource = @MainActor () -> RealtimeAdvanceDriver?
-
     var fixedTimeStep: Duration {
         stepAccumulator.fixedTimeStep
     }
@@ -59,16 +47,10 @@ final class RealtimeAdvanceDriver {
     private weak var inputSource: (any PInputSnapshotSource)?
 
     @ObservationIgnored
-    private let clockFactory: ClockFactory
+    private let clock: any PRealtimeClock
 
     @ObservationIgnored
-    private let scheduleTimeSource: TimeSource
-
-    @ObservationIgnored
-    private let sleeper: Sleeper
-
-    @ObservationIgnored
-    private var clock: SystemClock?
+    private var previousElapsedSample: SuspendingClock.Instant?
 
     @ObservationIgnored
     private var stepAccumulator: RealtimeStepAccumulator
@@ -107,6 +89,7 @@ final class RealtimeAdvanceDriver {
         catchUpPolicy: RealtimeCatchUpPolicy,
         isAdvancementEnabled: Bool
     ) {
+        let clock = SuspendingRealtimeClock()
         self.init(
             advanceTarget: advanceTarget,
             inputSource: inputSource,
@@ -115,18 +98,14 @@ final class RealtimeAdvanceDriver {
             pollInterval: pollInterval,
             catchUpPolicy: catchUpPolicy,
             isAdvancementEnabled: isAdvancementEnabled,
-            clockFactory: { SystemClock() },
-            scheduleTimeSource: { SuspendingClock().now },
-            sleeper: { deadline in
-                try await SuspendingClock().sleep(until: deadline)
-            }
+            clock: clock
         )
     }
 
-    /// Creates a cadence connection with every time dependency injected.
+    /// Creates a cadence connection with one coherent time dependency.
     ///
-    /// Tests and specialized hosts use this path to control elapsed samples,
-    /// absolute scheduling, and suspension independently.
+    /// Tests and specialized hosts may control sampling and suspension, but
+    /// both operations deliberately remain coupled to one monotonic clock.
     init(
         advanceTarget: any PSimulationAdvanceTarget,
         inputSource: (any PInputSnapshotSource)?,
@@ -135,9 +114,7 @@ final class RealtimeAdvanceDriver {
         pollInterval: Duration,
         catchUpPolicy: RealtimeCatchUpPolicy,
         isAdvancementEnabled: Bool,
-        clockFactory: @escaping ClockFactory,
-        scheduleTimeSource: @escaping TimeSource,
-        sleeper: @escaping Sleeper
+        clock: any PRealtimeClock
     ) {
         precondition(fixedTimeStep > .zero, "Real-time advancement requires a positive fixed time step.")
         precondition(pollInterval > .zero, "Real-time advancement requires a positive poll interval.")
@@ -151,9 +128,7 @@ final class RealtimeAdvanceDriver {
             catchUpPolicy: catchUpPolicy
         )
         self.advancementState = isAdvancementEnabled ? .enabled : .paused
-        self.clockFactory = clockFactory
-        self.scheduleTimeSource = scheduleTimeSource
-        self.sleeper = sleeper
+        self.clock = clock
     }
 
     /// Starts polling if this driver does not already own a live task.
@@ -181,7 +156,7 @@ final class RealtimeAdvanceDriver {
     /// Cancels polling and discards elapsed work that has not been requested.
     func stop() {
         guard isRunning else {
-            clock = nil
+            previousElapsedSample = nil
             stepAccumulator.reset()
             return
         }
@@ -190,7 +165,7 @@ final class RealtimeAdvanceDriver {
         restartRequested = false
         advanceRunID()
         updateTask?.cancel()
-        clock = nil
+        previousElapsedSample = nil
         stepAccumulator.reset()
         discardNextElapsedSample = false
     }
@@ -275,85 +250,73 @@ final class RealtimeAdvanceDriver {
     private func launchRun() {
         precondition(updateTask == nil)
 
-        // A fresh clock discards all wall time outside this lifecycle run.
-        clock = clockFactory()
+        // A fresh baseline discards all wall time outside this lifecycle run.
+        let launchInstant = clock.now
+        previousElapsedSample = launchInstant
         stepAccumulator.reset()
         discardNextElapsedSample = false
         advanceRunID()
 
         let currentRunID = runID
-        let firstWakeDeadline = scheduleTimeSource().advanced(by: pollInterval)
-        let driverSource: DriverSource = { [weak self] in self }
-        updateTask = Task { @MainActor in
-            await Self.runLoop(
-                driverSource: driverSource,
-                runID: currentRunID,
-                nextWakeDeadline: firstWakeDeadline
-            )
-        }
-    }
+        let firstWakeDeadline = launchInstant.advanced(by: pollInterval)
+        updateTask = Task { [weak self] in
+            var nextWakeDeadline = firstWakeDeadline
 
-    /// Sleeps without retaining the driver, reacquiring it only to process a wake.
-    private static func runLoop(
-        driverSource: @escaping DriverSource,
-        runID: UInt64,
-        nextWakeDeadline initialWakeDeadline: SystemClock.Instant
-    ) async {
-        var nextWakeDeadline = initialWakeDeadline
-
-        defer {
-            driverSource()?.finishRun(runID: runID)
-        }
-
-        while Task.isCancelled == false {
-            guard let sleeper = driverSource()?.sleeper else {
-                return
+            defer {
+                self?.finishRun(runID: currentRunID)
             }
 
-            do {
-                // Absolute deadlines prevent ordinary wake jitter from
-                // accumulating into long-term cadence drift.
-                try await sleeper(nextWakeDeadline)
-            } catch {
-                return
-            }
-
-            let followingDeadline: SystemClock.Instant?
-            do {
-                // Limit the strong reference to wake processing. In particular,
-                // the next sleeper suspension must not keep an otherwise
-                // unowned configuration assembly alive indefinitely.
-                guard let driver = driverSource() else {
+            while Task.isCancelled == false {
+                guard let clock = self?.clock else {
                     return
                 }
-                followingDeadline = await driver.processWake(
-                    runID: runID,
-                    previousDeadline: nextWakeDeadline
-                )
-            }
 
-            guard let followingDeadline else {
-                return
+                do {
+                    // Absolute deadlines prevent ordinary wake jitter from
+                    // accumulating into long-term cadence drift.
+                    try await clock.sleep(until: nextWakeDeadline)
+                } catch {
+                    return
+                }
+
+                let followingDeadline: SuspendingClock.Instant?
+                do {
+                    // Limit the strong reference to wake processing. In particular,
+                    // the next clock suspension must not keep an otherwise
+                    // unowned configuration assembly alive indefinitely.
+                    guard let driver = self else {
+                        return
+                    }
+                    followingDeadline = await driver.processWake(
+                        runID: currentRunID,
+                        previousDeadline: nextWakeDeadline
+                    )
+                }
+
+                guard let followingDeadline else {
+                    return
+                }
+                nextWakeDeadline = followingDeadline
             }
-            nextWakeDeadline = followingDeadline
         }
     }
 
     /// Processes one elapsed-time sample and optionally issues one exact batch.
-    private func processWake(runID: UInt64, previousDeadline: SystemClock.Instant) async -> SystemClock.Instant? {
-        // Cancellation-insensitive test or platform sleepers may return after
+    private func processWake(runID: UInt64, previousDeadline: SuspendingClock.Instant) async -> SuspendingClock.Instant? {
+        // A cancellation-insensitive test clock may return after
         // stop/restart. Revalidate this run before sampling or asking the
         // authoritative target to do any work.
         guard Task.isCancelled == false, self.runID == runID else {
             return nil
         }
 
-        guard var clock else {
+        guard let previousElapsedSample else {
             return nil
         }
 
-        let elapsed = clock.consumeDeltaTime()
-        self.clock = clock
+        let currentElapsedSample = clock.now
+        let elapsed = max(.zero, previousElapsedSample.duration(to: currentElapsedSample))
+        self.previousElapsedSample = currentElapsedSample
 
         if isAdvancementEnabled == false || discardNextElapsedSample {
             // Paused time and any pre-pause fractional step are not debt.
@@ -440,7 +403,7 @@ final class RealtimeAdvanceDriver {
     /// Releases the one task slot and launches a queued replacement if needed.
     private func finishRun(runID: UInt64) {
         updateTask = nil
-        clock = nil
+        previousElapsedSample = nil
 
         if restartRequested, isRunning {
             restartRequested = false
@@ -451,9 +414,9 @@ final class RealtimeAdvanceDriver {
     }
 
     /// Returns the first configured deadline strictly after the current time.
-    private func advancedDeadline(after previousDeadline: SystemClock.Instant) -> SystemClock.Instant {
+    private func advancedDeadline(after previousDeadline: SuspendingClock.Instant) -> SuspendingClock.Instant {
         var nextWakeDeadline = previousDeadline.advanced(by: pollInterval)
-        let currentTime = scheduleTimeSource()
+        let currentTime = clock.now
 
         while currentTime.duration(to: nextWakeDeadline) <= .zero {
             nextWakeDeadline = nextWakeDeadline.advanced(by: pollInterval)

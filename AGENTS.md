@@ -90,6 +90,9 @@ Current example ownership:
   do not infer the element type from `[RenderInstance]()`.
 - Never declare a function inside an initializer, method, accessor, or closure. Move the behavior onto its natural
   receiver, a private instance method on the coordinating type, or a focused collaborator; never a static helper dump.
+- When several related escaping closures represent one dependency, replace the closure bundle with one narrow
+  capability protocol and inject one conforming value. Keep a single trailing closure when the policy genuinely has one
+  operation and closure capture is part of the intended call-site design.
 - Extract a constructed value when the local adds a nonredundant role or separates substantial construction from the
   operation that consumes it. Otherwise, keep construction inline when an argument, property, or enum case label,
   direct assignment, or aggregate shape already supplies the meaning. A label does not erase a separate ownership,
@@ -133,8 +136,9 @@ Current example ownership:
   - Core system protocol used by the engine's ordered execution lists.
 - `Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
   - Simulation-owned construction interface for producing fully bootstrapped worlds.
-- `Engine2/Simulation Runtime/Engine/Infrastructure/Clock/SystemClock.swift`
-  - `SystemClock` has a production suspending-clock initializer and a separate required `timeSource` initializer for deterministic monotonic elapsed-time sampling.
+- `Engine2/Runtime Configuration/Realtime/Clock/*.swift`
+  - `PRealtimeClock` couples monotonic instant sampling and absolute suspension in one dependency and instant domain.
+    `SuspendingRealtimeClock` is the production implementation backed by `SuspendingClock`.
 - `Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.
@@ -177,7 +181,9 @@ Current example ownership:
   - `RealtimeConfiguration` requires an explicit positive polling interval. The App deliberately selects `SimulationRuntime.fixedTimeStep`; other callers must make a cadence choice just as visibly.
   - `RealtimeStepAccumulator` is the driver's value-semantic elapsed-debt and bounded-batching policy. It has no clock, cursor, lifecycle, Input, or Simulation authority.
   - `RealtimeInputAssignmentState` couples one transition baseline to its policy generation, forms the immutable assignment for an exact request, and prevents older completion bookkeeping from clearing newer policy.
-  - `RealtimeAdvanceDriver` separates its production suspending-clock construction path from a fully injected clock, scheduling-time, and sleeper path. Both require explicit input-source, cadence, catch-up, and initial-enabled choices.
+  - `RealtimeAdvanceDriver` constructs `SuspendingRealtimeClock` on its production path and accepts one injected
+    `PRealtimeClock` for deterministic tests or specialized hosts. Sampling and suspension cannot be supplied as
+    unrelated dependencies.
   - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
 - `Engine2/Runtime Configuration/Manual/*.swift`
   - `ManualConfiguration` and `ManualAssembly` expose caller-driven exact advancement without Input or a polling task.

@@ -7,21 +7,28 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(40)),
-                baseInstant.advanced(by: .milliseconds(80)),
-                baseInstant.advanced(by: .milliseconds(120))
-            ]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [
-                .success(()),
-                .success(()),
-                .success(()),
-                .failure(CancellationError())
-            ]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(40)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(80)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(120)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(120)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = makeDriver(
             target: target,
@@ -29,9 +36,7 @@ struct RealtimeAdvanceDriverTests {
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(40),
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -50,15 +55,24 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(250)),
-                baseInstant.advanced(by: .milliseconds(300))
-            ]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(CancellationError())]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(250)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(300)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(300)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = makeDriver(
             target: target,
@@ -66,9 +80,7 @@ struct RealtimeAdvanceDriverTests {
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -84,19 +96,73 @@ struct RealtimeAdvanceDriverTests {
         #expect(requests[1].expectedCursor?.tick == SimulationTick(rawValue: 2))
     }
 
+    @Test func backwardClockSampleContributesZeroElapsedTime() async {
+        let cursor = makeCursor()
+        let target = RecordingAdvanceTarget(cursor: cursor)
+        let baseInstant = SuspendingClock().now
+        let clock = NonmonotonicTestClock(
+            initialInstant: baseInstant,
+            wakes: [
+                (
+                    instant: baseInstant.advanced(by: .milliseconds(50)),
+                    result: .success(())
+                ),
+                (
+                    instant: baseInstant.advanced(by: .milliseconds(-50)),
+                    result: .success(())
+                ),
+                (
+                    instant: baseInstant,
+                    result: .success(())
+                ),
+                (
+                    instant: baseInstant,
+                    result: .failure(CancellationError())
+                )
+            ]
+        )
+        let driver = makeDriver(
+            target: target,
+            inputSource: nil,
+            cursor: cursor,
+            fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(50),
+            clock: clock
+        )
+
+        driver.start()
+        let didRecordRequest = await eventually {
+            await target.requestCount() == 1
+        }
+        driver.stop()
+
+        let requests = await target.recordedRequests()
+        #expect(didRecordRequest)
+        #expect(requests.map(\.stepCount.rawValue) == [1])
+    }
+
     @Test func preservePolicyCapsOneWakeThenDrainsBacklog() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(550)),
-                baseInstant.advanced(by: .milliseconds(550))
-            ]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(CancellationError())]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(450)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(500)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(500)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -109,9 +175,7 @@ struct RealtimeAdvanceDriverTests {
                 backlogTreatment: .preserve
             ),
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -128,15 +192,24 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(550)),
-                baseInstant.advanced(by: .milliseconds(600))
-            ]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(CancellationError())]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(550)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(600)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(600)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -149,9 +222,7 @@ struct RealtimeAdvanceDriverTests {
                 backlogTreatment: .discardOverflow
             ),
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -165,15 +236,24 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(350)),
-                baseInstant.advanced(by: .milliseconds(400))
-            ]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(CancellationError())]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(350)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(400)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(400)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -186,9 +266,7 @@ struct RealtimeAdvanceDriverTests {
                 backlogTreatment: .discardOverflow
             ),
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -216,11 +294,20 @@ struct RealtimeAdvanceDriverTests {
             snapshots: [expectedSnapshot, laterSnapshot]
         )
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .failure(CancellationError())]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(100)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(100)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = makeDriver(
             target: target,
@@ -228,9 +315,7 @@ struct RealtimeAdvanceDriverTests {
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -276,51 +361,47 @@ struct RealtimeAdvanceDriverTests {
             ]
         )
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [
-                baseInstant,
-                baseInstant.advanced(by: .milliseconds(50)),
-                baseInstant.advanced(by: .milliseconds(150)),
-                baseInstant.advanced(by: .milliseconds(250)),
-                baseInstant.advanced(by: .milliseconds(350))
-            ]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
         )
-        let sleeper = ControlledSleeper()
         let driver = makeDriver(
             target: target,
             inputSource: inputSource,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
-            pollInterval: .milliseconds(100),
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            pollInterval: .milliseconds(50),
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
+        let firstWakeInstant = baseInstant.advanced(by: .milliseconds(50))
+        await clock.resumeNext(at: firstWakeInstant)
+        await clock.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
 
         driver.pauseAdvancement()
         #expect(driver.advancementState == .paused)
-        await sleeper.resumeNext()
-        await sleeper.waitForPendingCount(1)
+        let pausedWakeInstant = baseInstant.advanced(by: .milliseconds(150))
+        await clock.resumeNext(at: pausedWakeInstant)
+        await clock.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
 
         driver.resumeAdvancement()
         #expect(driver.advancementState == .enabled)
-        await sleeper.resumeNext()
-        await sleeper.waitForPendingCount(1)
+        let baselineWakeInstant = baseInstant.advanced(by: .milliseconds(250))
+        await clock.resumeNext(at: baselineWakeInstant)
+        await clock.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
 
-        await sleeper.resumeNext()
+        let activeWakeInstant = baseInstant.advanced(by: .milliseconds(350))
+        await clock.resumeNext(at: activeWakeInstant)
         let didRecordRequest = await eventually {
             await target.requestCount() == 1
         }
         driver.stop()
-        await sleeper.resumeAll()
+        await clock.resumeAll()
 
         let request = try #require(await target.recordedRequests().first)
         guard case let .rebaseThenIngest(
@@ -340,8 +421,11 @@ struct RealtimeAdvanceDriverTests {
     @Test func startAndStopAreIdempotentAndPreservePausePreference() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
-        let sleeper = ControlledSleeper()
-        var clockCreationCount = 0
+        let baseInstant = SuspendingClock().now
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
+        )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
             inputSource: nil,
@@ -350,45 +434,51 @@ struct RealtimeAdvanceDriverTests {
             pollInterval: .seconds(1),
             catchUpPolicy: .interactive,
             isAdvancementEnabled: false,
-            clockFactory: {
-                clockCreationCount += 1
-                return SystemClock()
-            },
-            scheduleTimeSource: { SuspendingClock().now },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
         driver.start()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
 
         #expect(driver.isRunning)
         #expect(driver.advancementState == .paused)
         #expect(driver.isAdvancementEnabled == false)
-        #expect(clockCreationCount == 1)
+        let firstDeadline = baseInstant.advanced(by: .seconds(1))
+        #expect(await clock.recordedDeadlines() == [firstDeadline])
 
         driver.stop()
         driver.stop()
-        await sleeper.resumeAll()
+        await clock.resumeAll()
 
         #expect(driver.isRunning == false)
         #expect(driver.isAdvancementEnabled == false)
 
+        let restartInstant = baseInstant.advanced(by: .seconds(10))
+        await clock.setCurrentInstant(restartInstant)
         driver.start()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
 
         #expect(driver.isRunning)
         #expect(driver.isAdvancementEnabled == false)
-        #expect(clockCreationCount == 2)
+        let restartDeadline = restartInstant.advanced(by: .seconds(1))
+        #expect(
+            await clock.recordedDeadlines()
+                == [firstDeadline, restartDeadline]
+        )
 
         driver.stop()
-        await sleeper.resumeAll()
+        await clock.resumeAll()
     }
 
     @Test func suspendedPollingTaskDoesNotRetainTheDriver() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
-        let sleeper = ControlledSleeper()
+        let baseInstant = SuspendingClock().now
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
+        )
         var driver: RealtimeAdvanceDriver? = RealtimeAdvanceDriver(
             advanceTarget: target,
             inputSource: nil,
@@ -397,18 +487,16 @@ struct RealtimeAdvanceDriverTests {
             pollInterval: .seconds(1),
             catchUpPolicy: .interactive,
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock() },
-            scheduleTimeSource: { SuspendingClock().now },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
         weak let weakDriver = driver
 
         driver?.start()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
         driver = nil
 
         let didRelease = await eventually { weakDriver == nil }
-        await sleeper.resumeAll()
+        await clock.resumeAll()
 
         #expect(didRelease)
     }
@@ -425,46 +513,38 @@ struct RealtimeAdvanceDriverTests {
             ]
         )
         let baseInstant = SuspendingClock().now
-        let firstElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
         )
-        let secondElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
-        )
-        var clockCreationCount = 0
-        let sleeper = ControlledSleeper()
         let driver = makeDriver(
             target: target,
             inputSource: inputSource,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            clockFactory: {
-                defer { clockCreationCount += 1 }
-                let source = clockCreationCount == 0
-                    ? firstElapsedSource
-                    : secondElapsedSource
-                return SystemClock(timeSource: source.next)
-            },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let firstWakeInstant = baseInstant.advanced(by: .milliseconds(100))
+        await clock.resumeNext(at: firstWakeInstant)
         _ = await eventually { await target.requestCount() == 1 }
         driver.stop()
-        await sleeper.resumeAll()
+        await clock.resumeAll()
 
+        let restartInstant = baseInstant.advanced(by: .seconds(10))
+        await clock.setCurrentInstant(restartInstant)
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let restartWakeInstant = restartInstant.advanced(by: .milliseconds(100))
+        await clock.resumeNext(at: restartWakeInstant)
         let didRecordSecondRequest = await eventually {
             await target.requestCount() == 2
         }
         driver.stop()
-        await sleeper.resumeAll()
+        await clock.resumeAll()
 
         let requests = await target.recordedRequests()
         let secondRequest = try #require(requests.last)
@@ -475,21 +555,25 @@ struct RealtimeAdvanceDriverTests {
 
         #expect(didRecordSecondRequest)
         #expect(driver.isAdvancementEnabled)
-        #expect(clockCreationCount == 2)
+        #expect(secondRequest.stepCount.rawValue == 1)
     }
 
     @Test func pollingUsesAbsoluteDeadlinesAfterOversleep() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(110))]
-        )
-        let scheduleSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(110))]
-        )
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .failure(CancellationError())]
+        let oversleptInstant = baseInstant.advanced(by: .milliseconds(110))
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (instant: oversleptInstant, result: .success(())),
+                    (
+                        instant: oversleptInstant,
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -499,14 +583,12 @@ struct RealtimeAdvanceDriverTests {
             pollInterval: .milliseconds(100),
             catchUpPolicy: .interactive,
             isAdvancementEnabled: true,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            scheduleTimeSource: scheduleSource.next,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
         let didStop = await eventually { driver.isRunning == false }
-        let deadlines = await sleeper.recordedDeadlines()
+        let deadlines = await clock.recordedDeadlines()
 
         #expect(didStop)
         #expect(
@@ -521,47 +603,41 @@ struct RealtimeAdvanceDriverTests {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
         let baseInstant = SuspendingClock().now
-        let firstElapsedSource = SampledInstantSource(samples: [baseInstant])
-        let secondElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
         )
-        var clockCreationCount = 0
-        let sleeper = ControlledSleeper()
         let driver = makeDriver(
             target: target,
             inputSource: nil,
             cursor: cursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            clockFactory: {
-                defer { clockCreationCount += 1 }
-                let source = clockCreationCount == 0
-                    ? firstElapsedSource
-                    : secondElapsedSource
-                return SystemClock(timeSource: source.next)
-            },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
+        await clock.waitForPendingCount(1)
         driver.stop()
         driver.start()
 
         // The sole waiter belongs to the cancelled run and deliberately
         // ignores cancellation until resumed. The replacement run cannot
         // launch until this retiring authority releases its slot.
-        await sleeper.resumeNext()
-        await sleeper.waitForPendingCount(1)
+        let restartInstant = baseInstant.advanced(by: .seconds(10))
+        await clock.resumeNext(at: restartInstant)
+        await clock.waitForPendingCount(1)
         #expect(await target.requestCount() == 0)
 
-        await sleeper.resumeNext()
+        let restartWakeInstant = restartInstant.advanced(
+            by: .milliseconds(100)
+        )
+        await clock.resumeNext(at: restartWakeInstant)
         let didRecordRequest = await eventually {
             await target.requestCount() == 1
         }
         driver.stop()
-        await sleeper.resumeAll()
+        await clock.resumeAll()
 
         #expect(didRecordRequest)
         #expect(await target.requestCount() == 1)
@@ -579,15 +655,24 @@ struct RealtimeAdvanceDriverTests {
         )
         let inputSource = SequencedInputSource(snapshots: [.empty])
         let baseInstant = SuspendingClock().now
-        let firstElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
-        )
-        let secondElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
-        )
-        var clockCreationCount = 0
-        let sleeper = ImmediateSleeper(
-            results: [.success(()), .success(()), .failure(CancellationError())]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .immediate(
+                wakes: [
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(100)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(200)),
+                        result: .success(())
+                    ),
+                    (
+                        instant: baseInstant.advanced(by: .milliseconds(200)),
+                        result: .failure(CancellationError())
+                    )
+                ]
+            )
         )
         let driver = makeDriver(
             target: target,
@@ -595,15 +680,7 @@ struct RealtimeAdvanceDriverTests {
             cursor: initialCursor,
             fixedTimeStep: .milliseconds(100),
             pollInterval: .milliseconds(100),
-            clockFactory: {
-                defer { clockCreationCount += 1 }
-                let source = clockCreationCount == 0
-                    ? firstElapsedSource
-                    : secondElapsedSource
-                return SystemClock(timeSource: source.next)
-            },
-            baseInstant: baseInstant,
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
@@ -656,38 +733,28 @@ struct RealtimeAdvanceDriverTests {
         let initialCursor = makeCursor()
         let target = SuspendedAdvanceTarget()
         let baseInstant = SuspendingClock().now
-        let firstElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
         )
-        let secondElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
-        )
-        var clockCreationCount = 0
-        let sleeper = ControlledSleeper()
         let driver = makeSuspendedDriver(
             target: target,
             cursor: initialCursor,
-            baseInstant: baseInstant,
-            clockFactory: {
-                defer { clockCreationCount += 1 }
-                let source = clockCreationCount == 0
-                    ? firstElapsedSource
-                    : secondElapsedSource
-                return SystemClock(timeSource: source.next)
-            },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let firstWakeInstant = baseInstant.advanced(by: .milliseconds(100))
+        await clock.resumeNext(at: firstWakeInstant)
         await target.waitForRequestCount(1)
 
         driver.stop()
         driver.start()
 
         #expect(driver.isRunning)
-        #expect(clockCreationCount == 1)
+        let firstDeadline = baseInstant.advanced(by: .milliseconds(100))
+        #expect(await clock.recordedDeadlines() == [firstDeadline])
 
         let firstRequest = try #require(await target.recordedRequests().first)
         let firstOutcome = completedOutcome(
@@ -695,15 +762,24 @@ struct RealtimeAdvanceDriverTests {
             from: initialCursor
         )
         let firstFinalCursor = try completedCursor(from: firstOutcome)
+        let restartInstant = baseInstant.advanced(by: .seconds(10))
+        await clock.setCurrentInstant(restartInstant)
         await target.resumeNext(with: firstOutcome)
 
-        await sleeper.waitForPendingCount(1)
-        #expect(clockCreationCount == 2)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let restartDeadline = restartInstant.advanced(
+            by: .milliseconds(100)
+        )
+        #expect(
+            await clock.recordedDeadlines()
+                == [firstDeadline, restartDeadline]
+        )
+        await clock.resumeNext(at: restartDeadline)
         await target.waitForRequestCount(2)
 
         let secondRequest = try #require(await target.recordedRequests().last)
         #expect(secondRequest.expectedCursor == firstFinalCursor)
+        #expect(secondRequest.stepCount.rawValue == 1)
 
         driver.stop()
         await target.resumeNext(
@@ -712,28 +788,27 @@ struct RealtimeAdvanceDriverTests {
                 from: firstFinalCursor
             )
         )
-        await sleeper.resumeAll()
+        await clock.resumeAll()
     }
 
     @Test func stopAndDrainWaitsForAnAlreadyIssuedRequest() async throws {
         let initialCursor = makeCursor()
         let target = SuspendedAdvanceTarget()
         let baseInstant = SuspendingClock().now
-        let elapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
         )
-        let sleeper = ControlledSleeper()
         let driver = makeSuspendedDriver(
             target: target,
             cursor: initialCursor,
-            baseInstant: baseInstant,
-            clockFactory: { SystemClock(timeSource: elapsedSource.next) },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let firstWakeInstant = baseInstant.advanced(by: .milliseconds(100))
+        await clock.resumeNext(at: firstWakeInstant)
         await target.waitForRequestCount(1)
         #expect(driver.isQuiescent == false)
 
@@ -755,7 +830,7 @@ struct RealtimeAdvanceDriverTests {
         await drainTask.value
 
         #expect(driver.isQuiescent)
-        await sleeper.resumeAll()
+        await clock.resumeAll()
     }
 
     @Test func explicitSynchronizationSupersedesRetiringOldSessionResult() async throws {
@@ -763,31 +838,20 @@ struct RealtimeAdvanceDriverTests {
         let synchronizedCursor = makeCursor(sessionID: SimulationSessionID())
         let target = SuspendedAdvanceTarget()
         let baseInstant = SuspendingClock().now
-        let firstElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
         )
-        let secondElapsedSource = SampledInstantSource(
-            samples: [baseInstant, baseInstant.advanced(by: .milliseconds(100))]
-        )
-        var clockCreationCount = 0
-        let sleeper = ControlledSleeper()
         let driver = makeSuspendedDriver(
             target: target,
             cursor: initialCursor,
-            baseInstant: baseInstant,
-            clockFactory: {
-                defer { clockCreationCount += 1 }
-                let source = clockCreationCount == 0
-                    ? firstElapsedSource
-                    : secondElapsedSource
-                return SystemClock(timeSource: source.next)
-            },
-            sleeper: sleeper.sleep(until:)
+            clock: clock
         )
 
         driver.start()
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let firstWakeInstant = baseInstant.advanced(by: .milliseconds(100))
+        await clock.resumeNext(at: firstWakeInstant)
         await target.waitForRequestCount(1)
 
         driver.stop()
@@ -795,6 +859,8 @@ struct RealtimeAdvanceDriverTests {
         driver.start()
 
         let firstRequest = try #require(await target.recordedRequests().first)
+        let restartInstant = baseInstant.advanced(by: .seconds(10))
+        await clock.setCurrentInstant(restartInstant)
         await target.resumeNext(
             with: completedOutcome(
                 for: firstRequest,
@@ -802,12 +868,16 @@ struct RealtimeAdvanceDriverTests {
             )
         )
 
-        await sleeper.waitForPendingCount(1)
-        await sleeper.resumeNext()
+        await clock.waitForPendingCount(1)
+        let restartWakeInstant = restartInstant.advanced(
+            by: .milliseconds(100)
+        )
+        await clock.resumeNext(at: restartWakeInstant)
         await target.waitForRequestCount(2)
 
         let secondRequest = try #require(await target.recordedRequests().last)
         #expect(secondRequest.expectedCursor == synchronizedCursor)
+        #expect(secondRequest.stepCount.rawValue == 1)
 
         driver.stop()
         await target.resumeNext(
@@ -816,7 +886,7 @@ struct RealtimeAdvanceDriverTests {
                 from: synchronizedCursor
             )
         )
-        await sleeper.resumeAll()
+        await clock.resumeAll()
     }
 
     private func makeDriver(
@@ -825,9 +895,7 @@ struct RealtimeAdvanceDriverTests {
         cursor: SimulationCursor,
         fixedTimeStep: Duration,
         pollInterval: Duration,
-        clockFactory: @escaping RealtimeAdvanceDriver.ClockFactory,
-        baseInstant: SuspendingClock.Instant,
-        sleeper: @escaping RealtimeAdvanceDriver.Sleeper
+        clock: any PRealtimeClock
     ) -> RealtimeAdvanceDriver {
         RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -837,18 +905,14 @@ struct RealtimeAdvanceDriverTests {
             pollInterval: pollInterval,
             catchUpPolicy: .interactive,
             isAdvancementEnabled: true,
-            clockFactory: clockFactory,
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper
+            clock: clock
         )
     }
 
     private func makeSuspendedDriver(
         target: SuspendedAdvanceTarget,
         cursor: SimulationCursor,
-        baseInstant: SuspendingClock.Instant,
-        clockFactory: @escaping RealtimeAdvanceDriver.ClockFactory,
-        sleeper: @escaping RealtimeAdvanceDriver.Sleeper
+        clock: any PRealtimeClock
     ) -> RealtimeAdvanceDriver {
         RealtimeAdvanceDriver(
             advanceTarget: target,
@@ -858,9 +922,7 @@ struct RealtimeAdvanceDriverTests {
             pollInterval: .milliseconds(100),
             catchUpPolicy: .interactive,
             isAdvancementEnabled: true,
-            clockFactory: clockFactory,
-            scheduleTimeSource: { baseInstant },
-            sleeper: sleeper
+            clock: clock
         )
     }
 
@@ -934,95 +996,179 @@ struct RealtimeAdvanceDriverTests {
 private extension RealtimeAdvanceDriverTests {
     private struct UnexpectedAdvanceOutcome: Error {}
 
-    private final class SampledInstantSource {
-        private let samples: [SuspendingClock.Instant]
-        private var nextIndex = 0
+    nonisolated private final class TestRealtimeClock: PRealtimeClock, @unchecked Sendable {
+        typealias ImmediateWake = (
+            instant: SuspendingClock.Instant,
+            result: Result<Void, any Error>
+        )
 
-        init(samples: [SuspendingClock.Instant]) {
-            self.samples = samples
+        enum Suspension {
+            case immediate(wakes: [ImmediateWake])
+            case controlled
         }
 
-        func next() -> SuspendingClock.Instant {
-            let sample = samples[min(nextIndex, samples.count - 1)]
-            nextIndex += 1
-            return sample
-        }
-    }
-
-    private actor ImmediateSleeper {
-        private let results: [Result<Void, any Error>]
-        private var nextIndex = 0
-        private var deadlines: [SuspendingClock.Instant] = []
-
-        init(results: [Result<Void, any Error>]) {
-            self.results = results
-        }
-
-        func sleep(until deadline: SuspendingClock.Instant) async throws {
-            deadlines.append(deadline)
-            let index = min(nextIndex, results.count - 1)
-            nextIndex += 1
-            try results[index].get()
-        }
-
-        func recordedDeadlines() -> [SuspendingClock.Instant] {
-            deadlines
-        }
-    }
-
-    private actor ControlledSleeper {
         private struct Waiter {
+            let deadline: SuspendingClock.Instant
             let continuation: CheckedContinuation<Void, any Error>
         }
 
+        private let lock = NSLock()
+        private let suspension: Suspension
+        private var currentInstant: SuspendingClock.Instant
+        private var nextImmediateWakeIndex = 0
+        private var deadlines: [SuspendingClock.Instant] = []
         private var waiters: [Waiter] = []
         private var countWaiters: [
             Int: [CheckedContinuation<Void, Never>]
         ] = [:]
 
+        var now: SuspendingClock.Instant {
+            lock.withLock {
+                currentInstant
+            }
+        }
+
+        init(
+            initialInstant: SuspendingClock.Instant,
+            suspension: Suspension
+        ) {
+            if case let .immediate(wakes) = suspension {
+                precondition(
+                    wakes.isEmpty == false,
+                    "An immediate test clock requires at least one wake."
+                )
+            }
+
+            self.currentInstant = initialInstant
+            self.suspension = suspension
+        }
+
         func sleep(until deadline: SuspendingClock.Instant) async throws {
-            try await withCheckedThrowingContinuation { continuation in
-                let waiter = Waiter(continuation: continuation)
-                waiters.append(waiter)
-                resumeSatisfiedCountWaiters()
+            switch suspension {
+            case let .immediate(wakes):
+                let wake = lock.withLock {
+                    deadlines.append(deadline)
+                    let index = min(
+                        nextImmediateWakeIndex,
+                        wakes.count - 1
+                    )
+                    nextImmediateWakeIndex += 1
+                    let wake = wakes[index]
+                    precondition(
+                        wake.instant >= currentInstant,
+                        "A conforming test clock cannot move backward."
+                    )
+                    if case .success = wake.result {
+                        precondition(
+                            wake.instant >= deadline,
+                            "A successful test sleep cannot resume before its deadline."
+                        )
+                    }
+                    currentInstant = wake.instant
+                    return wake
+                }
+                try wake.result.get()
+
+            case .controlled:
+                try await withCheckedThrowingContinuation { continuation in
+                    let waiter = Waiter(
+                        deadline: deadline,
+                        continuation: continuation
+                    )
+                    let satisfiedWaiters = lock.withLock {
+                        deadlines.append(deadline)
+                        waiters.append(waiter)
+                        return removeSatisfiedCountWaitersLocked()
+                    }
+                    for satisfiedWaiter in satisfiedWaiters {
+                        satisfiedWaiter.resume()
+                    }
+                }
             }
         }
 
         func waitForPendingCount(_ count: Int) async {
-            guard waiters.count < count else {
-                return
-            }
-
             await withCheckedContinuation { continuation in
-                countWaiters[count, default: []].append(continuation)
+                let isAlreadySatisfied = lock.withLock {
+                    guard waiters.count < count else {
+                        return true
+                    }
+
+                    countWaiters[count, default: []].append(continuation)
+                    return false
+                }
+                if isAlreadySatisfied {
+                    continuation.resume()
+                }
             }
         }
 
-        func resumeNext() {
-            guard waiters.isEmpty == false else {
+        func resumeNext(at instant: SuspendingClock.Instant) async {
+            let waiter: Waiter? = lock.withLock {
+                guard let waiter = waiters.first else {
+                    return nil
+                }
+
+                precondition(
+                    instant >= currentInstant,
+                    "A conforming test clock cannot move backward."
+                )
+                precondition(
+                    instant >= waiter.deadline,
+                    "A successful test sleep cannot resume before its deadline."
+                )
+                currentInstant = instant
+                return waiters.removeFirst()
+            }
+            guard let waiter else {
                 Issue.record("No controlled sleep was pending.")
                 return
             }
 
-            waiters.removeFirst().continuation.resume()
+            waiter.continuation.resume()
         }
 
-        func resumeAll() {
-            let pendingWaiters = waiters
-            waiters.removeAll()
-            for waiter in pendingWaiters {
-                waiter.continuation.resume()
+        func setCurrentInstant(_ instant: SuspendingClock.Instant) async {
+            lock.withLock {
+                precondition(
+                    instant >= currentInstant,
+                    "A conforming test clock cannot move backward."
+                )
+                currentInstant = instant
             }
         }
 
-        private func resumeSatisfiedCountWaiters() {
+        func resumeAll() async {
+            let pendingWaiters = lock.withLock {
+                let pendingWaiters = waiters
+                waiters.removeAll()
+                return pendingWaiters
+            }
+            for waiter in pendingWaiters {
+                waiter.continuation.resume(throwing: CancellationError())
+            }
+        }
+
+        func recordedDeadlines() async -> [SuspendingClock.Instant] {
+            lock.withLock {
+                deadlines
+            }
+        }
+
+        private func removeSatisfiedCountWaitersLocked() -> [
+            CheckedContinuation<Void, Never>
+        ] {
             let satisfiedCounts = countWaiters.keys.filter {
                 $0 <= waiters.count
             }
+            var satisfiedWaiters: [
+                CheckedContinuation<Void, Never>
+            ] = []
             for count in satisfiedCounts {
                 let continuations = countWaiters.removeValue(forKey: count) ?? []
-                continuations.forEach { $0.resume() }
+                satisfiedWaiters.append(contentsOf: continuations)
             }
+            return satisfiedWaiters
         }
     }
 
@@ -1155,6 +1301,36 @@ private extension RealtimeAdvanceDriverTests {
         init(snapshots: [InputSnapshot]) {
             precondition(snapshots.isEmpty == false)
             self.snapshots = snapshots
+        }
+    }
+
+    /// Deliberately violates the clock contract to verify defensive elapsed-time clamping.
+    private final class NonmonotonicTestClock: PRealtimeClock {
+        typealias Wake = (
+            instant: SuspendingClock.Instant,
+            result: Result<Void, any Error>
+        )
+
+        private var currentInstant: SuspendingClock.Instant
+        private var wakes: [Wake]
+
+        var now: SuspendingClock.Instant {
+            currentInstant
+        }
+
+        init(
+            initialInstant: SuspendingClock.Instant,
+            wakes: [Wake]
+        ) {
+            precondition(wakes.isEmpty == false)
+            self.currentInstant = initialInstant
+            self.wakes = wakes
+        }
+
+        func sleep(until _: SuspendingClock.Instant) async throws {
+            let wake = wakes.removeFirst()
+            currentInstant = wake.instant
+            try wake.result.get()
         }
     }
 }
