@@ -1,8 +1,9 @@
 /// Immutable recipe for a live-process idempotent agent capture topology.
 ///
-/// This is deliberately not an MCP Runtime. It supplies the session semantics
-/// a future authenticated transport needs while leaving transport, request DTOs,
-/// structured inspection, semantic controls, and durable replay as future work.
+/// The value carries explicit Render and retention policy for assembly
+/// construction. This is deliberately not an MCP Runtime: transport, request
+/// DTOs, structured inspection, semantic controls, and durable replay remain
+/// future work.
 nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
     let renderLimits: OffscreenRenderLimits
     let sessionLimits: AgentSessionLimits
@@ -26,25 +27,11 @@ nonisolated struct AgentSessionConfiguration: Equatable, Sendable {
         agentSessionID: AgentSessionID,
         simulationSessionID: SimulationSessionID
     ) throws -> AgentSessionAssembly {
-        let offlineAssembly = try OfflineCaptureConfiguration(
-            renderLimits: renderLimits
-        ).makeAssembly(
+        try AgentSessionAssembly(
             gameContent: gameContent,
-            sessionID: simulationSessionID
-        )
-        let coordinator = AgentSessionCoordinator(
-            sessionID: agentSessionID,
-            initialCursor: offlineAssembly.initialCursor,
-            limits: sessionLimits,
-            captureTarget: offlineAssembly.captureTarget,
-            initialRequestSequence: .first
-        )
-
-        return AgentSessionAssembly(
-            sessionID: agentSessionID,
-            initialCursor: offlineAssembly.initialCursor,
-            offlineAssembly: offlineAssembly,
-            coordinator: coordinator
+            configuration: self,
+            agentSessionID: agentSessionID,
+            simulationSessionID: simulationSessionID
         )
     }
 }

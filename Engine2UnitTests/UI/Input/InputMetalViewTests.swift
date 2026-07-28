@@ -4,6 +4,12 @@ import Testing
 @testable import Engine2
 
 struct InputMetalViewTests {
+    @Test func renderOnlyViewDeclinesKeyboardFocusWithoutAnInputSink() {
+        let view = InputMetalView(frame: .zero, device: nil)
+
+        #expect(view.acceptsFirstResponder == false)
+    }
+
     @Test func acceptsKeyboardFocusAndTranslatesKeyTransitions() throws {
         let view = InputMetalView(frame: .zero, device: nil)
         // InputMetalView deliberately retains its sink weakly, so the host

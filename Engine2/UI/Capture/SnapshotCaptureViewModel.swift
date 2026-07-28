@@ -3,7 +3,7 @@ import Observation
 
 /// Observable presentation state for user-initiated snapshot capture and export.
 ///
-/// The model requests one artifact through a narrow App-owned connection, then
+/// The model requests one artifact through a narrow assembly-owned connection, then
 /// exposes a detached file document to SwiftUI. It never samples Simulation,
 /// resolves a viewpoint, calls Metal directly, or writes a destination itself.
 @Observable
@@ -23,7 +23,7 @@ final class SnapshotCaptureViewModel {
     @ObservationIgnored
     private var presentationGeneration: UInt64 = 0
 
-    /// Creates an available UI model around the App-owned capture capability.
+    /// Creates an available UI model around the assembly-owned capture capability.
     init(captureTarget: any PRealtimeSnapshotCaptureTarget, renderSize: RenderPixelSize) {
         self.availability = .available(captureTarget)
         self.renderSize = renderSize

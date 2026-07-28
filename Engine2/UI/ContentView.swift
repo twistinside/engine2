@@ -1,20 +1,15 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Root application view that composes rendering and app-level debug controls.
+/// Real-time topology content that composes rendering and debug controls.
 ///
-/// The view receives runtime capabilities from the App composition root. It
-/// does not own simulation truth: the Metal scene consumes immutable
-/// presentation snapshots, while controls change advancement policy or request
-/// a detached offscreen artifact through an App-owned connection.
+/// ``RealtimeAssemblyView`` supplies one narrow assembly model. This view does
+/// not acquire exact advancement or lifecycle authority: the Metal scene
+/// consumes immutable presentation snapshots, while controls toggle assembly
+/// policy or request a detached artifact through assembly-owned connections.
 struct ContentView: View {
-    let presentationSource: any PSimulationPresentationSource
-    let inputSink: any PInputEventSink
-    let isSimulationRunning: @MainActor () -> Bool
-    let inputHistory: @MainActor () -> [InputHistoryEntry]
-    let toggleSimulation: () -> Void
+    let model: any PRealtimeAssemblyViewModel
     let debugOptions: AppDebugOptions
-    let renderAssetCatalog: RenderAssetCatalog
     let snapshotCaptureViewModel: SnapshotCaptureViewModel
 
     @State private var captureTask: Task<Void, Never>?
@@ -26,24 +21,26 @@ struct ContentView: View {
 
         ZStack {
             MetalSceneView(
-                renderAssetCatalog: renderAssetCatalog,
-                presentationSource: presentationSource,
-                inputSink: inputSink,
+                renderAssetCatalog: model.renderAssetCatalog,
+                presentationSource: model.presentationSource,
+                inputSink: model.inputSink,
                 outputMode: debugOptions.renderOutputMode
             )
                 .ignoresSafeArea()
 
             SimulationControls(
-                isSimulationRunning: isSimulationRunning(),
+                isSimulationRunning: model.isAdvancementActive,
                 isCapturingSnapshot: captureModel.isCapturing,
-                toggleSimulation: toggleSimulation,
+                toggleSimulation: model.toggleAdvancement,
                 captureSnapshot: captureSnapshot
             )
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
             if debugOptions.showsInputHistory {
-                InputHistoryPane(entries: inputHistory)
+                InputHistoryPane {
+                    model.inputHistoryEntries
+                }
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }

@@ -2,6 +2,28 @@ import Testing
 @testable import Engine2
 
 struct RealtimeAssemblyTests {
+    @Test func valueCopiesRetainOneRuntimeGraphAndLifecycleState() async {
+        let assembly = RealtimeConfiguration(
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
+        ).makeAssembly(gameContent: BasicGameContent())
+        let copy = assembly
+
+        #expect(copy.inputRuntime === assembly.inputRuntime)
+        #expect(copy.simulationRuntime === assembly.simulationRuntime)
+        #expect(copy.advanceDriver === assembly.advanceDriver)
+
+        assembly.start()
+
+        #expect(copy.inputRuntime.isRunning)
+        #expect(copy.advanceDriver.isRunning)
+
+        await copy.stop()
+
+        #expect(assembly.inputRuntime.isRunning == false)
+        #expect(assembly.advanceDriver.isRunning == false)
+    }
+
     @Test func lifecycleStartsAndStopsTheOwnedRuntimes() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
@@ -42,7 +64,7 @@ struct RealtimeAssemblyTests {
         #expect(assembly.advanceDriver.isRunning == false)
     }
 
-    @Test func userPauseSurvivesAppLifecycleAndLeavesInputLive() async {
+    @Test func userPauseSurvivesAssemblyLifecycleAndLeavesInputLive() async {
         let assembly = RealtimeConfiguration(
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive

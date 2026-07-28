@@ -3,6 +3,16 @@ import Testing
 @testable import Engine2
 
 struct ManualConfigurationTests {
+    @Test func selfConstructionCreatesAReadyManualAssembly() {
+        let assembly = ManualAssembly()
+
+        #expect(assembly.simulationRuntime.currentCursor.tick == .zero)
+        #expect(
+            assembly.presentationSource.latestPresentationSnapshot.cursor ==
+            assembly.simulationRuntime.currentCursor
+        )
+    }
+
     @Test func constructionCreatesAnIdleSimulationWithoutInputRuntime() {
         let sessionID = SimulationSessionID(
             rawValue: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
@@ -93,7 +103,6 @@ struct ManualConfigurationTests {
         let first = configuration.makeAssembly(gameContent: BasicGameContent())
         let second = configuration.makeAssembly(gameContent: BasicGameContent())
 
-        #expect(first !== second)
         #expect(first.simulationRuntime !== second.simulationRuntime)
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
         #expect(first.simulationRuntime.sessionID != second.simulationRuntime.sessionID)

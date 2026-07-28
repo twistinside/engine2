@@ -8,17 +8,15 @@ import UniformTypeIdentifiers
 
 struct AgentSessionConfigurationTests {
     @Test
-    func freshConstructionOwnsSessionIdentitiesAndStartsAtTheFirstRequest() throws {
-        let assembly = try AgentSessionConfiguration(
-            renderLimits: .conservative,
-            sessionLimits: .conservative
-        ).makeAssembly(
-            gameContent: BasicGameContent()
-        )
+    func freshConstructionOwnsSessionIdentitiesAndStartsAtTheFirstRequest() async throws {
+        let assembly = try AgentSessionAssembly()
 
         #expect(assembly.initialCursor.tick == .zero)
         #expect(assembly.firstRequestID.sessionID == assembly.sessionID)
         #expect(assembly.firstRequestID.sequence == .first)
+        _ = assembly.body
+
+        await assembly.stopAndDrain()
     }
 
     @Test

@@ -2,6 +2,18 @@ import Testing
 @testable import Engine2
 
 struct RealtimeConfigurationTests {
+    @Test func selfConstructionSelectsTheApplicationPolicy() {
+        let assembly = RealtimeAssembly()
+
+        #expect(
+            assembly.advanceDriver.pollInterval ==
+            SimulationRuntime.fixedTimeStep
+        )
+        #expect(assembly.advanceDriver.catchUpPolicy == .interactive)
+        #expect(assembly.inputRuntime.isRunning == false)
+        #expect(assembly.advanceDriver.isRunning == false)
+    }
+
     @Test func makeAssemblyUsesConfigurationAndGameContent() throws {
         let configuration = RealtimeConfiguration(
             pollInterval: .seconds(60),
@@ -47,7 +59,6 @@ struct RealtimeConfigurationTests {
         let first = configuration.makeAssembly(gameContent: gameContent)
         let second = configuration.makeAssembly(gameContent: gameContent)
 
-        #expect(first !== second)
         #expect(first.inputRuntime !== second.inputRuntime)
         #expect(first.simulationRuntime !== second.simulationRuntime)
         #expect(first.advanceDriver !== second.advanceDriver)

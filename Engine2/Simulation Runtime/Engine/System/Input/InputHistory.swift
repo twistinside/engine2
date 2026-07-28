@@ -1,6 +1,6 @@
 /// World-owned diagnostic history derived from authoritative fixed-step input.
 ///
-/// This resource retains a bounded newest-first view for App tooling. It owns
+/// This resource retains a bounded newest-first view for assembly UI tooling. It owns
 /// presentation-oriented token formatting, fixed-step numbering, and
 /// coalescing independently of ``InputState``'s authoritative imported state.
 struct InputHistory {

@@ -1,4 +1,4 @@
-/// Narrow App-owned capability for capturing the latest real-time presentation.
+/// Narrow assembly-owned capability for capturing the latest real-time presentation.
 ///
 /// Implementations select an immutable Simulation publication and derive the
 /// exact offscreen request camera from that snapshot without exposing either

@@ -8,6 +8,14 @@ import UniformTypeIdentifiers
 
 struct OfflineCaptureConfigurationTests {
     @Test
+    func selfConstructionCreatesAReadyClosedAssembly() throws {
+        let assembly = try OfflineCaptureAssembly()
+
+        #expect(assembly.initialCursor.tick == .zero)
+        _ = assembly.body
+    }
+
+    @Test
     func composesSimulationMetalAndImageArtifactsAcrossCaptures() async throws {
         let sessionID = SimulationSessionID(
             rawValue: UUID(

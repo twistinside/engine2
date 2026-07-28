@@ -2,7 +2,8 @@
 ///
 /// Manual configurations have no Input Runtime or cadence driver. A debugger,
 /// test, turn-based host, or future tool coordinator advances the resulting
-/// assembly only through the Simulation Runtime's exact capability.
+/// assembly only through the Simulation Runtime's exact capability. The
+/// configuration delegates graph construction to ``ManualAssembly``.
 nonisolated struct ManualConfiguration: Equatable, Sendable {
     /// Constructs an initially idle manual assembly with a fresh Simulation
     /// session identity.
@@ -18,12 +19,9 @@ nonisolated struct ManualConfiguration: Equatable, Sendable {
     /// Simulation identity for restoration or external correlation.
     @MainActor
     func makeAssembly(gameContent: BasicGameContent, sessionID: SimulationSessionID) -> ManualAssembly {
-        let simulationRuntime = SimulationRuntime(
-            worldBuilder: gameContent.worldBuilder,
-            configuration: gameContent.simulationConfiguration,
-            inputBaseline: nil,
+        ManualAssembly(
+            gameContent: gameContent,
             sessionID: sessionID
         )
-        return ManualAssembly(simulationRuntime: simulationRuntime)
     }
 }

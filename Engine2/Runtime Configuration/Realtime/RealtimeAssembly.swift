@@ -1,15 +1,27 @@
+import SwiftUI
+
 /// Owns the live Runtime instances and lifecycle ordering for real-time play.
 ///
 /// One Input Runtime publishes latest input, one cadence driver translates wall
 /// time into exact requests, and one Simulation Runtime commits those requests.
-/// The App wires platform input directly to the Input Runtime and screen Render
-/// directly to completed Simulation presentation snapshots.
-final class RealtimeAssembly {
+/// Its root view wires platform input, screen Render, capture, debug UI, and
+/// scene lifecycle without exposing those composition details to the App.
+struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
     let inputRuntime: InputRuntime
     let simulationRuntime: SimulationRuntime
     let advanceDriver: RealtimeAdvanceDriver
+    let renderAssetCatalog: RenderAssetCatalog
 
-    private var lifecycleGeneration: UInt64 = 0
+    private let lifecycleState: RealtimeAssemblyLifecycleState
+    private let snapshotCaptureStore: RealtimeAssemblySnapshotCaptureStore
+
+    /// Root interactive UI and scene-lifecycle adapter presented by the App.
+    var body: some View {
+        RealtimeAssemblyView(
+            assembly: self,
+            snapshotCaptureViewModel: snapshotCaptureStore.viewModel
+        )
+    }
 
     /// Whether user policy currently permits real-time Simulation progress.
     var isAdvancementEnabled: Bool {
@@ -21,15 +33,82 @@ final class RealtimeAssembly {
         advanceDriver.isAdvancementEnabled && advanceDriver.isRunning
     }
 
-    /// Authority failure requiring an App-coordinated cursor transition.
+    /// Latest completed presentation exposed without wider Simulation authority.
+    var presentationSource: any PSimulationPresentationSource {
+        simulationRuntime
+    }
+
+    /// Platform ingress exposed without wider Input Runtime ownership.
+    var inputSink: any PInputEventSink {
+        inputRuntime
+    }
+
+    /// Snapshot of the diagnostics consumed by the current Simulation world.
+    var inputHistoryEntries: [InputHistoryEntry] {
+        simulationRuntime.world.inputHistory.entries
+    }
+
+    /// Authority failure requiring an assembly-coordinated cursor transition.
     var advancementFault: RealtimeAdvanceDriverFault? {
         advanceDriver.fault
     }
 
-    init(inputRuntime: InputRuntime, simulationRuntime: SimulationRuntime, advanceDriver: RealtimeAdvanceDriver) {
+    /// Constructs the production real-time graph with Basic Game Content,
+    /// fixed-step polling, and interactive catch-up policy.
+    init() {
+        self.init(
+            gameContent: BasicGameContent(),
+            configuration: RealtimeConfiguration(
+                pollInterval: SimulationRuntime.fixedTimeStep,
+                catchUpPolicy: .interactive
+            )
+        )
+    }
+
+    /// Constructs a real-time graph from explicit content and policy.
+    ///
+    /// This path preserves deterministic test and specialized-host injection
+    /// while keeping graph construction inside the assembly.
+    init(gameContent: BasicGameContent, configuration: RealtimeConfiguration) {
+        let inputRuntime = InputRuntime()
+        let simulationRuntime = SimulationRuntime(
+            worldBuilder: gameContent.worldBuilder,
+            configuration: gameContent.simulationConfiguration,
+            inputBaseline: inputRuntime.latestInputSnapshot
+        )
+        let advanceDriver = RealtimeAdvanceDriver(
+            advanceTarget: simulationRuntime,
+            inputSource: inputRuntime,
+            initialCursor: simulationRuntime.currentCursor,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            pollInterval: configuration.pollInterval,
+            catchUpPolicy: configuration.catchUpPolicy,
+            isAdvancementEnabled: true
+        )
+
+        self.init(
+            inputRuntime: inputRuntime,
+            simulationRuntime: simulationRuntime,
+            advanceDriver: advanceDriver,
+            renderAssetCatalog: gameContent.renderAssetCatalog
+        )
+    }
+
+    init(
+        inputRuntime: InputRuntime,
+        simulationRuntime: SimulationRuntime,
+        advanceDriver: RealtimeAdvanceDriver,
+        renderAssetCatalog: RenderAssetCatalog
+    ) {
         self.inputRuntime = inputRuntime
         self.simulationRuntime = simulationRuntime
         self.advanceDriver = advanceDriver
+        self.renderAssetCatalog = renderAssetCatalog
+        self.lifecycleState = RealtimeAssemblyLifecycleState()
+        self.snapshotCaptureStore = RealtimeAssemblySnapshotCaptureStore(
+            presentationSource: simulationRuntime,
+            renderAssetCatalog: renderAssetCatalog
+        )
     }
 
     /// Starts the publisher before the cadence connection.
@@ -38,22 +117,22 @@ final class RealtimeAssembly {
     /// boundary. The driver captures that publication immediately, then carries
     /// later active input with it in the first enabled request.
     func start() {
-        beginLifecycleTransition()
+        lifecycleState.beginTransition()
         inputRuntime.start()
         advanceDriver.start()
     }
 
     /// Stops the cadence connection before its publisher.
     ///
-    /// The driver's advancement preference is retained, so app backgrounding
+    /// The driver's advancement preference is retained, so scene backgrounding
     /// never turns a deliberate user pause back on.
     func stop() async {
-        let transition = beginLifecycleTransition()
+        let transition = lifecycleState.beginTransition()
         await advanceDriver.stopAndDrain()
 
         // A newer start owns lifecycle policy now. Do not let completion of an
         // older asynchronous stop shut down its Input publication session.
-        guard lifecycleGeneration == transition else {
+        guard lifecycleState.isCurrent(transition) else {
             return
         }
 
@@ -78,13 +157,22 @@ final class RealtimeAssembly {
         }
     }
 
+    /// Applies the one playback toggle exposed to the real-time content view.
+    func toggleAdvancement() {
+        if isAdvancementActive {
+            pauseAdvancement()
+        } else {
+            resumeAdvancement()
+        }
+    }
+
     /// Reconstructs Simulation as one coordinated cursor and input-baseline cutover.
     func rebuildSimulation() async {
-        let transition = beginLifecycleTransition()
+        let transition = lifecycleState.beginTransition()
         let wasRunning = advanceDriver.isRunning
         await advanceDriver.stopAndDrain()
 
-        guard lifecycleGeneration == transition else {
+        guard lifecycleState.isCurrent(transition) else {
             return
         }
 
@@ -99,14 +187,4 @@ final class RealtimeAssembly {
             advanceDriver.start()
         }
     }
-
-    /// Advances lifecycle identity so stale asynchronous completions cannot
-    /// apply an older App-scene decision after a newer one.
-    @discardableResult
-    private func beginLifecycleTransition() -> UInt64 {
-        precondition(lifecycleGeneration < .max, "Real-time assembly lifecycle generation exhausted.")
-        lifecycleGeneration += 1
-        return lifecycleGeneration
-    }
-
 }

@@ -70,7 +70,7 @@ There is no jointly owned snapshot in this flow:
 
 - the publisher owns the snapshot it publishes
 - the consumer owns its projection and any private snapshot or cache it derives
-- the App owns the connection between the two runtime boundaries
+- the App-owned Runtime Assembly owns the connection between the two runtime boundaries
 
 For rendering, `SimulationPresentationSnapshot` contains backend-neutral completed presentation state. The Render Runtime selects and transforms the fields it needs into render-oriented data such as matrices, resolved presentation keys, visibility results, sort keys, or batches. The Simulation Runtime does not define those render details.
 
@@ -122,13 +122,13 @@ A shared infrastructure type resembling `RuntimeOutput<Snapshot, Event>` may eve
 - snapshot and event types remain strongly typed by their publishing authority
 - adding or removing a consumer does not change publisher correctness
 
-An App-owned router or hub may be an implementation detail, but it must not erase the explicit typed topology or become globally discoverable mutable state.
+An assembly-owned router or hub may be an implementation detail, but it must not erase the explicit typed topology or become globally discoverable mutable state.
 
-The implemented input connection uses narrow capabilities and one recipient. `InputMetalView` submits `InputEvent` values directly to ``InputRuntime`` through `PInputEventSink`; the Runtime ignores them while its publication lifecycle is stopped and otherwise incorporates them into canonical device-state publication. ``RealtimeAdvanceDriver`` receives only the immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. The App owns both connections. `InputEvent` is therefore host ingress, not a runtime-published event stream, a presentation command, or a direct call into Simulation. Source identity, route epochs, independent recipient baselines, exclusivity, presentation control, and multi-window binding semantics remain future typed-routing work.
+The implemented input connection uses narrow capabilities and one recipient. `InputMetalView` submits `InputEvent` values directly to ``InputRuntime`` through `PInputEventSink`; the Runtime ignores them while its publication lifecycle is stopped and otherwise incorporates them into canonical device-state publication. ``RealtimeAdvanceDriver`` receives only the immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. ``RealtimeAssembly`` owns both connections and its view installs the platform adapter. `InputEvent` is therefore host ingress, not a runtime-published event stream, a presentation command, or a direct call into Simulation. Source identity, route epochs, independent recipient baselines, exclusivity, presentation control, and multi-window binding semantics remain future typed-routing work.
 
 ## Directed Advancement Needs an Exact Result
 
-Advancing Simulation is neither a snapshot nor an event. It is a deliberate request to perform authoritative work, so the App or an App-owned configuration coordinator routes it through the narrow Simulation-owned ``PSimulationAdvanceTarget`` request/result capability.
+Advancing Simulation is neither a snapshot nor an event. It is a deliberate request to perform authoritative work, so the App-owned assembly or its focused coordinator routes it through the narrow Simulation-owned ``PSimulationAdvanceTarget`` request/result capability.
 
 The requester may be a real-time driver, offline capture workflow, MCP session coordinator, network lockstep policy, replay driver, or test. It decides when and how many ticks to request; ``SimulationRuntime`` remains the only owner that executes the complete fixed-step schedule, mutates ``World``, advances the session-qualified cursor, and publishes committed outputs.
 
@@ -164,7 +164,7 @@ If replay, auditing, debugging, networking, or another feature requires retained
 
 The World-owned ``InputHistory`` is deliberately different. It retains a bounded diagnostic projection of Simulation-consumed input for App tooling; it is neither an ordered Input Runtime publication nor a durable replay journal.
 
-Likewise, a Storage Runtime may publish its own status snapshot and completion events, but save and load workflows remain deliberate App-coordinated requests and results rather than ambient access to a snapshot database.
+Likewise, a Storage Runtime may publish its own status snapshot and completion events, but save and load workflows remain deliberate assembly-coordinated requests and results rather than ambient access to a snapshot database.
 
 ## Open Implementation Questions
 

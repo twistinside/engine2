@@ -4,7 +4,7 @@ import simd
 ///
 /// The value keeps camera-control sensitivities and orbit constraints consistent across
 /// every system in one Simulation Runtime. Its initializer validates the complete policy;
-/// Game Content or the App composition root must deliberately select a named production
+/// Game Content or the Runtime Assembly must deliberately select a named production
 /// value instead of letting individual systems choose local defaults.
 nonisolated struct SimulationConfiguration: Equatable, Sendable {
     /// Complete Simulation behavior policy selected by Basic Game Content.

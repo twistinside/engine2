@@ -1,4 +1,4 @@
-/// Example consumer content assembled by the App composition root.
+/// Example consumer content selected by Engine2's production Runtime Assemblies.
 ///
 /// This value owns game-specific construction and asset descriptions, but it
 /// has no cadence, lifecycle, decoded model, or GPU resource of its own.
