@@ -8,9 +8,6 @@ import Observation
 /// publication of completed results.
 @Observable
 final class RealtimeAdvanceDriver {
-    /// Weakly resolving source used by the polling task between wake cycles.
-    typealias DriverSource = @MainActor () -> RealtimeAdvanceDriver?
-
     var fixedTimeStep: Duration {
         stepAccumulator.fixedTimeStep
     }
@@ -262,59 +259,45 @@ final class RealtimeAdvanceDriver {
 
         let currentRunID = runID
         let firstWakeDeadline = launchInstant.advanced(by: pollInterval)
-        let driverSource: DriverSource = { [weak self] in self }
-        updateTask = Task { @MainActor in
-            await Self.runLoop(
-                driverSource: driverSource,
-                runID: currentRunID,
-                nextWakeDeadline: firstWakeDeadline
-            )
-        }
-    }
+        updateTask = Task { [weak self] in
+            var nextWakeDeadline = firstWakeDeadline
 
-    /// Sleeps without retaining the driver, reacquiring it only to process a wake.
-    private static func runLoop(
-        driverSource: @escaping DriverSource,
-        runID: UInt64,
-        nextWakeDeadline initialWakeDeadline: SuspendingClock.Instant
-    ) async {
-        var nextWakeDeadline = initialWakeDeadline
-
-        defer {
-            driverSource()?.finishRun(runID: runID)
-        }
-
-        while Task.isCancelled == false {
-            guard let clock = driverSource()?.clock else {
-                return
+            defer {
+                self?.finishRun(runID: currentRunID)
             }
 
-            do {
-                // Absolute deadlines prevent ordinary wake jitter from
-                // accumulating into long-term cadence drift.
-                try await clock.sleep(until: nextWakeDeadline)
-            } catch {
-                return
-            }
-
-            let followingDeadline: SuspendingClock.Instant?
-            do {
-                // Limit the strong reference to wake processing. In particular,
-                // the next clock suspension must not keep an otherwise
-                // unowned configuration assembly alive indefinitely.
-                guard let driver = driverSource() else {
+            while Task.isCancelled == false {
+                guard let clock = self?.clock else {
                     return
                 }
-                followingDeadline = await driver.processWake(
-                    runID: runID,
-                    previousDeadline: nextWakeDeadline
-                )
-            }
 
-            guard let followingDeadline else {
-                return
+                do {
+                    // Absolute deadlines prevent ordinary wake jitter from
+                    // accumulating into long-term cadence drift.
+                    try await clock.sleep(until: nextWakeDeadline)
+                } catch {
+                    return
+                }
+
+                let followingDeadline: SuspendingClock.Instant?
+                do {
+                    // Limit the strong reference to wake processing. In particular,
+                    // the next clock suspension must not keep an otherwise
+                    // unowned configuration assembly alive indefinitely.
+                    guard let driver = self else {
+                        return
+                    }
+                    followingDeadline = await driver.processWake(
+                        runID: currentRunID,
+                        previousDeadline: nextWakeDeadline
+                    )
+                }
+
+                guard let followingDeadline else {
+                    return
+                }
+                nextWakeDeadline = followingDeadline
             }
-            nextWakeDeadline = followingDeadline
         }
     }
 
