@@ -21,6 +21,12 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
             assembly: self,
             snapshotCaptureViewModel: snapshotCaptureStore.viewModel
         )
+        .onAppear {
+            self.setRootVisible(true)
+        }
+        .onDisappear {
+            self.setRootVisible(false)
+        }
     }
 
     /// Whether user policy currently permits real-time Simulation progress.
@@ -98,18 +104,13 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         )
     }
 
-    /// Starts Input publication and real-time advancement for visible presentation.
-    func onAppear() {
-        lifecycleState.setRootVisible(true)
-        applyVisibilityPolicy()
-    }
-
-    /// Stops cadence immediately, then drains accepted work before stopping Input.
+    /// Applies root-view visibility to the real-time lifecycle.
     ///
-    /// The lifecycle generation prevents an older disappearance task from
-    /// stopping Input after a newer appearance has restarted the assembly.
-    func onDisappear() {
-        lifecycleState.setRootVisible(false)
+    /// Hiding the root stops cadence immediately, then drains accepted work before
+    /// stopping Input. Transition identity prevents an older hide from stopping
+    /// Input after a newer presentation has restarted the assembly.
+    func setRootVisible(_ isVisible: Bool) {
+        lifecycleState.setRootVisible(isVisible)
         applyVisibilityPolicy()
     }
 
@@ -139,7 +140,7 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         await finishStop(transition: transition)
     }
 
-    /// Reconciles App visibility and scene activity without exposing either to peers.
+    /// Reconciles root-view visibility and scene activity without exposing either to peers.
     private func applyVisibilityPolicy() {
         guard lifecycleState.permitsRunning == false else {
             start()

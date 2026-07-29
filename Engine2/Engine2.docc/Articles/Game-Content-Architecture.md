@@ -185,6 +185,12 @@ A consumer assembly may use the same production-plus-injection shape:
 struct MyGameAssembly: PRuntimeAssembly {
     var body: some View {
         MyGameAssemblyView(assembly: self)
+            .onAppear {
+                self.startVisibilityDependentWork()
+            }
+            .onDisappear {
+                self.stopVisibilityDependentWork()
+            }
     }
 
     init(gameContent: any PGameContent) {
@@ -201,11 +207,11 @@ struct MyGameAssembly: PRuntimeAssembly {
         // Construct the complete runtime graph and retain its connections.
     }
 
-    func onAppear() {
+    private func startVisibilityDependentWork() {
         // Start visibility-dependent work in dependency order.
     }
 
-    func onDisappear() {
+    private func stopVisibilityDependentWork() {
         // Stop visibility-dependent work in reverse dependency order.
     }
 }
@@ -217,7 +223,7 @@ A Runtime Assembly is a value-type View because SwiftUI requires custom views to
 
 A nonthrowing Game Content initializer such as this one satisfies the protocol's throwing initializer requirement. If construction can fail, the selecting App must choose an explicit launch policy; the common protocol does not manufacture fallback UI.
 
-`PRuntimeAssembly.onAppear()` and `onDisappear()` are common root-visibility signals. Each topology maps them to its own reversible work. They are not terminal shutdown requirements. In particular, ordinary disappearance of an ``AgentSessionAssembly`` does not close the session; its explicit host still calls `stopAndDrain()` when that live session ends.
+SwiftUI appearance modifiers belong inside the body of an assembly that owns visibility-dependent work. Assemblies without that work add no lifecycle surface. View disappearance is not a common terminal-shutdown requirement. In particular, ordinary disappearance of an ``AgentSessionAssembly`` does not close the session; its explicit host still calls `stopAndDrain()` when that live session ends.
 
 `PGameContent` is the narrow assembly-construction substitution seam shared by the implemented topologies. It contains exactly three construction values: ``PWorldBuilder``, ``SimulationConfiguration``, and ``RenderAssetCatalog``. It does not expose live runtimes, lifecycle operations, cadence, storage, or a topology-specific capability bag. A consumer may conform with one immutable composition value while retaining its own supporting namespaces and focused catalogs.
 

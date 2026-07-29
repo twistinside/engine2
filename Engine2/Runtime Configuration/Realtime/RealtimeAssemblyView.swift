@@ -2,9 +2,8 @@ import SwiftUI
 
 /// Presents one real-time assembly and translates scene state into its lifecycle.
 ///
-/// The App supplies root visibility callbacks through ``PRuntimeAssembly``.
-/// This view adds scene-phase transitions while keeping topology-specific
-/// presentation state local.
+/// The assembly body owns root visibility. This view adds scene-phase transitions
+/// while keeping topology-specific presentation state local.
 struct RealtimeAssemblyView: View {
     @Environment(\.scenePhase) private var scenePhase
 
@@ -43,6 +42,7 @@ struct RealtimeAssemblyView: View {
 }
 
 #Preview {
+    // Exercise the same root lifecycle used by every production SwiftUI host.
     RealtimeAssembly(gameContent: BasicGameContent())
         .frame(width: 960, height: 640)
 }

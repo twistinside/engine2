@@ -67,16 +67,17 @@ struct RealtimeAssemblyTests {
         #expect(assembly.advanceDriver.isRunning == false)
     }
 
-    @Test func newerAppearanceSupersedesQueuedDisappearance() async {
+    @Test func newerVisibleTransitionSupersedesQueuedHiddenTransition() async {
         let assembly = RealtimeAssembly(
             gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
         )
 
-        assembly.onAppear()
-        assembly.onDisappear()
-        assembly.onAppear()
+        assembly.setSceneActive(true)
+        assembly.setRootVisible(true)
+        assembly.setRootVisible(false)
+        assembly.setRootVisible(true)
         await Task.yield()
 
         #expect(assembly.inputRuntime.isRunning)
@@ -85,15 +86,14 @@ struct RealtimeAssemblyTests {
         await assembly.stop()
     }
 
-    @Test func inactiveScenePreventsInitialVisibilityFromStartingWork() async {
+    @Test func rootVisibilityWaitsForInitialScenePhase() async {
         let assembly = RealtimeAssembly(
             gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
         )
 
-        assembly.setSceneActive(false)
-        assembly.onAppear()
+        assembly.setRootVisible(true)
         await Task.yield()
 
         #expect(assembly.inputRuntime.isRunning == false)

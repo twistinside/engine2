@@ -20,19 +20,13 @@ struct RuntimeAssemblyTests {
     }
 
     @Test
-    func protocolConformanceProvidesTheRootViewAndVisibilityLifecycle() throws {
-        let recorder = LifecycleRecorder()
-        let gameContent = RecordingGameContent(recorder: recorder)
+    func protocolConformanceProvidesInjectedConstructionAndRootView() throws {
         let assembly = try construct(
-            RecordingRuntimeAssembly.self,
-            gameContent: gameContent
+            MinimalRuntimeAssembly.self,
+            gameContent: BasicGameContent()
         )
 
-        _ = assembly.body
-        assembly.onAppear()
-        assembly.onDisappear()
-
-        #expect(recorder.events == [.appeared, .disappeared])
+        _ = host(assembly)
     }
 
     @Test
@@ -86,58 +80,12 @@ struct RuntimeAssemblyTests {
         case expected
     }
 
-    private enum LifecycleEvent: Equatable {
-        case appeared
-        case disappeared
-    }
-
-    private final class LifecycleRecorder {
-        var events: [LifecycleEvent] = []
-
-        func record(_ event: LifecycleEvent) {
-            events.append(event)
-        }
-    }
-
-    private struct RecordingGameContent: PGameContent {
-        let recorder: LifecycleRecorder
-
-        private let base = BasicGameContent()
-
-        var worldBuilder: any PWorldBuilder {
-            base.worldBuilder
-        }
-
-        var simulationConfiguration: SimulationConfiguration {
-            base.simulationConfiguration
-        }
-
-        var renderAssetCatalog: RenderAssetCatalog {
-            base.renderAssetCatalog
-        }
-    }
-
-    private struct RecordingRuntimeAssembly: PRuntimeAssembly {
-        let recorder: LifecycleRecorder
-
+    private struct MinimalRuntimeAssembly: PRuntimeAssembly {
         var body: some View {
             EmptyView()
         }
 
-        init(gameContent: any PGameContent) throws {
-            guard let gameContent = gameContent as? RecordingGameContent else {
-                throw ConstructionError.expected
-            }
-            self.recorder = gameContent.recorder
-        }
-
-        func onAppear() {
-            recorder.record(.appeared)
-        }
-
-        func onDisappear() {
-            recorder.record(.disappeared)
-        }
+        init(gameContent _: any PGameContent) throws {}
     }
 
     private struct ThrowingRuntimeAssembly: PRuntimeAssembly {

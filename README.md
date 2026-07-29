@@ -9,7 +9,7 @@ The project is exploring a hybrid architecture:
 - Typed `Entity` facades and capability protocols provide a convenient game-facing API.
 - Input, simulation, and rendering live in independently owned runtimes connected through explicit snapshots and events.
 - Consumer-defined Game Content supplies entities, world construction, presentation descriptions, and assets without owning runtime infrastructure.
-- The App injects selected Game Content into one `PRuntimeAssembly`, presents the assembly as its SwiftUI root, and forwards reversible visibility through the common lifecycle hooks.
+- The App injects selected Game Content into one `PRuntimeAssembly` and presents the assembly as its SwiftUI root. Each assembly body owns any topology-specific presentation lifecycle.
 
 Engine2 is early and intentionally small, but its architectural direction is documented as it develops.
 

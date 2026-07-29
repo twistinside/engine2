@@ -13,12 +13,6 @@ struct Engine2App: App {
     var body: some Scene {
         Window("Engine2", id: "main") {
             assembly
-                .onAppear {
-                    assembly.onAppear()
-                }
-                .onDisappear {
-                    assembly.onDisappear()
-                }
         }
     }
 }
