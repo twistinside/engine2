@@ -2,6 +2,8 @@ import Foundation
 import simd
 import Testing
 @testable import Engine2
+@testable import Engine2AgentSessionAssembly
+@testable import Engine2OfflineCaptureAssembly
 
 struct AgentSessionCoordinatorTests {
     @Test func sessionIdentitySupportsFreshRawAndCodableRoundTrips() throws {

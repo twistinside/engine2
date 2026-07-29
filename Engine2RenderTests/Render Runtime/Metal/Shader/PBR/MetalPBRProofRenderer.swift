@@ -1,4 +1,5 @@
 import Dispatch
+import Foundation
 import Metal
 @testable import Engine2
 
@@ -70,15 +71,17 @@ final class MetalPBRProofRenderer {
         residencySet.addAllocation(colorTexture)
         residencySet.commit()
 
-        let library = resources.requiredResources.engineLibrary
+        let proofLibrary = try resources.device.makeDefaultLibrary(
+            bundle: Bundle(for: RenderTestBundleToken.self)
+        )
         var pipelines: [PBRProofOutput: any MTLRenderPipelineState] = [:]
         for output in PBRProofOutput.allCases {
             let vertexFunction = MTL4LibraryFunctionDescriptor()
-            vertexFunction.library = library
+            vertexFunction.library = proofLibrary
             vertexFunction.name = "pbrProofVertex"
 
             let fragmentFunction = MTL4LibraryFunctionDescriptor()
-            fragmentFunction.library = library
+            fragmentFunction.library = proofLibrary
             fragmentFunction.name = output.fragmentFunctionName
 
             let pipelineDescriptor = MTL4RenderPipelineDescriptor()

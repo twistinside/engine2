@@ -1,5 +1,7 @@
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
+@testable import Engine2RealtimeAssembly
 
 struct RealtimeAssemblyTests {
     @Test func valueCopiesRetainOneRuntimeGraphAndLifecycleState() async {

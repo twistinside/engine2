@@ -2,6 +2,10 @@ import Foundation
 import ImageIO
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
+@testable import Engine2ManualAssembly
+@testable import Engine2OfflineCaptureAssembly
+@testable import Engine2RealtimeAssembly
 
 /// Scenario-level proof that Runtime topology changes do not change Simulation
 /// semantics and that optional peers remain genuinely optional.
@@ -38,7 +42,9 @@ struct RuntimeCompositionScenarioTests {
         let clockDriven = await runClockDrivenSimulation(
             stepCount: twentySteps
         )
-        let manual = ManualAssembly(gameContent: gameContent)
+        let manual = ManualAssembly(
+            gameContent: gameContent
+        )
         let manualRequest = SimulationAdvanceRequest(
             expectedCursor: manual.simulationRuntime.currentCursor,
             stepCount: twentySteps,

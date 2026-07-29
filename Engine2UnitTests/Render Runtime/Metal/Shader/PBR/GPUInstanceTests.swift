@@ -1,8 +1,11 @@
+import Engine2GPUABI
 import simd
 import Testing
 @testable import Engine2
 
 struct GPUInstanceTests {
+    private static let meshKey = MeshAssetKey(rawValue: 7)
+    private static let materialKey = MaterialAssetKey(rawValue: 11)
     private static let warmDielectric = PBRMaterialDescription(
         baseColor: SIMD3<Float>(0.5, 0.25, 0.125),
         metallic: 0,
@@ -156,8 +159,8 @@ struct GPUInstanceTests {
             position: transform.position,
             rotation: transform.rotation,
             scale: transform.scale,
-            meshID: .ball,
-            materialID: .warmDielectric
+            meshID: Self.meshKey,
+            materialID: Self.materialKey
         )
         return try RenderInstance(
             projecting: presentation,

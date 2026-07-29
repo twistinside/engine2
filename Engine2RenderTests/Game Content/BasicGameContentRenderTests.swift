@@ -1,6 +1,7 @@
 import Metal
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct BasicGameContentRenderTests {
     @Test func packagedBallModelResolvesIntoRendererOwnedMeshes() throws {
@@ -11,6 +12,6 @@ struct BasicGameContentRenderTests {
         )
 
         #expect(models.count == 1)
-        #expect(models[.ball]?.meshes.isEmpty == false)
+        #expect(models[MeshID.ball.assetKey]?.meshes.isEmpty == false)
     }
 }

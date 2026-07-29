@@ -4,6 +4,8 @@ import ImageIO
 import Testing
 import UniformTypeIdentifiers
 @testable import Engine2
+@testable import BasicGameContent
+@testable import Engine2RealtimeAssembly
 
 struct RealtimeSnapshotCaptureIntegrationTests {
     @Test

@@ -2,6 +2,7 @@ import Foundation
 import simd
 import Testing
 @testable import Engine2
+@testable import Engine2OfflineCaptureAssembly
 
 struct OfflineCaptureCoordinatorTests {
     @Test func advanceOutcomeConstructionPreservesEveryArtifactTerminal() throws {
@@ -1562,8 +1563,8 @@ struct OfflineCaptureCoordinatorTests {
                     position: SIMD3<Float>(1, 2, 3),
                     rotation: .identity,
                     scale: SIMD3<Float>(repeating: 1.5),
-                    meshID: .ball,
-                    materialID: .goldMetal
+                    meshID: MeshAssetKey(rawValue: 7),
+                    materialID: MaterialAssetKey(rawValue: 11)
                 )
             ]
         )

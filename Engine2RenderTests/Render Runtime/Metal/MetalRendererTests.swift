@@ -1,8 +1,10 @@
 import CoreGraphics
+import Engine2GPUABI
 import Metal
 import MetalKit
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct MetalRendererTests {
     @Test func resourceStoreCreatesEveryRendererPipelineAndArgumentTable() throws {
@@ -52,10 +54,13 @@ struct MetalRendererTests {
         let incompleteCatalog = RenderAssetCatalog(
             models: completeCatalog.models,
             materials: [
-                .warmDielectric: try #require(
-                    completeCatalog.materials[.warmDielectric]
+                MaterialID.warmDielectric.assetKey: try #require(
+                    completeCatalog.materials[
+                        MaterialID.warmDielectric.assetKey
+                    ]
                 )
-            ]
+            ],
+            requiredMaterialKeys: completeCatalog.requiredMaterialKeys
         )
         let simulation = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
@@ -80,7 +85,9 @@ struct MetalRendererTests {
         // view, and no fallback material can enter a draw.
         #expect(
             error == .missingMaterialDescriptions(
-                MaterialID.allCases.filter { $0 != .warmDielectric }
+                MaterialID.allCases
+                    .filter { $0 != .warmDielectric }
+                    .map(\.assetKey)
             )
         )
         #expect(coordinator.renderer == nil)
@@ -120,31 +127,31 @@ struct MetalRendererTests {
         let encoder = MetalFrameEncoder(resources: resources)
         let prepared = encoder.prepare(scene.renderFrame)
         var visitedIndices: [Int] = []
-        var visitedMaterialIDs: [MaterialID] = []
+        var visitedMaterialKeys: [MaterialAssetKey] = []
         var decodedMeshCounts: [Int] = []
 
         // Inspect the exact immutable join consumed by production encoding.
         // Together with the GPU binding proof, this closes the path between the
-        // projected frame, its shared MeshID, and all six visible draws without
-        // maintaining a separate static iteration seam just for tests.
+        // projected frame, its shared mesh asset key, and all six visible draws
+        // without maintaining a separate static iteration seam just for tests.
         for (instanceIndex, instance) in prepared.instances.enumerated() {
             guard let model = instance.model else {
                 continue
             }
 
             visitedIndices.append(instanceIndex)
-            visitedMaterialIDs.append(instance.renderInstance.materialID)
+            visitedMaterialKeys.append(instance.renderInstance.materialID)
             decodedMeshCounts.append(model.meshes.count)
         }
 
         #expect(prepared.instances.count == 6)
         #expect(
             prepared.instances.allSatisfy {
-                $0.renderInstance.meshID == .ball
+                $0.renderInstance.meshID == MeshID.ball.assetKey
             }
         )
         #expect(visitedIndices == Array(prepared.instances.indices))
-        #expect(visitedMaterialIDs == scene.materialIDs)
+        #expect(visitedMaterialKeys == scene.materialKeys)
         #expect(decodedMeshCounts.allSatisfy { $0 > 0 })
     }
 
@@ -417,8 +424,8 @@ struct MetalRendererTests {
                         position: SIMD3<Float>(Float(index), 0, 0),
                         rotation: nil,
                         scale: nil,
-                        meshID: .ball,
-                        materialID: .warmDielectric
+                        meshID: MeshID.ball.assetKey,
+                        materialID: MaterialID.warmDielectric.assetKey
                     )
                 }
             )

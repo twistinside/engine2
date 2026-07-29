@@ -1,3 +1,6 @@
+import BasicGameContent
+import Engine2AssemblySupport
+import Engine2RealtimeAssembly
 import SwiftUI
 
 /// Selects and retains the Runtime Assembly presented by the main window.
@@ -15,4 +18,10 @@ struct Engine2App: App {
             assembly
         }
     }
+}
+
+#Preview {
+    // Exercise the same root lifecycle used by every production SwiftUI host.
+    RealtimeAssembly(gameContent: BasicGameContent())
+        .frame(width: 960, height: 640)
 }

@@ -3,8 +3,12 @@ import Dispatch
 import Metal
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct MetalFrameEncoderTests {
+    private static let meshKey = MeshID.ball.assetKey
+    private static let materialKey = MaterialID.warmDielectric.assetKey
+
     @Test func encodesPublishedFrameIntoCallerOwnedOffscreenTargets() throws {
         let width = 320
         let height = 240
@@ -29,7 +33,7 @@ struct MetalFrameEncoderTests {
         #expect(prepared.instances.allSatisfy { $0.model != nil })
         #expect(
             prepared.instances.map { $0.renderInstance.materialID }
-                == scene.materialIDs
+                == scene.materialKeys
         )
         for instance in prepared.instances {
             let preparedModel = try #require(instance.model)
@@ -184,10 +188,10 @@ struct MetalFrameEncoderTests {
             #expect(prepared.instances.count == expectedCount)
             #expect(
                 prepared.instances.allSatisfy {
-                    $0.renderInstance.materialID == .warmDielectric
+                    $0.renderInstance.materialID == Self.materialKey
                         && $0.materialDescription
                             == resources.materialDescription(
-                                for: .warmDielectric
+                                for: Self.materialKey
                             )
                         && $0.model == nil
                 }
@@ -313,8 +317,8 @@ struct MetalFrameEncoderTests {
                     position: SIMD3<Float>(Float(index), 0, 0),
                     rotation: nil,
                     scale: nil,
-                    meshID: .ball,
-                    materialID: .warmDielectric
+                    meshID: Self.meshKey,
+                    materialID: Self.materialKey
                 )
             }
         )

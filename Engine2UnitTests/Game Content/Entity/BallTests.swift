@@ -1,6 +1,7 @@
 import Testing
 import simd
 @testable import Engine2
+@testable import BasicGameContent
 
 struct BallTests {
     @Test func initSeedsMovementAndRotationState() async throws {
@@ -39,10 +40,11 @@ struct BallTests {
         #expect(ball.angularVelocity == expectedAngularVelocity)
         #expect(ball.angularAcceleration == expectedAngularAcceleration)
         #expect(ball.angularImpulse == expectedAngularImpulse)
-        #expect(ball.meshID == .ball)
-        #expect(ball.materialID == expectedMaterialID)
+        #expect(ball.meshID == MeshID.ball.assetKey)
+        #expect(ball.materialID == expectedMaterialID.assetKey)
         #expect(
-            world.renderableComponents[ball.id]?.materialID == expectedMaterialID
+            world.renderableComponents[ball.id]?.materialID ==
+                expectedMaterialID.assetKey
         )
         #expect(ball.selectionState == expectedSelectionState)
         #expect(world.scaleComponents[ball.id] == nil)
@@ -62,8 +64,8 @@ struct BallTests {
         #expect(ball.angularVelocity == .zero)
         #expect(ball.angularAcceleration == .zero)
         #expect(ball.angularImpulse == .zero)
-        #expect(ball.meshID == .ball)
-        #expect(ball.materialID == .warmDielectric)
+        #expect(ball.meshID == MeshID.ball.assetKey)
+        #expect(ball.materialID == MaterialID.warmDielectric.assetKey)
         #expect(ball.selectionState == .unselected)
     }
 
@@ -74,10 +76,13 @@ struct BallTests {
 
         // Both entities reuse one Game Content mesh identity while their
         // authoritative renderable rows preserve independent material intent.
-        #expect(dielectric.meshID == .ball)
-        #expect(metal.meshID == .ball)
-        #expect(dielectric.materialID == .warmDielectric)
-        #expect(metal.materialID == .goldMetal)
+        #expect(dielectric.meshID == MeshID.ball.assetKey)
+        #expect(metal.meshID == MeshID.ball.assetKey)
+        #expect(
+            dielectric.materialID ==
+                MaterialID.warmDielectric.assetKey
+        )
+        #expect(metal.materialID == MaterialID.goldMetal.assetKey)
         #expect(dielectric.materialID != metal.materialID)
     }
 }

@@ -3,6 +3,7 @@ import Dispatch
 import Metal
 import simd
 @testable import Engine2
+@testable import BasicGameContent
 
 /// Test-only Metal 4 renderer for the production scene and presentation phases.
 ///
@@ -72,11 +73,12 @@ final class MetalHDRPipelineTestRenderer {
         // Reuse the actual Game Content-authored material descriptions while
         // leaving model resolution empty: this harness supplies one analytic
         // triangle buffer and exercises only the production material pathway.
-        let authoredMaterials = BasicGameContent().renderAssetCatalog.materials
+        let authoredCatalog = BasicGameContent().renderAssetCatalog
         let resources = try MetalResourceStore(
             renderAssetCatalog: RenderAssetCatalog(
                 models: [:],
-                materials: authoredMaterials
+                materials: authoredCatalog.materials,
+                requiredMaterialKeys: authoredCatalog.requiredMaterialKeys
             ),
             frameCount: 1
         )
@@ -108,14 +110,15 @@ final class MetalHDRPipelineTestRenderer {
         outputMode: RenderOutputMode,
         normal: SIMD3<Float> = SIMD3<Float>(0, 0, 1),
         exposure: ManualExposure = .validation,
-        materialID: MaterialID = .warmDielectric
+        materialKey: MaterialAssetKey =
+            MaterialID.warmDielectric.assetKey
     ) throws -> MetalHDRPipelineTestResult {
         let results = try render(
             scenePipeline: scenePipeline(for: outputMode),
             presentationOutputMode: outputMode,
             normal: normal,
             exposure: exposure,
-            materialIDs: [materialID],
+            materialKeys: [materialKey],
             scissorRects: [Self.fullScissorRect],
             sampleRegions: [Self.centerRegion]
         )
@@ -131,18 +134,24 @@ final class MetalHDRPipelineTestRenderer {
     /// draw, an incorrect instance stride, or material data overwritten by the
     /// later draw before Metal consumes its snapshot.
     func renderAuthoredMaterialPair(
-        _ materialIDs: [MaterialID] = [.warmDielectric, .goldMetal]
+        _ materialKeys: [MaterialAssetKey] = [
+            MaterialID.warmDielectric.assetKey,
+            MaterialID.goldMetal.assetKey
+        ]
     ) throws -> (
         left: SIMD4<Float>,
         right: SIMD4<Float>
     ) {
-        precondition(materialIDs.count == 2, "The paired material proof requires exactly two identities.")
+        precondition(
+            materialKeys.count == 2,
+            "The paired material proof requires exactly two identities."
+        )
         let results = try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
             normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
-            materialIDs: materialIDs,
+            materialKeys: materialKeys,
             scissorRects: [Self.leftScissorRect, Self.rightScissorRect],
             sampleRegions: [Self.leftSampleRegion, Self.rightSampleRegion]
         )
@@ -158,14 +167,16 @@ final class MetalHDRPipelineTestRenderer {
     /// The narrow centered strips all intersect the shared analytic triangle.
     /// Their distinct regions let one submission validate every per-draw record
     /// while continuing to use production frame packing and argument binding.
-    func renderAuthoredMaterialScene(_ materialIDs: [MaterialID]) throws -> [MetalHDRPipelineTestResult] {
-        let layout = centeredStripLayout(drawCount: materialIDs.count)
+    func renderAuthoredMaterialScene(
+        _ materialKeys: [MaterialAssetKey]
+    ) throws -> [MetalHDRPipelineTestResult] {
+        let layout = centeredStripLayout(drawCount: materialKeys.count)
         return try render(
             scenePipeline: pbrPipeline,
             presentationOutputMode: .surface,
             normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
-            materialIDs: materialIDs,
+            materialKeys: materialKeys,
             scissorRects: layout.scissorRects,
             sampleRegions: layout.sampleRegions
         )
@@ -176,12 +187,15 @@ final class MetalHDRPipelineTestRenderer {
     /// Diagnostic pipelines are compiled only by this test harness. They still
     /// consume the ordinary model vertex output, `GPUInstance`, frame light,
     /// production binding helper, and shared BRDF used by the visible surface.
-    func renderDiagnostic(_ output: ModelPBRDiagnosticOutput, materialIDs: [MaterialID]) throws -> [SIMD4<Float>] {
+    func renderDiagnostic(
+        _ output: ModelPBRDiagnosticOutput,
+        materialKeys: [MaterialAssetKey]
+    ) throws -> [SIMD4<Float>] {
         guard let pipeline = diagnosticPipelines[output] else {
             preconditionFailure("Missing exhaustive model PBR diagnostic pipeline: \(output)")
         }
 
-        let layout = centeredStripLayout(drawCount: materialIDs.count)
+        let layout = centeredStripLayout(drawCount: materialKeys.count)
         let results = try render(
             scenePipeline: pipeline,
             // Factor and contribution assertions inspect the raw HDR scene
@@ -190,7 +204,7 @@ final class MetalHDRPipelineTestRenderer {
             presentationOutputMode: .viewSpaceNormals,
             normal: SIMD3<Float>(0, 0, 1),
             exposure: .validation,
-            materialIDs: materialIDs,
+            materialKeys: materialKeys,
             scissorRects: layout.scissorRects,
             sampleRegions: layout.sampleRegions
         )
@@ -204,7 +218,7 @@ final class MetalHDRPipelineTestRenderer {
         presentationOutputMode: RenderOutputMode,
         normal: SIMD3<Float>,
         exposure: ManualExposure,
-        materialIDs: [MaterialID],
+        materialKeys: [MaterialAssetKey],
         scissorRects: [MTLScissorRect],
         sampleRegions: [MTLRegion]
     ) throws -> [MetalHDRPipelineTestResult] {
@@ -212,9 +226,9 @@ final class MetalHDRPipelineTestRenderer {
             throw MetalHDRPipelineTestRendererError.unusableAfterTimeout
         }
         precondition(
-            !materialIDs.isEmpty
-                && materialIDs.count == scissorRects.count
-                && materialIDs.count == sampleRegions.count,
+            !materialKeys.isEmpty
+                && materialKeys.count == scissorRects.count
+                && materialKeys.count == sampleRegions.count,
             "HDR material samples require one scissor and sample region per draw."
         )
 
@@ -250,15 +264,15 @@ final class MetalHDRPipelineTestRenderer {
                         tick: .zero
                     ),
                     camera: Self.camera,
-                    entityPresentations: materialIDs.enumerated().map {
-                        index, materialID in
+                    entityPresentations: materialKeys.enumerated().map {
+                        index, materialKey in
                         EntityPresentationSnapshot(
                             id: EntityID(index: index, generation: 0),
                             position: .zero,
                             rotation: .identity,
                             scale: SIMD3<Float>(repeating: 1),
-                            meshID: .ball,
-                            materialID: materialID
+                            meshID: MeshID.ball.assetKey,
+                            materialID: materialKey
                         )
                     }
                 )
@@ -271,7 +285,7 @@ final class MetalHDRPipelineTestRenderer {
             exposure: exposure
         )
         precondition(
-            preparedFrame.instances.count == materialIDs.count,
+            preparedFrame.instances.count == materialKeys.count,
             "The HDR pipeline proof must write every requested material draw."
         )
 
