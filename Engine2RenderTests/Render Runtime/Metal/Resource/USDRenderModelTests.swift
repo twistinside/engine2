@@ -1,9 +1,12 @@
+import Engine2GPUABI
+import Foundation
 import Metal
 import MetalKit
 import ModelIO
 import simd
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct USDRenderModelTests {
     @Test func modelWithoutMeshesHasNoCompleteDrawableIndexedGeometry() {
@@ -16,7 +19,11 @@ struct USDRenderModelTests {
         let device = try #require(MTLCreateSystemDefaultDevice())
 
         let models = try USDRenderModel.load(
-            catalog: RenderAssetCatalog(models: [:], materials: [:]),
+            catalog: RenderAssetCatalog(
+                models: [:],
+                materials: [:],
+                requiredMaterialKeys: []
+            ),
             device: device
         )
 
@@ -25,13 +32,15 @@ struct USDRenderModelTests {
 
     @Test func missingPackagedModelReportsAnError() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let missingMeshKey = MeshAssetKey(rawValue: 7)
         let missingAsset = ModelAssetReference(
-            resourceName: "ModelThatDoesNotExist",
+            resourceURL: URL(fileURLWithPath: "/ModelThatDoesNotExist.usdz"),
             format: .usdz
         )
         let catalog = RenderAssetCatalog(
-            models: [.ball: missingAsset],
-            materials: [:]
+            models: [missingMeshKey: missingAsset],
+            materials: [:],
+            requiredMaterialKeys: []
         )
 
         do {
@@ -50,7 +59,7 @@ struct USDRenderModelTests {
             catalog: BasicGameContent().renderAssetCatalog,
             device: device
         )
-        let model = try #require(models[.ball])
+        let model = try #require(models[MeshID.ball.assetKey])
         try #require(!model.meshes.isEmpty)
 
         // Production renders every mesh produced by the importer, so validate
@@ -142,7 +151,7 @@ struct USDRenderModelTests {
             catalog: BasicGameContent().renderAssetCatalog,
             device: device
         )
-        let model = try #require(models[.ball])
+        let model = try #require(models[MeshID.ball.assetKey])
 
         #expect(model.hasCompleteDrawableIndexedGeometry)
 

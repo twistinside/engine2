@@ -1,4 +1,5 @@
 @testable import Engine2
+@testable import BasicGameContent
 
 /// Test-only view of the material identities published by the example app.
 ///
@@ -11,7 +12,7 @@ struct PublishedMaterialValidationScene {
     let renderFrame: RenderFrame
 
     /// Material identities in the exact order published by the builder.
-    var materialIDs: [MaterialID] {
+    var materialKeys: [MaterialAssetKey] {
         renderFrame.instances.map(\.materialID)
     }
 
@@ -31,6 +32,6 @@ struct PublishedMaterialValidationScene {
 
     /// Resolves every published identity through the App-supplied catalog.
     func materialDescriptions() throws -> [PBRMaterialDescription] {
-        try materialIDs.map { try catalog.materialDescription(for: $0) }
+        try materialKeys.map { try catalog.materialDescription(for: $0) }
     }
 }

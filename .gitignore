@@ -1,0 +1,4 @@
+Packages/*/.build/
+Packages/*/.swiftpm/xcode/xcuserdata/
+Engine2.xcodeproj/project.xcworkspace/xcuserdata/
+Engine2.xcodeproj/xcuserdata/

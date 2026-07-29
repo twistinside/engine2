@@ -1,6 +1,7 @@
 import Metal
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct MetalResourceStoreTests {
     @Test func ownsMetal4CompilerQueueAndRequiredStateLibraries() throws {
@@ -94,9 +95,11 @@ struct MetalResourceStoreTests {
         // factor descriptions remain a CPU-side Render resource until a frame
         // packs them into its private instance buffer.
         for materialID in MaterialID.allCases {
-            let expected = try #require(catalog.materials[materialID])
+            let expected = try #require(
+                catalog.materials[materialID.assetKey]
+            )
             #expect(
-                store.materialDescription(for: materialID)
+                store.materialDescription(for: materialID.assetKey)
                     == expected
             )
         }
@@ -105,13 +108,16 @@ struct MetalResourceStoreTests {
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let warmDielectric = try #require(
-            BasicGameContent().renderAssetCatalog.materials[.warmDielectric]
+            BasicGameContent().renderAssetCatalog.materials[
+                MaterialID.warmDielectric.assetKey
+            ]
         )
         let incompleteCatalog = RenderAssetCatalog(
             models: [:],
             materials: [
-                .warmDielectric: warmDielectric
-            ]
+                MaterialID.warmDielectric.assetKey: warmDielectric
+            ],
+            requiredMaterialKeys: MaterialID.allCases.map(\.assetKey)
         )
 
         do {
@@ -124,7 +130,9 @@ struct MetalResourceStoreTests {
         } catch let error as RenderAssetCatalogError {
             #expect(
                 error == .missingMaterialDescriptions(
-                    MaterialID.allCases.filter { $0 != .warmDielectric }
+                    MaterialID.allCases
+                        .filter { $0 != .warmDielectric }
+                        .map(\.assetKey)
                 )
             )
         } catch {
@@ -139,7 +147,7 @@ struct MetalResourceStoreTests {
             renderAssetCatalog: BasicGameContent().renderAssetCatalog,
             frameCount: 2
         )
-        let model = try #require(store.model(for: .ball))
+        let model = try #require(store.model(for: MeshID.ball.assetKey))
 
         #expect(
             store.residency.staticAssets.allocationCount ==

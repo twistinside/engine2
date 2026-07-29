@@ -1,9 +1,11 @@
 import Dispatch
 import CoreGraphics
+import Engine2GPUABI
 import Metal
 import simd
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct MetalDepthRenderingTests {
     @Test func nearerTriangleWinsForBothProjectionsRegardlessOfSubmissionOrder() throws {
@@ -163,8 +165,8 @@ private func renderCenterPixel(
                         position: transform.position,
                         rotation: transform.rotation,
                         scale: transform.scale,
-                        meshID: .ball,
-                        materialID: .warmDielectric
+                        meshID: MeshID.ball.assetKey,
+                        materialID: MaterialID.warmDielectric.assetKey
                     )
                 }
             )

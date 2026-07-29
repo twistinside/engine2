@@ -2,6 +2,7 @@ import Foundation
 import simd
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct SimulationRuntimeAdvanceTests {
     @Test func initialCursorQualifiesTickZeroAndPresentation() {

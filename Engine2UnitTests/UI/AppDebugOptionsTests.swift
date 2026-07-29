@@ -1,5 +1,6 @@
 import Testing
 @testable import Engine2
+@testable import Engine2RealtimeAssembly
 
 struct AppDebugOptionsTests {
     @Test func inputHistoryIsHiddenByDefault() {

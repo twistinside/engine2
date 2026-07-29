@@ -1,5 +1,6 @@
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct BasicGameContentTests {
     @Test func canonicalConstructionSelectsBasicWorldBuilderAndCompleteCatalog() {
@@ -30,9 +31,9 @@ struct BasicGameContentTests {
     }
 
     @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
-        let expectedModels: [MeshID: ModelAssetReference] = [
-            .ball: ModelAssetReference(
-                resourceName: "Ball",
+        let expectedModels: [MeshAssetKey: ModelAssetReference] = [
+            MeshID.ball.assetKey: ModelAssetReference(
+                resourceURL: BasicGameContentResources.ballModelURL,
                 format: .usdz
             )
         ]
@@ -43,33 +44,33 @@ struct BasicGameContentTests {
         let catalog = RenderAssetCatalog.everything
         let warmDielectricBaseColor = SIMD3<Float>(0.5, 0.25, 0.125)
         let goldMetalBaseColor = SIMD3<Float>(1, 0.766, 0.336)
-        let expectedMaterials: [MaterialID: PBRMaterialDescription] = [
-            .warmDielectricSmooth: PBRMaterialDescription(
+        let expectedMaterials: [MaterialAssetKey: PBRMaterialDescription] = [
+            MaterialID.warmDielectricSmooth.assetKey: PBRMaterialDescription(
                 baseColor: warmDielectricBaseColor,
                 metallic: 0,
                 perceptualRoughness: 0.2
             ),
-            .warmDielectric: PBRMaterialDescription(
+            MaterialID.warmDielectric.assetKey: PBRMaterialDescription(
                 baseColor: warmDielectricBaseColor,
                 metallic: 0,
                 perceptualRoughness: 0.5
             ),
-            .warmDielectricRough: PBRMaterialDescription(
+            MaterialID.warmDielectricRough.assetKey: PBRMaterialDescription(
                 baseColor: warmDielectricBaseColor,
                 metallic: 0,
                 perceptualRoughness: 0.8
             ),
-            .goldMetalSmooth: PBRMaterialDescription(
+            MaterialID.goldMetalSmooth.assetKey: PBRMaterialDescription(
                 baseColor: goldMetalBaseColor,
                 metallic: 1,
                 perceptualRoughness: 0.2
             ),
-            .goldMetal: PBRMaterialDescription(
+            MaterialID.goldMetal.assetKey: PBRMaterialDescription(
                 baseColor: goldMetalBaseColor,
                 metallic: 1,
                 perceptualRoughness: 0.35
             ),
-            .goldMetalRough: PBRMaterialDescription(
+            MaterialID.goldMetalRough.assetKey: PBRMaterialDescription(
                 baseColor: goldMetalBaseColor,
                 metallic: 1,
                 perceptualRoughness: 0.8

@@ -1,5 +1,6 @@
 import Testing
 @testable import Engine2
+@testable import Engine2AgentSessionAssembly
 
 struct AgentSessionRequestSequenceProgressTests {
     @Test func nonzeroInitialSequenceClassifiesExactAndGapCandidatesWithoutHighWater() {

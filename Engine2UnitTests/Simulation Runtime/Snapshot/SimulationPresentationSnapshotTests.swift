@@ -3,6 +3,10 @@ import simd
 @testable import Engine2
 
 struct SimulationPresentationSnapshotTests {
+    private static let meshKey = MeshAssetKey(rawValue: 7)
+    private static let firstMaterialKey = MaterialAssetKey(rawValue: 11)
+    private static let secondMaterialKey = MaterialAssetKey(rawValue: 13)
+
     @Test func captureProducesStableDetachedPresentationState() throws {
         let world = World()
         let sessionID = SimulationSessionID()
@@ -23,8 +27,8 @@ struct SimulationPresentationSnapshotTests {
             )
         )
         let renderable = CRenderable(
-            meshID: .ball,
-            materialID: .warmDielectric
+            meshID: Self.meshKey,
+            materialID: Self.firstMaterialKey
         )
         world.renderableComponents.insert(
             renderable,
@@ -71,7 +75,7 @@ struct SimulationPresentationSnapshotTests {
         let didUpdateMaterial = world.renderableComponents.update(
             for: renderableEntity
         ) { renderable in
-            renderable.materialID = .goldMetal
+            renderable.materialID = Self.secondMaterialKey
         }
         let laterCursor = SimulationCursor(
             sessionID: sessionID,
@@ -91,13 +95,13 @@ struct SimulationPresentationSnapshotTests {
         #expect(entity.position == renderablePositionValue)
         #expect(entity.rotation?.vector == expectedRotation.vector)
         #expect(entity.scale == renderableScaleValue)
-        #expect(entity.meshID == .ball)
-        #expect(entity.materialID == .warmDielectric)
+        #expect(entity.meshID == Self.meshKey)
+        #expect(entity.materialID == Self.firstMaterialKey)
 
         // A later capture observes authoritative mutation, while the completed
         // snapshot above remains a detached point-in-time value.
         let laterEntity = try #require(laterSnapshot.entityPresentations.first)
-        #expect(laterEntity.materialID == .goldMetal)
+        #expect(laterEntity.materialID == Self.secondMaterialKey)
         requireSendable(snapshot)
     }
 

@@ -3,6 +3,7 @@ import simd
 import Testing
 import UniformTypeIdentifiers
 @testable import Engine2
+@testable import Engine2RealtimeAssembly
 
 struct SnapshotCaptureViewModelTests {
     @Test

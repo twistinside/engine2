@@ -1,6 +1,7 @@
 import Testing
 import simd
 @testable import Engine2
+@testable import BasicGameContent
 
 struct BasicWorldBuilderRenderTests {
     private static let expectedEntityIDs = (0..<6).map {
@@ -36,10 +37,11 @@ struct BasicWorldBuilderRenderTests {
         )
         let snapshot = world.presentationSnapshot(at: cursor)
         let frame = RenderFrame(projecting: snapshot)
-        let expectedMeshIDs = Array(
-            repeating: MeshID.ball,
+        let expectedMeshKeys = Array(
+            repeating: MeshID.ball.assetKey,
             count: Self.expectedEntityIDs.count
         )
+        let expectedMaterialKeys = Self.expectedMaterialIDs.map(\.assetKey)
 
         #expect(snapshot.tick == tick)
         #expect(snapshot.cursor == cursor)
@@ -51,11 +53,11 @@ struct BasicWorldBuilderRenderTests {
         )
         #expect(
             snapshot.entityPresentations.map(\.materialID) ==
-                Self.expectedMaterialIDs
+                expectedMaterialKeys
         )
         #expect(
             snapshot.entityPresentations.map(\.meshID) ==
-                expectedMeshIDs
+                expectedMeshKeys
         )
         #expect(snapshot.entityPresentations.allSatisfy { $0.scale == nil })
 
@@ -63,10 +65,10 @@ struct BasicWorldBuilderRenderTests {
         #expect(frame.sourceTick == tick)
         expectReferenceCamera(frame.camera)
         #expect(frame.instances.map(\.transform.position) == Self.expectedPositions)
-        #expect(frame.instances.map(\.materialID) == Self.expectedMaterialIDs)
+        #expect(frame.instances.map(\.materialID) == expectedMaterialKeys)
         #expect(
             frame.instances.map(\.meshID) ==
-                expectedMeshIDs
+                expectedMeshKeys
         )
         #expect(
             frame.instances.map(\.transform.scale) ==
@@ -91,7 +93,7 @@ struct BasicWorldBuilderRenderTests {
         let didChangeMaterial = world.renderableComponents.update(
             for: firstEntity
         ) {
-            $0.materialID = .goldMetalRough
+            $0.materialID = MaterialID.goldMetalRough.assetKey
         }
 
         #expect(didMove)
@@ -99,10 +101,10 @@ struct BasicWorldBuilderRenderTests {
         #expect(snapshot.entityPresentations[0].position == Self.expectedPositions[0])
         #expect(
             snapshot.entityPresentations[0].materialID ==
-                Self.expectedMaterialIDs[0]
+                expectedMaterialKeys[0]
         )
         #expect(frame.instances[0].transform.position == Self.expectedPositions[0])
-        #expect(frame.instances[0].materialID == Self.expectedMaterialIDs[0])
+        #expect(frame.instances[0].materialID == expectedMaterialKeys[0])
     }
 
     private func expectReferenceCamera(_ camera: Camera) {

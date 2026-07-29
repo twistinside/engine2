@@ -1,4 +1,5 @@
 @testable import Engine2
+@testable import BasicGameContent
 
 /// Test-target-only catalog fixtures stay out of the production-owned
 /// `RenderAssetCatalog.swift` file so they cannot become Engine2 API.
@@ -10,9 +11,11 @@ extension RenderAssetCatalog {
     /// `BasicGameContent` keeps one source of truth for authored factors and
     /// avoids decoding `Ball.usdz` in tests that never draw that model.
     static var materialOnlyTestCatalog: RenderAssetCatalog {
-        RenderAssetCatalog(
+        let authoredCatalog = BasicGameContent().renderAssetCatalog
+        return RenderAssetCatalog(
             models: [:],
-            materials: BasicGameContent().renderAssetCatalog.materials
+            materials: authoredCatalog.materials,
+            requiredMaterialKeys: authoredCatalog.requiredMaterialKeys
         )
     }
 }

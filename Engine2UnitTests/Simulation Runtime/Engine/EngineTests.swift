@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct EngineTests {
     @Test func canonicalRuntimeStepIsPositiveAndFinite() {

@@ -1,3 +1,4 @@
+import Engine2GPUABI
 import simd
 import Testing
 @testable import Engine2

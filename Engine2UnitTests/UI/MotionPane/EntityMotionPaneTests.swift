@@ -1,32 +1,25 @@
 import Testing
 @testable import Engine2
+@testable import Engine2RealtimeAssembly
 
 struct EntityMotionPaneTests {
     @Test func rowsExtractPositionSpeedAndDisplayText() throws {
-        let world = World()
         let stationary = EntityID(index: 0, generation: 0)
         let moving = EntityID(index: 1, generation: 0)
-        let stationaryComponent = CPosition(
-            position: SIMD3<Float>(1, -2, 3.125)
-        )
-        world.positionComponents.insert(
-            stationaryComponent,
-            for: stationary
-        )
-        let movingPositionComponent = CPosition(
-            position: SIMD3<Float>(4, 5, 6)
-        )
-        world.positionComponents.insert(
-            movingPositionComponent,
-            for: moving
-        )
-        let movingMotion = CMotion(velocity: SIMD3<Float>(3, 4, 0))
-        world.motionComponents.insert(
-            movingMotion,
-            for: moving
-        )
+        let snapshots = [
+            EntityMotionSnapshot(
+                id: stationary,
+                position: SIMD3<Float>(1, -2, 3.125),
+                velocity: .zero
+            ),
+            EntityMotionSnapshot(
+                id: moving,
+                position: SIMD3<Float>(4, 5, 6),
+                velocity: SIMD3<Float>(3, 4, 0)
+            )
+        ]
 
-        let rows = EntityMotionRow.extract(from: world)
+        let rows = EntityMotionRow.extract(from: snapshots)
 
         #expect(rows.count == 2)
         #expect(rows[0].id == stationary)

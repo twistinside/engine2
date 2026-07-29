@@ -61,11 +61,11 @@ struct WorldTests {
             unregisteredID: world.reserveEntityID(),
             in: world
         )
-        let expectedMeshID = MeshID.ball
-        let expectedMaterialID = MaterialID.goldMetal
+        let expectedMeshKey = MeshAssetKey(rawValue: 7)
+        let expectedMaterialKey = MaterialAssetKey(rawValue: 11)
         let renderableInitialState = RenderableInitialState(
-            meshID: expectedMeshID,
-            materialID: expectedMaterialID
+            meshID: expectedMeshKey,
+            materialID: expectedMaterialKey
         )
 
         world.add(
@@ -73,13 +73,13 @@ struct WorldTests {
             renderable: renderableInitialState
         )
 
-        #expect(world.renderableComponents[entity.id]?.meshID == expectedMeshID)
+        #expect(world.renderableComponents[entity.id]?.meshID == expectedMeshKey)
         #expect(
             world.renderableComponents[entity.id]?.materialID ==
-                expectedMaterialID
+                expectedMaterialKey
         )
-        #expect(entity.meshID == expectedMeshID)
-        #expect(entity.materialID == expectedMaterialID)
+        #expect(entity.meshID == expectedMeshKey)
+        #expect(entity.materialID == expectedMaterialKey)
     }
 
     @Test func reserveEntityIDReturnsUniqueHandles() async throws {

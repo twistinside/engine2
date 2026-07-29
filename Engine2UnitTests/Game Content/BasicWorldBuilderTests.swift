@@ -1,6 +1,7 @@
 import Testing
 import simd
 @testable import Engine2
+@testable import BasicGameContent
 
 struct BasicWorldBuilderTests {
     private static let expectedEntityIDs = (0..<6).map {
@@ -37,11 +38,14 @@ struct BasicWorldBuilderTests {
         )
         #expect(
             world.renderableComponents.dense.map(\.materialID) ==
-                Self.expectedMaterialIDs
+                Self.expectedMaterialIDs.map(\.assetKey)
         )
         #expect(
             world.renderableComponents.dense.map(\.meshID) ==
-                Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
+                Array(
+                    repeating: MeshID.ball.assetKey,
+                    count: Self.expectedEntityIDs.count
+                )
         )
         #expect(world.scaleComponents.entities.isEmpty)
         #expect(world.scaleComponents.dense.isEmpty)

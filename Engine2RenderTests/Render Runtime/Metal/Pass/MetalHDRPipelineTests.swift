@@ -2,6 +2,7 @@ import Foundation
 import simd
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct MetalHDRPipelineTests {
     @Test func validationPBRSurvivesHDRAndPresentsWithOneSRGBTransfer() throws {
@@ -45,7 +46,7 @@ struct MetalHDRPipelineTests {
         let renderer = try MetalHDRPipelineTestRenderer()
         let result = try renderer.render(
             outputMode: .surface,
-            materialID: .goldMetal
+            materialKey: MaterialID.goldMetal.assetKey
         )
 
         // Independent normal-incidence metallic-GGX reference for Game
@@ -62,12 +63,12 @@ struct MetalHDRPipelineTests {
     @Test func oneGeometryBufferKeepsDistinctPerDrawAuthoredMaterials() throws {
         let renderer = try MetalHDRPipelineTestRenderer()
         let forward = try renderer.renderAuthoredMaterialPair([
-            .warmDielectric,
-            .goldMetal
+            MaterialID.warmDielectric.assetKey,
+            MaterialID.goldMetal.assetKey
         ])
         let reversed = try renderer.renderAuthoredMaterialPair([
-            .goldMetal,
-            .warmDielectric
+            MaterialID.goldMetal.assetKey,
+            MaterialID.warmDielectric.assetKey
         ])
 
         // Both draws use the same triangle address, pipeline, scene light, and
@@ -84,30 +85,30 @@ struct MetalHDRPipelineTests {
 
     @Test func publishedSceneMaterialFactorsReachProductionBindings() throws {
         let scene = PublishedMaterialValidationScene()
-        let materialIDs = scene.materialIDs
+        let materialKeys = scene.materialKeys
         let descriptions = try scene.materialDescriptions()
         let renderer = try MetalHDRPipelineTestRenderer()
 
-        #expect(materialIDs.count == 6)
-        #expect(descriptions.count == materialIDs.count)
+        #expect(materialKeys.count == 6)
+        #expect(descriptions.count == materialKeys.count)
 
         let baseColors = try renderer.renderDiagnostic(
             .baseColor,
-            materialIDs: materialIDs
+            materialKeys: materialKeys
         )
         let metallicValues = try renderer.renderDiagnostic(
             .metallic,
-            materialIDs: materialIDs
+            materialKeys: materialKeys
         )
         let roughnessValues = try renderer.renderDiagnostic(
             .roughness,
-            materialIDs: materialIDs
+            materialKeys: materialKeys
         )
 
         // The identities originate in BasicWorldBuilder and cross capture plus
         // RenderFrame projection before catalog resolution. Exact factor views
         // therefore catch order, address, packing, and fragment-lane mistakes.
-        for index in materialIDs.indices {
+        for index in materialKeys.indices {
             let description = descriptions[index]
             expectStoredHalfRGBA(
                 baseColors[index],
@@ -134,23 +135,23 @@ struct MetalHDRPipelineTests {
 
     @Test func publishedSceneSeparatesDiffuseAndSpecularContributions() throws {
         let scene = PublishedMaterialValidationScene()
-        let materialIDs = scene.materialIDs
+        let materialKeys = scene.materialKeys
         let descriptions = try scene.materialDescriptions()
         let renderer = try MetalHDRPipelineTestRenderer()
 
-        let shaded = try renderer.renderAuthoredMaterialScene(materialIDs)
+        let shaded = try renderer.renderAuthoredMaterialScene(materialKeys)
             .map(\.sceneLinearRGBA)
         let diffuse = try renderer.renderDiagnostic(
             .diffuse,
-            materialIDs: materialIDs
+            materialKeys: materialKeys
         )
         let specular = try renderer.renderDiagnostic(
             .specular,
-            materialIDs: materialIDs
+            materialKeys: materialKeys
         )
 
         #expect(shaded.count == 6)
-        for index in materialIDs.indices {
+        for index in materialKeys.indices {
             let diffuseRGB = diffuse[index].xyz
             let specularRGB = specular[index].xyz
 
@@ -177,9 +178,9 @@ struct MetalHDRPipelineTests {
     }
 
     @Test func everyPublishedSceneMaterialSurvivesHDRAndPresentation() throws {
-        let materialIDs = PublishedMaterialValidationScene().materialIDs
+        let materialKeys = PublishedMaterialValidationScene().materialKeys
         let renderer = try MetalHDRPipelineTestRenderer()
-        let results = try renderer.renderAuthoredMaterialScene(materialIDs)
+        let results = try renderer.renderAuthoredMaterialScene(materialKeys)
 
         #expect(results.count == 6)
         #expect(

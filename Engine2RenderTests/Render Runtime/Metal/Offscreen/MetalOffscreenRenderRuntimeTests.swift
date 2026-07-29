@@ -1,6 +1,7 @@
 import simd
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
 
 struct MetalOffscreenRenderRuntimeTests {
     @Test func constructionRequiresExactlyOneFrameResource() throws {

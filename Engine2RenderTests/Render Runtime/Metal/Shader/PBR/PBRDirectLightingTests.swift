@@ -239,8 +239,8 @@ struct PBRDirectLightingTests {
     @Test func publishedSceneRoughnessProgressionsDimAndBroadenSpecularLobes() throws {
         let scene = PublishedMaterialValidationScene()
         let descriptions = try scene.materialDescriptions()
-        let publishedMaterials = zip(scene.materialIDs, descriptions).map {
-            (id: $0.0, description: $0.1)
+        let publishedMaterials = zip(scene.materialKeys, descriptions).map {
+            (key: $0.0, description: $0.1)
         }
         let renderer = try MetalPBRProofRenderer()
 

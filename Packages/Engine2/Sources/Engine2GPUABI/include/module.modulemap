@@ -1,0 +1,7 @@
+module Engine2GPUABI {
+    header "Engine2GPUABI/GPUInstance.h"
+    header "Engine2GPUABI/HDRPresentationParameters.h"
+    header "Engine2GPUABI/ModelVertex.h"
+    header "Engine2GPUABI/PBRSceneParameters.h"
+    export *
+}

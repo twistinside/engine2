@@ -1,6 +1,8 @@
 import Foundation
 import Testing
 @testable import Engine2
+@testable import BasicGameContent
+@testable import Engine2RealtimeAssembly
 
 struct RealtimeAdvanceDriverIntegrationTests {
     @Test func driverCommitsExactRuntimePublicationAndPostStartInput() async throws {

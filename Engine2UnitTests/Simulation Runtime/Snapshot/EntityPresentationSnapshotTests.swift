@@ -1,6 +1,7 @@
 import Testing
 import simd
 @testable import Engine2
+@testable import BasicGameContent
 
 struct EntityPresentationSnapshotTests {
     @Test func equalityIncludesQuaternionVectorAndEveryOptionalTransform() {
@@ -41,8 +42,8 @@ struct EntityPresentationSnapshotTests {
             position: position,
             rotation: rotation,
             scale: scale,
-            meshID: .ball,
-            materialID: materialID
+            meshID: MeshID.ball.assetKey,
+            materialID: materialID.assetKey
         )
     }
 }

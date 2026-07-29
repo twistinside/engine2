@@ -5,6 +5,9 @@ import simd
 import Testing
 import UniformTypeIdentifiers
 @testable import Engine2
+@testable import BasicGameContent
+@testable import Engine2AgentSessionAssembly
+@testable import Engine2OfflineCaptureAssembly
 
 struct AgentSessionAssemblyConstructionTests {
     @Test

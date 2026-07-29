@@ -7,8 +7,47 @@ Engine2 is a compact Swift ECS experiment with a small but increasingly coherent
 - Systems should operate directly on component stores in hot paths.
 This repo is still early, but several core paths now exist. Preserve direction and intent when filling in missing pieces.
 
+## Package Architecture
+
+The implemented package graph enforces the main source-level boundaries:
+
+- `Packages/Engine2` vends reusable `Engine2` and `Engine2GPUABI` products.
+- `Packages/BasicGameContent` contains the example entities, world builder,
+  authored Simulation and Render policy, and packaged model assets. It depends
+  on `Engine2` and `Engine2AssemblySupport`; `Engine2` does not depend on it.
+- `Packages/AssemblySupport` vends `Engine2AssemblySupport`, which contains the
+  common `PRuntimeAssembly` App-hosting boundary and the narrow `PGameContent`
+  assembly-construction seam. It depends on `Engine2` for the three engine
+  contracts exposed by that content seam.
+- `Packages/RealtimeAssembly`, `Packages/ManualAssembly`,
+  `Packages/OfflineCaptureAssembly`, and `Packages/AgentSessionAssembly` each
+  vend one concrete Runtime Assembly and its topology-specific support. These
+  packages accept `PGameContent`; they do not depend on `BasicGameContent`.
+- `Engine2App` is the thin composition root. It imports the common assembly
+  support product, `BasicGameContent`, and the concrete assembly product it
+  selects. The App constructs Game Content and injects it into the assembly.
+- `Engine2AgentSessionAssembly` deliberately depends on
+  `Engine2OfflineCaptureAssembly` because the agent topology privately wraps
+  the complete offline topology.
+
+Game Content owns exhaustive `MeshID` and `MaterialID` enums and projects them
+into engine-owned `MeshAssetKey` and `MaterialAssetKey` values. Engine-owned
+ECS, snapshot, and Render contracts carry those package-neutral keys. The
+selected catalog defines their namespace; do not combine keys from independent
+catalogs without an explicit catalog identity.
+
+Package boundaries and Runtime boundaries solve different problems. Keep
+Input, Simulation, Render, ECS, and Metal implementation in the reusable
+`Engine2` package until a narrower product boundary has concrete dependency or
+distribution value. Keep each selectable Runtime Assembly in its own package.
+Move shared code inward only when it has one coherent owner and more than one
+assembly needs it.
+
+The package graph is documented in
+`Packages/Engine2/Sources/Engine2/Engine2.docc/Articles/Package-Architecture.md`.
+
 ## Runtime Architecture
-The proposed top-level application architecture is documented in `Engine2/Engine2.docc/Articles/Runtime-Architecture.md`.
+The proposed top-level application architecture is documented in `Packages/Engine2/Sources/Engine2/Engine2.docc/Articles/Runtime-Architecture.md`.
 
 Use these terms consistently:
 - A **Runtime** is a long-lived top-level application object with its own state, lifecycle, cadence, and explicit boundaries. Runtime types use the full `Runtime` suffix, such as `InputRuntime`, `SimulationRuntime`, and `RenderRuntime`.
@@ -27,7 +66,7 @@ Current types implement part of this direction:
 - `PRuntimeAssembly` is the common App-hosting boundary. It refines `View` and requires potentially throwing construction from `any PGameContent`. Every concrete assembly is a value-type root view that constructs and retains its topology, implements `body: some View`, and owns any topology-specific SwiftUI presentation lifecycle inside that body. SwiftUI copies of one assembly value retain the same reference-owned Runtime graph and shared assembly state; only initialization creates a new graph. `Engine2App` constructs the selected Game Content, retains its compile-time assembly selection as opaque `some PRuntimeAssembly`, and renders that assembly directly without forwarding lifecycle. Selecting a fallible topology requires an explicit App launch-failure policy because failed initialization produces no assembly.
 - `RealtimeAdvanceDriver` is an assembly-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`.
 - `RealtimeAssembly`, `ManualAssembly`, `OfflineCaptureAssembly`, and `AgentSessionAssembly` own their graph construction. They accept Game Content through the common initializer and take focused policy, limit, and identity values through explicit topology-specific initializers. There is no separate forwarding-wrapper or assembly-factory layer.
-- `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level assembly policy cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
+- `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Assembly policy cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
 - `SimulationConfiguration` is the immutable Simulation-owned behavior policy used to construct the invariant schedule. Basic Game Content deliberately selects `.basicGame`; individual systems do not choose sensitivity or orbit-radius defaults.
 - `InputMetalView` submits host `InputEvent` values directly to `InputRuntime` through `PInputEventSink`; it does not call the Simulation Runtime or mutate `World`.
 - `SInputMapping` converts imported pointer and scroll transients into semantic camera commands at the start of a complete tick. `SCameraInput` then derives orbit state from the current `World.camera`, applies those commands, and publishes no separate controller state. Both run before `SInputCleanup`.
@@ -49,13 +88,13 @@ The current direct `InputMetalView`-to-`InputRuntime` connection is intentionall
 Do not rename or wrap existing types solely to match the vocabulary. Introduce a runtime boundary when it creates concrete ownership, lifecycle, cadence, or testing value.
 
 ## Game Content Architecture
-The proposed consumer-content boundary is documented in `Engine2/Engine2.docc/Articles/Game-Content-Architecture.md`.
+The consumer-content boundary is documented in `Packages/Engine2/Sources/Engine2/Engine2.docc/Articles/Game-Content-Architecture.md`.
 
 Use these terms and constraints consistently:
 - **Game Content** is consumer-defined game code, descriptions, catalogs, and assets used to construct and configure runtimes. It is not a runtime and has no independent cadence or lifecycle.
 - The App selects Game Content and one assembly type, constructs the content, and passes it to `PRuntimeAssembly.init(gameContent:)`. The assembly supplies the relevant portions to independently constructed runtimes. Topology-specific initializers preserve direct policy, limit, and identity injection for tests and specialized hosts.
 - Use **Asset** for packaged source content such as models, textures, sounds, animations, and levels. Do not conflate assets with ECS or runtime resources, even though SwiftPM calls bundled files resources.
-- Game Content owns the exhaustive, strongly typed, backend-neutral identities for the entities and assets it defines, such as the current `MeshID` and `MaterialID` and a future `SoundID` enum. Runtimes may carry and resolve those values, but they do not own the content vocabulary. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
+- Game Content owns the exhaustive, strongly typed, backend-neutral identities for the entities and assets it defines, such as the current `MeshID` and `MaterialID` and a future `SoundID` enum. Game Content projects those closed identities into engine-owned package-neutral keys before ECS, snapshot, or Runtime contracts carry them. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
 - Runtimes privately resolve content assets into backend resources. Game Content does not own runtime caches, GPU allocations, decoded audio, or runtime lifecycle.
 - Continuous presentation can be described through abstract ECS state and snapshots. Ephemeral presentation should normally derive from Simulation Runtime events plus consumer-supplied presentation rules.
 - Consumer Game Content may eventually define entities, components, optional behaviors, world builders, render/audio descriptions, asset catalogs, and event-presentation mappings through deliberate public Engine2 APIs.
@@ -65,10 +104,10 @@ Use these terms and constraints consistently:
 - The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:renderable:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
 
 Current example ownership:
-- `Ball`, `BasicWorldBuilder`, and `BasicGameContent` are example Game Content.
-- `Ball.usda` and `Ball.usdz` are example Game Content render assets, not reusable Render Runtime implementation.
+- `Ball`, `BasicWorldBuilder`, and `BasicGameContent` belong to the `BasicGameContent` package.
+- `Ball.usda` and `Ball.usdz` are `BasicGameContent` package resources, not reusable Render Runtime implementation.
 - `ModelShaders.metal` is Render Runtime backend implementation unless a future explicit shader/material extension point makes part of it consumer content.
-- Debug panes and app commands are example App tooling.
+- Debug panes and app commands belong to the real-time assembly package as topology-local App tooling.
 ## Writing and Documentation
 - Follow `.agents/writing/style-guide.md` for prose added to or substantially revised in this repository, including DocC, README content, Quick Help, code comments, diagnostics, and user-facing text.
 - All code comments must follow the writing guide. This requirement applies to documentation comments, inline comments, block comments, and comments in tests.
@@ -105,21 +144,35 @@ Current example ownership:
 - Prefer the project-aware Xcode tooling available in the current session for builds, tests, file reads, and other IDE-side actions.
 - Prefer the Apple documentation tooling available in the current session for framework and API lookups before falling back to general web search.
 ## Current Structure
-- `Engine2/Simulation Runtime/Engine/ECS/World.swift`
+- `Engine2/Engine2App.swift`
+  - Thin App composition root that imports `Engine2AssemblySupport`, `BasicGameContent`, and the selected concrete assembly product.
+  - Constructs Game Content, injects it into the selected assembly, and renders the assembly directly.
+  - Do not move Runtime construction or topology-specific lifecycle policy back into the App target.
+- `Packages/AssemblySupport/Sources/Engine2AssemblySupport/PRuntimeAssembly.swift`
+  - Common SwiftUI hosting and Game Content injection boundary shared by every concrete assembly package.
+- `Packages/AssemblySupport/Sources/Engine2AssemblySupport/PGameContent.swift`
+  - Narrow assembly-owned construction seam for one world builder, Simulation
+    configuration, and Render catalog.
+  - It grants no live Runtime capability and does not replace focused
+    runtime-owned protocols.
+- `Packages/Engine2/Sources/Engine2GPUABI/`
+  - Dedicated C target for production records shared by Swift and Metal.
+  - Exposes focused raw layout declarations through a module instead of an App bridging header.
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/ECS/World.swift`
   - Central world object.
   - Owns component stores.
   - `add(_:from:renderable:)` translates advertised entity capabilities into component rows and validates that seed values match those capabilities.
   - `reserveEntityID()` currently allocates monotonically increasing indices with generation `0`; generation reuse/destruction is still future work.
-- `Engine2/Simulation Runtime/Engine/ECS/Entity.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/ECS/Entity.swift`
   - Base `Entity` superclass.
   - Holds `id` and `world`.
   - `InitialState` carries common spawn-time transform and motion seed values.
   - `init(unregisteredID:in:)` is for tests and future reconstruction paths.
   - `init(in:from:)` reserves an ID and registers the entity with `World`.
-- `Engine2/Simulation Runtime/Engine/ECS/EntityID.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/ECS/EntityID.swift`
   - Entity handle with `index` and `generation`.
   - `generation` should remain meaningful; do not silently regress to index-only identity semantics.
-- `Engine2/Simulation Runtime/Engine/ECS/ComponentStore.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/ECS/ComponentStore.swift`
   - Sparse-set style storage:
     - `dense`: component values
     - `entities`: entity IDs aligned with `dense`
@@ -127,28 +180,28 @@ Current example ownership:
   - Lookup re-checks the full `EntityID`, including generation.
   - Use `update(for:_:)` for existing component mutations so systems update the dense row in place instead of rebuilding and reinserting replacement rows.
   - Removal, compaction, richer mutation helpers, and join/query helpers are still missing.
-- `Engine2/Simulation Runtime/Engine/Protocol/PComponent.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/Protocol/PComponent.swift`
   - Marker protocol for components.
   - Explicitly `nonisolated` so component `Codable` and `Equatable` value semantics do not inherit the app target's default `MainActor` isolation.
-- `Engine2/Simulation Runtime/Engine/Protocol/PResource.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/Protocol/PResource.swift`
   - Marker protocol for long-lived resource and resource-like storage roles inside an owning runtime or world.
   - Sharing mechanism is not what defines a resource; ownership, lifetime, and non-entity cardinality are the important traits.
-- `Engine2/Simulation Runtime/Engine/Protocol/PSystem.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/Protocol/PSystem.swift`
   - Core system protocol used by the engine's ordered execution lists.
-- `Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/Protocol/PWorldBuilder.swift`
   - Simulation-owned construction interface for producing fully bootstrapped worlds.
-- `Engine2/Runtime Configuration/Realtime/Clock/*.swift`
+- `Packages/RealtimeAssembly/Sources/Engine2RealtimeAssembly/Realtime/Clock/*.swift`
   - `PRealtimeClock` couples monotonic instant sampling and absolute suspension in one dependency and instant domain.
     `SuspendingRealtimeClock` is the production implementation backed by `SuspendingClock`.
-- `Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Position/Protocol/*.swift`
   - `PPositionable` exposes a live `position` backed by `World.positionComponents`.
   - `PMovable` exposes live motion state backed by `World.motionComponents`.
   - `POrientable` exposes live `rotation`.
   - `PRotatable` exposes live angular velocity and angular accumulator input.
   - `PScalable` exposes live `scale`.
-- `Engine2/Simulation Runtime/Engine/System/Selection/PSelectable.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Selection/PSelectable.swift`
   - Convenience protocol for entity objects that expose live selection state.
-- `Engine2/Simulation Runtime/Engine/System/Position/Component/*.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Position/Component/*.swift`
   - `CPosition`
   - `CMotion`
   - `CRotation`
@@ -156,47 +209,41 @@ Current example ownership:
   - `CAngularMotionAccumulator`
   - `CScale`
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
-- `Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
-- `Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
   - `InputState` is the authoritative simulation-facing input resource stored on `World`, populated from `InputSnapshot` only at fixed-step boundaries.
   - `InputHistory` is the separate World-owned diagnostic resource. It owns bounded newest-first retention, true fixed-step numbering, consecutive-row coalescing, and display-token formatting without mutating authoritative input.
   - `SInputMapping` converts finite horizontal pointer motion and vertical scroll into transient semantic camera commands.
   - `SCameraInput` consumes those commands before cleanup, derives orbit state from the current authoritative camera, preserves its projection and vertical target offset, and writes `World.camera` only within a complete tick.
   - `SInputHistory` projects the current authoritative input into `InputHistory` before cleanup.
   - `SInputCleanup` clears raw and mapped per-tick transient input after input systems have consumed it.
-- `Engine2/Simulation Runtime/Engine/System/Position/System/*.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Position/System/*.swift`
   - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-tick accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
-- `Engine2/Simulation Runtime/Engine/*.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/*.swift`
   - `Engine` owns exact fixed-step execution and one complete ordered system schedule. Production construction derives that invariant schedule from an explicit `SimulationConfiguration`; the full initializer requires an explicit `World`, fixed step, and complete injected system list for focused integration tests.
   - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, movement, and rotation are invariant members of every completed tick. The real-time screen camera can change only through a completed Simulation publication; deliberate exact output requests may still carry a separate viewpoint.
-- `Engine2/Simulation Runtime/SimulationRuntime.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
-- `Engine2/Simulation Runtime/SimulationConfiguration.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/SimulationConfiguration.swift`
   - Validated immutable policy for pointer-orbit sensitivity, scroll-zoom sensitivity, orbit target, and minimum/maximum orbit radius.
-- `Engine2/Runtime Configuration/PRuntimeAssembly.swift`
-  - Common SwiftUI hosting and Game Content injection boundary shared by every concrete assembly.
-- `Engine2/Runtime Configuration/PGameContent.swift`
-  - Narrow assembly-construction seam for one world builder, Simulation configuration, and Render catalog. It grants no live Runtime capability.
-- `Engine2/Runtime Configuration/Realtime/*.swift`
+- `Packages/RealtimeAssembly/Sources/Engine2RealtimeAssembly/Realtime/*.swift`
   - `RealtimeAssembly` constructs independently owned Input and Simulation Runtimes plus one `RealtimeAdvanceDriver`; its Game Content initializer selects fixed-step polling and interactive catch-up.
   - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, lifecycle-generation protection for coordinated Simulation cutovers, the exact snapshot-capture connection, and its root UI. It is not an input router; its body supplies `InputMetalView` with the narrow `PInputEventSink` capability, while its own root-visibility modifiers and topology-local scene activity jointly determine whether work may run.
   - `RealtimeAssemblyLifecycleState` shares root visibility, scene activity, and lifecycle-generation identity across SwiftUI copies of one `RealtimeAssembly`, so initial scene state is respected and stale asynchronous completion cannot override a newer transition.
   - `RealtimeAssemblySnapshotCaptureStore` shares one demand-created snapshot presentation model across SwiftUI copies of one `RealtimeAssembly`; repeated body evaluation does not rebuild the optional offscreen path.
   - The explicit Realtime assembly initializer requires a positive polling interval and one `RealtimeCatchUpPolicy`. The common Game Content initializer deliberately selects `SimulationRuntime.fixedTimeStep`; specialized callers must make a cadence choice just as visibly.
-  - `RealtimeAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
   - `RealtimeStepAccumulator` is the driver's value-semantic elapsed-debt and bounded-batching policy. It has no clock, cursor, lifecycle, Input, or Simulation authority.
   - `RealtimeInputAssignmentState` couples one transition baseline to its policy generation, forms the immutable assignment for an exact request, and prevents older completion bookkeeping from clearing newer policy.
   - `RealtimeAdvanceDriver` constructs `SuspendingRealtimeClock` on its production path and accepts one injected
     `PRealtimeClock` for deterministic tests or specialized hosts. Sampling and suspension cannot be supplied as
     unrelated dependencies.
   - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
-- `Engine2/Runtime Configuration/Manual/*.swift`
+- `Packages/ManualAssembly/Sources/Engine2ManualAssembly/Manual/*.swift`
   - `ManualAssembly` constructs from injected Game Content and exposes caller-driven exact advancement without Input or a polling task. Its body renders completed presentation and can request one exact tick through `PSimulationAdvanceTarget`; it adds no automatic cadence.
-  - `ManualSimulationControls` owns exact-step controls, and `ManualAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
-- `Engine2/Runtime Configuration/Offline/*.swift`
+- `Packages/OfflineCaptureAssembly/Sources/Engine2OfflineCaptureAssembly/Offline/*.swift`
   - `OfflineCaptureAssembly` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, one production `ImageIOArtifactEncoder`, and one `OfflineCaptureCoordinator`, injecting each capability explicitly. It has no Input Runtime, wall-clock cadence, screen Render Runtime, or optional-runtime bag.
   - `OfflineCaptureAssembly` exposes `initialCursor` and the narrow `POfflineCaptureTarget`; its body presents static identity without exposing either Runtime or a second advance capability.
   - `OfflineCaptureCoordinator` is the sole effective advance authority and one-slot exact-presentation holder. It is seeded with Simulation's initial completed snapshot and replaces that value immediately whenever an advance completes, before downstream cancellation or output failure can return. It retains no history.
@@ -206,9 +253,10 @@ Current example ownership:
   - Post-submission render cancellation must echo the requested `OffscreenRenderRequestID`. A mismatch returns typed expected/actual identities with the source-appropriate exact `SimulationAdvanceResult` or current `SimulationPresentationSnapshot` instead of accepting corrupted correlation.
   - `OfflineCaptureCoordinator` awaits `PImageArtifactEncoder` while keeping its in-flight gate set, so reentrant overlap returns `.coordinatorBusy` during encoding too. The production `ImageIOArtifactEncoder` uses an `@concurrent` operation to run synchronous Core Graphics and Image I/O work on Swift's concurrent executor. Caller cancellation is checked before encoding; once encoding begins, its completed artifact or typed failure wins.
   - Every advance-aware outcome after completed advancement retains the exact `SimulationAdvanceResult`; every current-aware outcome after expected-cursor validation retains the exact snapshot. Cancellation after raw rendering, encoding failure, and artifact-provenance mismatch also retain the `OffscreenRenderResult` for caller-selected encoding retry without another advance or render.
-- `Engine2/Runtime Configuration/Agent/*.swift`
+- `Packages/AgentSessionAssembly/Sources/Engine2AgentSessionAssembly/Agent/*.swift`
   - `AgentSessionAssembly` privately constructs and retains an `OfflineCaptureAssembly`; no Simulation, Render, or lower-level offline capability leaves the agent assembly.
-  - `AgentSessionAssembly` exposes `sessionID`, `initialCursor`, `firstRequestID`, `PAgentSessionTarget`, and `stopAndDrain()`; its body presents static identity and adds no disappearance behavior. Explicit hosts call `stopAndDrain()` at terminal lifecycle end.
+  - `AgentSessionAssembly` exposes `sessionID`, `initialCursor`, `firstRequestID`, `PAgentSessionTarget`, and `stopAndDrain()`; its body presents static identity and adds no disappearance behavior.
+  - An explicit host calls `stopAndDrain()` for terminal drain-before-close lifecycle.
   - `AgentCaptureRequest` requires a session-qualified monotonic request identity, an `AgentCaptureSource`, stable render request identity, viewpoint, render settings, and one `ImageArtifactEncoding`. `.advance(expectedCursor:stepCount:)` has a bounded positive step count and deliberately submits `.none` input; `.current(expectedCursor:)` captures the retained completed presentation without advancing.
   - `AgentSessionCoordinator` owns live-process admission and idempotency above `POfflineCaptureTarget`.
   - New unique request admission uses typed throws inside `AgentSessionCoordinator`; the protocol boundary converts refusal into the explicit submission outcome required for replay, transport, and exhaustive handling.
@@ -218,77 +266,77 @@ Current example ownership:
   - `AgentSessionLimits` bounds advancing steps, retained-result count, and retained raw/encoded image bytes. The step bound applies only to `.advance`; the named image-byte budget intentionally excludes snapshots and Swift object/collection overhead.
   - A step-limit violation is an accepted, sequence-consuming terminal response and is retained like capture results. `stopAndDrain()` rejects new unique work immediately, lets accepted work finish, and still permits cached identical replay while the live assembly remains retained.
   - Idempotency is scoped to one live process. MCP transport, authentication, transport DTOs, restart-safe journals, physical or semantic controls, structured observation, artifact persistence, reset/load/fork operations, and content identity beyond current artifact provenance remain future work. Current-cursor image capture is visual output, not structured inspection; controls remain absent because no current gameplay system consumes an agent control vocabulary.
-- `Engine2/Input Runtime/**/*.swift`
+- `Packages/Engine2/Sources/Engine2/Input Runtime/**/*.swift`
   - `InputRuntime` is the assembly-retained lifecycle boundary for platform input collection.
   - `PInputEventSink` is the platform-adapter ingress accepted by the runtime.
   - `PInputSnapshotSource` exposes the latest immutable `InputSnapshot` without exposing runtime mutation.
   - `InputRevision` identifies publication sessions and versions. Within one session, cumulative pointer-motion and scroll totals let a slower consumer derive all motion between sampled snapshots without requiring one-to-one cadence.
   - The current `InputEvent` is host ingress, not a published ordered runtime event lane. Ordered discrete transitions and retained replay remain future work.
-- `Engine2/Game Content/BasicWorldBuilder.swift`
+- `Packages/BasicGameContent/Sources/BasicGameContent/BasicWorldBuilder.swift`
   - Example Game Content builder that seeds a deterministic six-Ball PBR material grid. Every Ball is quiescent, shares `MeshID.ball`, and selects one smooth, baseline, or rough warm-dielectric or gold-metal `MaterialID`.
-- `Engine2/Game Content/BasicGameContent.swift`
-  - Conforms to `PGameContent` and selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
-- `Engine2/Simulation Runtime/SimulationConfiguration.swift`
-  - Owns the named `.basicGame` policy with the type that exposes it; `BasicGameContent` deliberately selects that value.
-- `Engine2/Game Content/Model/MeshID.swift`
-  - Game Content-owned enum defining the complete mesh identity vocabulary consumed by simulation presentation state and render catalog lookup.
-- `Engine2/Game Content/Material/MaterialID.swift`
-  - Game Content-owned enum defining the complete authored material identity vocabulary carried by simulation and resolved privately by Render.
-- `Engine2/Game Content/Entity/Ball.swift`
+- `Packages/BasicGameContent/Sources/BasicGameContent/BasicGameContent.swift`
+  - Selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
+- `Packages/BasicGameContent/Sources/BasicGameContent/Extension/SimulationConfiguration+BasicGameContent.swift`
+  - Declares the named `.basicGame` policy in the consumer package; `BasicGameContent` deliberately selects that value.
+- `Packages/BasicGameContent/Sources/BasicGameContent/MeshID.swift`
+  - Game Content-owned enum defining the complete mesh identity vocabulary and projecting each case into `MeshAssetKey`.
+- `Packages/BasicGameContent/Sources/BasicGameContent/Material/MaterialID.swift`
+  - Game Content-owned enum defining the complete authored material identity vocabulary and projecting each case into `MaterialAssetKey`.
+- `Packages/BasicGameContent/Sources/BasicGameContent/Entity/Ball.swift`
   - Example entity object/facade.
-  - Advertises `MeshID.ball` and its per-instance `MaterialID` through `PRenderable`; it does not know the model filename, material factors, or renderer backend.
+  - Seeds the `MeshAssetKey` for `MeshID.ball` and the selected `MaterialID`'s `MaterialAssetKey` through `RenderableInitialState`; it does not know the model filename, material factors, or renderer backend.
   - Represents the intended style of game object API more than a finished implementation.
-- `Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
-  - `CRenderable` stores only abstract `MeshID` and `MaterialID` values in ECS state.
-  - `PRenderable` seeds those identities from Game Content entities and exposes their live values.
-- `Engine2/Simulation Runtime/Snapshot/*.swift`
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
+  - `CRenderable` stores only abstract `MeshAssetKey` and `MaterialAssetKey` values in ECS state.
+  - `PRenderable` exposes those live package-neutral values to Game Content entity facades.
+- `Packages/Engine2/Sources/Engine2/Simulation Runtime/Snapshot/*.swift`
   - `SimulationTick` identifies completed fixed steps without wall-clock or render-cadence meaning.
   - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
   - `PSimulationPresentationSource` exposes that latest-value publication as a read-only capability without exposing the wider Simulation Runtime API.
   - Ordinary live publication uses latest-value semantics; retained publication replay history remains an explicit future recorder concern.
-- `Engine2/Render Runtime/Asset/*.swift`
-  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshID` values to packaged model references and `MaterialID` values to authored `PBRMaterialDescription` values. Its coverage and lookup operations expose the closed `RenderAssetCatalogError` domain through typed throws.
-  - `RenderAssetCatalog.everything` remains with its owning type rather than extending the catalog from `BasicGameContent.swift`.
-- `Engine2/Render Runtime/Frame/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Asset/*.swift`
+  - `RenderAssetCatalog` is the render-owned input contract mapping `MeshAssetKey` values to packaged model references and `MaterialAssetKey` values to authored `PBRMaterialDescription` values. Its coverage and lookup operations expose the closed `RenderAssetCatalogError` domain through typed throws.
+  - The Basic Game Content package declares `RenderAssetCatalog.everything` in `Extension/RenderAssetCatalog+BasicGameContent.swift`, beside the authored catalog vocabulary and resources it represents.
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Frame/*.swift`
   - `RenderFrame.init(projecting:)` converts a `SimulationPresentationSnapshot` into private real-time screen instances and uses the snapshot camera exactly, with no independent viewpoint input or attribution.
   - `RenderFrame.init(exactlyProjecting:viewpoint:)` is the strict request path. Its typed `RenderFrameProjectionError` rejects a malformed selected camera or any presented entity with missing position, an unusable finite normal-matrix inverse, or a nonfinite model-view transform instead of using the screen path's tolerant omission policy. `OffscreenRenderRejection` owns the exhaustive projection from that internal failure domain into expected boundary refusals. `MetalOffscreenRenderRuntime` additionally validates the requested-aspect model-view-projection products before GPU packing.
   - `RenderInstance.init(projecting:viewMatrix:)` is the sole construction path. It retains the validated world transform, model-view matrix, and inverse-transpose normal matrix used by both frame paths so GPU packing and exact preflight do not repeat projection or inversion.
-- `Engine2/Render Runtime/Viewpoint/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Viewpoint/*.swift`
   - `RenderViewpoint` carries one output-specific camera, stable `RenderViewpointID`, and monotonic `RenderViewpointRevision` by value through exact offscreen, offline, and agent requests and results.
-- `Engine2/Render Runtime/Offscreen/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Offscreen/*.swift`
   - `POffscreenRenderTarget` accepts an exact immutable `OffscreenRenderRequest` asynchronously and returns an `OffscreenRenderOutcome`; it never implies source sampling or Simulation advancement.
   - Requests require a completed `SimulationPresentationSnapshot`, an explicit `RenderViewpoint`, and `OffscreenRenderSettings`. Successful results carry detached tightly packed top-left BGRA8-sRGB pixels plus the request identity, source cursor, complete viewpoint, and settings.
   - `RenderPixelSize` validates positive dimensions plus representable pixel, tightly packed BGRA8 row, and total byte counts once through typed `RenderPixelSizeError`. Its aspect ratio and layout projections are nonfailing downstream invariants.
   - `RenderedBGRA8SRGBImage` validates detached byte count through typed `RenderedBGRA8SRGBImageError`.
   - `OffscreenRenderLimits` is caller-selected safety policy. The conservative default may be replaced deliberately by a host prepared for larger allocation, GPU, and readback costs.
-- `Engine2/Render Runtime/Artifact/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Artifact/*.swift`
   - `PImageArtifactEncoder` accepts one completed detached `OffscreenRenderResult` plus explicit `ImageArtifactEncoding` and asynchronously returns a provenance-rich artifact. Implementations own their execution context, keeping scheduling policy out of coordinators.
   - `ImageIOArtifactEncoder` is the immutable, `Sendable`, nonisolated production implementation. Its throwing initializer resolves the required standard sRGB color space before the encoder is usable. Its `@concurrent` async operation performs synchronous Core Graphics and Image I/O work for `.jpeg(quality:)` or lossless `.png` on Swift's concurrent executor; once encoding begins, completion or typed failure wins over later caller cancellation.
   - `JPEGQuality` validates the finite closed `0...1` compression-quality domain through typed `JPEGQualityError`. `ImageArtifactEncoding` keeps format-specific policy in one closed value, and `RenderedImageArtifact` preserves that encoding beside the source request identity, Simulation cursor, complete viewpoint, render settings, and detached encoded data.
   - Encoding failure has no Runtime-side effect. A caller may retry with the same detached raw result or choose another supported encoding without ticking Simulation or issuing another render request.
-- `Engine2/Render Runtime/Metal/**/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Metal/**/*.swift`
   - `MetalRenderer` is the thin MetalKit screen adapter. Construction resolves its required presentation sRGB color space. It samples the latest Simulation presentation and uses its camera exactly, selects a frame-ring slot and drawable, owns command-buffer submission/presentation and terminal screen error policy, and delegates reusable encoding.
   - Per-frame state, render passes, backend resources, and Swift/Metal shader contracts live in focused subfolders beneath the Metal backend.
-- `Engine2/Render Runtime/Metal/Frame/MetalFrameEncoder.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Metal/Frame/MetalFrameEncoder.swift`
   - `MetalFrameEncoder` owns authored-material preflight, fixed target formats, frame-buffer packing, pipeline and argument-table selection and binding, the HDR frame pass, and model draws. `MetalResourceStore` and `MetalRequiredResources` own the underlying device-scoped handles.
   - Its caller supplies matching scene-color, depth, and destination textures, one `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. Scene and presentation encoder creation use typed throws with `MetalFrameEncoderError`; the encoder does not sample runtime sources, choose a frame slot, acquire a view or drawable, submit or present, or impose terminal-error policy.
-- `Engine2/Render Runtime/Metal/Offscreen/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Metal/Offscreen/*.swift`
   - `MetalOffscreenRenderRuntime` requires and retains its dedicated `MetalResourceStore`'s sole `FrameResources` slot during construction, then accepts at most one request at a time. It rejects busy, cancelled-before-submit, over-limit, invalid-viewpoint, malformed-presentation, and over-256-instance requests without submission.
   - Exact model preflight prepares once, then validates the same retained optional models that encoding will consume rather than repeating store lookups. `USDRenderModel` proves and caches complete drawable indexed geometry once when its immutable meshes are constructed; exact rendering reads that proof and fails rather than silently omitting incomplete content. Every encoder-visited mesh must have a usable nonempty first vertex-buffer slice and submeshes whose nonempty UInt16/UInt32 index slices remain in bounds. The live screen remains tolerant.
   - `renderOnMainActor(_:)` owns admission and immutable preflight. It enters the busy state without suspension before delegating the accepted mutable Metal transaction to `renderPreparedFrame(_:for:)`, which owns targets, the frame slot, encoding, submission feedback, cancellation boundaries, readback, and ready-or-failed restoration.
   - Preparation finishes before mutable GPU work. After commit, a retained `MetalOffscreenSubmission` uses a typed throwing continuation to wait for actual queue feedback before releasing the frame slot. Successful return permits readback; cancellation then returns without allocating a readback image, while GPU feedback failure latches the original terminal cause for later requests.
   - `MetalOffscreenRenderTargets` owns request-local shared BGRA8-sRGB destination and private depth textures plus their residency set. Successful readback produces an opaque, tightly packed, top-left `RenderedBGRA8SRGBImage`; the CPU-only Image I/O artifact layer consumes that detached value afterward, while HDR-master/accumulation, persistence, and sinks remain future concerns.
-- `Engine2/Render Runtime/Metal/Resource/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/Metal/Resource/*.swift`
   - `MetalResourceStore` is the device-scoped owner of the Metal 4 compiler, command queue, validated authored material descriptions, decoded models, frame resources, and one nonoptional `MetalRequiredResources` set.
   - `MetalRequiredResources` resolves the engine shader library, every built-in string-named shader pipeline, opaque depth state, and fixed argument tables during store construction. Downstream encoders retain those typed handles without a second lookup or failure path.
   - Every `MetalResourceStore` construction explicitly selects a frame count. The screen deliberately passes `MetalResourceStore.defaultFrameCount`, while exact offscreen rendering passes `1`; target formats come from `MetalFrameEncoder`.
   - `MetalResidencyManager` keeps static asset allocations and per-frame allocations in separate committed residency sets and registers externally owned view/layer sets with the command queue.
   - Residency is not object ownership: the store retains backend objects, while residency sets group only `MTLAllocation` values needed by submitted GPU work.
-- `Engine2/Render Runtime/View/*.swift`
+- `Packages/Engine2/Sources/Engine2/Render Runtime/View/*.swift`
   - `MetalSceneView` bridges SwiftUI to MetalKit drawing and wires an assembly-selected presentation source plus an optional input sink. The presentation snapshot supplies the screen camera.
-- `Engine2/UI/ContentView.swift`
+- `Packages/RealtimeAssembly/Sources/Engine2RealtimeAssembly/UI/ContentView.swift`
   - Real-time content UI that receives only `PRealtimeAssemblyViewModel`, plus the assembly-owned snapshot presentation model, within `RealtimeAssembly`'s topology-local subtree.
-- `Engine2/UI/Input/InputMetalView.swift`
+- `Packages/Engine2/Sources/Engine2/UI/Input/InputMetalView.swift`
   - Platform adapter that translates AppKit events into `InputEvent` values and submits them through `PInputEventSink`.
 - `Engine2UnitTests/`
   - Fast, deterministic Swift Testing coverage directly exercises individual production types and methods.
@@ -300,12 +348,12 @@ Current example ownership:
   - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
   - `MetalFrameEncoderTests` drives the production encoder with caller-owned offscreen textures and explicit residency, queue feedback, and readback without an `MTKView` or `CAMetalDrawable`.
   - `MetalOffscreenRenderRuntimeTests` drives the production exact request/result boundary through real GPU completion and detached readback without a view or drawable.
-  - `OfflineCaptureAssemblyConstructionTests` drives sequential production advance captures through real fixed-step Simulation, Metal submission/readback, and Image I/O JPEG and PNG derivation using only the assembly's public cursor and capture capability.
-  - `AgentSessionAssemblyConstructionTests` drives production agent requests through only the closed assembly surface: advance tick zero to tick one, current-capture an alternate view at tick one, replay that byte-identical current response without render or advance work, then advance tick one to tick two.
+  - Production offline assembly integration coverage drives sequential advance captures through real fixed-step Simulation, Metal submission/readback, and Image I/O JPEG and PNG derivation using only the assembly's public cursor and capture capability.
+  - Production agent assembly integration coverage drives requests through only the closed assembly surface: advance tick zero to tick one, current-capture an alternate view at tick one, replay that byte-identical current response without render or advance work, then advance tick one to tick two.
   - Test-only Metal renderers and GPU submission helpers remain private to this target instead of compiling into the unit-test bundle.
   - Render integration tests mirror the Metal backend folders, with shared test-only infrastructure grouped under `Engine2RenderTests/Render Runtime/Metal/Support/`.
 ### Folder Organization
-New simulation systems are added to `Engine2/Simulation Runtime/Engine/System/<system name>.`
+New simulation systems are added to `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/<system name>.`
 When a new system is created, the requisite components, resources, and protocols will be added in their own subfolders. The `System` folders are organized in functional blocks to ensure proximity of files used in that `System`.
 ## High-Level Direction
 ### 1. Keep Protocols
@@ -426,14 +474,14 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - Keep `World.add(_:from:)` as a capability-to-component boundary unless a clearly better spawn API replaces it.
 - Add explicit contribution APIs when needed instead of making many systems or object facades directly overwrite integrated velocity.
 - Comment executable logic when explanation clarifies intent, ordering, invariants, ownership, or a non-obvious state transition. Do not narrate self-evident statements. Give substantial methods a short documentation comment when their contract is not already clear from the surrounding type.
-- When the user asks for ideas, architecture notes, or future direction to be captured for later, prefer adding or updating DocC content under `Engine2/Engine2.docc/` rather than leaving that intent only in chat or code comments.
+- When the user asks for ideas, architecture notes, or future direction to be captured for later, prefer adding or updating DocC content under `Packages/Engine2/Sources/Engine2/Engine2.docc/` rather than leaving that intent only in chat or code comments.
 - For not-yet-implemented direction, mark the DocC content clearly as proposed or future work, and link new conceptual articles from the DocC landing page when they represent durable engine design.
 - Preserve or improve `EntityID.generation` semantics.
 - Do not reuse an entity index until component removal and dense iteration behavior are generation-safe.
 - Prefer adding capability protocols over deepening inheritance.
 - Keep the game-object layer ergonomic, but keep the ECS layer authoritative.
 - If adding selection/UI inspection, typed lookup by `EntityID` is a valid direction.
-- Mirror direct type and method tests under `Engine2UnitTests/`. For example, tests for `Engine2/Simulation Runtime/Engine/System/Position/System/SMovement.swift` should live in `Engine2UnitTests/Simulation Runtime/Engine/System/Position/System/SMovementTests.swift`.
+- Mirror direct type and method tests under `Engine2UnitTests/`. For example, tests for `Packages/Engine2/Sources/Engine2/Simulation Runtime/Engine/System/Position/System/SMovement.swift` should live in `Engine2UnitTests/Simulation Runtime/Engine/System/Position/System/SMovementTests.swift`.
 - Place tests that validate Render across multiple production boundaries under `Engine2RenderTests/`. This includes real shader execution, command submission, GPU lifetime, renderer assembly, and packaged-model decoding.
 ## Current Gaps / Known TODOs
 - Entity destruction, index reuse, and generation incrementing are not implemented.
