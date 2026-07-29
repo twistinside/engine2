@@ -24,10 +24,10 @@ Use these terms consistently:
 Current types implement part of this direction:
 - `InputRuntime` owns platform input state and publishes its latest immutable `InputSnapshot` through `PInputSnapshotSource`; platform adapters submit `InputEvent` values through `PInputEventSink`.
 - `SimulationRuntime` owns one authoritative session, `Engine`, and `World`; construction requires one validated `SimulationConfiguration`, and the Runtime accepts exact cursor-qualified advance requests without owning wall-clock cadence or a live Input source.
-- `PRuntimeAssembly` is the common App-hosting boundary. It refines `View` and requires a potentially throwing zero-argument initializer. Every concrete assembly is a value-type root view that constructs and retains its production topology, then implements `body: some View`. SwiftUI copies of one assembly value retain the same reference-owned Runtime graph and shared assembly state; only initialization creates a new graph. `Engine2App` retains its compile-time selection as opaque `some PRuntimeAssembly` and renders that assembly directly. Selecting a fallible topology requires an explicit App launch-failure policy because failed initialization produces no assembly.
+- `PRuntimeAssembly` is the common App-hosting boundary. It refines `View`, requires potentially throwing construction from `any PGameContent`, and defines `onAppear()` and `onDisappear()` visibility hooks. Every concrete assembly is a value-type root view that constructs and retains its topology, then implements `body: some View`. SwiftUI copies of one assembly value retain the same reference-owned Runtime graph and shared assembly state; only initialization creates a new graph. `Engine2App` constructs the selected Game Content, retains its compile-time assembly selection as opaque `some PRuntimeAssembly`, renders that assembly directly, and forwards root visibility through the common hooks. Selecting a fallible topology requires an explicit App launch-failure policy because failed initialization produces no assembly.
 - `RealtimeAdvanceDriver` is an assembly-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`.
-- `RealtimeAssembly`, `ManualAssembly`, `OfflineCaptureAssembly`, and `AgentSessionAssembly` own their graph construction. Their configuration values remain explicit policy/content injection seams and delegate construction back to the corresponding assembly.
-- `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level configurations cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
+- `RealtimeAssembly`, `ManualAssembly`, `OfflineCaptureAssembly`, and `AgentSessionAssembly` own their graph construction. They accept Game Content through the common initializer and take focused policy, limit, and identity values through explicit topology-specific initializers. There is no separate forwarding-wrapper or assembly-factory layer.
+- `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level assembly policy cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
 - `SimulationConfiguration` is the immutable Simulation-owned behavior policy used to construct the invariant schedule. Basic Game Content deliberately selects `.basicGame`; individual systems do not choose sensitivity or orbit-radius defaults.
 - `InputMetalView` submits host `InputEvent` values directly to `InputRuntime` through `PInputEventSink`; it does not call the Simulation Runtime or mutate `World`.
 - `SInputMapping` converts imported pointer and scroll transients into semantic camera commands at the start of a complete tick. `SCameraInput` then derives orbit state from the current `World.camera`, applies those commands, and publishes no separate controller state. Both run before `SInputCleanup`.
@@ -53,7 +53,7 @@ The proposed consumer-content boundary is documented in `Engine2/Engine2.docc/Ar
 
 Use these terms and constraints consistently:
 - **Game Content** is consumer-defined game code, descriptions, catalogs, and assets used to construct and configure runtimes. It is not a runtime and has no independent cadence or lifecycle.
-- The App selects and retains an assembly. The assembly's zero-argument production initializer constructs Game Content and supplies the relevant portions to independently constructed runtimes; explicit assembly initializers preserve Game Content injection for tests and specialized hosts.
+- The App selects Game Content and one assembly type, constructs the content, and passes it to `PRuntimeAssembly.init(gameContent:)`. The assembly supplies the relevant portions to independently constructed runtimes. Topology-specific initializers preserve direct policy, limit, and identity injection for tests and specialized hosts.
 - Use **Asset** for packaged source content such as models, textures, sounds, animations, and levels. Do not conflate assets with ECS or runtime resources, even though SwiftPM calls bundled files resources.
 - Game Content owns the exhaustive, strongly typed, backend-neutral identities for the entities and assets it defines, such as the current `MeshID` and `MaterialID` and a future `SoundID` enum. Runtimes may carry and resolve those values, but they do not own the content vocabulary. Do not store raw `MTLBuffer`, `MTKMesh`, decoded audio, or other backend objects in ECS or Game Content.
 - Runtimes privately resolve content assets into backend resources. Game Content does not own runtime caches, GPU allocations, decoded audio, or runtime lifecycle.
@@ -176,12 +176,17 @@ Current example ownership:
   - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
   - Validated immutable policy for pointer-orbit sensitivity, scroll-zoom sensitivity, orbit target, and minimum/maximum orbit radius.
+- `Engine2/Runtime Configuration/PRuntimeAssembly.swift`
+  - Common SwiftUI hosting, Game Content injection, and reversible visibility-lifecycle boundary shared by every concrete assembly.
+- `Engine2/Runtime Configuration/PGameContent.swift`
+  - Narrow assembly-construction seam for one world builder, Simulation configuration, and Render catalog. It grants no live Runtime capability.
 - `Engine2/Runtime Configuration/Realtime/*.swift`
-  - `RealtimeAssembly` constructs independently owned Input and Simulation Runtimes plus one `RealtimeAdvanceDriver`; its zero-argument production path selects Basic Game Content, fixed-step polling, and interactive catch-up.
-  - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, lifecycle-generation protection for coordinated Simulation cutovers, the exact snapshot-capture connection, and its root UI. It is not an input router; its body supplies `InputMetalView` with the narrow `PInputEventSink` capability and translates `scenePhase` into lifecycle requests.
-  - `RealtimeAssemblyLifecycleState` shares lifecycle-generation identity across SwiftUI copies of one `RealtimeAssembly`, so stale asynchronous completion cannot override a newer transition.
+  - `RealtimeAssembly` constructs independently owned Input and Simulation Runtimes plus one `RealtimeAdvanceDriver`; its Game Content initializer selects fixed-step polling and interactive catch-up.
+  - `RealtimeAssembly` owns lifecycle ordering, pause policy, async drain-before-stop/rebuild, lifecycle-generation protection for coordinated Simulation cutovers, the exact snapshot-capture connection, and its root UI. It is not an input router; its body supplies `InputMetalView` with the narrow `PInputEventSink` capability, while common visibility hooks and topology-local scene activity jointly determine whether work may run.
+  - `RealtimeAssemblyLifecycleState` shares root visibility, scene activity, and lifecycle-generation identity across SwiftUI copies of one `RealtimeAssembly`, so initial scene state is respected and stale asynchronous completion cannot override a newer transition.
   - `RealtimeAssemblySnapshotCaptureStore` shares one demand-created snapshot presentation model across SwiftUI copies of one `RealtimeAssembly`; repeated body evaluation does not rebuild the optional offscreen path.
-  - `RealtimeConfiguration` requires an explicit positive polling interval for injected construction. The production assembly deliberately selects `SimulationRuntime.fixedTimeStep`; specialized callers must make a cadence choice just as visibly.
+  - The explicit Realtime assembly initializer requires a positive polling interval and one `RealtimeCatchUpPolicy`. The common Game Content initializer deliberately selects `SimulationRuntime.fixedTimeStep`; specialized callers must make a cadence choice just as visibly.
+  - `RealtimeAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
   - `RealtimeStepAccumulator` is the driver's value-semantic elapsed-debt and bounded-batching policy. It has no clock, cursor, lifecycle, Input, or Simulation authority.
   - `RealtimeInputAssignmentState` couples one transition baseline to its policy generation, forms the immutable assignment for an exact request, and prevents older completion bookkeeping from clearing newer policy.
   - `RealtimeAdvanceDriver` constructs `SuspendingRealtimeClock` on its production path and accepts one injected
@@ -189,7 +194,8 @@ Current example ownership:
     unrelated dependencies.
   - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
 - `Engine2/Runtime Configuration/Manual/*.swift`
-  - `ManualAssembly` self-constructs and exposes caller-driven exact advancement without Input or a polling task. Its body renders completed presentation and can request one exact tick through `PSimulationAdvanceTarget`.
+  - `ManualAssembly` constructs from injected Game Content and exposes caller-driven exact advancement without Input or a polling task. Its body renders completed presentation and can request one exact tick through `PSimulationAdvanceTarget`; its common visibility hooks do not invent an automatic cadence.
+  - `ManualSimulationControls` owns exact-step controls, and `ManualAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
 - `Engine2/Runtime Configuration/Offline/*.swift`
   - `OfflineCaptureAssembly` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, one production `ImageIOArtifactEncoder`, and one `OfflineCaptureCoordinator`, injecting each capability explicitly. It has no Input Runtime, wall-clock cadence, screen Render Runtime, or optional-runtime bag.
   - `OfflineCaptureAssembly` exposes `initialCursor` and the narrow `POfflineCaptureTarget`; its body presents static identity without exposing either Runtime or a second advance capability.
@@ -202,7 +208,7 @@ Current example ownership:
   - Every advance-aware outcome after completed advancement retains the exact `SimulationAdvanceResult`; every current-aware outcome after expected-cursor validation retains the exact snapshot. Cancellation after raw rendering, encoding failure, and artifact-provenance mismatch also retain the `OffscreenRenderResult` for caller-selected encoding retry without another advance or render.
 - `Engine2/Runtime Configuration/Agent/*.swift`
   - `AgentSessionAssembly` privately constructs and retains an `OfflineCaptureAssembly`; no Simulation, Render, or lower-level offline capability leaves the agent assembly.
-  - `AgentSessionAssembly` exposes `sessionID`, `initialCursor`, `firstRequestID`, `PAgentSessionTarget`, and `stopAndDrain()`; its body presents static identity.
+  - `AgentSessionAssembly` exposes `sessionID`, `initialCursor`, `firstRequestID`, `PAgentSessionTarget`, and `stopAndDrain()`; its body presents static identity. Common visibility hooks are reversible and do not close the session. Explicit hosts call `stopAndDrain()` at terminal lifecycle end.
   - `AgentCaptureRequest` requires a session-qualified monotonic request identity, an `AgentCaptureSource`, stable render request identity, viewpoint, render settings, and one `ImageArtifactEncoding`. `.advance(expectedCursor:stepCount:)` has a bounded positive step count and deliberately submits `.none` input; `.current(expectedCursor:)` captures the retained completed presentation without advancing.
   - `AgentSessionCoordinator` owns live-process admission and idempotency above `POfflineCaptureTarget`.
   - New unique request admission uses typed throws inside `AgentSessionCoordinator`; the protocol boundary converts refusal into the explicit submission outcome required for replay, transport, and exhaustive handling.
@@ -221,7 +227,7 @@ Current example ownership:
 - `Engine2/Game Content/BasicWorldBuilder.swift`
   - Example Game Content builder that seeds a deterministic six-Ball PBR material grid. Every Ball is quiescent, shares `MeshID.ball`, and selects one smooth, baseline, or rough warm-dielectric or gold-metal `MaterialID`.
 - `Engine2/Game Content/BasicGameContent.swift`
-  - Selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
+  - Conforms to `PGameContent` and selects the complete named `.basicGame` Simulation configuration beside its world builder and render catalog so every Runtime topology receives the same authored behavior policy.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
   - Owns the named `.basicGame` policy with the type that exposes it; `BasicGameContent` deliberately selects that value.
 - `Engine2/Game Content/Model/MeshID.swift`
@@ -294,8 +300,8 @@ Current example ownership:
   - Render integration coverage owns shader execution, offscreen GPU submission, renderer/resource assembly, packaged model decoding, and end-to-end presentation validation.
   - `MetalFrameEncoderTests` drives the production encoder with caller-owned offscreen textures and explicit residency, queue feedback, and readback without an `MTKView` or `CAMetalDrawable`.
   - `MetalOffscreenRenderRuntimeTests` drives the production exact request/result boundary through real GPU completion and detached readback without a view or drawable.
-  - `OfflineCaptureConfigurationTests` drives sequential production advance captures through real fixed-step Simulation, Metal submission/readback, and Image I/O JPEG and PNG derivation using only the assembly's public cursor and capture capability.
-  - `AgentSessionConfigurationTests` drives production agent requests through only the closed assembly surface: advance tick zero to tick one, current-capture an alternate view at tick one, replay that byte-identical current response without render or advance work, then advance tick one to tick two.
+  - `OfflineCaptureAssemblyConstructionTests` drives sequential production advance captures through real fixed-step Simulation, Metal submission/readback, and Image I/O JPEG and PNG derivation using only the assembly's public cursor and capture capability.
+  - `AgentSessionAssemblyConstructionTests` drives production agent requests through only the closed assembly surface: advance tick zero to tick one, current-capture an alternate view at tick one, replay that byte-identical current response without render or advance work, then advance tick one to tick two.
   - Test-only Metal renderers and GPU submission helpers remain private to this target instead of compiling into the unit-test bundle.
   - Render integration tests mirror the Metal backend folders, with shared test-only infrastructure grouped under `Engine2RenderTests/Render Runtime/Metal/Support/`.
 ### Folder Organization
@@ -389,7 +395,7 @@ The real-time driver uses a typed per-wake catch-up cap with explicit preserve/d
 
 Deliberate exact offscreen, offline, and agent requests still carry an explicit `RenderViewpoint` by value. ``RealtimeSnapshotCaptureConnection`` satisfies that exact request contract with a stable identity and revision zero while copying only the selected snapshot camera; it does not create a second camera authority.
 
-A future photo, editor, replay, spectator, or multi-window configuration may deliberately define a presentation-owned interactive viewpoint, but it must be an explicit output mode with typed input routing and lifecycle transitions. Do not make ordinary Simulation pause implicitly activate such a bypass.
+A future photo, editor, replay, spectator, or multi-window assembly may deliberately define a presentation-owned interactive viewpoint, but it must be an explicit output mode with typed input routing and lifecycle transitions. Do not make ordinary Simulation pause implicitly activate such a bypass.
 ### Rendering Docs Are Directional
 The DocC runtime and render articles contain proposed architecture, not only implemented code. Their important constraints are:
 - keep backend-specific Metal state out of `World`
@@ -411,7 +417,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - Do not reintroduce a global static world lookup model.
 - Do not introduce process-global mutable resources or runtime service locators to connect runtimes.
 - Keep runtime dependencies explicit and wire them at the App boundary.
-- Keep deliberate exact-output viewpoint policy outside authoritative Simulation state, but require the ordinary real-time screen camera to come from `SimulationPresentationSnapshot`; any future presentation-owned interactive viewpoint must belong to an explicit configuration or mode rather than silently bypassing Simulation during pause.
+- Keep deliberate exact-output viewpoint policy outside authoritative Simulation state, but require the ordinary real-time screen camera to come from `SimulationPresentationSnapshot`; any future presentation-owned interactive viewpoint must belong to an explicit assembly or mode rather than silently bypassing Simulation during pause.
 - Prefer immutable snapshots and events over direct peer-runtime references.
 - Do not reintroduce a closed enum registry for component identity.
 - Keep component storage per-type.
@@ -434,7 +440,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - `ComponentStore` still needs removal, dense compaction, richer mutation/query helpers, and explicit tests for stale-generation behavior.
 - Systems run in one ordered list; the richer DocC scheduling graph/stage model is proposed, not implemented.
 - `SMovement` and `SRotation` currently combine integration and transform advancement; the future collision/constraint pipeline may need a more explicit phase split.
-- Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, artifact persistence/sinks, HDR-master and accumulation policy, additional artifact formats, atomic multi-view jobs, and a dedicated Render worker remain proposed. The serial offline configuration coordinates exact advance-or-current scene selection, rendering, provenance validation, and selected artifact encoding; the agent configuration adds bounded live-process idempotency above both sources. Neither supplies actual MCP transport/authentication/DTOs, durable restart-safe request history, controls, structured observations, artifact persistence, automatic retry, Input, cadence, or a screen. Visual current capture does not fill the structured-observation gap. Agent/MCP physical or semantic control ingress remains future and requires a deliberate typed agent-to-Simulation boundary; the focused real-time camera mapping is not that general protocol.
+- Typed multi-source input routing, route epochs, multi-window/output bindings, Simulation observer anchors, artifact persistence/sinks, HDR-master and accumulation policy, additional artifact formats, atomic multi-view jobs, and a dedicated Render worker remain proposed. The serial offline assembly coordinates exact advance-or-current scene selection, rendering, provenance validation, and selected artifact encoding; the agent assembly adds bounded live-process idempotency above both sources. Neither supplies actual MCP transport/authentication/DTOs, durable restart-safe request history, controls, structured observations, artifact persistence, automatic retry, Input, cadence, or a screen. Visual current capture does not fill the structured-observation gap. Agent/MCP physical or semantic control ingress remains future and requires a deliberate typed agent-to-Simulation boundary; the focused real-time camera mapping is not that general protocol.
 - Capability accessors are strict live reads with `fatalError`; optional inspection/editor lookup paths do not exist yet.
 - Tests do not yet cover component removal, dense iteration with stale generations, or spawn precondition failures.
 ## Working Assumption for Contributors

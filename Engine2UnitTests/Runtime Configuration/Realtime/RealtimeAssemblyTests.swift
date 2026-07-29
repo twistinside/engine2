@@ -3,10 +3,11 @@ import Testing
 
 struct RealtimeAssemblyTests {
     @Test func valueCopiesRetainOneRuntimeGraphAndLifecycleState() async {
-        let assembly = RealtimeConfiguration(
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
         let copy = assembly
 
         #expect(copy.inputRuntime === assembly.inputRuntime)
@@ -25,10 +26,11 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func lifecycleStartsAndStopsTheOwnedRuntimes() async {
-        let assembly = RealtimeConfiguration(
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
 
         assembly.start()
 
@@ -44,10 +46,11 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func lifecycleIsIdempotent() async {
-        let assembly = RealtimeConfiguration(
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
 
         assembly.start()
         let startedRevision = assembly.inputRuntime.latestInputSnapshot.revision
@@ -64,11 +67,52 @@ struct RealtimeAssemblyTests {
         #expect(assembly.advanceDriver.isRunning == false)
     }
 
-    @Test func userPauseSurvivesAssemblyLifecycleAndLeavesInputLive() async {
-        let assembly = RealtimeConfiguration(
+    @Test func newerAppearanceSupersedesQueuedDisappearance() async {
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
+
+        assembly.onAppear()
+        assembly.onDisappear()
+        assembly.onAppear()
+        await Task.yield()
+
+        #expect(assembly.inputRuntime.isRunning)
+        #expect(assembly.advanceDriver.isRunning)
+
+        await assembly.stop()
+    }
+
+    @Test func inactiveScenePreventsInitialVisibilityFromStartingWork() async {
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
+        )
+
+        assembly.setSceneActive(false)
+        assembly.onAppear()
+        await Task.yield()
+
+        #expect(assembly.inputRuntime.isRunning == false)
+        #expect(assembly.advanceDriver.isRunning == false)
+
+        assembly.setSceneActive(true)
+
+        #expect(assembly.inputRuntime.isRunning)
+        #expect(assembly.advanceDriver.isRunning)
+
+        await assembly.stop()
+    }
+
+    @Test func userPauseSurvivesAssemblyLifecycleAndLeavesInputLive() async {
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
+            pollInterval: .seconds(60),
+            catchUpPolicy: .interactive
+        )
 
         assembly.start()
         assembly.pauseAdvancement()
@@ -91,10 +135,11 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func rebuildCoordinatesSessionCursorAndDriverLifecycle() async {
-        let assembly = RealtimeConfiguration(
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
         assembly.start()
         let initialCursor = assembly.simulationRuntime.currentCursor
 
@@ -109,10 +154,11 @@ struct RealtimeAssemblyTests {
     }
 
     @Test func pausedInputPublishesWithoutBypassingSimulation() async {
-        let assembly = RealtimeConfiguration(
+        let assembly = RealtimeAssembly(
+            gameContent: BasicGameContent(),
             pollInterval: .seconds(60),
             catchUpPolicy: .interactive
-        ).makeAssembly(gameContent: BasicGameContent())
+        )
 
         // Disable advancement before activation so no cadence request can race
         // the invariant this test is proving.

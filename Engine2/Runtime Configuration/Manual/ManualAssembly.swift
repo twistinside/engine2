@@ -25,17 +25,17 @@ struct ManualAssembly: PRuntimeAssembly {
         simulationRuntime
     }
 
-    /// Constructs the production manual graph from Basic Game Content.
-    init() {
+    /// Constructs a manual graph with a fresh Simulation session identity.
+    init(gameContent: any PGameContent) {
         self.init(
-            gameContent: BasicGameContent(),
+            gameContent: gameContent,
             sessionID: SimulationSessionID()
         )
     }
 
     /// Constructs a manual graph from explicit content and session identity.
     init(
-        gameContent: BasicGameContent,
+        gameContent: any PGameContent,
         sessionID: SimulationSessionID
     ) {
         let simulationRuntime = SimulationRuntime(
@@ -44,17 +44,7 @@ struct ManualAssembly: PRuntimeAssembly {
             inputBaseline: nil,
             sessionID: sessionID
         )
-        self.init(
-            simulationRuntime: simulationRuntime,
-            renderAssetCatalog: gameContent.renderAssetCatalog
-        )
-    }
-
-    init(
-        simulationRuntime: SimulationRuntime,
-        renderAssetCatalog: RenderAssetCatalog
-    ) {
         self.simulationRuntime = simulationRuntime
-        self.renderAssetCatalog = renderAssetCatalog
+        self.renderAssetCatalog = gameContent.renderAssetCatalog
     }
 }

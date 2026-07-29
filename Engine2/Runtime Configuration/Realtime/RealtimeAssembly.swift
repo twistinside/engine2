@@ -53,15 +53,12 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         advanceDriver.fault
     }
 
-    /// Constructs the production real-time graph with Basic Game Content,
-    /// fixed-step polling, and interactive catch-up policy.
-    init() {
+    /// Constructs a real-time graph with fixed-step polling and interactive catch-up policy.
+    init(gameContent: any PGameContent) {
         self.init(
-            gameContent: BasicGameContent(),
-            configuration: RealtimeConfiguration(
-                pollInterval: SimulationRuntime.fixedTimeStep,
-                catchUpPolicy: .interactive
-            )
+            gameContent: gameContent,
+            pollInterval: SimulationRuntime.fixedTimeStep,
+            catchUpPolicy: .interactive
         )
     }
 
@@ -69,7 +66,11 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
     ///
     /// This path preserves deterministic test and specialized-host injection
     /// while keeping graph construction inside the assembly.
-    init(gameContent: BasicGameContent, configuration: RealtimeConfiguration) {
+    init(
+        gameContent: any PGameContent,
+        pollInterval: Duration,
+        catchUpPolicy: RealtimeCatchUpPolicy
+    ) {
         let inputRuntime = InputRuntime()
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
@@ -81,34 +82,41 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
             inputSource: inputRuntime,
             initialCursor: simulationRuntime.currentCursor,
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
-            pollInterval: configuration.pollInterval,
-            catchUpPolicy: configuration.catchUpPolicy,
+            pollInterval: pollInterval,
+            catchUpPolicy: catchUpPolicy,
             isAdvancementEnabled: true
         )
 
-        self.init(
-            inputRuntime: inputRuntime,
-            simulationRuntime: simulationRuntime,
-            advanceDriver: advanceDriver,
+        self.inputRuntime = inputRuntime
+        self.simulationRuntime = simulationRuntime
+        self.advanceDriver = advanceDriver
+        self.renderAssetCatalog = gameContent.renderAssetCatalog
+        self.lifecycleState = RealtimeAssemblyLifecycleState()
+        self.snapshotCaptureStore = RealtimeAssemblySnapshotCaptureStore(
+            presentationSource: simulationRuntime,
             renderAssetCatalog: gameContent.renderAssetCatalog
         )
     }
 
-    init(
-        inputRuntime: InputRuntime,
-        simulationRuntime: SimulationRuntime,
-        advanceDriver: RealtimeAdvanceDriver,
-        renderAssetCatalog: RenderAssetCatalog
-    ) {
-        self.inputRuntime = inputRuntime
-        self.simulationRuntime = simulationRuntime
-        self.advanceDriver = advanceDriver
-        self.renderAssetCatalog = renderAssetCatalog
-        self.lifecycleState = RealtimeAssemblyLifecycleState()
-        self.snapshotCaptureStore = RealtimeAssemblySnapshotCaptureStore(
-            presentationSource: simulationRuntime,
-            renderAssetCatalog: renderAssetCatalog
-        )
+    /// Starts Input publication and real-time advancement for visible presentation.
+    func onAppear() {
+        lifecycleState.setRootVisible(true)
+        applyVisibilityPolicy()
+    }
+
+    /// Stops cadence immediately, then drains accepted work before stopping Input.
+    ///
+    /// The lifecycle generation prevents an older disappearance task from
+    /// stopping Input after a newer appearance has restarted the assembly.
+    func onDisappear() {
+        lifecycleState.setRootVisible(false)
+        applyVisibilityPolicy()
+    }
+
+    /// Applies the scene activity translated by the real-time assembly view.
+    func setSceneActive(_ isActive: Bool) {
+        lifecycleState.setSceneActive(isActive)
+        applyVisibilityPolicy()
     }
 
     /// Starts the publisher before the cadence connection.
@@ -127,8 +135,33 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
     /// The driver's advancement preference is retained, so scene backgrounding
     /// never turns a deliberate user pause back on.
     func stop() async {
+        let transition = beginStop()
+        await finishStop(transition: transition)
+    }
+
+    /// Reconciles App visibility and scene activity without exposing either to peers.
+    private func applyVisibilityPolicy() {
+        guard lifecycleState.permitsRunning == false else {
+            start()
+            return
+        }
+
+        let transition = beginStop()
+        Task {
+            await finishStop(transition: transition)
+        }
+    }
+
+    /// Revokes cadence synchronously so later visibility cannot be stopped by queued work.
+    private func beginStop() -> UInt64 {
         let transition = lifecycleState.beginTransition()
-        await advanceDriver.stopAndDrain()
+        advanceDriver.stop()
+        return transition
+    }
+
+    /// Drains work accepted before `transition`, then completes that stop if it remains current.
+    private func finishStop(transition: UInt64) async {
+        await advanceDriver.drainAcceptedWork()
 
         // A newer start owns lifecycle policy now. Do not let completion of an
         // older asynchronous stop shut down its Input publication session.

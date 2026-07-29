@@ -26,7 +26,9 @@ struct OfflineCaptureAssemblyView: View {
 }
 
 #Preview {
-    if let assembly = try? OfflineCaptureAssembly() {
+    if let assembly = try? OfflineCaptureAssembly(
+        gameContent: BasicGameContent()
+    ) {
         assembly
             .frame(width: 640, height: 360)
     } else {

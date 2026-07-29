@@ -38,10 +38,7 @@ struct RuntimeCompositionScenarioTests {
         let clockDriven = await runClockDrivenSimulation(
             stepCount: twentySteps
         )
-        let manualConfiguration = ManualConfiguration()
-        let manual = manualConfiguration.makeAssembly(
-            gameContent: gameContent
-        )
+        let manual = ManualAssembly(gameContent: gameContent)
         let manualRequest = SimulationAdvanceRequest(
             expectedCursor: manual.simulationRuntime.currentCursor,
             stepCount: twentySteps,
@@ -55,11 +52,10 @@ struct RuntimeCompositionScenarioTests {
             return
         }
 
-        let offlineConfiguration = OfflineCaptureConfiguration(
-            renderLimits: .conservative
-        )
-        let offline = try offlineConfiguration.makeAssembly(
-            gameContent: gameContent
+        let offline = try OfflineCaptureAssembly(
+            gameContent: gameContent,
+            renderLimits: .conservative,
+            sessionID: SimulationSessionID()
         )
         let size = try RenderPixelSize(width: 64, height: 64)
         let viewpointID = RenderViewpointID()

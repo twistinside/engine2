@@ -134,7 +134,7 @@ The requester may be a real-time driver, offline capture workflow, MCP session c
 
 Latest-value publication remains correct for consumers allowed to skip superseded states. It is not sufficient for an offline or MCP workflow that must render exactly the state produced by its own command. Such a workflow needs an immutable exact result or cursor-addressed rendezvous labeled with a Simulation session identity and tick. A cursor identifies state but does not imply that state is retained. A multi-tick result must expose enough initial/final cursor correlation for a separately configured ordered event lane or journal to recover required occurrences; the final snapshot does not imply their retention.
 
-See <doc:Runtime-Configurations-and-Advancement> for the implemented exact boundary and the proposed authority, idempotency, backpressure, and broader configuration model.
+See <doc:Runtime-Assemblies-and-Advancement> for the implemented exact boundary and the proposed authority, idempotency, backpressure, and broader assembly model.
 
 ## Snapshots and Events Need Different Delivery Semantics
 
@@ -187,7 +187,7 @@ These choices should preserve the ownership model in this article rather than re
 ## Related Direction
 
 - <doc:Runtime-Architecture>
-- <doc:Runtime-Configurations-and-Advancement>
+- <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Game-Content-Architecture>
 - <doc:Rendering-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>

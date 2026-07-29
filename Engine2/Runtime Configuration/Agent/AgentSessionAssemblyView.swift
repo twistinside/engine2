@@ -27,7 +27,9 @@ struct AgentSessionAssemblyView: View {
 }
 
 #Preview {
-    if let assembly = try? AgentSessionAssembly() {
+    if let assembly = try? AgentSessionAssembly(
+        gameContent: BasicGameContent()
+    ) {
         assembly
             .frame(width: 640, height: 360)
     } else {

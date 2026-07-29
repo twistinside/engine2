@@ -29,7 +29,8 @@ This distinction keeps the top-level model clear:
 ```text
 Engine2                reusable runtime and ECS machinery
 Game Content           consumer-defined game code, descriptions, and assets
-App                    selects and retains one Runtime Assembly
+App                    selects Game Content and one Runtime Assembly,
+                       then injects the selected content
 Runtime Assembly       constructs, connects, and presents one runtime graph
 Runtime                long-lived owner that executes using supplied content
 ```
@@ -150,12 +151,10 @@ A snapshot-only consumer needs any visible occurrence represented in durable sna
 
 ## Runtime Assemblies Construct Runtimes From Game Content
 
-The App selects one ``PRuntimeAssembly`` implementation at compile time and retains the constructed value behind an opaque `some PRuntimeAssembly` property. The assembly is the concrete composition object for that topology: its zero-argument production initializer selects Game Content and policy, constructs the independently owned runtimes, and supplies each relevant portion of the content. Explicit assembly initializers retain content and policy injection for tests, tools, and specialized hosts.
+The App selects one ``PRuntimeAssembly`` implementation at compile time and retains the constructed value behind an opaque `some PRuntimeAssembly` property. The assembly is the concrete composition object for that topology: its required `init(gameContent:)` constructs the independently owned runtimes and supplies each relevant portion of the injected content. Explicit assembly initializers take focused policy, limit, and identity values directly for tests, tools, and specialized hosts.
 
-The example assemblies implement the first version of this boundary with
-`BasicGameContent`. Their production initializers construct that value, while
-their explicit `init(gameContent:configuration:)` paths preserve deliberate
-injection. `BasicGameContent` supplies `BasicWorldBuilder` to
+The example App constructs `BasicGameContent` and passes it to the selected
+assembly. `BasicGameContent` supplies `BasicWorldBuilder` to
 ``SimulationRuntime`` beside the complete `.basicGame`
 ``SimulationConfiguration``, and deliberately selects
 `RenderAssetCatalog.everything` for the current render paths. Its explicit
@@ -188,18 +187,26 @@ struct MyGameAssembly: PRuntimeAssembly {
         MyGameAssemblyView(assembly: self)
     }
 
-    init() {
+    init(gameContent: any PGameContent) {
         self.init(
-            gameContent: MyGameContent(),
-            configuration: MyGameConfiguration.production
+            gameContent: gameContent,
+            sessionID: SimulationSessionID()
         )
     }
 
     init(
-        gameContent: MyGameContent,
-        configuration: MyGameConfiguration
+        gameContent: any PGameContent,
+        sessionID: SimulationSessionID
     ) {
         // Construct the complete runtime graph and retain its connections.
+    }
+
+    func onAppear() {
+        // Start visibility-dependent work in dependency order.
+    }
+
+    func onDisappear() {
+        // Stop visibility-dependent work in reverse dependency order.
     }
 }
 ```
@@ -208,9 +215,11 @@ struct MyGameAssembly: PRuntimeAssembly {
 
 A Runtime Assembly is a value-type View because SwiftUI requires custom views to use value semantics. Its stored Runtime, driver, coordinator, and focused mutable-state references preserve one live graph when SwiftUI copies the assembly value. Calling an assembly initializer constructs a new graph; copying an existing assembly does not.
 
-A nonthrowing production initializer such as this one satisfies the protocol's `init() throws` requirement. If production construction can fail, the assembly declares a throwing initializer and the selecting App must choose an explicit launch policy; the common protocol does not manufacture fallback UI.
+A nonthrowing Game Content initializer such as this one satisfies the protocol's throwing initializer requirement. If construction can fail, the selecting App must choose an explicit launch policy; the common protocol does not manufacture fallback UI.
 
-This example is intentionally concrete rather than a requirement for one large `PGameContent` protocol. The common assembly protocol covers only App construction and UI hosting; it does not turn Game Content or topology-specific runtime capabilities into universal service bags. A game-content type may be a simple immutable composition value, namespace, or set of focused catalogs. Introduce protocols only where multiple implementations or substitution create real value.
+`PRuntimeAssembly.onAppear()` and `onDisappear()` are common root-visibility signals. Each topology maps them to its own reversible work. They are not terminal shutdown requirements. In particular, ordinary disappearance of an ``AgentSessionAssembly`` does not close the session; its explicit host still calls `stopAndDrain()` when that live session ends.
+
+`PGameContent` is the narrow assembly-construction substitution seam shared by the implemented topologies. It contains exactly three construction values: ``PWorldBuilder``, ``SimulationConfiguration``, and ``RenderAssetCatalog``. It does not expose live runtimes, lifecycle operations, cadence, storage, or a topology-specific capability bag. A consumer may conform with one immutable composition value while retaining its own supporting namespaces and focused catalogs.
 
 The important ownership rules are:
 
@@ -287,7 +296,7 @@ The first extraction should move example content out of reusable engine targets 
 
 - <doc:Runtime-Communication>
 - <doc:Runtime-Architecture>
-- <doc:Runtime-Configurations-and-Advancement>
+- <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Engine-Architecture>
 - <doc:Rendering-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>

@@ -6,10 +6,12 @@ import Testing
 import UniformTypeIdentifiers
 @testable import Engine2
 
-struct AgentSessionConfigurationTests {
+struct AgentSessionAssemblyConstructionTests {
     @Test
-    func freshConstructionOwnsSessionIdentitiesAndStartsAtTheFirstRequest() async throws {
-        let assembly = try AgentSessionAssembly()
+    func gameContentConstructionOwnsSessionIdentitiesAndStartsAtTheFirstRequest() async throws {
+        let assembly = try AgentSessionAssembly(
+            gameContent: BasicGameContent()
+        )
 
         #expect(assembly.initialCursor.tick == .zero)
         #expect(assembly.firstRequestID.sessionID == assembly.sessionID)
@@ -31,11 +33,10 @@ struct AgentSessionConfigurationTests {
                 uuidString: "50000000-0000-0000-0000-000000000002"
             )!
         )
-        let assembly = try AgentSessionConfiguration(
-            renderLimits: .conservative,
-            sessionLimits: .conservative
-        ).makeAssembly(
+        let assembly = try AgentSessionAssembly(
             gameContent: BasicGameContent(),
+            renderLimits: .conservative,
+            sessionLimits: .conservative,
             agentSessionID: agentSessionID,
             simulationSessionID: simulationSessionID
         )

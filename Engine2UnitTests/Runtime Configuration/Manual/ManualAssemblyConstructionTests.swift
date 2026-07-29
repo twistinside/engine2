@@ -2,9 +2,9 @@ import Foundation
 import Testing
 @testable import Engine2
 
-struct ManualConfigurationTests {
-    @Test func selfConstructionCreatesAReadyManualAssembly() {
-        let assembly = ManualAssembly()
+struct ManualAssemblyConstructionTests {
+    @Test func gameContentConstructionCreatesAReadyManualAssembly() {
+        let assembly = ManualAssembly(gameContent: BasicGameContent())
 
         #expect(assembly.simulationRuntime.currentCursor.tick == .zero)
         #expect(
@@ -17,7 +17,7 @@ struct ManualConfigurationTests {
         let sessionID = SimulationSessionID(
             rawValue: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!
         )
-        let assembly = ManualConfiguration().makeAssembly(
+        let assembly = ManualAssembly(
             gameContent: BasicGameContent(),
             sessionID: sessionID
         )
@@ -29,7 +29,7 @@ struct ManualConfigurationTests {
     }
 
     @Test func exactCallerAloneDeterminesProgress() async throws {
-        let assembly = ManualConfiguration().makeAssembly(
+        let assembly = ManualAssembly(
             gameContent: BasicGameContent()
         )
         let initialCursor = assembly.simulationRuntime.currentCursor
@@ -58,7 +58,7 @@ struct ManualConfigurationTests {
     }
 
     @Test func tenThousandTicksMutateECSAndPublishTheExactFinalPresentation() async throws {
-        let assembly = ManualConfiguration().makeAssembly(
+        let assembly = ManualAssembly(
             gameContent: BasicGameContent(
                 worldBuilder: ManualMovingWorldBuilder()
             )
@@ -99,9 +99,9 @@ struct ManualConfigurationTests {
     }
 
     @Test func assembliesOwnIndependentSessionsAndWorlds() {
-        let configuration = ManualConfiguration()
-        let first = configuration.makeAssembly(gameContent: BasicGameContent())
-        let second = configuration.makeAssembly(gameContent: BasicGameContent())
+        let gameContent = BasicGameContent()
+        let first = ManualAssembly(gameContent: gameContent)
+        let second = ManualAssembly(gameContent: gameContent)
 
         #expect(first.simulationRuntime !== second.simulationRuntime)
         #expect(first.simulationRuntime.world !== second.simulationRuntime.world)
@@ -109,7 +109,7 @@ struct ManualConfigurationTests {
     }
 }
 
-private extension ManualConfigurationTests {
+private extension ManualAssemblyConstructionTests {
     private struct ManualMovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()

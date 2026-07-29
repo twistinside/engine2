@@ -24,15 +24,13 @@ struct AgentSessionAssembly: PRuntimeAssembly {
         coordinator
     }
 
-    /// Constructs the production agent graph from Basic Game Content and
-    /// conservative Render, work, and retention limits.
-    init() throws {
+    /// Constructs an agent graph with conservative Render, work, and retention
+    /// limits plus fresh agent and Simulation session identities.
+    init(gameContent: any PGameContent) throws {
         try self.init(
-            gameContent: BasicGameContent(),
-            configuration: AgentSessionConfiguration(
-                renderLimits: .conservative,
-                sessionLimits: .conservative
-            ),
+            gameContent: gameContent,
+            renderLimits: .conservative,
+            sessionLimits: .conservative,
             agentSessionID: AgentSessionID(),
             simulationSessionID: SimulationSessionID()
         )
@@ -40,44 +38,29 @@ struct AgentSessionAssembly: PRuntimeAssembly {
 
     /// Constructs an agent graph from explicit content, policy, and identities.
     init(
-        gameContent: BasicGameContent,
-        configuration: AgentSessionConfiguration,
+        gameContent: any PGameContent,
+        renderLimits: OffscreenRenderLimits,
+        sessionLimits: AgentSessionLimits,
         agentSessionID: AgentSessionID,
         simulationSessionID: SimulationSessionID
     ) throws {
         let offlineAssembly = try OfflineCaptureAssembly(
             gameContent: gameContent,
-            configuration: OfflineCaptureConfiguration(
-                renderLimits: configuration.renderLimits
-            ),
+            renderLimits: renderLimits,
             sessionID: simulationSessionID
         )
         let coordinator = AgentSessionCoordinator(
             sessionID: agentSessionID,
             initialCursor: offlineAssembly.initialCursor,
-            limits: configuration.sessionLimits,
+            limits: sessionLimits,
             captureTarget: offlineAssembly.captureTarget,
             initialRequestSequence: .first
         )
 
-        self.init(
-            sessionID: agentSessionID,
-            initialCursor: offlineAssembly.initialCursor,
-            offlineAssembly: offlineAssembly,
-            coordinator: coordinator
-        )
-    }
-
-    init(
-        sessionID: AgentSessionID,
-        initialCursor: SimulationCursor,
-        offlineAssembly: OfflineCaptureAssembly,
-        coordinator: AgentSessionCoordinator
-    ) {
-        self.sessionID = sessionID
-        self.initialCursor = initialCursor
+        self.sessionID = agentSessionID
+        self.initialCursor = offlineAssembly.initialCursor
         self.firstRequestID = AgentSessionRequestID(
-            sessionID: sessionID,
+            sessionID: agentSessionID,
             sequence: .first
         )
         self.offlineAssembly = offlineAssembly

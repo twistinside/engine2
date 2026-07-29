@@ -12,35 +12,46 @@ struct RuntimeAssemblyTests {
     }
 
     @Test
-    func nonfallibleAssembliesSelfConstructAsViews() {
-        _ = host(RealtimeAssembly())
-        _ = host(ManualAssembly())
+    func nonfallibleAssembliesConstructFromGameContentAsViews() {
+        let gameContent = BasicGameContent()
+
+        _ = host(RealtimeAssembly(gameContent: gameContent))
+        _ = host(ManualAssembly(gameContent: gameContent))
     }
 
     @Test
-    func protocolConformanceProvidesTheRootView() {
-        let assembly = RealtimeAssembly()
+    func protocolConformanceProvidesTheRootViewAndVisibilityLifecycle() throws {
+        let recorder = LifecycleRecorder()
+        let gameContent = RecordingGameContent(recorder: recorder)
+        let assembly = try construct(
+            RecordingRuntimeAssembly.self,
+            gameContent: gameContent
+        )
 
         _ = assembly.body
+        assembly.onAppear()
+        assembly.onDisappear()
+
+        #expect(recorder.events == [.appeared, .disappeared])
     }
 
     @Test
     func genericProtocolConstructionPropagatesFailure() {
-        ThrowingRuntimeAssembly.attemptCount = 0
-
         #expect(throws: ConstructionError.expected) {
-            _ = try construct(ThrowingRuntimeAssembly.self)
+            _ = try construct(
+                ThrowingRuntimeAssembly.self,
+                gameContent: BasicGameContent()
+            )
         }
-
-        #expect(ThrowingRuntimeAssembly.attemptCount == 1)
     }
 
     @Test
-    func selfConstructedAssembliesOwnIndependentSimulationSessions() {
-        let firstRealtime = RealtimeAssembly()
-        let secondRealtime = RealtimeAssembly()
-        let firstManual = ManualAssembly()
-        let secondManual = ManualAssembly()
+    func separatelyConstructedAssembliesOwnIndependentSimulationSessions() {
+        let gameContent = BasicGameContent()
+        let firstRealtime = RealtimeAssembly(gameContent: gameContent)
+        let secondRealtime = RealtimeAssembly(gameContent: gameContent)
+        let firstManual = ManualAssembly(gameContent: gameContent)
+        let secondManual = ManualAssembly(gameContent: gameContent)
 
         #expect(firstRealtime.simulationRuntime !== secondRealtime.simulationRuntime)
         #expect(
@@ -59,9 +70,10 @@ struct RuntimeAssemblyTests {
     ) {}
 
     private func construct<Assembly: PRuntimeAssembly>(
-        _: Assembly.Type
+        _: Assembly.Type,
+        gameContent: any PGameContent
     ) throws -> Assembly {
-        try Assembly()
+        try Assembly(gameContent: gameContent)
     }
 
     private func host<Assembly: PRuntimeAssembly>(
@@ -74,15 +86,66 @@ struct RuntimeAssemblyTests {
         case expected
     }
 
-    private struct ThrowingRuntimeAssembly: PRuntimeAssembly {
-        static var attemptCount = 0
+    private enum LifecycleEvent: Equatable {
+        case appeared
+        case disappeared
+    }
+
+    private final class LifecycleRecorder {
+        var events: [LifecycleEvent] = []
+
+        func record(_ event: LifecycleEvent) {
+            events.append(event)
+        }
+    }
+
+    private struct RecordingGameContent: PGameContent {
+        let recorder: LifecycleRecorder
+
+        private let base = BasicGameContent()
+
+        var worldBuilder: any PWorldBuilder {
+            base.worldBuilder
+        }
+
+        var simulationConfiguration: SimulationConfiguration {
+            base.simulationConfiguration
+        }
+
+        var renderAssetCatalog: RenderAssetCatalog {
+            base.renderAssetCatalog
+        }
+    }
+
+    private struct RecordingRuntimeAssembly: PRuntimeAssembly {
+        let recorder: LifecycleRecorder
 
         var body: some View {
             EmptyView()
         }
 
-        init() throws {
-            Self.attemptCount += 1
+        init(gameContent: any PGameContent) throws {
+            guard let gameContent = gameContent as? RecordingGameContent else {
+                throw ConstructionError.expected
+            }
+            self.recorder = gameContent.recorder
+        }
+
+        func onAppear() {
+            recorder.record(.appeared)
+        }
+
+        func onDisappear() {
+            recorder.record(.disappeared)
+        }
+    }
+
+    private struct ThrowingRuntimeAssembly: PRuntimeAssembly {
+        var body: some View {
+            EmptyView()
+        }
+
+        init(gameContent: any PGameContent) throws {
             throw ConstructionError.expected
         }
     }

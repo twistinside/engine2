@@ -9,6 +9,7 @@ The project is exploring a hybrid architecture:
 - Typed `Entity` facades and capability protocols provide a convenient game-facing API.
 - Input, simulation, and rendering live in independently owned runtimes connected through explicit snapshots and events.
 - Consumer-defined Game Content supplies entities, world construction, presentation descriptions, and assets without owning runtime infrastructure.
+- The App injects selected Game Content into one `PRuntimeAssembly`, presents the assembly as its SwiftUI root, and forwards reversible visibility through the common lifecycle hooks.
 
 Engine2 is early and intentionally small, but its architectural direction is documented as it develops.
 
@@ -17,6 +18,7 @@ Engine2 is early and intentionally small, but its architectural direction is doc
 Start with the [Engine2 DocC catalog](Engine2/Engine2.docc/Engine2.md), or jump directly to an architectural topic:
 
 - [Runtime Architecture](Engine2/Engine2.docc/Articles/Runtime-Architecture.md) — runtime ownership, lifecycle, and cadence
+- [Runtime Assemblies and Advancement](Engine2/Engine2.docc/Articles/Runtime-Assemblies-and-Advancement.md) — App hosting, topology construction, and exact advancement
 - [Runtime Communication](Engine2/Engine2.docc/Articles/Runtime-Communication.md) — snapshots, events, and request/result workflows
 - [Game Content Architecture](Engine2/Engine2.docc/Articles/Game-Content-Architecture.md) — the consumer-content boundary
 - [Engine Architecture](Engine2/Engine2.docc/Articles/Engine-Architecture.md) — the ECS core and fixed-step simulation

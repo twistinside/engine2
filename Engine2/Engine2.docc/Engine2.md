@@ -2,7 +2,7 @@
 Engine2 is a small ECS-first engine experiment with typed entity facades, per-type component stores, and an exact fixed-step simulation core.
 ## Overview
 The current codebase is intentionally small, but the core direction is already established:
-- The App selects and retains one ``PRuntimeAssembly``; that assembly constructs and connects independent top-level runtimes through explicit typed boundaries and is their SwiftUI root.
+- The App constructs selected Game Content, injects it into one ``PRuntimeAssembly``, retains that assembly, presents it as the SwiftUI root, and forwards reversible visibility through the common hooks. The assembly constructs and connects independent top-level runtimes through explicit typed boundaries.
 - ``InputRuntime`` accepts platform input through `PInputEventSink` and publishes a revisioned latest `InputSnapshot` through `PInputSnapshotSource`.
 - The Simulation Runtime is authoritative for gameplay state and contains the engine, world, and ECS systems.
 - Game Content supplies consumer-defined entities, world construction, presentation descriptions, and assets without becoming a runtime.
@@ -27,20 +27,20 @@ At the moment, the codebase already includes:
 - one complete ordered system schedule in ``Engine`` with semantic camera input mapping/control, input history/cleanup, and authoritative Simulation work
 - an assembly-owned real-time driver that translates wall time into cursor-qualified exact requests, plus a clock-free ``ManualAssembly``
 - an assembly-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world construction policy, and completed publication
-- a common ``PRuntimeAssembly`` App-hosting boundary whose potentially fallible zero-argument construction produces a self-presenting SwiftUI root, with compile-time selection and explicit App policy for construction failure
+- a common ``PRuntimeAssembly`` App-hosting boundary whose potentially fallible Game Content injection produces a self-presenting SwiftUI root with reversible visibility hooks, compile-time selection, and explicit App policy for construction failure
 - a current real-time assembly whose body feeds `InputMetalView` into ``InputRuntime`` directly while a separate driver owns Simulation advancement
 - a real-time screen path from ``SimulationPresentationSnapshot`` through `RenderFrame(projecting:)` and ``MetalSceneView`` that uses the published camera exactly, plus a separate exact request path through ``RenderViewpoint`` and `RenderFrame(exactlyProjecting:viewpoint:)`
 - a view-independent production ``MetalFrameEncoder`` shared by the thin MetalKit screen adapter, the exact offscreen Runtime, and their render integration coverage
 - a production exact offscreen request/outcome boundary with strict presentation/model/geometry preflight, configurable safety limits, single-flight backpressure, queue-feedback lifetime, cancellation semantics, and tightly packed top-left BGRA8-sRGB readback
 - an asynchronous Image I/O artifact layer supporting validated JPEG quality and lossless PNG, with detached encoded data and exact request/cursor/viewpoint/render/encoding provenance
-- a concrete self-building serial offline capture assembly whose typed outcomes preserve either committed Simulation progress or the exact retained current presentation and, after rendering, the raw result needed for retryable artifact derivation
-- a transport-neutral self-building agent-session assembly whose closed operational surface exposes starting identity, ``PAgentSessionTarget``, and explicit-host drain lifecycle while its common view presents static initial identity; focused coverage validates both capture sources through one admission/idempotency/cache/cursor/cancellation/lifecycle policy, and real integration advances to tick one, captures and replays an alternate view at tick one, then advances to tick two
+- a concrete serial offline capture assembly constructed from injected Game Content and direct limit and identity values, whose typed outcomes preserve either committed Simulation progress or the exact retained current presentation and, after rendering, the raw result needed for retryable artifact derivation
+- a transport-neutral agent-session assembly constructed from injected Game Content and direct limit and identity values, whose closed operational surface exposes starting identity, ``PAgentSessionTarget``, and explicit-host drain lifecycle while its common view presents static initial identity; common visibility does not close the live session, focused coverage validates both capture sources through one admission/idempotency/cache/cursor/cancellation/lifecycle policy, and real integration advances to tick one, captures and replays an alternate view at tick one, then advances to tick two
 
 The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pause gate, and presentation-side camera bypass have been removed. ``SInputMapping`` and ``SCameraInput`` now form one focused Simulation-owned control path: imported pointer and scroll transients become semantic orbit/zoom commands, `World.camera` changes only within a complete tick, and the real-time screen observes that camera only after completed publication. Exact raw offscreen rendering, explicit request-carried viewpoints, CPU-side JPEG and PNG derivation, serial advance-or-current capture, and the live-process idempotent agent wrapper are implemented. The agent layer has no automatic cadence and preserves the offline coordinator as the only advance authority. Its current-cursor image artifact is visual output, not structured observation. An actual MCP Runtime or transport, authentication, wire DTOs, restart-safe idempotency journal, general physical or semantic gameplay controls, structured observations, persistence/sinks, dedicated render worker, pooled targets, atomic multi-view jobs, high-quality accumulation/HDR policy, additional artifact formats, typed routing, multi-window bindings, and observer anchors remain proposed; advancing agent requests currently assign `.none`.
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
-- <doc:Runtime-Configurations-and-Advancement>
+- <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 - <doc:Engine-Architecture>

@@ -19,42 +19,14 @@ struct ManualAssemblyView: View {
             )
             .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 8) {
-                Label("Manual Simulation", systemImage: "forward.frame")
-                    .font(.headline)
-
-                Text("Tick \(currentCursor.tick.rawValue)")
-                    .monospacedDigit()
-
-                Text(currentCursor.sessionID.rawValue.uuidString)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-                Button(
-                    isAdvancing ? "Advancing…" : "Advance One Tick",
-                    systemImage: "forward.frame",
-                    action: advanceOneTick
-                )
-                .disabled(isAdvancing)
-                .buttonStyle(.glass)
-            }
-            .padding()
-            .glassEffect()
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: .infinity,
-                alignment: .bottomLeading
+            ManualSimulationControls(
+                currentCursor: currentCursor,
+                isAdvancing: isAdvancing,
+                advanceOneTick: advanceOneTick
             )
         }
         .toolbar {
-            ToolbarItem {
-                Picker("Render Output", selection: $outputMode) {
-                    Text("Surface").tag(RenderOutputMode.surface)
-                    Text("View-Space Normals").tag(
-                        RenderOutputMode.viewSpaceNormals
-                    )
-                }
-            }
+            ManualAssemblyToolbar(outputMode: $outputMode)
         }
         .onAppear {
             currentCursor = assembly.presentationSource.latestPresentationSnapshot.cursor
@@ -85,7 +57,7 @@ struct ManualAssemblyView: View {
             inputAssignment: .none
         )
 
-        advanceTask = Task { @MainActor in
+        advanceTask = Task {
             let outcome = await assembly.advanceTarget.advance(request)
 
             switch outcome {
@@ -102,6 +74,6 @@ struct ManualAssemblyView: View {
 }
 
 #Preview {
-    ManualAssembly()
+    ManualAssembly(gameContent: BasicGameContent())
         .frame(width: 960, height: 640)
 }

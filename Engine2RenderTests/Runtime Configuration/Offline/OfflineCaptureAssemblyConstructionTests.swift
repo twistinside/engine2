@@ -6,10 +6,12 @@ import Testing
 import UniformTypeIdentifiers
 @testable import Engine2
 
-struct OfflineCaptureConfigurationTests {
+struct OfflineCaptureAssemblyConstructionTests {
     @Test
-    func selfConstructionCreatesAReadyClosedAssembly() throws {
-        let assembly = try OfflineCaptureAssembly()
+    func gameContentConstructionCreatesAReadyClosedAssembly() throws {
+        let assembly = try OfflineCaptureAssembly(
+            gameContent: BasicGameContent()
+        )
 
         #expect(assembly.initialCursor.tick == .zero)
         _ = assembly.body
@@ -22,10 +24,9 @@ struct OfflineCaptureConfigurationTests {
                 uuidString: "40000000-0000-0000-0000-000000000001"
             )!
         )
-        let assembly = try OfflineCaptureConfiguration(
-            renderLimits: .conservative
-        ).makeAssembly(
+        let assembly = try OfflineCaptureAssembly(
             gameContent: BasicGameContent(),
+            renderLimits: .conservative,
             sessionID: sessionID
         )
         let captureTarget = assembly.captureTarget

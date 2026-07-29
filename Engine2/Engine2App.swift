@@ -2,16 +2,23 @@ import SwiftUI
 
 /// Selects and retains the Runtime Assembly presented by the main window.
 ///
-/// The selected assembly constructs its own complete topology, owns lifecycle
-/// translation, and supplies its root UI. Changing the assembly type does not
-/// require the App to understand that topology's runtimes or capabilities.
+/// The App selects Game Content and one assembly type. The assembly constructs
+/// its complete topology, owns lifecycle policy, and supplies its root UI.
 @main
 struct Engine2App: App {
-    private let assembly: some PRuntimeAssembly = RealtimeAssembly()
+    private let assembly: some PRuntimeAssembly = RealtimeAssembly(
+        gameContent: BasicGameContent()
+    )
 
     var body: some Scene {
         Window("Engine2", id: "main") {
             assembly
+                .onAppear {
+                    assembly.onAppear()
+                }
+                .onDisappear {
+                    assembly.onDisappear()
+                }
         }
     }
 }

@@ -178,7 +178,14 @@ final class RealtimeAdvanceDriver {
     /// world.
     func stopAndDrain() async {
         stop()
+        await drainAcceptedWork()
+    }
 
+    /// Waits for work accepted before a caller synchronously stopped this driver.
+    ///
+    /// This separate drain lets synchronous lifecycle entry points revoke cadence
+    /// before scheduling their asynchronous completion work.
+    func drainAcceptedWork() async {
         guard isQuiescent == false else {
             return
         }

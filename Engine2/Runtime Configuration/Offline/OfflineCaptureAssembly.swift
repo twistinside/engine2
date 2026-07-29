@@ -23,22 +23,20 @@ struct OfflineCaptureAssembly: PRuntimeAssembly {
         coordinator
     }
 
-    /// Constructs the production offline graph from Basic Game Content and
-    /// conservative Render limits.
-    init() throws {
+    /// Constructs an offline graph with conservative Render limits and a fresh
+    /// Simulation session identity.
+    init(gameContent: any PGameContent) throws {
         try self.init(
-            gameContent: BasicGameContent(),
-            configuration: OfflineCaptureConfiguration(
-                renderLimits: .conservative
-            ),
+            gameContent: gameContent,
+            renderLimits: .conservative,
             sessionID: SimulationSessionID()
         )
     }
 
     /// Constructs an offline graph from explicit content, policy, and identity.
     init(
-        gameContent: BasicGameContent,
-        configuration: OfflineCaptureConfiguration,
+        gameContent: any PGameContent,
+        renderLimits: OffscreenRenderLimits,
         sessionID: SimulationSessionID
     ) throws {
         let simulationRuntime = SimulationRuntime(
@@ -49,7 +47,7 @@ struct OfflineCaptureAssembly: PRuntimeAssembly {
         )
         let renderRuntime = try MetalOffscreenRenderRuntime(
             catalog: gameContent.renderAssetCatalog,
-            limits: configuration.renderLimits
+            limits: renderLimits
         )
         let initialPresentationSnapshot =
             simulationRuntime.latestPresentationSnapshot
@@ -60,14 +58,7 @@ struct OfflineCaptureAssembly: PRuntimeAssembly {
             artifactEncoder: try ImageIOArtifactEncoder()
         )
 
-        self.init(
-            initialCursor: initialPresentationSnapshot.cursor,
-            coordinator: coordinator
-        )
-    }
-
-    init(initialCursor: SimulationCursor, coordinator: OfflineCaptureCoordinator) {
-        self.initialCursor = initialCursor
+        self.initialCursor = initialPresentationSnapshot.cursor
         self.coordinator = coordinator
     }
 }
