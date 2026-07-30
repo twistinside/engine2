@@ -28,7 +28,7 @@ offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
 artifact persistence, pooled targets, or dedicated Render worker. A separate
 asynchronous ``PImageArtifactEncoder`` boundary, implemented by the immutable,
 eagerly sRGB-configured CPU ``ImageIOArtifactEncoder``, now derives provenance-rich JPEG or PNG
-artifacts from the completed raw result, and ``OfflineCaptureConfiguration``
+artifacts from the completed raw result, and ``OfflineCaptureAssembly``
 serially coordinates either an exact advance-and-capture or a cursor-checked
 capture of its retained current presentation through the same render and
 encoding workflow, without changing this PBR/GPU boundary.

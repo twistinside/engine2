@@ -1,9 +1,9 @@
-/// App-facing authoritative boundary for one Simulation session.
+/// Assembly-facing authoritative boundary for one Simulation session.
 ///
 /// `SimulationRuntime` owns the policy for constructing and replacing the
 /// active world, serializes exact advancement, and publishes completed state.
 /// Cadence, input sampling, pause policy, and lifecycle coordination belong to
-/// the App-owned configuration that drives its narrow capabilities.
+/// the assembly-selected configuration that drives its narrow capabilities.
 final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentationSource {
     /// The sole production duration represented by one completed Simulation tick.
     nonisolated static let fixedTimeStep: Duration = .seconds(1.0 / 60.0)

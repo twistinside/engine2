@@ -1,8 +1,8 @@
-/// Example consumer content assembled by the App composition root.
+/// Example consumer content selected by Engine2's App.
 ///
 /// This value owns game-specific construction and asset descriptions, but it
 /// has no cadence, lifecycle, decoded model, or GPU resource of its own.
-struct BasicGameContent {
+struct BasicGameContent: PGameContent {
     let worldBuilder: any PWorldBuilder
 
     let simulationConfiguration: SimulationConfiguration

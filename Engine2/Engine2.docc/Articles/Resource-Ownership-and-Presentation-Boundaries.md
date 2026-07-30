@@ -99,11 +99,11 @@ In a Metal view-driven application, the view still dictates when a drawable is a
 
 That display rule belongs to ``MetalRenderer``, not ``MetalFrameEncoder``. The encoder can record the same production frame work into matching caller-owned offscreen targets, but it deliberately has no policy for source selection, surface availability, frame-slot arbitration, queue submission, completion, presentation, readback, or artifact encoding. ``MetalOffscreenRenderRuntime`` supplies the implemented exact target, submission, cancellation, completion, and raw-readback policy without adding those responsibilities to the encoder.
 
-This display-driven rule is not the only presentation configuration. The implemented ``OfflineCaptureCoordinator`` requests one exact Simulation advancement, passes only its returned immutable snapshot plus the request's explicit viewpoint and settings to ``POffscreenRenderTarget``, and validates completed identity, cursor, viewpoint, settings, and raw image size before encoding. A post-submission cancellation must echo the requested ID; a typed mismatch retains the exact advance and expected/actual IDs. The coordinator owns that directed workflow; Render still does not own or mutate Simulation.
+This display-driven rule is not the only presentation topology. The implemented ``OfflineCaptureCoordinator`` requests one exact Simulation advancement, passes only its returned immutable snapshot plus the request's explicit viewpoint and settings to ``POffscreenRenderTarget``, and validates completed identity, cursor, viewpoint, settings, and raw image size before encoding. A post-submission cancellation must echo the requested ID; a typed mismatch retains the exact advance and expected/actual IDs. The coordinator owns that directed workflow; Render still does not own or mutate Simulation.
 
-``OfflineCaptureAssembly`` exposes neither Runtime, so another caller cannot bypass serial coordination and become a second advance authority. Every post-advance outcome retains the committed ``SimulationAdvanceResult``; post-render cancellation, encoding failure, and artifact-provenance mismatch retain the raw result as well. The coordinator awaits ``PImageArtifactEncoder`` while its single-flight gate remains held, but production out-of-actor CPU scheduling belongs to ``ImageIOArtifactEncoder``. Caller cancellation is checked before encoding, and completion wins once encoding begins. This is explicit value ownership and backpressure, not rollback, automatic retry, or a dedicated worker. A dedicated render actor or worker, pooled targets, HDR master and sample accumulation, additional artifact formats, expanded artifact metadata, persistence, and `ArtifactSink` remain proposed. See <doc:Runtime-Configurations-and-Advancement>.
+``OfflineCaptureAssembly`` exposes neither Runtime, so another caller cannot bypass serial coordination and become a second advance authority. Every post-advance outcome retains the committed ``SimulationAdvanceResult``; post-render cancellation, encoding failure, and artifact-provenance mismatch retain the raw result as well. The coordinator awaits ``PImageArtifactEncoder`` while its single-flight gate remains held, but production out-of-actor CPU scheduling belongs to ``ImageIOArtifactEncoder``. Caller cancellation is checked before encoding, and completion wins once encoding begins. This is explicit value ownership and backpressure, not rollback, automatic retry, or a dedicated worker. A dedicated render actor or worker, pooled targets, HDR master and sample accumulation, additional artifact formats, expanded artifact metadata, persistence, and `ArtifactSink` remain proposed. See <doc:Runtime-Assemblies-and-Advancement>.
 
-``AgentSessionConfiguration`` reuses that ownership boundary instead of
+``AgentSessionAssembly`` reuses that ownership boundary instead of
 reassembling its internals. ``AgentSessionCoordinator`` owns only
 live-process request admission, accepted high-water, bounded retained responses,
 and close/drain state around ``POfflineCaptureTarget``. Retained encoded artifact or raw
@@ -136,7 +136,7 @@ This boundary preserves the current engine direction:
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
-- <doc:Runtime-Configurations-and-Advancement>
+- <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
 ### Related Symbols

@@ -7,7 +7,7 @@ The ideas below describe the intended next layer of scheduling behavior as the e
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
 
-A configuration-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Configurations-and-Advancement>.
+An assembly-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Assemblies-and-Advancement>.
 
 Platform collection is not a scheduled ECS system. `InputMetalView` submits host events directly to ``InputRuntime``, which publishes a latest immutable `InputSnapshot`; ``Engine`` imports an assigned value into World-owned ``InputState`` only at the beginning of an actual fixed step. The current default maps raw pointer/scroll transients into semantic camera commands, applies them to the authoritative camera, projects a diagnostic row into the separate World-owned ``InputHistory``, clears raw and mapped transients, and performs the remaining authoritative work as one complete tick. Selecting an explicit viewpoint for a deliberate exact output request is separate output policy, not a scheduler phase.
 ## Non-Reentrant Updates
@@ -72,7 +72,7 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 ## Topics
 ### Architecture
 - <doc:Runtime-Architecture>
-- <doc:Runtime-Configurations-and-Advancement>
+- <doc:Runtime-Assemblies-and-Advancement>
 ### Related Symbols
 - ``Engine``
 - ``World``

@@ -32,7 +32,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     private let renderErrorState = MetalRenderErrorState()
 
     /// Read-only Simulation Runtime publication selected at render cadence.
-    /// The App owns the source's lifetime; Render does not retain its peer runtime.
+    /// The assembly owns the source's lifetime; Render does not retain its peer runtime.
     weak var presentationSource: (any PSimulationPresentationSource)?
 
     /// Selects the visible output without changing geometry, transforms, depth,
@@ -42,7 +42,7 @@ final class MetalRenderer: NSObject, MTKViewDelegate {
     /// Latest terminal frame-preparation or asynchronous queue error.
     ///
     /// Exposing the underlying error read-only keeps diagnostics available to
-    /// App tooling without making the Render Runtime depend on a UI policy.
+    /// assembly UI tooling without making the Render Runtime depend on a UI policy.
     var latestRenderError: (any Error)? {
         renderErrorState.latestError
     }

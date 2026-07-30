@@ -1,6 +1,6 @@
 /// Connects the live real-time presentation to a dedicated offscreen output.
 ///
-/// This App-owned connection is not a Runtime. It samples one completed
+/// This assembly-owned connection is not a Runtime. It samples one completed
 /// Simulation publication and locks the exact render viewpoint to that
 /// publication's camera, then carries both immutable values through exact
 /// offscreen rendering and artifact derivation. It neither pauses nor advances

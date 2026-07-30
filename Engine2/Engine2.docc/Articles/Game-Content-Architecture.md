@@ -22,14 +22,16 @@ Game Content can include:
 - models, textures, sounds, animation data, levels, and other assets
 - catalogs that connect stable asset identities to packaged asset sources
 
-Game Content does not have its own cadence or autonomous lifecycle. It does not tick, render, collect input, or perform background work merely by existing. The App uses Game Content to construct runtimes, and each runtime converts the relevant content into its own private operational state.
+Game Content does not have its own cadence or autonomous lifecycle. It does not tick, render, collect input, or perform background work merely by existing. An App-owned Runtime Assembly supplies Game Content to the runtimes it constructs, and each runtime converts the relevant content into its own private operational state.
 
 This distinction keeps the top-level model clear:
 
 ```text
 Engine2                reusable runtime and ECS machinery
 Game Content           consumer-defined game code, descriptions, and assets
-App                    composition root that constructs and connects runtimes
+App                    selects Game Content and one Runtime Assembly,
+                       then injects the selected content
+Runtime Assembly       constructs, connects, and presents one runtime graph
 Runtime                long-lived owner that executes using supplied content
 ```
 
@@ -147,19 +149,21 @@ This keeps gameplay semantic, presentation game-specific, and backend execution 
 
 A snapshot-only consumer needs any visible occurrence represented in durable snapshot state. Render does not consume simulation events, so a muzzle flash, explosion, or similar effect needs snapshot-visible identity and lifetime long enough for Render to observe it even when intermediate simulation snapshots are skipped.
 
-## The App Constructs Runtimes From Game Content
+## Runtime Assemblies Construct Runtimes From Game Content
 
-The App is the composition root. It creates one game-content value, then supplies the relevant portions to independently constructed runtimes.
+The App selects one ``PRuntimeAssembly`` implementation at compile time and retains the constructed value behind an opaque `some PRuntimeAssembly` property. The assembly is the concrete composition object for that topology: its required `init(gameContent:)` constructs the independently owned runtimes and supplies each relevant portion of the injected content. Explicit assembly initializers take focused policy, limit, and identity values directly for tests, tools, and specialized hosts.
 
-The example app now implements the first version of this boundary with
-`BasicGameContent`. It supplies `BasicWorldBuilder` to ``SimulationRuntime``
-beside the complete `.basicGame` ``SimulationConfiguration``, and deliberately
-selects `RenderAssetCatalog.everything` for the current render path. Its explicit
+The example App constructs `BasicGameContent` and passes it to the selected
+assembly. `BasicGameContent` supplies `BasicWorldBuilder` to
+``SimulationRuntime`` beside the complete `.basicGame`
+``SimulationConfiguration``, and deliberately selects
+`RenderAssetCatalog.everything` for the current render paths. Its explicit
 `init(worldBuilder:)` keeps world construction injectable without hiding either
-behavior or catalog policy behind a default argument. Callers may still construct
-curated catalogs through `RenderAssetCatalog.init(models:materials:)`. The named
-`.basicGame` and `.everything` values remain in `SimulationConfiguration.swift`
-and `RenderAssetCatalog.swift`, respectively. Repository-owned types are extended
+behavior or catalog policy behind a default argument. Callers may still
+construct curated catalogs through
+`RenderAssetCatalog.init(models:materials:)`. The named `.basicGame` and
+`.everything` values remain in `SimulationConfiguration.swift` and
+`RenderAssetCatalog.swift`, respectively. Repository-owned types are extended
 only from their own files; `BasicGameContent.swift` selects those values without
 quietly declaring members of either type.
 ``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
@@ -175,30 +179,53 @@ six-sphere material grid. Every entity shares `MeshID.ball`, while its
 metal description. The scene adds no renderer object or light state to Game
 Content or Simulation.
 
-A future construction shape may resemble:
+A consumer assembly may use the same production-plus-injection shape:
 
 ```swift
-let content = MyGameContent()
+struct MyGameAssembly: PRuntimeAssembly {
+    var body: some View {
+        MyGameAssemblyView(assembly: self)
+            .onAppear {
+                self.startVisibilityDependentWork()
+            }
+            .onDisappear {
+                self.stopVisibilityDependentWork()
+            }
+    }
 
-let inputRuntime = InputRuntime()
+    init(gameContent: any PGameContent) {
+        self.init(
+            gameContent: gameContent,
+            sessionID: SimulationSessionID()
+        )
+    }
 
-let simulationRuntime = SimulationRuntime(
-    worldBuilder: content.worldBuilder,
-    configuration: content.simulationConfiguration,
-    inputBaseline: inputRuntime.latestInputSnapshot
-)
+    init(
+        gameContent: any PGameContent,
+        sessionID: SimulationSessionID
+    ) {
+        // Construct the complete runtime graph and retain its connections.
+    }
 
-let renderRuntime = RenderRuntime(
-    assets: content.renderAssets
-)
+    private func startVisibilityDependentWork() {
+        // Start visibility-dependent work in dependency order.
+    }
 
-let audioRuntime = AudioRuntime(
-    assets: content.audioAssets,
-    presentation: content.audioPresentation
-)
+    private func stopVisibilityDependentWork() {
+        // Stop visibility-dependent work in reverse dependency order.
+    }
+}
 ```
 
-This example is intentionally concrete rather than a requirement for one large `PGameContent` protocol. A game-content type may be a simple immutable composition value, namespace, or set of focused catalogs. Introduce protocols only where multiple implementations or substitution create real value.
+``PRuntimeAssembly`` refines SwiftUI `View`. `View` supplies an associated `Body` type and the `body` requirement, so each concrete assembly can satisfy that inherited requirement with `some View`. The opaque result resolves to one concrete body type for that conformer. An App can retain its compile-time-selected assembly behind `some PRuntimeAssembly`; the opaque property hides the underlying type from the surrounding App surface while preserving it for the compiler and SwiftUI. Runtime-dynamic selection among heterogeneous assemblies would instead require an explicit enum or type-erasing host.
+
+A Runtime Assembly is a value-type View because SwiftUI requires custom views to use value semantics. Its stored Runtime, driver, coordinator, and focused mutable-state references preserve one live graph when SwiftUI copies the assembly value. Calling an assembly initializer constructs a new graph; copying an existing assembly does not.
+
+A nonthrowing Game Content initializer such as this one satisfies the protocol's throwing initializer requirement. If construction can fail, the selecting App must choose an explicit launch policy; the common protocol does not manufacture fallback UI.
+
+SwiftUI appearance modifiers belong inside the body of an assembly that owns visibility-dependent work. Assemblies without that work add no lifecycle surface. View disappearance is not a common terminal-shutdown requirement. In particular, ordinary disappearance of an ``AgentSessionAssembly`` does not close the session; its explicit host still calls `stopAndDrain()` when that live session ends.
+
+`PGameContent` is the narrow assembly-construction substitution seam shared by the implemented topologies. It contains exactly three construction values: ``PWorldBuilder``, ``SimulationConfiguration``, and ``RenderAssetCatalog``. It does not expose live runtimes, lifecycle operations, cadence, storage, or a topology-specific capability bag. A consumer may conform with one immutable composition value while retaining its own supporting namespaces and focused catalogs.
 
 The important ownership rules are:
 
@@ -228,7 +255,7 @@ MyGameApp -----------> Engine2Audio
 MyGameApp -----------> Engine2AppKitInput
 ```
 
-`MyGameContent` depends on public Engine2 contracts but not on concrete Metal, AppKit, or audio backend implementations. The App selects the runtime implementations and supplies the consumer's content to them.
+`MyGameContent` depends on public Engine2 contracts but not on concrete Metal, AppKit, or audio backend implementations. The App selects the assembly type; that assembly selects runtime implementations and supplies the consumer's content to them.
 
 Do not make every Runtime a separate Swift package by default. Runtime boundaries describe ownership and lifecycle. SwiftPM targets describe compilation modules, and packages describe distribution and versioning. One Engine2 package can vend a core product plus optional platform-runtime products.
 
@@ -261,7 +288,7 @@ Current project elements map onto Game Content as follows:
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
-| `BasicGameContent` | Example App-supplied composition of world construction, Simulation behavior configuration, and render asset mappings |
+| `BasicGameContent` | Example assembly-selected composition of world construction, Simulation behavior configuration, and render asset mappings |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |
@@ -275,7 +302,7 @@ The first extraction should move example content out of reusable engine targets 
 
 - <doc:Runtime-Communication>
 - <doc:Runtime-Architecture>
-- <doc:Runtime-Configurations-and-Advancement>
+- <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Engine-Architecture>
 - <doc:Rendering-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>

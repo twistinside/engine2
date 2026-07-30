@@ -1,6 +1,6 @@
 import Observation
 
-/// App-owned cadence authority for a real-time Simulation Runtime connection.
+/// Assembly-owned cadence authority for a real-time Simulation Runtime connection.
 ///
 /// The driver translates elapsed wall time into exact, cursor-qualified
 /// Simulation advance requests. It owns playback policy and polling lifecycle;
@@ -32,7 +32,7 @@ final class RealtimeAdvanceDriver {
         advancementState == .enabled
     }
 
-    /// Latest authority fault. App coordination must synchronize before resume.
+    /// Latest authority fault. Assembly coordination must synchronize before resume.
     var fault: RealtimeAdvanceDriverFault? {
         guard case let .faulted(fault) = advancementState else {
             return nil
@@ -173,12 +173,19 @@ final class RealtimeAdvanceDriver {
     /// Revokes future requests and waits for any already-issued exact request.
     ///
     /// Cancellation cannot roll back authoritative work already accepted by a
-    /// target. App lifecycle and destructive session transitions use this
+    /// target. Assembly lifecycle and destructive session transitions use this
     /// boundary before reporting the connection fully stopped or replacing its
     /// world.
     func stopAndDrain() async {
         stop()
+        await drainAcceptedWork()
+    }
 
+    /// Waits for work accepted before a caller synchronously stopped this driver.
+    ///
+    /// This separate drain lets synchronous lifecycle entry points revoke cadence
+    /// before scheduling their asynchronous completion work.
+    func drainAcceptedWork() async {
         guard isQuiescent == false else {
             return
         }
@@ -226,12 +233,12 @@ final class RealtimeAdvanceDriver {
         discardNextElapsedSample = true
     }
 
-    /// Re-establishes the cursor contract after an App-coordinated lifecycle
+    /// Re-establishes the cursor contract after an assembly-coordinated lifecycle
     /// transition such as rebuilding or replacing the Simulation session.
     ///
     /// Synchronizing clears any prior authority fault but deliberately preserves
     /// the user's enabled/paused preference. A faulted driver therefore remains
-    /// paused until the App explicitly resumes it.
+    /// paused until its assembly explicitly resumes it.
     func synchronize(to cursor: SimulationCursor, inputBaseline: InputSnapshot?) {
         precondition(synchronizationGeneration < .max, "Real-time synchronization generation exhausted.")
         synchronizationGeneration += 1
@@ -380,7 +387,7 @@ final class RealtimeAdvanceDriver {
             break
 
         case let .rejected(.cursorMismatch(expected, current)):
-            // Ignore a reply made obsolete by an explicit App-owned
+            // Ignore a reply made obsolete by an explicit assembly-owned
             // synchronization while the directed request was in flight.
             guard requestSynchronizationGeneration == synchronizationGeneration else {
                 return nil
@@ -389,7 +396,7 @@ final class RealtimeAdvanceDriver {
             // A mismatch means this supposedly exclusive authority no longer
             // understands the target timeline. Surface the fault and stop
             // rather than silently adopting potentially unrelated state. The
-            // App may synchronize after coordinating the cause.
+            // The assembly may synchronize after coordinating the cause.
             advancementState = .faulted(.cursorMismatch(expected: expected, current: current))
             isRunning = false
             stepAccumulator.reset()

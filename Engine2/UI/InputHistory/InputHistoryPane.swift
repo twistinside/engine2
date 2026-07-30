@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// The timeline refreshes at presentation cadence while the displayed rows
 /// remain simulation-owned facts recorded only at fixed-step boundaries. Its
-/// closure is an App-wired read capability, not access to the concrete Runtime.
+/// closure is an assembly-view read capability, not a second mutation path.
 struct InputHistoryPane: View {
     let entries: @MainActor () -> [InputHistoryEntry]
 

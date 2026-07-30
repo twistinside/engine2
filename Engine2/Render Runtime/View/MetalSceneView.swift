@@ -5,13 +5,15 @@ import SwiftUI
 /// SwiftUI bridge that hosts the Render Runtime's MetalKit view and renderer.
 ///
 /// The bridge wires a read-only simulation presentation source to a
-/// coordinator-owned `MetalRenderer` and connects an input sink to the platform
-/// view. Rendering therefore samples completed values instead of reading live
-/// `World` state or directly calling the Simulation Runtime.
+/// coordinator-owned `MetalRenderer`. Interactive assemblies may also connect
+/// an input sink to the platform view, while caller-driven presentation can
+/// omit that connection without inventing an Input Runtime. Rendering samples
+/// completed values instead of reading live `World` state or directly calling
+/// the Simulation Runtime.
 struct MetalSceneView: NSViewRepresentable {
     var renderAssetCatalog: RenderAssetCatalog
     var presentationSource: any PSimulationPresentationSource
-    var inputSink: any PInputEventSink
+    var inputSink: (any PInputEventSink)?
     var outputMode: RenderOutputMode
 
     func makeCoordinator() -> Coordinator {
@@ -56,7 +58,7 @@ struct MetalSceneView: NSViewRepresentable {
     /// Initialization may leave `renderer` unavailable when the current device
     /// cannot construct the required Metal resources; the host view remains
     /// safe to create and submits no render work. `latestRenderError` retains
-    /// the concrete construction failure for App diagnostics.
+    /// the concrete construction failure for host diagnostics.
     final class Coordinator {
         let rendererAvailability: MetalSceneRendererAvailability
 
