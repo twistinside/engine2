@@ -196,6 +196,14 @@ Current example ownership:
 - `Engine2/Runtime Configuration/Manual/*.swift`
   - `ManualAssembly` constructs from injected Game Content and exposes caller-driven exact advancement without Input or a polling task. Its body renders completed presentation and can request one exact tick through `PSimulationAdvanceTarget`; it adds no automatic cadence.
   - `ManualSimulationControls` owns exact-step controls, and `ManualAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
+- `Engine2/Headless Simulation/*.swift`
+  - `HeadlessSimulationRunner` constructs `SimulationRuntime` directly through the same world-builder and Simulation-configuration boundaries used by assemblies. It creates no assembly, Input Runtime, Render Runtime, screen, or GPU resources.
+  - The separate `HeadlessSimulation` command-line target uses an explicit positive list of shared Simulation sources. Its target-only `HeadlessSimulationMain` entry point is under `Engine2HeadlessSimulation/`; the shared `Headless Simulation` scheme runs the Release product.
+  - Add a shared source to the target deliberately. The app, assemblies, UI, renderer implementation, assets, and Metal sources remain outside that closed list. CI builds the Release product and rejects UI or rendering framework linkage.
+  - `HeadlessSimulationRunner` measures repeated exact one-tick requests, including one completed presentation publication per sample. After the measured interval, it validates store cardinality, cursor progression, every entity's committed motion and rotation, and every final presentation row before reporting timing.
+  - `HeadlessSimulationConfiguration` reads positive entity, warm-up, and measured-tick counts. The scheme defaults to 100,000 entities, 10 warm-up ticks, and 60 measured ticks.
+- `Engine2/Game Content/HeadlessSimulationWorldBuilder.swift`
+  - Benchmark Game Content constructs ordinary moving, rotating, renderable `Ball` entities. World construction remains outside the measured interval.
 - `Engine2/Runtime Configuration/Offline/*.swift`
   - `OfflineCaptureAssembly` always constructs exactly one authoritative Simulation Runtime, one dedicated `MetalOffscreenRenderRuntime`, one production `ImageIOArtifactEncoder`, and one `OfflineCaptureCoordinator`, injecting each capability explicitly. It has no Input Runtime, wall-clock cadence, screen Render Runtime, or optional-runtime bag.
   - `OfflineCaptureAssembly` exposes `initialCursor` and the narrow `POfflineCaptureTarget`; its body presents static identity without exposing either Runtime or a second advance capability.

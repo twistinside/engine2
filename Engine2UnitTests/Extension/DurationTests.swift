@@ -7,6 +7,11 @@ struct DurationTests {
         #expect(Duration.microseconds(125_000).seconds.isApproximately(0.125))
         #expect(Duration.milliseconds(-250).seconds.isApproximately(-0.25))
     }
+
+    @Test func millisecondsPreserveDiagnosticPrecision() {
+        #expect(abs(Duration.microseconds(1_234).milliseconds - 1.234) < 0.000_000_001)
+        #expect(abs(Duration.nanoseconds(-250).milliseconds + 0.000_25) < 0.000_000_001)
+    }
 }
 
 private extension Float {

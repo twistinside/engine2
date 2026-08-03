@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build app
+    name: Build products
     runs-on: xcode-27
     timeout-minutes: 20
 
@@ -45,6 +45,40 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Build Headless Simulation
+        run: |
+          xcodebuild \
+            -project Engine2.xcodeproj \
+            -scheme 'Headless Simulation' \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify headless linked dependencies
+        run: |
+          headless_product="$RUNNER_TEMP/DerivedData/Build/Products/Release/HeadlessSimulation"
+          if [[ ! -x "$headless_product" ]]; then
+            echo "HeadlessSimulation is missing or is not executable." >&2
+            exit 1
+          fi
+
+          linked_libraries="$(otool -L "$headless_product")"
+          printf '%s\n' "$linked_libraries"
+          unexpected_frameworks="$(
+            awk '
+              NR > 1 && $1 ~ "^/System/Library/Frameworks/" && $1 !~ "/Foundation.framework/" {
+                print $1
+              }
+            ' <<< "$linked_libraries"
+          )"
+          if [[ -n "$unexpected_frameworks" ]]; then
+            echo "HeadlessSimulation linked unexpected frameworks:" >&2
+            printf '%s\n' "$unexpected_frameworks" >&2
+            exit 1
+          fi
 
       - name: Notify via Pushover
         if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && env.PUSHOVER_TOKEN != '' && env.PUSHOVER_USER != '' }}
