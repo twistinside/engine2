@@ -32,6 +32,14 @@ The DocC pages distinguish between behavior that exists today and architecture p
 
 Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`Engine2/`](Engine2), direct unit coverage is under [`Engine2UnitTests/`](Engine2UnitTests), and renderer integration coverage is under [`Engine2RenderTests/`](Engine2RenderTests).
 
+## Measure headless Simulation performance
+
+Select the shared `Headless Simulation` scheme and run it. The scheme builds the separate `HeadlessSimulation` command-line executable with Release optimization. Its thin entry point constructs `SimulationRuntime` directly through the same world-builder and configuration boundaries as the rendered application. An explicit positive source list excludes the app entry point, assemblies, UI, renderer implementation, render assets, and Metal sources. The backend-neutral `Camera` contract remains because Simulation snapshots require it.
+
+The default workload constructs 100,000 moving and rotating `Ball` entities, warms up for 10 ticks, and measures 60 exact one-tick requests. Each sample includes the complete Simulation system schedule and one presentation publication. The console reports construction time, tick-duration percentiles, throughput, and a named 60 Hz wall-time reference.
+
+Change the workload through the scheme's `ENGINE2_HEADLESS_ENTITY_COUNT`, `ENGINE2_HEADLESS_WARMUP_TICKS`, and `ENGINE2_HEADLESS_MEASURED_TICKS` environment variables. Each value must be a positive integer.
+
 ## Status
 
 Engine2 is an experimental, evolving codebase rather than a production-ready engine. The emphasis is on a coherent runtime model, strong domain types, explicit ownership boundaries, and a data-oriented simulation core.
