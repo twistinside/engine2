@@ -1,0 +1,795 @@
+{
+  "frames" : [
+    {
+      "clearColor" : {
+        "alpha" : 1,
+        "blue" : 0,
+        "green" : 0,
+        "red" : 0
+      },
+      "presentationSnapshot" : {
+        "camera" : {
+          "position" : {
+            "x" : 0,
+            "y" : 0,
+            "z" : 8
+          },
+          "projection" : {
+            "far" : 100,
+            "kind" : "perspective",
+            "near" : 0.1,
+            "verticalFieldOfView" : 1.0471975
+          },
+          "rotation" : {
+            "w" : 1,
+            "x" : 0,
+            "y" : 0,
+            "z" : 0
+          }
+        },
+        "entities" : [
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 0
+            },
+            "materialID" : "warmDielectricSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 1
+            },
+            "materialID" : "warmDielectric",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 2
+            },
+            "materialID" : "warmDielectricRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 3
+            },
+            "materialID" : "goldMetalSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 4
+            },
+            "materialID" : "goldMetal",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 5
+            },
+            "materialID" : "goldMetalRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          }
+        ],
+        "sessionID" : "D661AE62-EEFE-4137-B631-E51FBA49A706",
+        "tick" : 0
+      },
+      "projection" : {
+        "kind" : "simulationCamera"
+      },
+      "sequence" : 0,
+      "settings" : {
+        "exposureMultiplier" : 1,
+        "height" : 360,
+        "outputMode" : "surface",
+        "width" : 640
+      }
+    },
+    {
+      "clearColor" : {
+        "alpha" : 1,
+        "blue" : 0,
+        "green" : 0,
+        "red" : 0
+      },
+      "presentationSnapshot" : {
+        "camera" : {
+          "position" : {
+            "x" : 1.4179142,
+            "y" : 0,
+            "z" : 7.7920423
+          },
+          "projection" : {
+            "far" : 100,
+            "kind" : "perspective",
+            "near" : 0.1,
+            "verticalFieldOfView" : 1.0471975
+          },
+          "rotation" : {
+            "w" : 0.9959527,
+            "x" : 0,
+            "y" : 0.089878544,
+            "z" : 0
+          }
+        },
+        "entities" : [
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 0
+            },
+            "materialID" : "warmDielectricSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 1
+            },
+            "materialID" : "warmDielectric",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 2
+            },
+            "materialID" : "warmDielectricRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 3
+            },
+            "materialID" : "goldMetalSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 4
+            },
+            "materialID" : "goldMetal",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 5
+            },
+            "materialID" : "goldMetalRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          }
+        ],
+        "sessionID" : "D661AE62-EEFE-4137-B631-E51FBA49A706",
+        "tick" : 1
+      },
+      "projection" : {
+        "kind" : "simulationCamera"
+      },
+      "sequence" : 1,
+      "settings" : {
+        "exposureMultiplier" : 1,
+        "height" : 360,
+        "outputMode" : "surface",
+        "width" : 640
+      }
+    },
+    {
+      "clearColor" : {
+        "alpha" : 1,
+        "blue" : 0,
+        "green" : 0,
+        "red" : 0
+      },
+      "presentationSnapshot" : {
+        "camera" : {
+          "position" : {
+            "x" : 1.4179142,
+            "y" : 0,
+            "z" : 7.7920423
+          },
+          "projection" : {
+            "far" : 100,
+            "kind" : "perspective",
+            "near" : 0.1,
+            "verticalFieldOfView" : 1.0471975
+          },
+          "rotation" : {
+            "w" : 0.9959527,
+            "x" : 0,
+            "y" : 0.089878544,
+            "z" : 0
+          }
+        },
+        "entities" : [
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 0
+            },
+            "materialID" : "warmDielectricSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 1
+            },
+            "materialID" : "warmDielectric",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 2
+            },
+            "materialID" : "warmDielectricRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 3
+            },
+            "materialID" : "goldMetalSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 4
+            },
+            "materialID" : "goldMetal",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 5
+            },
+            "materialID" : "goldMetalRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          }
+        ],
+        "sessionID" : "D661AE62-EEFE-4137-B631-E51FBA49A706",
+        "tick" : 2
+      },
+      "projection" : {
+        "kind" : "simulationCamera"
+      },
+      "sequence" : 2,
+      "settings" : {
+        "exposureMultiplier" : 1,
+        "height" : 360,
+        "outputMode" : "surface",
+        "width" : 640
+      }
+    },
+    {
+      "clearColor" : {
+        "alpha" : 1,
+        "blue" : 0,
+        "green" : 0,
+        "red" : 0
+      },
+      "presentationSnapshot" : {
+        "camera" : {
+          "position" : {
+            "x" : 1.9111291,
+            "y" : 0,
+            "z" : 7.8095574
+          },
+          "projection" : {
+            "far" : 100,
+            "kind" : "perspective",
+            "near" : 0.1,
+            "verticalFieldOfView" : 1.0471975
+          },
+          "rotation" : {
+            "w" : 0.99280864,
+            "x" : 0,
+            "y" : 0.1197122,
+            "z" : 0
+          }
+        },
+        "entities" : [
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 0
+            },
+            "materialID" : "warmDielectricSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 1
+            },
+            "materialID" : "warmDielectric",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 2
+            },
+            "materialID" : "warmDielectricRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 3
+            },
+            "materialID" : "goldMetalSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 4
+            },
+            "materialID" : "goldMetal",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 5
+            },
+            "materialID" : "goldMetalRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          }
+        ],
+        "sessionID" : "D661AE62-EEFE-4137-B631-E51FBA49A706",
+        "tick" : 3
+      },
+      "projection" : {
+        "kind" : "simulationCamera"
+      },
+      "sequence" : 3,
+      "settings" : {
+        "exposureMultiplier" : 1,
+        "height" : 360,
+        "outputMode" : "surface",
+        "width" : 640
+      }
+    },
+    {
+      "clearColor" : {
+        "alpha" : 1,
+        "blue" : 0,
+        "green" : 0,
+        "red" : 0
+      },
+      "presentationSnapshot" : {
+        "camera" : {
+          "position" : {
+            "x" : 1.9111291,
+            "y" : 0,
+            "z" : 7.8095574
+          },
+          "projection" : {
+            "far" : 100,
+            "kind" : "perspective",
+            "near" : 0.1,
+            "verticalFieldOfView" : 1.0471975
+          },
+          "rotation" : {
+            "w" : 0.99280864,
+            "x" : 0,
+            "y" : 0.1197122,
+            "z" : 0
+          }
+        },
+        "entities" : [
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 0
+            },
+            "materialID" : "warmDielectricSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 1
+            },
+            "materialID" : "warmDielectric",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 2
+            },
+            "materialID" : "warmDielectricRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : 1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 3
+            },
+            "materialID" : "goldMetalSmooth",
+            "meshID" : "ball",
+            "position" : {
+              "x" : -1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 4
+            },
+            "materialID" : "goldMetal",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 0,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          },
+          {
+            "id" : {
+              "generation" : 0,
+              "index" : 5
+            },
+            "materialID" : "goldMetalRough",
+            "meshID" : "ball",
+            "position" : {
+              "x" : 1.75,
+              "y" : -1.1,
+              "z" : 0
+            },
+            "rotation" : {
+              "w" : 1,
+              "x" : 0,
+              "y" : 0,
+              "z" : 0
+            }
+          }
+        ],
+        "sessionID" : "D661AE62-EEFE-4137-B631-E51FBA49A706",
+        "tick" : 4
+      },
+      "projection" : {
+        "kind" : "simulationCamera"
+      },
+      "sequence" : 4,
+      "settings" : {
+        "exposureMultiplier" : 1,
+        "height" : 360,
+        "outputMode" : "surface",
+        "width" : 640
+      }
+    }
+  ],
+  "header" : {
+    "contentIdentifier" : "engine2.basic-game.v1",
+    "schemaVersion" : 1,
+    "simulationCameraViewpointID" : "B9514603-0D90-4CDD-9349-7FA5B4DE3E13",
+    "traceID" : "3318436B-7EC3-4971-88DB-82FD009E42B9"
+  }
+}

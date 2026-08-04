@@ -26,7 +26,7 @@ This keeps timing and scheduling logic out of ``World``.
 ``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, explicit Simulation behavior configuration, and publication of committed results.
 It accepts a ``PWorldBuilder`` and ``SimulationConfiguration`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. Builder replacement without reconstruction and builder replacement with immediate reconstruction are separately named operations; input baselines are explicit at construction and rebuild call sites. Its narrow ``PSimulationAdvanceTarget`` capability validates an optional expected ``SimulationCursor``, applies the request's immutable input assignment, executes the requested number of complete steps, and returns a correlated result.
 
-Cadence is deliberately outside that boundary. The assembly-owned ``RealtimeAdvanceDriver`` polls wall time and samples `PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. Future offline, MCP, network, and replay coordinators can use the same exact capability. Simulation retains the fixed-step definition, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
+Cadence is deliberately outside that boundary. The assembly-owned ``RealtimeAdvanceDriver`` polls wall time and samples `PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. ``SimulationReplayDriver`` now uses the same exact capability for one finite file-backed timeline, and future MCP and network coordinators can do likewise. Simulation retains the fixed-step definition, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
 ``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
 The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes that contract. Consumer-defined builders, entity types, components, and presentation descriptions belong to Game Content. The Runtime Assembly supplies that content while constructing the Simulation Runtime; the runtime does not discover content through global registries. See <doc:Game-Content-Architecture>.
 ### World
@@ -69,7 +69,7 @@ The current engine is still early. Several important behaviors are intentionally
 - systems currently run in one foundational ordered schedule; dependency-derived stages and safe parallelism remain future work
 - the real-time driver's catch-up cap and overflow treatment are static driver policy; production telemetry and adaptive overload handling remain future work
 - broader advance-authority arbitration and cursor-mismatch recovery remain App or assembly policy beyond the driver's initial fail-closed behavior
-- live simulation publication currently exposes only a latest completed ``SimulationPresentationSnapshot``; other semantic publications, retained publication history, and replay storage remain future work
+- live simulation publication exposes only a latest completed ``SimulationPresentationSnapshot``; finite ``SimulationReplayFile`` and ``RenderTrace`` persistence are explicit workflow contracts rather than retained live publication, and other semantic publications remain future work
 ## Topics
 ### Core Symbols
 - ``Engine``
@@ -83,3 +83,4 @@ The current engine is still early. Several important behaviors are intentionally
 - <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
+- <doc:Recorded-Workflows>

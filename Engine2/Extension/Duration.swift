@@ -1,4 +1,4 @@
-extension Duration {
+nonisolated extension Duration {
     /// Converts a duration to double-precision milliseconds for timing reports.
     var milliseconds: Double {
         let components = components

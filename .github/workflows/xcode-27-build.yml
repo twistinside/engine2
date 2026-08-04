@@ -80,6 +80,94 @@ jobs:
             exit 1
           fi
 
+      - name: Build Simulation Replay
+        run: |
+          xcodebuild \
+            -project Engine2.xcodeproj \
+            -scheme 'Simulation Replay' \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify Simulation Replay
+        run: |
+          replay_product="$RUNNER_TEMP/DerivedData/Build/Products/Release/SimulationReplay"
+          if [[ ! -x "$replay_product" ]]; then
+            echo "SimulationReplay is missing or is not executable." >&2
+            exit 1
+          fi
+
+          jq -e . \
+            'Fixtures/Simulation Replay/basic-game-v1.json' \
+            > /dev/null
+
+          linked_libraries="$(otool -L "$replay_product")"
+          printf '%s\n' "$linked_libraries"
+          unexpected_frameworks="$(
+            awk '
+              NR > 1 && $1 ~ "^/System/Library/Frameworks/" && $1 !~ "/Foundation.framework/" {
+                print $1
+              }
+            ' <<< "$linked_libraries"
+          )"
+          if [[ -n "$unexpected_frameworks" ]]; then
+            echo "SimulationReplay linked unexpected frameworks:" >&2
+            printf '%s\n' "$unexpected_frameworks" >&2
+            exit 1
+          fi
+
+          linked_symbols="$(nm -j "$replay_product")"
+          if grep -Eq '(InputRuntime|RenderFrame|MetalFrameEncoder)' <<< "$linked_symbols"; then
+            echo "SimulationReplay linked a live Input Runtime or renderer implementation." >&2
+            exit 1
+          fi
+
+      - name: Build Render Benchmark
+        run: |
+          xcodebuild \
+            -project Engine2.xcodeproj \
+            -scheme 'Render Benchmark' \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify Render Benchmark product
+        run: |
+          product_directory="$RUNNER_TEMP/DerivedData/Build/Products/Release"
+          benchmark_product="$product_directory/RenderBenchmark"
+          if [[ ! -x "$benchmark_product" ]]; then
+            echo "RenderBenchmark is missing or is not executable." >&2
+            exit 1
+          fi
+          if [[ ! -f "$product_directory/Ball.usdz" ]]; then
+            echo "RenderBenchmark is missing the recorded content model." >&2
+            exit 1
+          fi
+          if [[ ! -f "$product_directory/default.metallib" ]]; then
+            echo "RenderBenchmark is missing its Metal shader library." >&2
+            exit 1
+          fi
+          jq -e . \
+            'Fixtures/Render Trace/basic-game-v1.json' \
+            > /dev/null
+
+          linked_libraries="$(otool -L "$benchmark_product")"
+          printf '%s\n' "$linked_libraries"
+          if grep -Eq '/(AppKit|SwiftUI)\.framework/' <<< "$linked_libraries"; then
+            echo "RenderBenchmark linked an application UI framework." >&2
+            exit 1
+          fi
+
+          linked_symbols="$(nm -j "$benchmark_product")"
+          if grep -Eq '(SimulationRuntime|InputRuntime)' <<< "$linked_symbols"; then
+            echo "RenderBenchmark linked an Input or Simulation Runtime." >&2
+            exit 1
+          fi
+
       - name: Notify via Pushover
         if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && env.PUSHOVER_TOKEN != '' && env.PUSHOVER_USER != '' }}
         env:

@@ -1,0 +1,75 @@
+{
+  "contentIdentifier" : "engine2.basic-game.v1",
+  "entries" : [
+    {
+      "inputAssignment" : {
+        "kind" : "ingest",
+        "snapshot" : {
+          "pointerMotionTotal" : {
+            "x" : 18,
+            "y" : -9
+          },
+          "pointerPosition" : {
+            "x" : 320,
+            "y" : 180
+          },
+          "pressedKeys" : [
+            {
+              "displayName" : "Space",
+              "keyCode" : 49
+            }
+          ],
+          "pressedMouseButtons" : [
+            {
+              "kind" : "left"
+            }
+          ],
+          "revision" : {
+            "sequence" : 1,
+            "session" : 7
+          },
+          "scrollTotal" : {
+            "x" : 0,
+            "y" : 2
+          }
+        }
+      },
+      "tick" : 1
+    },
+    {
+      "inputAssignment" : {
+        "kind" : "ingest",
+        "snapshot" : {
+          "pointerMotionTotal" : {
+            "x" : 24,
+            "y" : -5
+          },
+          "pointerPosition" : {
+            "x" : 326,
+            "y" : 184
+          },
+          "pressedKeys" : [
+
+          ],
+          "pressedMouseButtons" : [
+
+          ],
+          "revision" : {
+            "sequence" : 2,
+            "session" : 7
+          },
+          "scrollTotal" : {
+            "x" : 0,
+            "y" : -1
+          }
+        }
+      },
+      "tick" : 3
+    }
+  ],
+  "initialInputBaseline" : null,
+  "originalSessionID" : "F8A87C5E-2503-4CDD-BC7B-FE9C205D7803",
+  "recordingID" : "6A2AB39B-BA30-4B6A-B31F-2AB53897E7F4",
+  "schemaVersion" : 1,
+  "terminalTick" : 4
+}
