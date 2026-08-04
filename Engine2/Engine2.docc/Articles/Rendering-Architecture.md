@@ -146,7 +146,7 @@ The current model is:
 4. Render derives its private render snapshot or back buffer
 5. Render presents from the latest completed private value
 
-This keeps rendering from reading partially updated simulation data and allows it to skip superseded presentation snapshots. Retained history, replay journals, subscription APIs, and private Render front/back buffering remain future work rather than responsibilities of the ordinary latest-value slot.
+This keeps rendering from reading partially updated simulation data and allows it to skip superseded presentation snapshots. The ordinary latest-value slot still owns no retained history or subscription API. ``SimulationReplayFile`` is a separate tick-addressed Input-assignment contract, while ``RenderTrace`` explicitly stores an ordered semantic presentation and viewpoint sequence for later renderer-only work. Neither changes live publication into a durable queue. Private Render front/back buffering remains future work.
 ## Draws Follow Presentation Cadence
 Drawing should be allowed to happen on a different cadence from simulation ticking.
 In practice, a Metal view or display callback will dictate when a draw can occur because it provides the current drawable. That should drive presentation timing, not gameplay authority.
@@ -159,7 +159,7 @@ This allows zero, one, or many simulation ticks between draws without making dra
 
 While ``RealtimeAdvanceDriver`` is paused, the screen may redraw the last completed value, but both its scene and camera remain frozen at that snapshot. A screen-camera change requires a newly completed Simulation publication. A future photo-mode or editor assembly may introduce presentation-owned camera control without a Simulation tick, but that is not current real-time behavior.
 
-The MetalKit screen adapter is only one caller of the reusable encoding boundary. ``MetalOffscreenRenderRuntime`` is now the production exact caller: it validates one immutable snapshot, explicit viewpoint, and settings value; owns target allocation and submission lifetime; awaits feedback; and reads back a detached raw image without a view or drawable. Artifact encoding and persistence remain separate from GPU completion because rendering, encoding, and storage have different ownership and retry semantics. The implemented JPEG-or-PNG transform can be retried against the same raw result without another tick or render; persistence remains proposed.
+The MetalKit screen adapter is only one caller of the reusable encoding boundary. ``MetalOffscreenRenderRuntime`` is now the production exact caller: it validates one immutable snapshot, explicit viewpoint, and settings value; owns target allocation and submission lifetime; awaits feedback; and reads back a detached raw image without a view or drawable. ``RenderBenchmarkRunner`` is another view-independent caller: it preallocates a three-slot target ring, records trace frames through ``MetalFrameEncoder``, obtains GPU intervals from queue feedback, and performs no pixel readback. Artifact encoding and persistence remain separate from GPU completion because rendering, encoding, and storage have different ownership and retry semantics. The implemented JPEG-or-PNG transform can be retried against the same raw result without another tick or render; image-artifact persistence remains proposed.
 
 That latest-value model is appropriate for a screen surface. An offline render workflow instead needs an exact immutable snapshot received from an advance result or retained by its sole coordinator. It may render that completed value for minutes, many samples, or several cameras before the assembly-owned coordinator requests the next Simulation tick. Render completion may therefore gate further advancement without giving the Render Runtime ownership of Simulation, and another render of the retained value remains output work rather than a zero-step tick. See <doc:Runtime-Assemblies-and-Advancement>.
 
@@ -423,6 +423,13 @@ a slot's target only after that slot is no longer in flight.
 
 Those are caller lifetime choices, not responsibilities hidden inside ``MetalFrameEncoder``. ``MetalOffscreenRenderRuntime`` owns a dedicated one-slot store; each request supplies and retains its own destination and depth targets and committed residency set, attaches both request- and frame-owned sets, releases the frame slot from explicit queue feedback, and performs readback only after successful completion.
 
+The renderer-only benchmark owns three reusable slots. Each slot retains its
+HDR scene target and residency set plus private destination and depth targets in
+a second committed set. One `RenderBenchmarkSubmission` retains the store,
+encoder, command buffer, selected slot, and both target owners until Metal 4
+queue feedback releases that slot. The benchmark performs no destination
+readback.
+
 MetalKit and Core Animation continue to own their drawable-related allocations.
 Their view and layer residency sets are registered with the command queue when
 the `MTKView` is configured rather than copied into an engine-owned set.
@@ -459,6 +466,7 @@ This rendering approach fits the broader engine direction:
 - <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Runtime-Communication>
 - <doc:Game-Content-Architecture>
+- <doc:Recorded-Workflows>
 - <doc:PBR-Implementation-Plan>
 ### Related Symbols
 - ``Engine``

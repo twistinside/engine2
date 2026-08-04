@@ -289,6 +289,7 @@ Current project elements map onto Game Content as follows:
 | ``BasicWorldBuilder`` | Example Game Content world construction |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
 | `BasicGameContent` | Example assembly-selected composition of world construction, Simulation behavior configuration, and render asset mappings |
+| ``BasicGameRecording`` and ``RecordingContentIdentifier`` | Game Content-owned compatibility policy for files whose interpretation depends on the tick-zero recipe, Simulation policy, identity vocabulary, and required assets |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |

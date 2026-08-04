@@ -154,13 +154,17 @@ Events naturally use ordered-stream semantics:
 
 The implemented input boundary demonstrates latest-value behavior. `InputRevision` identifies the publisher session and version represented by each `InputSnapshot`. Held keys and buttons are state in that value. Within one publisher session, pointer motion and scroll are cumulative totals, so Simulation can derive the complete change between the revisions it samples even when host events and fixed ticks do not run one-for-one. Re-reading the same revision does not replay a transient delta.
 
-Ordered discrete transitions are a separate future lane. If key-down/up ordering, text composition, replay, or other occurrence history must survive skipped snapshots, the Input Runtime will need an explicit event sequence plus buffering or journaling policy. The platform-facing `InputEvent` ingress does not provide those publication guarantees by itself. A future snapshot revision and publisher-local event sequence may define a consistent boundary between the lanes; the atomic-publication and subscription mechanism remains unresolved.
+Ordered discrete transitions are a separate future lane. If key-down/up ordering, text composition, or other complete occurrence history must survive skipped snapshots, the Input Runtime will need an explicit event sequence plus buffering or journaling policy. The platform-facing `InputEvent` ingress does not provide those publication guarantees by itself. ``SimulationReplayFile`` instead persists deliberately selected snapshot assignments for one finite tick-addressed replay. A future snapshot revision and publisher-local event sequence may define a consistent boundary between the live lanes; the atomic-publication and subscription mechanism remains unresolved.
 
 ## Durable History Is Explicit
 
 Ordinary runtime publication is not a database.
 
-If replay, auditing, debugging, networking, or another feature requires retained history, an explicit recorder or journal can subscribe to selected runtime outputs and own that retention policy. Durable history should not impose storage or delivery guarantees on every ordinary runtime connection.
+``SimulationReplayFile`` and ``RenderTrace`` are explicit finite durable
+contracts. They do not change ordinary publication into retained delivery. If
+live recording, auditing, debugging, networking, or another feature requires a
+broader history, an explicit recorder or journal can subscribe to selected
+runtime outputs and own that retention policy.
 
 The World-owned ``InputHistory`` is deliberately different. It retains a bounded diagnostic projection of Simulation-consumed input for App tooling; it is neither an ordered Input Runtime publication nor a durable replay journal.
 
@@ -180,7 +184,7 @@ The following mechanics remain intentionally unresolved:
 - whether snapshot storage uses a single latest slot, front/back values, or a short ring
 - efficient immutable storage and copy behavior for large runtime snapshots
 - how consumer-defined Game Content contributes strongly typed state to purpose-specific snapshots without a closed component registry
-- which histories, if any, are journaled for debugging, replay, or networking
+- which additional histories, if any, are journaled for debugging, live replay recording, or networking
 
 These choices should preserve the ownership model in this article rather than replacing it with hidden global coordination.
 
@@ -188,6 +192,7 @@ These choices should preserve the ownership model in this article rather than re
 
 - <doc:Runtime-Architecture>
 - <doc:Runtime-Assemblies-and-Advancement>
+- <doc:Recorded-Workflows>
 - <doc:Game-Content-Architecture>
 - <doc:Rendering-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>
