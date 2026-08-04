@@ -123,44 +123,65 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
             )
         }
 
-        let firstStepInput: InputSnapshot?
-        switch request.inputAssignment {
+        let firstStepInput = prepareFirstStepInput(for: request.inputAssignment)
+        runFixedSteps(
+            request.stepCount,
+            firstStepInput: firstStepInput
+        )
+
+        return .completed(
+            publishCompletedAdvanceResult(
+                startingAt: initialCursor,
+                stepCount: request.stepCount
+            )
+        )
+    }
+
+    /// Applies baseline policy and returns the snapshot assigned to the first tick.
+    private func prepareFirstStepInput(for assignment: SimulationInputAssignment) -> InputSnapshot? {
+        switch assignment {
         case .none:
-            firstStepInput = nil
+            return nil
 
         case let .ingest(snapshot):
-            firstStepInput = snapshot
+            return snapshot
 
         case let .rebase(snapshot):
             engine.world.input.rebase(to: snapshot)
-            firstStepInput = nil
+            return nil
 
         case let .rebaseThenIngest(baseline, snapshot):
             // Install the route-transition baseline inside the same serialized
             // mutation boundary as the first step. The step then derives only
             // input published after that captured baseline.
             engine.world.input.rebase(to: baseline)
-            firstStepInput = snapshot
+            return snapshot
         }
+    }
 
-        for stepIndex in 0..<request.stepCount.rawValue {
+    /// Runs the exact requested batch, applying assigned input only to its first tick.
+    private func runFixedSteps(_ stepCount: SimulationStepCount, firstStepInput: InputSnapshot?) {
+        for stepIndex in 0..<stepCount.rawValue {
             engine.step(
                 inputSnapshot: stepIndex == 0 ? firstStepInput : nil
             )
         }
+    }
 
+    /// Publishes the completed batch and forms its cursor-correlated result.
+    private func publishCompletedAdvanceResult(
+        startingAt initialCursor: SimulationCursor,
+        stepCount: SimulationStepCount
+    ) -> SimulationAdvanceResult {
         let finalSnapshot = publishPresentationSnapshot(at: engine.completedTick)
-        let completedStepCount = SimulationCompletedStepCount(
-            rawValue: request.stepCount.rawValue
-        )
-        let result = SimulationAdvanceResult(
+        return SimulationAdvanceResult(
             initialCursor: initialCursor,
             finalCursor: currentCursor,
-            completedStepCount: completedStepCount,
+            completedStepCount: SimulationCompletedStepCount(
+                rawValue: stepCount.rawValue
+            ),
             finalPresentationSnapshot: finalSnapshot
         )
-
-        return .completed(result)
     }
 
     /// Replaces the latest-value slot only after the engine completes a fixed step.

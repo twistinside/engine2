@@ -32,6 +32,17 @@ When working in Swift:
   serves, as a private instance method on the coordinating type, or on a focused collaborator. Do not disguise a nested
   helper as a local closure or replace it with a static helper dumping ground.
 
+- When a method coordinates several substantial phases, let its body state the ordered workflow in domain terms. Move a
+  cohesive phase whose implementation detail obscures that workflow to a well-named private instance method on the
+  coordinator unless another receiver naturally owns it. A useful phase owns meaningful construction, validation,
+  transformation, configuration projection, or fallible work; its name reveals its result or important side effect.
+  Reuse is not required when the boundary and name clarify the workflow.
+  Keep cross-phase guards, cancellation checks, state transitions, isolation or executor boundaries, and other ordering
+  invariants visible in the coordinating method. Keep validation intrinsic to one phase with that phase. Keep
+  boundary-specific result formation visible when it states the method's contract. Do not extract a helper merely to
+  shorten a method or hide one straightforward expression. See
+  [Name Cohesive Workflow Phases](examples/name-cohesive-workflow-phases.md).
+
 - When multiple related escaping closures represent operations of one dependency, replace the closure bundle with one
   narrow capability protocol and inject one conforming value. This keeps shared identity, state, invariants, concurrency,
   and test substitution coherent. Preserve a single trailing closure when the policy genuinely has one operation and
