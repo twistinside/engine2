@@ -309,14 +309,64 @@ final class RealtimeAdvanceDriver {
     }
 
     /// Processes one elapsed-time sample and optionally issues one exact batch.
-    private func processWake(runID: UInt64, previousDeadline: SuspendingClock.Instant) async -> SuspendingClock.Instant? {
+    private func processWake(
+        runID: UInt64,
+        previousDeadline: SuspendingClock.Instant
+    ) async -> SuspendingClock.Instant? {
         // A cancellation-insensitive test clock may return after
         // stop/restart. Revalidate this run before sampling or asking the
         // authoritative target to do any work.
-        guard Task.isCancelled == false, self.runID == runID else {
+        guard isCurrentRun(runID),
+              let elapsed = sampleElapsedSincePreviousWake() else {
             return nil
         }
 
+        guard let stepCount = consumeEnabledSteps(adding: elapsed) else {
+            return advancedDeadline(after: previousDeadline)
+        }
+
+        let requestInputAssignmentState = inputAssignmentState
+        let request = makeAdvanceRequest(
+            stepCount: stepCount,
+            inputAssignmentState: requestInputAssignmentState
+        )
+        let requestSynchronizationGeneration = synchronizationGeneration
+
+        // No suspension occurs between the wake validation above and this
+        // request, but keep the authority check adjacent to the mutation
+        // boundary so that invariant remains explicit.
+        guard isCurrentRun(runID) else {
+            return nil
+        }
+
+        let outcome = await performTrackedAdvance(request)
+        recordCommittedAdvance(
+            from: outcome,
+            inputAssignmentState: requestInputAssignmentState,
+            synchronizationGeneration: requestSynchronizationGeneration
+        )
+
+        // A stopped task may still receive a result from a target that did not
+        // cooperate with cancellation. Its safe committed bookkeeping was
+        // applied above; it must not continue the retired run.
+        guard isCurrentRun(runID),
+              shouldContinueAfterAdvance(
+                after: outcome,
+                requestSynchronizationGeneration: requestSynchronizationGeneration
+              ) else {
+            return nil
+        }
+
+        return advancedDeadline(after: previousDeadline)
+    }
+
+    /// Confirms that task cancellation and driver identity still describe this run.
+    private func isCurrentRun(_ candidateRunID: UInt64) -> Bool {
+        Task.isCancelled == false && runID == candidateRunID
+    }
+
+    /// Samples nonnegative elapsed time and advances the sampling baseline.
+    private func sampleElapsedSincePreviousWake() -> Duration? {
         guard let previousElapsedSample else {
             return nil
         }
@@ -324,87 +374,94 @@ final class RealtimeAdvanceDriver {
         let currentElapsedSample = clock.now
         let elapsed = max(.zero, previousElapsedSample.duration(to: currentElapsedSample))
         self.previousElapsedSample = currentElapsedSample
+        return elapsed
+    }
 
-        if isAdvancementEnabled == false || discardNextElapsedSample {
+    /// Converts elapsed time into work only when current playback policy permits it.
+    private func consumeEnabledSteps(adding elapsed: Duration) -> SimulationStepCount? {
+        guard isAdvancementEnabled, discardNextElapsedSample == false else {
             // Paused time and any pre-pause fractional step are not debt.
             stepAccumulator.reset()
             discardNextElapsedSample = false
-            return advancedDeadline(after: previousDeadline)
-        }
-
-        guard let stepCount = stepAccumulator.consumeSteps(adding: elapsed) else {
-            return advancedDeadline(after: previousDeadline)
-        }
-
-        // Read the latest-value source once so input and step count remain one
-        // immutable, attributable request across the async boundary.
-        let inputSnapshot = inputSource?.latestInputSnapshot
-        let requestInputAssignmentState = inputAssignmentState
-        let inputAssignment = requestInputAssignmentState.assignment(
-            ingesting: inputSnapshot
-        )
-
-        let request = SimulationAdvanceRequest(
-            expectedCursor: expectedCursor,
-            stepCount: stepCount,
-            inputAssignment: inputAssignment
-        )
-        let requestSynchronizationGeneration = synchronizationGeneration
-
-        // No suspension occurs between the wake validation above and this
-        // request, but keep the authority check adjacent to the mutation
-        // boundary so that invariant remains explicit.
-        guard Task.isCancelled == false, self.runID == runID else {
             return nil
         }
 
+        return stepAccumulator.consumeSteps(adding: elapsed)
+    }
+
+    /// Captures latest Input and forms one immutable exact advance request.
+    private func makeAdvanceRequest(
+        stepCount: SimulationStepCount,
+        inputAssignmentState: RealtimeInputAssignmentState
+    ) -> SimulationAdvanceRequest {
+        // Read the latest-value source once so input and step count remain one
+        // immutable, attributable request across the async boundary.
+        let inputSnapshot = inputSource?.latestInputSnapshot
+        return SimulationAdvanceRequest(
+            expectedCursor: expectedCursor,
+            stepCount: stepCount,
+            inputAssignment: inputAssignmentState.assignment(
+                ingesting: inputSnapshot
+            )
+        )
+    }
+
+    /// Tracks one issued target request until its terminal outcome arrives.
+    private func performTrackedAdvance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
         isQuiescent = false
         let outcome = await advanceTarget.advance(request)
         finishInFlightAdvance()
+        return outcome
+    }
 
+    /// Applies authoritative completion without overriding newer local policy.
+    private func recordCommittedAdvance(
+        from outcome: SimulationAdvanceOutcome,
+        inputAssignmentState requestInputAssignmentState: RealtimeInputAssignmentState,
+        synchronizationGeneration requestSynchronizationGeneration: UInt64
+    ) {
         // Apply committed bookkeeping before checking run cancellation. A
         // stop may cancel transport but cannot undo target work. Explicit
         // synchronization and newer input policy always supersede an old
         // request's result through their independent generations.
-        if case let .completed(result) = outcome {
-            if requestSynchronizationGeneration == synchronizationGeneration {
-                expectedCursor = result.finalCursor
-            }
-            inputAssignmentState.retireTransitionBaseline(
-                ifUnchangedSince: requestInputAssignmentState
-            )
+        guard case let .completed(result) = outcome else {
+            return
         }
 
-        // A stopped task may still receive a result from a target that did not
-        // cooperate with cancellation. Its safe committed bookkeeping was
-        // applied above; it must not continue the retired run.
-        guard Task.isCancelled == false, self.runID == runID else {
-            return nil
+        if requestSynchronizationGeneration == synchronizationGeneration {
+            expectedCursor = result.finalCursor
         }
+        inputAssignmentState.retireTransitionBaseline(
+            ifUnchangedSince: requestInputAssignmentState
+        )
+    }
 
+    /// Resolves the terminal outcome into continuation or an authority fault.
+    private func shouldContinueAfterAdvance(
+        after outcome: SimulationAdvanceOutcome,
+        requestSynchronizationGeneration: UInt64
+    ) -> Bool {
         switch outcome {
         case .completed:
-            break
+            return true
 
         case let .rejected(.cursorMismatch(expected, current)):
             // Ignore a reply made obsolete by an explicit assembly-owned
             // synchronization while the directed request was in flight.
             guard requestSynchronizationGeneration == synchronizationGeneration else {
-                return nil
+                return false
             }
 
             // A mismatch means this supposedly exclusive authority no longer
             // understands the target timeline. Surface the fault and stop
             // rather than silently adopting potentially unrelated state. The
-            // The assembly may synchronize after coordinating the cause.
+            // assembly may synchronize after coordinating the cause.
             advancementState = .faulted(.cursorMismatch(expected: expected, current: current))
             isRunning = false
             stepAccumulator.reset()
             setTransitionInputBaseline(nil)
-            return nil
+            return false
         }
-
-        return advancedDeadline(after: previousDeadline)
     }
 
     /// Releases the one task slot and launches a queued replacement if needed.

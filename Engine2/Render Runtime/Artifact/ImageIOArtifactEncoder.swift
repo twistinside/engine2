@@ -43,7 +43,26 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
         _ result: OffscreenRenderResult,
         as encoding: ImageArtifactEncoding
     ) async throws(ImageArtifactEncoderError) -> RenderedImageArtifact {
-        guard let provider = CGDataProvider(data: result.image.bytes as CFData) else {
+        let sourceImage = try makeSourceImage(from: result.image)
+        let destinationConfiguration = destinationConfiguration(for: encoding)
+        let encodedData = try encodeImage(
+            sourceImage,
+            as: destinationConfiguration.type,
+            properties: destinationConfiguration.properties
+        )
+        return RenderedImageArtifact(
+            encoding: encoding,
+            encodedData: encodedData,
+            sourceRequestID: result.requestID,
+            sourceCursor: result.sourceCursor,
+            viewpoint: result.viewpoint,
+            renderSettings: result.settings
+        )
+    }
+
+    /// Creates the Core Graphics view of the renderer's opaque BGRA8-sRGB bytes.
+    private func makeSourceImage(from source: RenderedBGRA8SRGBImage) throws(ImageArtifactEncoderError) -> CGImage {
+        guard let provider = CGDataProvider(data: source.bytes as CFData) else {
             throw .couldNotCreateDataProvider
         }
 
@@ -54,11 +73,11 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
             CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipFirst.rawValue)
         )
         guard let image = CGImage(
-            width: result.image.size.width,
-            height: result.image.size.height,
+            width: source.size.width,
+            height: source.size.height,
             bitsPerComponent: 8,
             bitsPerPixel: 32,
-            bytesPerRow: result.image.bytesPerRow,
+            bytesPerRow: source.bytesPerRow,
             space: colorSpace,
             bitmapInfo: bitmapInfo,
             provider: provider,
@@ -69,19 +88,36 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
             throw .couldNotCreateImage
         }
 
-        let destinationType: UTType
-        let destinationProperties: CFDictionary?
+        return image
+    }
+
+    /// Selects the Image I/O destination type and format-specific properties.
+    private func destinationConfiguration(
+        for encoding: ImageArtifactEncoding
+    ) -> (type: UTType, properties: CFDictionary?) {
         switch encoding {
         case let .jpeg(quality):
-            destinationType = .jpeg
-            destinationProperties = [
-                kCGImageDestinationLossyCompressionQuality: quality.value
-            ] as CFDictionary
-        case .png:
-            destinationType = .png
-            destinationProperties = nil
-        }
+            return (
+                type: .jpeg,
+                properties: [
+                    kCGImageDestinationLossyCompressionQuality: quality.value
+                ] as CFDictionary
+            )
 
+        case .png:
+            return (
+                type: .png,
+                properties: nil
+            )
+        }
+    }
+
+    /// Writes one Core Graphics image into detached immutable artifact bytes.
+    private func encodeImage(
+        _ image: CGImage,
+        as destinationType: UTType,
+        properties: CFDictionary?
+    ) throws(ImageArtifactEncoderError) -> Data {
         // Image I/O requires mutable CFData as its incremental byte sink.
         // NSMutableData is the Foundation storage that bridges directly to
         // CFMutableData here and then exposes a stable byte count for the one
@@ -96,23 +132,15 @@ nonisolated struct ImageIOArtifactEncoder: PImageArtifactEncoder {
             throw .couldNotCreateDestination
         }
 
-        CGImageDestinationAddImage(destination, image, destinationProperties)
+        CGImageDestinationAddImage(destination, image, properties)
         guard CGImageDestinationFinalize(destination) else {
             throw .destinationFinalizationFailed
         }
 
         // Copy the local mutable destination into detached immutable storage.
-        let encodedData = Data(
+        return Data(
             bytes: destinationData.bytes,
             count: destinationData.length
-        )
-        return RenderedImageArtifact(
-            encoding: encoding,
-            encodedData: encodedData,
-            sourceRequestID: result.requestID,
-            sourceCursor: result.sourceCursor,
-            viewpoint: result.viewpoint,
-            renderSettings: result.settings
         )
     }
 }
