@@ -1,11 +1,12 @@
+import Foundation
 import Testing
 @testable import Engine2
 
 struct BasicGameContentTests {
-    @Test func canonicalConstructionSelectsBasicWorldBuilderAndCompleteCatalog() {
+    @Test func canonicalConstructionSelectsPlanetWorldBuilderAndCompleteCatalog() {
         let content = BasicGameContent()
 
-        #expect(content.worldBuilder is BasicWorldBuilder)
+        #expect(content.worldBuilder is TerrestrialPlanetWorldBuilder)
         #expect(content.simulationConfiguration == .basicGame)
         #expect(content.renderAssetCatalog == .everything)
     }
@@ -29,14 +30,34 @@ struct BasicGameContentTests {
         #expect(content.renderAssetCatalog == .everything)
     }
 
-    @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
-        let expectedModels: [MeshID: ModelAssetReference] = [
-            .ball: ModelAssetReference(
-                resourceName: "Ball",
-                format: .usdz
-            )
-        ]
-        #expect(RenderAssetCatalog.everything.models == expectedModels)
+    @Test func mapsEveryMeshIdentityToAnExactPackagedModelURL() throws {
+        let models = RenderAssetCatalog.everything.models
+        let ball = try #require(models[.ball])
+        let planet = try #require(models[.terrestrialPlanet])
+
+        #expect(models.count == MeshID.allCases.count)
+        #expect(ball.resourceURL.lastPathComponent == "Ball.usdz")
+        #expect(ball.format == .usdz)
+        #expect(planet.resourceURL.lastPathComponent == "TerrestrialPlanet.usdz")
+        #expect(planet.format == .usdz)
+    }
+
+    @Test func mapsEveryPlanetTextureWithItsRequiredInterpretation() throws {
+        let textures = RenderAssetCatalog.everything.textures
+        let elevation = try #require(textures[.terrestrialPlanetElevation])
+        let surface = try #require(textures[.terrestrialPlanetSurface])
+        let control = try #require(textures[.terrestrialPlanetControl])
+        let clouds = try #require(textures[.terrestrialPlanetClouds])
+
+        #expect(textures.count == TextureID.allCases.count)
+        #expect(elevation.resourceURL.lastPathComponent == "TerrestrialPlanetElevation.png")
+        #expect(elevation.interpretation == .linear)
+        #expect(surface.resourceURL.lastPathComponent == "TerrestrialPlanetSurface.png")
+        #expect(surface.interpretation == .sRGB)
+        #expect(control.resourceURL.lastPathComponent == "TerrestrialPlanetControl.png")
+        #expect(control.interpretation == .linear)
+        #expect(clouds.resourceURL.lastPathComponent == "TerrestrialPlanetClouds.png")
+        #expect(clouds.interpretation == .linear)
     }
 
     @Test func suppliesExactAuthoredMaterialValidationMatrix() throws {
@@ -81,6 +102,27 @@ struct BasicGameContentTests {
         // Game Content vocabulary consumed by Render construction.
         try catalog.validateMaterialCoverage()
         #expect(catalog.materials == expectedMaterials)
+    }
+
+    @Test func suppliesExactTerrestrialPlanetDescription() throws {
+        let catalog = RenderAssetCatalog.everything
+        let description = try #require(
+            catalog.terrestrialPlanets[.terrestrialPlanet]
+        )
+
+        #expect(catalog.terrestrialPlanets.count == 1)
+        #expect(description.elevationTextureID == .terrestrialPlanetElevation)
+        #expect(description.surfaceTextureID == .terrestrialPlanetSurface)
+        #expect(description.controlTextureID == .terrestrialPlanetControl)
+        #expect(description.cloudTextureID == .terrestrialPlanetClouds)
+        #expect(description.surfaceRadius == 1)
+        #expect(description.maximumRelief == 0.006)
+        #expect(description.seaLevel == 0.5)
+        #expect(description.cloudRadius == 1.008)
+        #expect(description.atmosphereRadius == 1.018)
+        #expect(description.cloudOpacity == 0.82)
+        #expect(description.atmosphereIntensity == 0.32)
+        #expect(description.cloudShadowStrength == 0.16)
     }
 }
 

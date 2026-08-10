@@ -21,7 +21,8 @@ struct MetalRenderPipelineCompiler {
         vertexFunctionName: String,
         fragmentFunctionName: String,
         label: String,
-        colorPixelFormat: MTLPixelFormat
+        colorPixelFormat: MTLPixelFormat,
+        blendMode: MetalRenderBlendMode = .opaque
     ) throws -> any MTLRenderPipelineState {
         let vertexFunction = MTL4LibraryFunctionDescriptor()
         vertexFunction.library = library
@@ -37,6 +38,7 @@ struct MetalRenderPipelineCompiler {
         descriptor.fragmentFunctionDescriptor = fragmentFunction
         descriptor.rasterSampleCount = 1
         descriptor.colorAttachments[0].pixelFormat = colorPixelFormat
+        blendMode.apply(to: descriptor.colorAttachments[0])
         return try compiler.makeRenderPipelineState(descriptor: descriptor)
     }
 }

@@ -182,17 +182,58 @@ struct MetalFrameEncoderTests {
             )
 
             #expect(prepared.instances.count == expectedCount)
+            #expect(prepared.terrestrialPlanetInstances.isEmpty)
+            #expect(prepared.instanceCount == expectedCount)
             #expect(
                 prepared.instances.allSatisfy {
                     $0.renderInstance.materialID == .warmDielectric
-                        && $0.materialDescription
-                            == resources.materialDescription(
-                                for: .warmDielectric
-                            )
+                        && resources.renderMaterialDescription(
+                            for: .warmDielectric
+                        ) == .opaquePBR($0.materialDescription)
                         && $0.model == nil
                 }
             )
         }
+    }
+
+    @Test func preparationClassifiesOnePublishedPlanetWithoutCreatingOrdinaryDraws() throws {
+        let content = BasicGameContent()
+        let snapshot = content.worldBuilder.buildWorld().presentationSnapshot(
+            at: SimulationCursor(
+                sessionID: SimulationSessionID(),
+                tick: SimulationTick(rawValue: 17)
+            )
+        )
+        let renderFrame = RenderFrame(projecting: snapshot)
+        let resources = try MetalResourceStore(
+            renderAssetCatalog: content.renderAssetCatalog,
+            frameCount: 1
+        )
+        let prepared = MetalFrameEncoder(resources: resources).prepare(
+            renderFrame
+        )
+
+        #expect(renderFrame.instances.count == 1)
+        #expect(prepared.renderFrame == renderFrame)
+        #expect(prepared.instanceCount == 1)
+        #expect(prepared.instances.isEmpty)
+        #expect(prepared.terrestrialPlanetInstances.count == 1)
+
+        let planet = try #require(prepared.terrestrialPlanetInstances.first)
+        let expectedDescription = try #require(
+            content.renderAssetCatalog.terrestrialPlanets[.terrestrialPlanet]
+        )
+        #expect(planet.renderInstance.meshID == .terrestrialPlanet)
+        #expect(planet.renderInstance.materialID == .terrestrialPlanet)
+        #expect(planet.description == expectedDescription)
+        #expect(planet.resources.description == expectedDescription)
+
+        let preparedModel = try #require(planet.model)
+        let storedModel = try #require(resources.model(for: .terrestrialPlanet))
+        #expect(
+            preparedModel.meshes.map(ObjectIdentifier.init) ==
+                storedModel.meshes.map(ObjectIdentifier.init)
+        )
     }
 
     @Test func encodingInputsRejectMismatchedTargetDimensions() throws {

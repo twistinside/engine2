@@ -5,5 +5,6 @@
 #include "Render Runtime/Metal/Shader/PBR/GPUInstance.h"
 #include "Render Runtime/Metal/Shader/PBR/ModelVertex.h"
 #include "Render Runtime/Metal/Shader/PBR/PBRSceneParameters.h"
+#include "Render Runtime/Metal/Shader/Terrestrial Planet/GPUPlanetInstance.h"
 
 #endif

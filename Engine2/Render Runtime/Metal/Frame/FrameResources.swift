@@ -13,6 +13,9 @@ final class FrameResources: @unchecked Sendable {
     /// CPU-written, GPU-read transform and material data for current draws.
     let instanceBuffer: any MTLBuffer
 
+    /// CPU-written, GPU-read records for layered terrestrial-planet draws.
+    let terrestrialPlanetInstanceBuffer: any MTLBuffer
+
     /// Renderer-owned validation directional-light parameters.
     let pbrSceneParametersBuffer: any MTLBuffer
 
@@ -29,11 +32,13 @@ final class FrameResources: @unchecked Sendable {
     init(
         commandAllocator: any MTL4CommandAllocator,
         instanceBuffer: any MTLBuffer,
+        terrestrialPlanetInstanceBuffer: any MTLBuffer,
         pbrSceneParametersBuffer: any MTLBuffer,
         hdrPresentationParametersBuffer: any MTLBuffer
     ) {
         self.commandAllocator = commandAllocator
         self.instanceBuffer = instanceBuffer
+        self.terrestrialPlanetInstanceBuffer = terrestrialPlanetInstanceBuffer
         self.pbrSceneParametersBuffer = pbrSceneParametersBuffer
         self.hdrPresentationParametersBuffer = hdrPresentationParametersBuffer
         self.hdrSceneTarget = nil
@@ -57,7 +62,7 @@ final class FrameResources: @unchecked Sendable {
     /// before mutable GPU state is touched, while this method remains
     /// responsible only for stable packing.
     func write(_ preparedFrame: MetalPreparedFrame, drawableSize: CGSize, exposure: ManualExposure) {
-        precondition(preparedFrame.instances.count <= Self.maximumInstanceCount, "Prepared frames must fit the reusable instance buffer.")
+        precondition(preparedFrame.instanceCount <= Self.maximumInstanceCount, "Prepared frames must fit the reusable instance buffers.")
         let camera = preparedFrame.renderFrame.camera
         let aspectRatio = Float(
             drawableSize.width / max(drawableSize.height, 1)
@@ -75,6 +80,21 @@ final class FrameResources: @unchecked Sendable {
                 instance.renderInstance,
                 material: instance.materialDescription,
                 projectionMatrix: projectionMatrix
+            )
+        }
+
+        let planetDestination = terrestrialPlanetInstanceBuffer.contents()
+            .bindMemory(
+                to: GPUPlanetInstance.self,
+                capacity: Self.maximumInstanceCount
+            )
+        for (index, instance) in preparedFrame.terrestrialPlanetInstances
+            .enumerated() {
+            planetDestination[index] = GPUPlanetInstance(
+                instance.renderInstance,
+                description: instance.description,
+                projectionMatrix: projectionMatrix,
+                camera: camera
             )
         }
 
@@ -113,6 +133,23 @@ final class FrameResources: @unchecked Sendable {
         renderEncoder.setArgumentTable(
             pbrSceneArgumentTable,
             stages: .fragment
+        )
+    }
+
+    /// Binds one planet record to both stages of the shared planet table.
+    func bindTerrestrialPlanetInstance(
+        at index: Int,
+        argumentTable: any MTL4ArgumentTable,
+        to renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        precondition((0..<Self.maximumInstanceCount).contains(index), "Planet instance selection must remain inside the frame buffer.")
+
+        let instanceAddress = terrestrialPlanetInstanceBuffer.gpuAddress
+            + UInt64(index * MemoryLayout<GPUPlanetInstance>.stride)
+        argumentTable.setAddress(instanceAddress, index: 1)
+        renderEncoder.setArgumentTable(
+            argumentTable,
+            stages: .vertex.union(.fragment)
         )
     }
 

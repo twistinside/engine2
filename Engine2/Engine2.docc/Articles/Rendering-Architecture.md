@@ -17,12 +17,16 @@ The current codebase already has:
 - ``AgentCaptureSource`` and ``AgentSessionAssembly`` as the transport-neutral live-process wrapper that unifies bounded `.advance` and non-advancing `.current` admission and exact response replay while receiving only ``POfflineCaptureTarget``
 - a real-time screen path whose camera is locked to the latest completed Simulation presentation
 - `MetalResourceStore` as the device-scoped owner of the Metal 4 compiler,
-  command queue, nonoptional built-in required-resource set, decoded models,
-  and frame-resource ring
+  command queue, nonoptional built-in required-resource set, decoded models and
+  textures, resolved layered materials, and frame-resource ring
 - `MetalResidencyManager` as the owner of committed static-asset and
   frame-allocation residency sets
-- typed `MeshID` and `MaterialID` values plus a `RenderAssetCatalog` boundary
-  between Game Content descriptions and renderer-owned resources
+- typed `MeshID`, `MaterialID`, and `TextureID` values plus exact-URL model and
+  texture references at the `RenderAssetCatalog` boundary between Game Content
+  descriptions and renderer-owned resources
+- one terrestrial-planet material family that privately expands one Simulation
+  entity into displaced opaque surface, premultiplied cloud, and
+  opacity-weighted additive atmosphere draws in the shared HDR scene encoder
 The production frame encoder is exercised by both the screen adapter and ``MetalOffscreenRenderRuntime``. The offscreen Runtime accepts an immutable ``OffscreenRenderRequest``, applies configurable allocation/readback limits, submits through real Metal 4 queue feedback, and returns a detached ``RenderedBGRA8SRGBImage`` with exact provenance without an `MTKView` or `CAMetalDrawable`. ``ImageIOArtifactEncoder`` can derive a detached JPEG or PNG from that completed value without touching Metal or application state. ``OfflineCaptureAssembly`` connects those pieces to exact Simulation advancement and a one-slot retained completed presentation in one serial graph. ``AgentSessionAssembly`` privately wraps both advance-and-capture and current-cursor capture without exposing a second advance, latest-presentation, or render path. HDR masters and sample accumulation, additional artifact formats, atomic multi-view jobs, pooled targets, persistence or an `ArtifactSink`, a dedicated render actor or worker, and an actual MCP Runtime/transport remain future layers.
 See <doc:Runtime-Architecture> for the canonical Runtime, Snapshot, Event, and runtime-boundary vocabulary.
 See <doc:Runtime-Communication> for the proposed publisher-owned snapshot and consumer-owned projection model.
@@ -30,8 +34,9 @@ See <doc:PBR-Implementation-Plan> for the staged path from the current visible
 renderer through a directional-light PBR baseline and into the later Forward+
 local-light scaling work. Its normals/depth foundation, shared direct-light
 BRDF, visible HDR presentation chain, and authored material boundary are
-implemented, and a controlled six-sphere material scene now validates the
-complete bootstrap pathway.
+implemented. `BasicWorldBuilder` retains the controlled six-sphere material
+fixture, while `BasicGameContent.init()` now selects the terrestrial-planet
+proof described in <doc:Terrestrial-Planet-Proof>.
 ## Chosen Rendering Path
 Engine2's planned production renderer uses one **Forward+** path with
 **physically based rendering (PBR)**. Render owns one shared direct-light BRDF
@@ -68,11 +73,13 @@ backend-neutral material identities and assets, Simulation publishes only the
 semantic presentation facts that can change, and the Render Runtime privately
 resolves those values into Metal resources and shader inputs.
 
-Planet surfaces and other opaque geometry use the Forward+ PBR path directly.
-Clouds, atmospheres, rings, and other transparent or volumetric layers remain
-ordered forward phases that may reuse the same lighting descriptions and light
-lists. A feature may introduce a focused auxiliary target such as depth or
-normals, but that does not turn the core renderer into a deferred path.
+Planet surfaces and other opaque geometry use the forward PBR path directly.
+The implemented terrestrial-planet proof follows its displaced opaque
+terrain-and-ocean draw with premultiplied clouds and opacity-weighted additive
+atmosphere in the same HDR scene encoder. Rings, general transparency,
+volumetric layers, and Forward+ light assignment remain future work. A feature
+may introduce a focused auxiliary target such as depth or normals, but that does
+not turn the core renderer into a deferred path.
 ## Rendering Belongs to the Render Runtime
 Rendering is owned by the proposed Render Runtime, not by an ECS gameplay system that mutates authoritative state.
 Simulation systems update `World`, the Simulation Runtime publishes an immutable `SimulationPresentationSnapshot`, and the Render Runtime projects the latest completed value into private render-oriented state according to its own cadence. The Simulation Runtime remains valid when no Render Runtime is present; its presentation snapshot simply has no consumer.
@@ -82,12 +89,14 @@ The authoritative simulation state should remain in ECS component stores. Render
 `World` may still contain abstract presentation state such as mesh handles, material handles, visibility, Simulation-authoritative camera settings, and render style. Its published camera is the exact camera used by the current real-time screen. The current real-time orbit control is Simulation-owned through ``SInputMapping`` and ``SCameraInput``, so it changes only on a complete tick. Exact offscreen, offline, and agent requests may instead carry an explicit output-specific viewpoint. Future photo, editor, replay, spectator, or multi-window assemblies may deliberately own interactive output viewpoints, but those are separate modes rather than a pause-time bypass. `World` should not contain backend-specific Metal objects.
 
 The current `CRenderable` component demonstrates that distinction. It stores a
-`MeshID` and `MaterialID`, while `BasicGameContent` maps `MeshID.ball` to the
-packaged `Ball.usdz` asset and maps its closed material identities to
-`PBRMaterialDescription` values. The Render Runtime's `MetalResourceStore`
-receives that catalog and privately owns the validated descriptions, decoded
-meshes, buffers, compiled state, and residency organization consumed by
-``MetalFrameEncoder`` and its callers.
+`MeshID` and `MaterialID`. `BasicGameContent` maps `MeshID.ball` to the packaged
+`Ball.usdz` asset and maps its ordinary material identities to
+`PBRMaterialDescription` values. The same catalog maps one planet mesh and
+material identity plus four typed texture identities to exact source URLs and a
+``TerrestrialPlanetDescription``. The Render Runtime's `MetalResourceStore`
+privately owns the validated descriptions, decoded meshes and textures, buffers,
+compiled state, and residency organization consumed by ``MetalFrameEncoder``
+and its callers.
 ## Rendering Projects Published Simulation State
 The implemented runtime boundary separates publication and projection:
 
@@ -190,6 +199,8 @@ The current shared production records are:
 
 - `ModelVertex`, the Model I/O-to-shader interleaved vertex record
 - `GPUInstance`, the per-draw transform and authored-material transport record
+- `GPUPlanetInstance`, the per-draw planet transform, layer geometry,
+  appearance-factor, and fixed proof-sun transport record
 - `PBRSceneParameters`, the frame's directional-light transport record
 - `HDRPresentationParameters`, the presentation pass's exposure record
 
@@ -281,14 +292,17 @@ The store eagerly creates the resources required by the current renderer:
 
 - an `MTL4Compiler` and `MTL4CommandQueue`
 - one ``MetalRequiredResources`` value containing the engine shader library,
-  four compiled Metal 4 pipelines, opaque depth state, and three argument
-  tables as nonoptional typed handles
+  eight compiled Metal 4 pipelines, opaque and translucent depth states, four
+  argument tables, and the planet sampler as nonoptional typed handles
 - decoded models resolved from backend-neutral `MeshID` values
-- validated authored descriptions resolved from backend-neutral `MaterialID`
-  values
-- the fixed frame-resource ring and its PBR/presentation parameter buffers
-- the PBR scene, normal diagnostic, tone-mapped presentation, and linear
-  diagnostic pipelines
+- decoded textures resolved from exact-URL references and backend-neutral
+  `TextureID` values
+- validated ordinary and terrestrial-planet descriptions resolved from
+  backend-neutral `MaterialID` values
+- the fixed frame-resource ring and its ordinary-instance, planet-instance,
+  PBR-scene, and presentation-parameter buffers
+- the ordinary PBR, planet surface/cloud/atmosphere, normal-diagnostic,
+  tone-mapped presentation, and linear-diagnostic pipelines
 
 ``MetalRequiredResources`` keeps the string-named shader entry points inside
 the store's fallible construction boundary. Successful store construction
@@ -311,9 +325,10 @@ pipeline definition.
 - authored-material preflight for the bounded submitted instance prefix
 - the fixed `rgba16Float` scene, `depth32Float` depth, and `bgra8Unorm_srgb` destination format contract
 - `FrameResources` buffer packing
-- model, diagnostic, depth, and presentation pipeline and argument-table selection
-- the ordered HDR scene and presentation pass
-- model draw iteration and binding
+- ordinary model, planet layer, diagnostic, depth, and presentation pipeline
+  and argument-table selection
+- the ordered opaque, cloud, atmosphere, HDR scene, and presentation work
+- model and resolved-texture draw iteration and binding
 
 The caller supplies one prepared ``RenderFrame``, caller-owned scene-color, depth, and destination textures with matching positive dimensions and formats, an available `FrameResources` slot, and an already-begun `MTL4CommandBuffer`. Scene and presentation encoder creation propagate the closed ``MetalFrameEncoderError`` domain through typed throws; no Boolean or result object duplicates that local control flow. The encoder records work but does not sample live presentation state, choose a viewpoint, choose or wait for a frame-ring slot, acquire an `MTKView` or `CAMetalDrawable`, begin, end, or submit a command buffer, manage target residency or completion feedback, present an image, or decide whether an error is terminal.
 
@@ -411,9 +426,11 @@ resident when submitted work uses them.
 
 The current implementation uses two queue-wide Render Runtime-owned sets:
 
-- **Static Render Assets** contains immutable model vertex and index buffers.
+- **Static Render Assets** contains immutable model vertex and index buffers plus
+  the four planet textures.
 - **Render Frame Buffers** contains the CPU-written transform/material instance,
-  light-only PBR-scene, and presentation-parameter buffers in the frame ring.
+  planet-instance, light-only PBR-scene, and presentation-parameter buffers in
+  the frame ring.
 
 In addition, each reusable frame slot lazily owns one drawable-sized HDR scene
 target and one committed residency set containing that target. The set is

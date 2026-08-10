@@ -154,30 +154,36 @@ A snapshot-only consumer needs any visible occurrence represented in durable sna
 The App selects one ``PRuntimeAssembly`` implementation at compile time and retains the constructed value behind an opaque `some PRuntimeAssembly` property. The assembly is the concrete composition object for that topology: its required `init(gameContent:)` constructs the independently owned runtimes and supplies each relevant portion of the injected content. Explicit assembly initializers take focused policy, limit, and identity values directly for tests, tools, and specialized hosts.
 
 The example App constructs `BasicGameContent` and passes it to the selected
-assembly. `BasicGameContent` supplies `BasicWorldBuilder` to
-``SimulationRuntime`` beside the complete `.basicGame`
-``SimulationConfiguration``, and deliberately selects
+assembly. `BasicGameContent.init()` now supplies
+`TerrestrialPlanetWorldBuilder` to ``SimulationRuntime`` beside the complete
+`.basicGame` ``SimulationConfiguration``, and deliberately selects
 `RenderAssetCatalog.everything` for the current render paths. Its explicit
 `init(worldBuilder:)` keeps world construction injectable without hiding either
 behavior or catalog policy behind a default argument. Callers may still
 construct curated catalogs through
-`RenderAssetCatalog.init(models:materials:)`. The named `.basicGame` and
-`.everything` values remain in `SimulationConfiguration.swift` and
-`RenderAssetCatalog.swift`, respectively. Repository-owned types are extended
-only from their own files; `BasicGameContent.swift` selects those values without
-quietly declaring members of either type.
-``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
-Game Content maps the mesh to `Ball.usdz` and maps each material identity to a
-`PBRMaterialDescription`. The renderer privately turns those descriptions and
-packaged source assets into per-draw data, Model I/O values, and Metal resources.
-Neither ``World`` nor ``Ball`` contains a filename, material factor, or backend
-object.
+`RenderAssetCatalog.init(models:materials:terrestrialPlanets:textures:)`. The
+named `.basicGame` and `.everything` values remain in
+`SimulationConfiguration.swift` and `RenderAssetCatalog.swift`, respectively.
+Repository-owned types are extended only from their own files;
+`BasicGameContent.swift` selects those values without quietly declaring members
+of either type.
 
-`BasicWorldBuilder` currently uses that boundary to construct a deterministic
-six-sphere material grid. Every entity shares `MeshID.ball`, while its
-`MaterialID` selects one smooth, baseline, or rough warm dielectric or gold
-metal description. The scene adds no renderer object or light state to Game
-Content or Simulation.
+``TerrestrialPlanet`` advertises one backend-neutral
+`MeshID.terrestrialPlanet` and `MaterialID.terrestrialPlanet` beside one
+Simulation-owned transform. Game Content maps the mesh and four texture
+identities to exact source URLs, gives every texture an explicit sRGB or linear
+interpretation, and supplies one ``TerrestrialPlanetDescription``. Render
+privately resolves those descriptions into the decoded mesh, textures,
+pipelines, argument-table bindings, and three ordered layer draws. ``World`` and
+the entity contain no filename, material factor, decoded pixel, or Metal object.
+See <doc:Terrestrial-Planet-Proof>.
+
+`BasicWorldBuilder` remains the deterministic six-sphere PBR fixture. Every
+fixture entity shares `MeshID.ball`, while its `MaterialID` selects one smooth,
+baseline, or rough warm dielectric or gold-metal description. A caller can
+inject that builder explicitly, but `BasicGameContent.init()` now selects the
+single-planet proof scene by default. Neither scene adds a renderer object or
+light state to Simulation.
 
 A consumer assembly may use the same production-plus-injection shape:
 
@@ -286,14 +292,20 @@ Current project elements map onto Game Content as follows:
 | Current element | Emerging ownership |
 | --- | --- |
 | ``Ball`` | Example Game Content entity facade |
-| ``BasicWorldBuilder`` | Example Game Content world construction |
+| ``TerrestrialPlanet`` | Example Game Content entity facade whose one abstract render identity expands privately into layered Render work |
+| ``BasicWorldBuilder`` | Retained deterministic six-sphere PBR fixture |
+| `TerrestrialPlanetWorldBuilder` | Default example world construction containing one authoritative planet entity |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
-| `BasicGameContent` | Example assembly-selected composition of world construction, Simulation behavior configuration, and render asset mappings |
+| `TerrestrialPlanet.usdz`, four planet maps, and their manifest | Deterministically generated example assets owned by Game Content |
+| `BasicGameContent` | Example assembly-selected composition that defaults to the planet world while retaining injectable world construction |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
+| `TextureID` | Game Content-owned, backend-neutral texture identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |
+| `TerrestrialPlanetDescription` | Render-owned, backend-neutral layered-material contract populated by Game Content |
+| `TextureAssetReference` | Exact source URL and typed transfer-function interpretation selected by Game Content |
 | `RenderAssetCatalog` | Render-owned catalog input contract populated by Game Content |
-| `ModelShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
+| `ModelShaders.metal` and `TerrestrialPlanetShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
 | Debug panes and app commands | Example App tooling, not reusable Game Content or runtime core |
 
 The first extraction should move example content out of reusable engine targets without forcing immediate redesign of every ECS API. The example application can continue to prove the public construction path as those APIs become deliberate.

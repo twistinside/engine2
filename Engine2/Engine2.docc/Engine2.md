@@ -46,6 +46,7 @@ The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pau
 - <doc:Engine-Architecture>
 - <doc:Resource-Ownership-and-Presentation-Boundaries>
 - <doc:Rendering-Architecture>
+- <doc:Terrestrial-Planet-Proof>
 - <doc:PBR-Implementation-Plan>
 ### Scheduling
 - <doc:System-Scheduling>

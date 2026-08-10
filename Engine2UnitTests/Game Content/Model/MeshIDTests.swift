@@ -3,11 +3,15 @@ import Testing
 @testable import Engine2
 
 struct MeshIDTests {
-    @Test func codableRoundTripPreservesGameContentIdentity() throws {
-        let original = MeshID.ball
+    @Test func allCasesPreservesTheExhaustiveContentVocabulary() {
+        #expect(MeshID.allCases == [.ball, .terrestrialPlanet])
+    }
+
+    @Test func codableRoundTripPreservesEveryGameContentIdentity() throws {
+        let original = MeshID.allCases
 
         let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(MeshID.self, from: data)
+        let decoded = try JSONDecoder().decode([MeshID].self, from: data)
 
         #expect(decoded == original)
     }

@@ -24,9 +24,15 @@ final class MetalFrameEncoder {
     private let resources: MetalResourceStore
     private let pbrPipelineState: any MTLRenderPipelineState
     private let normalDiagnosticPipelineState: any MTLRenderPipelineState
-    private let depthStencilState: any MTLDepthStencilState
+    private let terrestrialPlanetSurfacePipelineState: any MTLRenderPipelineState
+    private let terrestrialPlanetNormalDiagnosticPipelineState: any MTLRenderPipelineState
+    private let terrestrialPlanetCloudPipelineState: any MTLRenderPipelineState
+    private let terrestrialPlanetAtmospherePipelineState: any MTLRenderPipelineState
+    private let opaqueDepthStencilState: any MTLDepthStencilState
+    private let translucentDepthStencilState: any MTLDepthStencilState
     private let modelArgumentTable: any MTL4ArgumentTable
     private let pbrSceneArgumentTable: any MTL4ArgumentTable
+    private let terrestrialPlanetArgumentTable: any MTL4ArgumentTable
     private let hdrFramePass: MetalHDRFramePass
 
     /// Creates an encoder backed by the store's eagerly prepared Metal state.
@@ -35,9 +41,22 @@ final class MetalFrameEncoder {
         self.resources = resources
         self.pbrPipelineState = requiredResources.modelPBRPipeline
         self.normalDiagnosticPipelineState = requiredResources.modelNormalDiagnosticPipeline
-        self.depthStencilState = requiredResources.opaqueDepthStencilState
+        self.terrestrialPlanetSurfacePipelineState = requiredResources
+            .terrestrialPlanetSurfacePipeline
+        self.terrestrialPlanetNormalDiagnosticPipelineState = requiredResources
+            .terrestrialPlanetNormalDiagnosticPipeline
+        self.terrestrialPlanetCloudPipelineState = requiredResources
+            .terrestrialPlanetCloudPipeline
+        self.terrestrialPlanetAtmospherePipelineState = requiredResources
+            .terrestrialPlanetAtmospherePipeline
+        self.opaqueDepthStencilState = requiredResources
+            .opaqueDepthStencilState
+        self.translucentDepthStencilState = requiredResources
+            .translucentDepthStencilState
         self.modelArgumentTable = requiredResources.modelArgumentTable
         self.pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        self.terrestrialPlanetArgumentTable = requiredResources
+            .terrestrialPlanetArgumentTable
         self.hdrFramePass = MetalHDRFramePass(resources: resources)
     }
 
@@ -76,38 +95,100 @@ final class MetalFrameEncoder {
             outputMode: inputs.outputMode,
             into: commandBuffer
         ) { sceneEncoder in
-            sceneEncoder.setRenderPipelineState(
-                renderPipelineState(for: inputs.outputMode)
-            )
-            sceneEncoder.setDepthStencilState(depthStencilState)
-
             // The directional light is constant for the frame. Each draw adds
             // its own stable instance address to this fragment-stage table.
             pbrSceneArgumentTable.setAddress(
                 frameResources.pbrSceneParametersBuffer.gpuAddress,
                 index: 2
             )
-            draw(
+            terrestrialPlanetArgumentTable.setAddress(
+                frameResources.pbrSceneParametersBuffer.gpuAddress,
+                index: 2
+            )
+            encodeScene(
                 prepared,
+                outputMode: inputs.outputMode,
                 frame: frameResources,
                 with: sceneEncoder
             )
         }
     }
 
-    /// Resolves a closed output mode to an eagerly compiled pipeline.
-    private func renderPipelineState(for outputMode: RenderOutputMode) -> any MTLRenderPipelineState {
+    /// Emits the complete ordered scene for one production output mode.
+    private func encodeScene(
+        _ prepared: MetalPreparedFrame,
+        outputMode: RenderOutputMode,
+        frame: FrameResources,
+        with renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        renderEncoder.setCullMode(.none)
+        renderEncoder.setDepthStencilState(opaqueDepthStencilState)
+
         switch outputMode {
         case .surface:
-            pbrPipelineState
+            renderEncoder.setRenderPipelineState(pbrPipelineState)
+            drawOpaquePBR(
+                prepared,
+                frame: frame,
+                with: renderEncoder
+            )
+            renderEncoder.setFrontFacing(.counterClockwise)
+            renderEncoder.setCullMode(.back)
+            renderEncoder.setRenderPipelineState(
+                terrestrialPlanetSurfacePipelineState
+            )
+            drawTerrestrialPlanets(
+                prepared,
+                frame: frame,
+                with: renderEncoder
+            )
+
+            renderEncoder.setDepthStencilState(translucentDepthStencilState)
+            renderEncoder.setRenderPipelineState(
+                terrestrialPlanetCloudPipelineState
+            )
+            drawTerrestrialPlanets(
+                prepared,
+                frame: frame,
+                with: renderEncoder
+            )
+            renderEncoder.setRenderPipelineState(
+                terrestrialPlanetAtmospherePipelineState
+            )
+            drawTerrestrialPlanets(
+                prepared,
+                frame: frame,
+                with: renderEncoder
+            )
 
         case .viewSpaceNormals:
-            normalDiagnosticPipelineState
+            renderEncoder.setRenderPipelineState(
+                normalDiagnosticPipelineState
+            )
+            drawOpaquePBR(
+                prepared,
+                frame: frame,
+                with: renderEncoder
+            )
+            renderEncoder.setFrontFacing(.counterClockwise)
+            renderEncoder.setCullMode(.back)
+            renderEncoder.setRenderPipelineState(
+                terrestrialPlanetNormalDiagnosticPipelineState
+            )
+            drawTerrestrialPlanets(
+                prepared,
+                frame: frame,
+                with: renderEncoder
+            )
         }
     }
 
-    /// Emits ordered model draws for the exact set packed into this frame slot.
-    private func draw(_ prepared: MetalPreparedFrame, frame: FrameResources, with renderEncoder: any MTL4RenderCommandEncoder) {
+    /// Emits ordinary opaque PBR model draws in source order.
+    private func drawOpaquePBR(
+        _ prepared: MetalPreparedFrame,
+        frame: FrameResources,
+        with renderEncoder: any MTL4RenderCommandEncoder
+    ) {
         for (instanceIndex, instance) in prepared.instances.enumerated() {
             // Missing model content makes only this live-screen instance
             // unrenderable. Exact offscreen work validates the models retained
@@ -123,34 +204,105 @@ final class MetalFrameEncoder {
                 to: renderEncoder
             )
 
-            for mesh in model.meshes {
-                guard let vertexBuffer = mesh.vertexBuffers.first else {
-                    continue
-                }
+            drawIndexedModel(
+                model,
+                argumentTable: modelArgumentTable,
+                stages: .vertex,
+                with: renderEncoder
+            )
+        }
+    }
 
-                // MetalKit may suballocate mesh buffers from a larger buffer,
-                // so the bound GPU address must include its slice offset.
-                modelArgumentTable.setAddress(
-                    vertexBuffer.buffer.gpuAddress + UInt64(vertexBuffer.offset),
-                    index: 0
+    /// Emits one selected layer for every prepared terrestrial planet.
+    ///
+    /// The selected pipeline determines whether the shared geometry produces
+    /// displaced surface, clouds, atmosphere, or normal diagnostics.
+    private func drawTerrestrialPlanets(
+        _ prepared: MetalPreparedFrame,
+        frame: FrameResources,
+        with renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        for (instanceIndex, instance) in prepared
+            .terrestrialPlanetInstances.enumerated() {
+            guard let model = instance.model else {
+                continue
+            }
+
+            bind(
+                instance.resources,
+                to: terrestrialPlanetArgumentTable
+            )
+            frame.bindTerrestrialPlanetInstance(
+                at: instanceIndex,
+                argumentTable: terrestrialPlanetArgumentTable,
+                to: renderEncoder
+            )
+            drawIndexedModel(
+                model,
+                argumentTable: terrestrialPlanetArgumentTable,
+                stages: .vertex.union(.fragment),
+                with: renderEncoder
+            )
+        }
+    }
+
+    /// Installs one planet appearance's complete sampled-map set.
+    private func bind(
+        _ resources: MetalTerrestrialPlanetResources,
+        to argumentTable: any MTL4ArgumentTable
+    ) {
+        argumentTable.setTexture(
+            resources.elevationTexture.gpuResourceID,
+            index: 0
+        )
+        argumentTable.setTexture(
+            resources.surfaceTexture.gpuResourceID,
+            index: 1
+        )
+        argumentTable.setTexture(
+            resources.controlTexture.gpuResourceID,
+            index: 2
+        )
+        argumentTable.setTexture(
+            resources.cloudTexture.gpuResourceID,
+            index: 3
+        )
+    }
+
+    /// Emits every complete indexed draw in one decoded model.
+    private func drawIndexedModel(
+        _ model: USDRenderModel,
+        argumentTable: any MTL4ArgumentTable,
+        stages: MTLRenderStages,
+        with renderEncoder: any MTL4RenderCommandEncoder
+    ) {
+        for mesh in model.meshes {
+            guard let vertexBuffer = mesh.vertexBuffers.first else {
+                continue
+            }
+
+            // MetalKit may suballocate mesh buffers from a larger buffer, so
+            // the bound GPU address must include its slice offset.
+            argumentTable.setAddress(
+                vertexBuffer.buffer.gpuAddress + UInt64(vertexBuffer.offset),
+                index: 0
+            )
+            renderEncoder.setArgumentTable(
+                argumentTable,
+                stages: stages
+            )
+
+            for submesh in mesh.submeshes {
+                let indexBuffer = submesh.indexBuffer
+
+                renderEncoder.drawIndexedPrimitives(
+                    primitiveType: submesh.primitiveType,
+                    indexCount: submesh.indexCount,
+                    indexType: submesh.indexType,
+                    indexBuffer: indexBuffer.buffer.gpuAddress
+                        + UInt64(indexBuffer.offset),
+                    indexBufferLength: indexBuffer.length
                 )
-                renderEncoder.setArgumentTable(
-                    modelArgumentTable,
-                    stages: .vertex
-                )
-
-                for submesh in mesh.submeshes {
-                    let indexBuffer = submesh.indexBuffer
-
-                    renderEncoder.drawIndexedPrimitives(
-                        primitiveType: submesh.primitiveType,
-                        indexCount: submesh.indexCount,
-                        indexType: submesh.indexType,
-                        indexBuffer: indexBuffer.buffer.gpuAddress
-                            + UInt64(indexBuffer.offset),
-                        indexBufferLength: indexBuffer.length
-                    )
-                }
             }
         }
     }

@@ -9,25 +9,70 @@
 /// model while continuing to present later frames.
 struct MetalPreparedFrame {
     let renderFrame: RenderFrame
+
+    /// Ordinary opaque PBR draws retained in source order.
     let instances: [(
         renderInstance: RenderInstance,
         materialDescription: PBRMaterialDescription,
         model: USDRenderModel?
     )]
 
+    /// Layered planet draws retained in source order.
+    let terrestrialPlanetInstances: [
+        MetalPreparedTerrestrialPlanetInstance
+    ]
+
+    /// Total Simulation identities admitted to this bounded prepared frame.
+    var instanceCount: Int {
+        instances.count + terrestrialPlanetInstances.count
+    }
+
     /// Resolves the exact prefix writable by one reusable frame slot.
     init(renderFrame: RenderFrame, resources: MetalResourceStore) {
         self.renderFrame = renderFrame
-        self.instances = renderFrame.instances
-            .prefix(FrameResources.maximumInstanceCount)
-            .map { instance in
-                (
+
+        var instances: [(
+            renderInstance: RenderInstance,
+            materialDescription: PBRMaterialDescription,
+            model: USDRenderModel?
+        )] = []
+        var terrestrialPlanetInstances: [
+            MetalPreparedTerrestrialPlanetInstance
+        ] = []
+
+        for instance in renderFrame.instances.prefix(
+            FrameResources.maximumInstanceCount
+        ) {
+            switch resources.renderMaterialDescription(
+                for: instance.materialID
+            ) {
+            case let .opaquePBR(description):
+                instances.append((
                     renderInstance: instance,
-                    materialDescription: resources.materialDescription(
-                        for: instance.materialID
-                    ),
+                    materialDescription: description,
                     model: resources.model(for: instance.meshID)
+                ))
+
+            case let .terrestrialPlanet(description):
+                guard let planetResources = resources
+                    .terrestrialPlanetResources(for: instance.materialID)
+                else {
+                    preconditionFailure(
+                        "Resource-store construction must resolve every terrestrial-planet appearance."
+                    )
+                }
+                terrestrialPlanetInstances.append(
+                    MetalPreparedTerrestrialPlanetInstance(
+                        renderInstance: instance,
+                        description: description,
+                        resources: planetResources,
+                        model: resources.model(for: instance.meshID)
+                    )
                 )
             }
+        }
+
+        self.instances = instances
+        self.terrestrialPlanetInstances = terrestrialPlanetInstances
     }
 }

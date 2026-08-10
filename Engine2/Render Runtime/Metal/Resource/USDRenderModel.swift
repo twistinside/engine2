@@ -89,10 +89,8 @@ struct USDRenderModel {
     }
 
     private static func load(_ modelAsset: ModelAssetReference, device: any MTLDevice) throws -> USDRenderModel {
-        guard let url = Bundle.main.url(
-            forResource: modelAsset.resourceName,
-            withExtension: modelAsset.format.rawValue
-        ) else {
+        let url = modelAsset.resourceURL
+        guard FileManager.default.fileExists(atPath: url.path) else {
             throw MetalRendererError.missingModel(modelAsset)
         }
 

@@ -4,4 +4,5 @@
 nonisolated enum MetalRendererError: Error, Equatable {
     case couldNotCreateSRGBColorSpace
     case missingModel(ModelAssetReference)
+    case missingTexture(TextureAssetReference)
 }

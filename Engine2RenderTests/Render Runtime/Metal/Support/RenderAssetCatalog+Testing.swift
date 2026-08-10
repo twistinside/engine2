@@ -3,16 +3,20 @@
 /// Test-target-only catalog fixtures stay out of the production-owned
 /// `RenderAssetCatalog.swift` file so they cannot become Engine2 API.
 extension RenderAssetCatalog {
-    /// Complete authored materials without packaged model references.
+    /// Complete authored appearances and texture maps without packaged models.
     ///
     /// Metal infrastructure tests often need the real material contract while
-    /// supplying their own analytic geometry. Deriving this catalog from
-    /// `BasicGameContent` keeps one source of truth for authored factors and
-    /// avoids decoding `Ball.usdz` in tests that never draw that model.
+    /// supplying analytic geometry. Deriving every material family and texture
+    /// from `BasicGameContent` keeps one authored source of truth while avoiding
+    /// model decoding in tests that never issue an indexed model draw.
     static var materialOnlyTestCatalog: RenderAssetCatalog {
-        RenderAssetCatalog(
+        let catalog = BasicGameContent().renderAssetCatalog
+
+        return RenderAssetCatalog(
             models: [:],
-            materials: BasicGameContent().renderAssetCatalog.materials
+            materials: catalog.materials,
+            terrestrialPlanets: catalog.terrestrialPlanets,
+            textures: catalog.textures
         )
     }
 }

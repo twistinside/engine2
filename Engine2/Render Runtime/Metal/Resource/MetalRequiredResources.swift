@@ -20,6 +20,18 @@ struct MetalRequiredResources {
     /// Scene pipeline that emits view-space normals for diagnostics.
     let modelNormalDiagnosticPipeline: any MTLRenderPipelineState
 
+    /// Opaque displaced terrain-and-ocean pipeline for a terrestrial planet.
+    let terrestrialPlanetSurfacePipeline: any MTLRenderPipelineState
+
+    /// Planet-surface pipeline that emits view-space normals for diagnostics.
+    let terrestrialPlanetNormalDiagnosticPipeline: any MTLRenderPipelineState
+
+    /// Premultiplied cloud-shell pipeline drawn after opaque surfaces.
+    let terrestrialPlanetCloudPipeline: any MTLRenderPipelineState
+
+    /// Opacity-weighted additive atmosphere pipeline drawn after cloud shells.
+    let terrestrialPlanetAtmospherePipeline: any MTLRenderPipelineState
+
     /// Presentation pipeline that applies exposure and tone mapping.
     let hdrToneMappedPresentationPipeline: any MTLRenderPipelineState
 
@@ -29,11 +41,20 @@ struct MetalRequiredResources {
     /// Ordinary opaque depth state shared by the built-in scene pipelines.
     let opaqueDepthStencilState: any MTLDepthStencilState
 
+    /// Read-only depth state for ordered cloud and atmosphere shells.
+    let translucentDepthStencilState: any MTLDepthStencilState
+
     /// Vertex-stage table for mesh and per-instance buffers.
     let modelArgumentTable: any MTL4ArgumentTable
 
     /// Fragment-stage table for per-instance and scene-lighting buffers.
     let pbrSceneArgumentTable: any MTL4ArgumentTable
+
+    /// Shared vertex-and-fragment table for planet buffers and sampled maps.
+    let terrestrialPlanetArgumentTable: any MTL4ArgumentTable
+
+    /// Repeating equirectangular sampler shared by every planet map.
+    let terrestrialPlanetSamplerState: any MTLSamplerState
 
     /// Fragment-stage table for HDR source texture and exposure parameters.
     let hdrPresentationArgumentTable: any MTL4ArgumentTable
@@ -60,6 +81,32 @@ struct MetalRequiredResources {
             label: "USD Model Normal Diagnostic Pipeline",
             colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat
         )
+        let terrestrialPlanetSurfacePipeline = try pipelineCompiler.compile(
+            vertexFunctionName: "terrestrialPlanetSurfaceVertex",
+            fragmentFunctionName: "terrestrialPlanetSurfaceFragment",
+            label: "Terrestrial Planet Surface Pipeline",
+            colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat
+        )
+        let terrestrialPlanetNormalDiagnosticPipeline = try pipelineCompiler.compile(
+            vertexFunctionName: "terrestrialPlanetSurfaceVertex",
+            fragmentFunctionName: "terrestrialPlanetNormalDiagnosticFragment",
+            label: "Terrestrial Planet Normal Diagnostic Pipeline",
+            colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat
+        )
+        let terrestrialPlanetCloudPipeline = try pipelineCompiler.compile(
+            vertexFunctionName: "terrestrialPlanetCloudVertex",
+            fragmentFunctionName: "terrestrialPlanetCloudFragment",
+            label: "Terrestrial Planet Cloud Pipeline",
+            colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
+            blendMode: .premultipliedAlpha
+        )
+        let terrestrialPlanetAtmospherePipeline = try pipelineCompiler.compile(
+            vertexFunctionName: "terrestrialPlanetAtmosphereVertex",
+            fragmentFunctionName: "terrestrialPlanetAtmosphereFragment",
+            label: "Terrestrial Planet Atmosphere Pipeline",
+            colorPixelFormat: MetalFrameEncoder.sceneColorPixelFormat,
+            blendMode: .additive
+        )
         let hdrToneMappedPresentationPipeline = try pipelineCompiler.compile(
             vertexFunctionName: "hdrPresentationVertex",
             fragmentFunctionName: "hdrToneMappedPresentationFragment",
@@ -83,6 +130,16 @@ struct MetalRequiredResources {
             throw MetalResourceStoreError.missingOpaqueDepthStencilState
         }
 
+        let translucentDepthStencilDescriptor = MTLDepthStencilDescriptor()
+        translucentDepthStencilDescriptor.label = "Translucent Read-Only Depth"
+        translucentDepthStencilDescriptor.depthCompareFunction = .lessEqual
+        translucentDepthStencilDescriptor.isDepthWriteEnabled = false
+        guard let translucentDepthStencilState = device.makeDepthStencilState(
+            descriptor: translucentDepthStencilDescriptor
+        ) else {
+            throw MetalResourceStoreError.missingTranslucentDepthStencilState
+        }
+
         let modelArgumentTableDescriptor = MTL4ArgumentTableDescriptor()
         modelArgumentTableDescriptor.label = "USD Mesh Argument Table"
         modelArgumentTableDescriptor.maxBufferBindCount = 2
@@ -96,6 +153,33 @@ struct MetalRequiredResources {
         pbrSceneArgumentTableDescriptor.maxBufferBindCount = 3
         let pbrSceneArgumentTable = try device.makeArgumentTable(descriptor: pbrSceneArgumentTableDescriptor)
 
+        let terrestrialPlanetArgumentTableDescriptor = MTL4ArgumentTableDescriptor()
+        terrestrialPlanetArgumentTableDescriptor.label = "Terrestrial Planet Argument Table"
+        terrestrialPlanetArgumentTableDescriptor.maxBufferBindCount = 3
+        terrestrialPlanetArgumentTableDescriptor.maxTextureBindCount = 4
+        terrestrialPlanetArgumentTableDescriptor.maxSamplerStateBindCount = 1
+        let terrestrialPlanetArgumentTable = try device.makeArgumentTable(
+            descriptor: terrestrialPlanetArgumentTableDescriptor
+        )
+
+        let terrestrialPlanetSamplerDescriptor = MTLSamplerDescriptor()
+        terrestrialPlanetSamplerDescriptor.label = "Terrestrial Planet Equirectangular Sampler"
+        terrestrialPlanetSamplerDescriptor.minFilter = .linear
+        terrestrialPlanetSamplerDescriptor.magFilter = .linear
+        terrestrialPlanetSamplerDescriptor.mipFilter = .linear
+        terrestrialPlanetSamplerDescriptor.maxAnisotropy = 8
+        terrestrialPlanetSamplerDescriptor.sAddressMode = .repeat
+        terrestrialPlanetSamplerDescriptor.tAddressMode = .clampToEdge
+        guard let terrestrialPlanetSamplerState = device.makeSamplerState(
+            descriptor: terrestrialPlanetSamplerDescriptor
+        ) else {
+            throw MetalResourceStoreError.missingTerrestrialPlanetSamplerState
+        }
+        terrestrialPlanetArgumentTable.setSamplerState(
+            terrestrialPlanetSamplerState.gpuResourceID,
+            index: 0
+        )
+
         let hdrPresentationArgumentTableDescriptor = MTL4ArgumentTableDescriptor()
         hdrPresentationArgumentTableDescriptor.label = "HDR Presentation Argument Table"
         hdrPresentationArgumentTableDescriptor.maxBufferBindCount = 1
@@ -107,11 +191,18 @@ struct MetalRequiredResources {
         self.engineLibrary = engineLibrary
         self.modelPBRPipeline = modelPBRPipeline
         self.modelNormalDiagnosticPipeline = modelNormalDiagnosticPipeline
+        self.terrestrialPlanetSurfacePipeline = terrestrialPlanetSurfacePipeline
+        self.terrestrialPlanetNormalDiagnosticPipeline = terrestrialPlanetNormalDiagnosticPipeline
+        self.terrestrialPlanetCloudPipeline = terrestrialPlanetCloudPipeline
+        self.terrestrialPlanetAtmospherePipeline = terrestrialPlanetAtmospherePipeline
         self.hdrToneMappedPresentationPipeline = hdrToneMappedPresentationPipeline
         self.linearPresentationPipeline = linearPresentationPipeline
         self.opaqueDepthStencilState = opaqueDepthStencilState
+        self.translucentDepthStencilState = translucentDepthStencilState
         self.modelArgumentTable = modelArgumentTable
         self.pbrSceneArgumentTable = pbrSceneArgumentTable
+        self.terrestrialPlanetArgumentTable = terrestrialPlanetArgumentTable
+        self.terrestrialPlanetSamplerState = terrestrialPlanetSamplerState
         self.hdrPresentationArgumentTable = hdrPresentationArgumentTable
     }
 }
