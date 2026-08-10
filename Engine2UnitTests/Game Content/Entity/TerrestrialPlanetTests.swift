@@ -24,7 +24,7 @@ struct TerrestrialPlanetTests {
         #expect(planet.position == expectedPosition)
         #expect(planet.rotation.vector == expectedRotation.vector)
         #expect(planet.scale == expectedScale)
-        #expect(planet.meshID == .terrestrialPlanet)
+        #expect(planet.meshID == .ball)
         #expect(planet.materialID == .terrestrialPlanet)
         #expect(planet.selectionState == expectedSelectionState)
         #expect(world.motionComponents[planet.id] == nil)

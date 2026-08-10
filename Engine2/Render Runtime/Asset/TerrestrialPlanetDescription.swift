@@ -1,22 +1,18 @@
 /// Immutable authored inputs for one layered terrestrial-planet material.
 ///
-/// The description identifies source textures and normalized local-space
-/// geometry. Render privately expands one material into its surface, cloud,
-/// and atmosphere work while Simulation continues to publish one entity.
+/// Game Content supplies a deterministic surface recipe and normalized
+/// local-space layer parameters. Render privately generates the sampled maps
+/// and expands one material into surface, cloud, and atmosphere work while
+/// Simulation continues to publish one entity.
 nonisolated struct TerrestrialPlanetDescription: Equatable, Sendable {
-    let elevationTextureID: TextureID
-    let surfaceTextureID: TextureID
-    let controlTextureID: TextureID
-    let cloudTextureID: TextureID
+    /// Recipe from which Render generates all immutable surface and weather maps.
+    let surfaceRecipe: TerrestrialPlanetSurfaceRecipe
 
-    /// Radius of the undisplaced opaque surface in model-local units.
+    /// Radius of the opaque surface in model-local units.
     let surfaceRadius: Float
 
-    /// Largest outward terrain displacement in model-local units.
-    let maximumRelief: Float
-
-    /// Elevation-map sample that separates ocean from land in `0...1`.
-    let seaLevel: Float
+    /// Blend from the radial normal to the generated terrain normal in `0...1`.
+    let surfaceNormalStrength: Float
 
     /// Radius of the translucent cloud shell in model-local units.
     let cloudRadius: Float
@@ -24,7 +20,7 @@ nonisolated struct TerrestrialPlanetDescription: Equatable, Sendable {
     /// Outer radius of the atmosphere shell in model-local units.
     let atmosphereRadius: Float
 
-    /// Maximum authored opacity of the cloud layer in `0...1`.
+    /// Maximum generated opacity of the cloud layer in `0...1`.
     let cloudOpacity: Float
 
     /// Nonnegative multiplier applied to atmosphere scattering.
@@ -33,24 +29,10 @@ nonisolated struct TerrestrialPlanetDescription: Equatable, Sendable {
     /// Maximum direct-light attenuation from cloud coverage in `0...1`.
     let cloudShadowStrength: Float
 
-    /// Texture identities required to resolve this material completely.
-    var requiredTextureIDs: [TextureID] {
-        [
-            elevationTextureID,
-            surfaceTextureID,
-            controlTextureID,
-            cloudTextureID
-        ]
-    }
-
     init(
-        elevationTextureID: TextureID,
-        surfaceTextureID: TextureID,
-        controlTextureID: TextureID,
-        cloudTextureID: TextureID,
+        surfaceRecipe: TerrestrialPlanetSurfaceRecipe,
         surfaceRadius: Float,
-        maximumRelief: Float,
-        seaLevel: Float,
+        surfaceNormalStrength: Float,
         cloudRadius: Float,
         atmosphereRadius: Float,
         cloudOpacity: Float,
@@ -58,25 +40,21 @@ nonisolated struct TerrestrialPlanetDescription: Equatable, Sendable {
         cloudShadowStrength: Float
     ) {
         precondition(
-            Self.acceptsDistinctTextureIDs(
-                elevationTextureID: elevationTextureID,
-                surfaceTextureID: surfaceTextureID,
-                controlTextureID: controlTextureID,
-                cloudTextureID: cloudTextureID
-            ),
-            "A terrestrial planet must use one distinct texture for each authored role."
-        )
-        precondition(
             Self.acceptsRadii(
                 surfaceRadius: surfaceRadius,
-                maximumRelief: maximumRelief,
                 cloudRadius: cloudRadius,
                 atmosphereRadius: atmosphereRadius
             ),
-            "Terrestrial planet radii must be finite, ordered, and contain the maximum surface relief."
+            "Terrestrial planet radii must be finite, positive, and ordered."
         )
-        precondition(Self.acceptsUnitFactor(seaLevel), "Terrestrial planet sea level must be finite and in 0...1.")
-        precondition(Self.acceptsUnitFactor(cloudOpacity), "Terrestrial planet cloud opacity must be finite and in 0...1.")
+        precondition(
+            Self.acceptsUnitFactor(surfaceNormalStrength),
+            "Terrestrial planet normal strength must be finite and in 0...1."
+        )
+        precondition(
+            Self.acceptsUnitFactor(cloudOpacity),
+            "Terrestrial planet cloud opacity must be finite and in 0...1."
+        )
         precondition(
             Self.acceptsNonnegativeFactor(atmosphereIntensity),
             "Terrestrial planet atmosphere intensity must be finite and nonnegative."
@@ -86,13 +64,9 @@ nonisolated struct TerrestrialPlanetDescription: Equatable, Sendable {
             "Terrestrial planet cloud shadow strength must be finite and in 0...1."
         )
 
-        self.elevationTextureID = elevationTextureID
-        self.surfaceTextureID = surfaceTextureID
-        self.controlTextureID = controlTextureID
-        self.cloudTextureID = cloudTextureID
+        self.surfaceRecipe = surfaceRecipe
         self.surfaceRadius = surfaceRadius
-        self.maximumRelief = maximumRelief
-        self.seaLevel = seaLevel
+        self.surfaceNormalStrength = surfaceNormalStrength
         self.cloudRadius = cloudRadius
         self.atmosphereRadius = atmosphereRadius
         self.cloudOpacity = cloudOpacity
@@ -100,36 +74,16 @@ nonisolated struct TerrestrialPlanetDescription: Equatable, Sendable {
         self.cloudShadowStrength = cloudShadowStrength
     }
 
-    /// Whether every authored texture role names a distinct source asset.
-    static func acceptsDistinctTextureIDs(
-        elevationTextureID: TextureID,
-        surfaceTextureID: TextureID,
-        controlTextureID: TextureID,
-        cloudTextureID: TextureID
-    ) -> Bool {
-        let textureIDs = [
-            elevationTextureID,
-            surfaceTextureID,
-            controlTextureID,
-            cloudTextureID
-        ]
-        return Set(textureIDs).count == textureIDs.count
-    }
-
-    /// Whether the opaque surface, maximum relief, clouds, and atmosphere form
-    /// finite nested shells with positive radii.
+    /// Whether the opaque surface, clouds, and atmosphere form finite nested shells.
     static func acceptsRadii(
         surfaceRadius: Float,
-        maximumRelief: Float,
         cloudRadius: Float,
         atmosphereRadius: Float
     ) -> Bool {
         surfaceRadius.isFinite
             && surfaceRadius > 0
-            && maximumRelief.isFinite
-            && maximumRelief >= 0
             && cloudRadius.isFinite
-            && cloudRadius > surfaceRadius + maximumRelief
+            && cloudRadius > surfaceRadius
             && atmosphereRadius.isFinite
             && atmosphereRadius > cloudRadius
     }

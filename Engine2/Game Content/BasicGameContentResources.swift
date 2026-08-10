@@ -11,31 +11,6 @@ nonisolated enum BasicGameContentResources {
         resourceExtension: "usdz"
     )
 
-    static let terrestrialPlanetModelURL = requiredURL(
-        resourceName: "TerrestrialPlanet",
-        resourceExtension: "usdz"
-    )
-
-    static let terrestrialPlanetElevationTextureURL = requiredURL(
-        resourceName: "TerrestrialPlanetElevation",
-        resourceExtension: "png"
-    )
-
-    static let terrestrialPlanetSurfaceTextureURL = requiredURL(
-        resourceName: "TerrestrialPlanetSurface",
-        resourceExtension: "png"
-    )
-
-    static let terrestrialPlanetControlTextureURL = requiredURL(
-        resourceName: "TerrestrialPlanetControl",
-        resourceExtension: "png"
-    )
-
-    static let terrestrialPlanetCloudsTextureURL = requiredURL(
-        resourceName: "TerrestrialPlanetClouds",
-        resourceExtension: "png"
-    )
-
     private static func requiredURL(
         resourceName: String,
         resourceExtension: String

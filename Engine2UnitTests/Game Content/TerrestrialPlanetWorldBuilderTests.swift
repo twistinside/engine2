@@ -27,7 +27,7 @@ struct TerrestrialPlanetWorldBuilderTests {
             world.scaleComponents[Self.planetID]?.scale ==
                 TerrestrialPlanet.standardScale
         )
-        #expect(world.renderableComponents[Self.planetID]?.meshID == .terrestrialPlanet)
+        #expect(world.renderableComponents[Self.planetID]?.meshID == .ball)
         #expect(world.renderableComponents[Self.planetID]?.materialID == .terrestrialPlanet)
         #expect(world.selectableComponents[Self.planetID]?.selectionState == .unselected)
     }

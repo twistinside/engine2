@@ -14,10 +14,4 @@ nonisolated enum RenderAssetCatalogError: Error, Equatable {
     /// a pipeline based on dictionary lookup order.
     case overlappingMaterialDescriptions([MaterialID])
 
-    /// One or more texture identities referenced by a material description
-    /// have no packaged source asset.
-    ///
-    /// IDs remain in `TextureID.allCases` order so diagnostics and tests are
-    /// deterministic rather than depending on dictionary iteration order.
-    case missingTextureAssets([TextureID])
 }

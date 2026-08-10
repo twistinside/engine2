@@ -12,6 +12,5 @@ struct BasicGameContentRenderTests {
 
         #expect(models.count == MeshID.allCases.count)
         #expect(models[.ball]?.meshes.isEmpty == false)
-        #expect(models[.terrestrialPlanet]?.meshes.isEmpty == false)
     }
 }

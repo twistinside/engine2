@@ -104,7 +104,8 @@ struct MetalResourceStoreTests {
         )
 
         // Each phase uses only the binding vocabulary it owns: model geometry,
-        // shared scene constants, planet maps, or HDR presentation inputs.
+        // shared scene constants, generated planet maps, or HDR presentation
+        // inputs.
         #expect(modelArgumentTable.label == "USD Mesh Argument Table")
         #expect(pbrSceneArgumentTable.label == "PBR Scene Argument Table")
         #expect(planetArgumentTable.label == "Terrestrial Planet Argument Table")
@@ -142,8 +143,8 @@ struct MetalResourceStoreTests {
         )
 
         // Material identities cross the runtime boundary. Render retains each
-        // authored description and its privately resolved planet maps while a
-        // frame packs the selected material into private instance data.
+        // authored description and its privately generated planet maps while
+        // a frame packs the selected material into private instance data.
         for (materialID, expected) in catalog.materials {
             #expect(
                 store.renderMaterialDescription(for: materialID)
@@ -163,7 +164,7 @@ struct MetalResourceStoreTests {
         }
     }
 
-    @Test func resolvesAuthoredPlanetMapsWithExactGPUContracts() throws {
+    @Test func resolvesGeneratedPlanetMapsWithExactGPUContracts() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let catalog = BasicGameContent().renderAssetCatalog
         let store = try MetalResourceStore(
@@ -175,59 +176,48 @@ struct MetalResourceStoreTests {
             store.terrestrialPlanetResources(for: .terrestrialPlanet)
         )
 
-        for (textureID, reference) in catalog.textures {
-            let texture = try #require(store.texture(for: textureID))
-
+        let textures = [
+            planet.normalTexture,
+            planet.surfaceTexture,
+            planet.controlTexture,
+            planet.cloudTexture
+        ]
+        for texture in textures {
             #expect(texture.width == 1_024)
             #expect(texture.height == 512)
             #expect(texture.mipmapLevelCount == 11)
-            switch textureID {
-            case .terrestrialPlanetElevation:
-                #expect(texture.pixelFormat == .r16Unorm)
-            case .terrestrialPlanetSurface:
-                #expect(
-                    [.rgba8Unorm_srgb, .bgra8Unorm_srgb].contains(
-                        texture.pixelFormat
-                    )
-                )
-            case .terrestrialPlanetControl, .terrestrialPlanetClouds:
-                #expect(
-                    [.rgba8Unorm, .bgra8Unorm].contains(texture.pixelFormat)
-                )
-            }
-            #expect(texture.storageMode == .private)
+            #expect(texture.storageMode == .shared)
             #expect(texture.usage.contains(.shaderRead))
-            #expect(texture.label == reference.resourceURL.lastPathComponent)
         }
 
-        let elevationTexture = try #require(
-            store.texture(for: .terrestrialPlanetElevation)
-        )
-        let surfaceTexture = try #require(
-            store.texture(for: .terrestrialPlanetSurface)
-        )
-        let controlTexture = try #require(
-            store.texture(for: .terrestrialPlanetControl)
-        )
-        let cloudTexture = try #require(
-            store.texture(for: .terrestrialPlanetClouds)
-        )
+        #expect(planet.normalTexture.pixelFormat == .rgba8Unorm)
         #expect(
-            planet.elevationTexture as AnyObject ===
-                elevationTexture as AnyObject
+            planet.normalTexture.label ==
+                "Procedural Terrestrial Planet Normals"
         )
+        #expect(planet.surfaceTexture.pixelFormat == .rgba8Unorm_srgb)
         #expect(
-            planet.surfaceTexture as AnyObject ===
-                surfaceTexture as AnyObject
+            planet.surfaceTexture.label ==
+                "Procedural Terrestrial Planet Surface"
         )
+        #expect(planet.controlTexture.pixelFormat == .rgba8Unorm)
         #expect(
-            planet.controlTexture as AnyObject ===
-                controlTexture as AnyObject
+            planet.controlTexture.label ==
+                "Procedural Terrestrial Planet Control"
         )
+        #expect(planet.cloudTexture.pixelFormat == .rgba8Unorm)
         #expect(
-            planet.cloudTexture as AnyObject ===
-                cloudTexture as AnyObject
+            planet.cloudTexture.label ==
+                "Procedural Terrestrial Planet Clouds"
         )
+        #expect(planet.allocations.count == textures.count)
+        for texture in textures {
+            #expect(
+                planet.allocations.contains { allocation in
+                    allocation as AnyObject === texture as AnyObject
+                }
+            )
+        }
     }
 
     @Test func rejectsIncompleteMaterialContentBeforeBuildingTheStore() throws {
@@ -262,21 +252,25 @@ struct MetalResourceStoreTests {
 
     @Test func residencySetsSeparateStaticAndPerFrameAllocations() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
+        let catalog = BasicGameContent().renderAssetCatalog
         let store = try MetalResourceStore(
             device: device,
-            renderAssetCatalog: BasicGameContent().renderAssetCatalog,
+            renderAssetCatalog: catalog,
             frameCount: 2
         )
         let models = try MeshID.allCases.map {
             try #require(store.model(for: $0))
         }
-        let textures = try TextureID.allCases.map {
-            try #require(store.texture(for: $0))
+        let planetAllocations = try catalog.terrestrialPlanets.keys.flatMap { materialID in
+            let resources = try #require(
+                store.terrestrialPlanetResources(for: materialID)
+            )
+            return resources.allocations
         }
 
         #expect(
             store.residency.staticAssets.allocationCount ==
-                models.flatMap(\.allocations).count + textures.count
+                models.flatMap(\.allocations).count + planetAllocations.count
         )
         #expect(store.residency.frameResources.allocationCount == 8)
 
@@ -293,9 +287,13 @@ struct MetalResourceStoreTests {
             }
         }
 
-        for texture in textures {
-            #expect(store.residency.staticAssets.containsAllocation(texture))
-            #expect(!store.residency.frameResources.containsAllocation(texture))
+        for allocation in planetAllocations {
+            #expect(
+                store.residency.staticAssets.containsAllocation(allocation)
+            )
+            #expect(
+                !store.residency.frameResources.containsAllocation(allocation)
+            )
         }
 
         for frame in store.frames {

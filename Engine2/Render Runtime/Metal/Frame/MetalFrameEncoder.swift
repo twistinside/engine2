@@ -216,7 +216,7 @@ final class MetalFrameEncoder {
     /// Emits one selected layer for every prepared terrestrial planet.
     ///
     /// The selected pipeline determines whether the shared geometry produces
-    /// displaced surface, clouds, atmosphere, or normal diagnostics.
+    /// smooth surface, clouds, atmosphere, or normal diagnostics.
     private func drawTerrestrialPlanets(
         _ prepared: MetalPreparedFrame,
         frame: FrameResources,
@@ -246,13 +246,13 @@ final class MetalFrameEncoder {
         }
     }
 
-    /// Installs one planet appearance's complete sampled-map set.
+    /// Installs one planet appearance's complete generated-map set.
     private func bind(
         _ resources: MetalTerrestrialPlanetResources,
         to argumentTable: any MTL4ArgumentTable
     ) {
         argumentTable.setTexture(
-            resources.elevationTexture.gpuResourceID,
+            resources.normalTexture.gpuResourceID,
             index: 0
         )
         argumentTable.setTexture(

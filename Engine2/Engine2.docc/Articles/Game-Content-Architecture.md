@@ -108,7 +108,9 @@ struct RenderInstance {
 }
 ```
 
-The Render Runtime owns that projection and resolves `MeshID` and `MaterialID` through the render assets supplied by Game Content. It privately owns the resulting meshes, textures, buffers, and pipelines.
+The Render Runtime owns that projection and resolves `MeshID` and `MaterialID`
+through the render descriptions supplied by Game Content. It privately owns the
+resulting meshes, generated or decoded textures, buffers, and pipelines.
 
 ```text
 Game Content asset
@@ -161,22 +163,23 @@ assembly. `BasicGameContent.init()` now supplies
 `init(worldBuilder:)` keeps world construction injectable without hiding either
 behavior or catalog policy behind a default argument. Callers may still
 construct curated catalogs through
-`RenderAssetCatalog.init(models:materials:terrestrialPlanets:textures:)`. The
+`RenderAssetCatalog.init(models:materials:terrestrialPlanets:)`. The
 named `.basicGame` and `.everything` values remain in
 `SimulationConfiguration.swift` and `RenderAssetCatalog.swift`, respectively.
 Repository-owned types are extended only from their own files;
 `BasicGameContent.swift` selects those values without quietly declaring members
 of either type.
 
-``TerrestrialPlanet`` advertises one backend-neutral
-`MeshID.terrestrialPlanet` and `MaterialID.terrestrialPlanet` beside one
-Simulation-owned transform. Game Content maps the mesh and four texture
-identities to exact source URLs, gives every texture an explicit sRGB or linear
-interpretation, and supplies one ``TerrestrialPlanetDescription``. Render
-privately resolves those descriptions into the decoded mesh, textures,
-pipelines, argument-table bindings, and three ordered layer draws. ``World`` and
-the entity contain no filename, material factor, decoded pixel, or Metal object.
-See <doc:Terrestrial-Planet-Proof>.
+``TerrestrialPlanet`` advertises `MeshID.ball` and
+`MaterialID.terrestrialPlanet` beside one Simulation-owned transform. It reuses
+the generic sphere asset rather than naming a planet-specific model. Game
+Content supplies one ``TerrestrialPlanetDescription`` containing a
+``TerrestrialPlanetSurfaceRecipe`` and normalized layer parameters. Render
+deterministically expands that recipe into four sampled maps during resource
+construction, retains their immutable Metal textures, and uses them in three
+ordered layer draws. ``World`` and the entity contain no filename, recipe
+implementation, generated pixel, or Metal object. See
+<doc:Terrestrial-Planet-Proof>.
 
 `BasicWorldBuilder` remains the deterministic six-sphere PBR fixture. Every
 fixture entity shares `MeshID.ball`, while its `MaterialID` selects one smooth,
@@ -296,14 +299,12 @@ Current project elements map onto Game Content as follows:
 | ``BasicWorldBuilder`` | Retained deterministic six-sphere PBR fixture |
 | `TerrestrialPlanetWorldBuilder` | Default example world construction containing one authoritative planet entity |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
-| `TerrestrialPlanet.usdz`, four planet maps, and their manifest | Deterministically generated example assets owned by Game Content |
 | `BasicGameContent` | Example assembly-selected composition that defaults to the planet world while retaining injectable world construction |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
-| `TextureID` | Game Content-owned, backend-neutral texture identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |
 | `TerrestrialPlanetDescription` | Render-owned, backend-neutral layered-material contract populated by Game Content |
-| `TextureAssetReference` | Exact source URL and typed transfer-function interpretation selected by Game Content |
+| `TerrestrialPlanetSurfaceRecipe` | Backend-neutral procedural surface input selected by Game Content and expanded privately by Render |
 | `RenderAssetCatalog` | Render-owned catalog input contract populated by Game Content |
 | `ModelShaders.metal` and `TerrestrialPlanetShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
 | Debug panes and app commands | Example App tooling, not reusable Game Content or runtime core |

@@ -5,5 +5,4 @@
 /// exist in this game.
 nonisolated enum MeshID: CaseIterable, Codable, Hashable, Sendable {
     case ball
-    case terrestrialPlanet
 }

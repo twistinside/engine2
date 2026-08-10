@@ -11,8 +11,8 @@ typedef struct GPUPlanetInstance {
     simd_float4x4 modelViewProjectionMatrix;
     simd_float4x4 modelViewMatrix;
     simd_float3x3 normalMatrix;
-    simd_float4 surfaceReliefSeaCloudRadii;
-    simd_float4 atmosphereCloudParameters;
+    simd_float4 surfaceCloudAtmosphereNormalStrength;
+    simd_float4 cloudAtmosphereParameters;
     simd_float4 directionToLightViewPadding;
     simd_float4 directionToLightLocalPadding;
 } GPUPlanetInstance;

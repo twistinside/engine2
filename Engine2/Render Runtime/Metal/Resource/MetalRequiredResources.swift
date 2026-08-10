@@ -20,7 +20,7 @@ struct MetalRequiredResources {
     /// Scene pipeline that emits view-space normals for diagnostics.
     let modelNormalDiagnosticPipeline: any MTLRenderPipelineState
 
-    /// Opaque displaced terrain-and-ocean pipeline for a terrestrial planet.
+    /// Opaque normal-detailed terrain-and-ocean pipeline for a terrestrial planet.
     let terrestrialPlanetSurfacePipeline: any MTLRenderPipelineState
 
     /// Planet-surface pipeline that emits view-space normals for diagnostics.
@@ -50,7 +50,7 @@ struct MetalRequiredResources {
     /// Fragment-stage table for per-instance and scene-lighting buffers.
     let pbrSceneArgumentTable: any MTL4ArgumentTable
 
-    /// Shared vertex-and-fragment table for planet buffers and sampled maps.
+    /// Shared vertex-and-fragment table for planet buffers and generated maps.
     let terrestrialPlanetArgumentTable: any MTL4ArgumentTable
 
     /// Repeating equirectangular sampler shared by every planet map.

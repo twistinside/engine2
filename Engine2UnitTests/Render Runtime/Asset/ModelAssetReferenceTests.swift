@@ -4,19 +4,18 @@ import Testing
 
 struct ModelAssetReferenceTests {
     @Test func preservesAnExactFileURLAndDeclaredFormat() {
-        let resourceURL = URL(fileURLWithPath: "/tmp/TerrestrialPlanet.usda")
+        let resourceURL = URL(fileURLWithPath: "/tmp/Ball.usdz")
         let reference = ModelAssetReference(
             resourceURL: resourceURL,
-            format: .usda
+            format: .usdz
         )
 
         #expect(reference.resourceURL == resourceURL)
-        #expect(reference.resourceName == "TerrestrialPlanet")
-        #expect(reference.format == .usda)
+        #expect(reference.resourceName == "Ball")
+        #expect(reference.format == .usdz)
     }
 
     @Test func supportsEveryDeclaredModelFormat() {
-        #expect(ModelAssetFormat.usda.rawValue == "usda")
         #expect(ModelAssetFormat.usdz.rawValue == "usdz")
     }
 }

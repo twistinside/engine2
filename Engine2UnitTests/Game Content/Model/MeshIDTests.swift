@@ -4,7 +4,7 @@ import Testing
 
 struct MeshIDTests {
     @Test func allCasesPreservesTheExhaustiveContentVocabulary() {
-        #expect(MeshID.allCases == [.ball, .terrestrialPlanet])
+        #expect(MeshID.allCases == [.ball])
     }
 
     @Test func codableRoundTripPreservesEveryGameContentIdentity() throws {

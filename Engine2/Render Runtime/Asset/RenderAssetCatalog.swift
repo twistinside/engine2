@@ -8,7 +8,7 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     /// Complete catalog for every asset declared by Basic Game Content.
     ///
     /// Callers may still construct a curated catalog with
-    /// `init(models:materials:terrestrialPlanets:textures:)`.
+    /// `init(models:materials:terrestrialPlanets:)`.
     static let everything: Self = {
         // The dielectric row holds one scene-linear base color and metallic
         // factor constant so roughness is the only variable.
@@ -22,10 +22,6 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
             models: [
                 .ball: ModelAssetReference(
                     resourceURL: BasicGameContentResources.ballModelURL,
-                    format: .usdz
-                ),
-                .terrestrialPlanet: ModelAssetReference(
-                    resourceURL: BasicGameContentResources.terrestrialPlanetModelURL,
                     format: .usdz
                 )
             ],
@@ -63,36 +59,14 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
             ],
             terrestrialPlanets: [
                 .terrestrialPlanet: TerrestrialPlanetDescription(
-                    elevationTextureID: .terrestrialPlanetElevation,
-                    surfaceTextureID: .terrestrialPlanetSurface,
-                    controlTextureID: .terrestrialPlanetControl,
-                    cloudTextureID: .terrestrialPlanetClouds,
+                    surfaceRecipe: .blueMarble,
                     surfaceRadius: 1,
-                    maximumRelief: 0.006,
-                    seaLevel: 0.5,
+                    surfaceNormalStrength: 0.30,
                     cloudRadius: 1.008,
                     atmosphereRadius: 1.018,
                     cloudOpacity: 0.82,
                     atmosphereIntensity: 0.32,
                     cloudShadowStrength: 0.16
-                )
-            ],
-            textures: [
-                .terrestrialPlanetElevation: TextureAssetReference(
-                    resourceURL: BasicGameContentResources.terrestrialPlanetElevationTextureURL,
-                    interpretation: .linear
-                ),
-                .terrestrialPlanetSurface: TextureAssetReference(
-                    resourceURL: BasicGameContentResources.terrestrialPlanetSurfaceTextureURL,
-                    interpretation: .sRGB
-                ),
-                .terrestrialPlanetControl: TextureAssetReference(
-                    resourceURL: BasicGameContentResources.terrestrialPlanetControlTextureURL,
-                    interpretation: .linear
-                ),
-                .terrestrialPlanetClouds: TextureAssetReference(
-                    resourceURL: BasicGameContentResources.terrestrialPlanetCloudsTextureURL,
-                    interpretation: .linear
                 )
             ]
         )
@@ -107,27 +81,22 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
     /// Layered terrestrial-planet descriptions keyed by material identity.
     let terrestrialPlanets: [MaterialID: TerrestrialPlanetDescription]
 
-    /// Packaged source textures keyed by Game Content texture identity.
-    let textures: [TextureID: TextureAssetReference]
-
     /// Creates one catalog from caller-selected models and material families.
     ///
-    /// Empty layered-material and texture dictionaries preserve focused PBR
-    /// fixture construction. Call ``validateMaterialCoverage()`` before
-    /// publishing a catalog as complete Game Content.
+    /// An empty layered-material dictionary preserves focused PBR fixture
+    /// construction. Call ``validateMaterialCoverage()`` before publishing a
+    /// catalog as complete Game Content.
     init(
         models: [MeshID: ModelAssetReference],
         materials: [MaterialID: PBRMaterialDescription],
-        terrestrialPlanets: [MaterialID: TerrestrialPlanetDescription] = [:],
-        textures: [TextureID: TextureAssetReference] = [:]
+        terrestrialPlanets: [MaterialID: TerrestrialPlanetDescription] = [:]
     ) {
         self.models = models
         self.materials = materials
         self.terrestrialPlanets = terrestrialPlanets
-        self.textures = textures
     }
 
-    /// Verifies complete, exclusive material coverage and required textures.
+    /// Verifies complete, exclusive material coverage.
     ///
     /// Dictionary iteration order is deliberately irrelevant. Missing values
     /// are collected in their Game Content enum order so errors remain stable
@@ -148,18 +117,6 @@ nonisolated struct RenderAssetCatalog: Equatable, Sendable {
         guard missingMaterialIDs.isEmpty else {
             throw RenderAssetCatalogError.missingMaterialDescriptions(
                 missingMaterialIDs
-            )
-        }
-
-        let requiredTextureIDs = Set(
-            terrestrialPlanets.values.flatMap(\.requiredTextureIDs)
-        )
-        let missingTextureIDs = TextureID.allCases.filter {
-            requiredTextureIDs.contains($0) && textures[$0] == nil
-        }
-        guard missingTextureIDs.isEmpty else {
-            throw RenderAssetCatalogError.missingTextureAssets(
-                missingTextureIDs
             )
         }
     }

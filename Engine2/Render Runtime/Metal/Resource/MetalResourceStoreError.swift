@@ -9,7 +9,7 @@ nonisolated enum MetalResourceStoreError: Error, Equatable {
     case missingOpaqueDepthStencilState
     case missingTranslucentDepthStencilState
     case missingTerrestrialPlanetSamplerState
-    case missingTextureResource(TextureID)
+    case couldNotCreateTerrestrialPlanetTexture(label: String)
     case invalidTerrestrialPlanetTextureDimensions(
         label: String?,
         width: Int,
@@ -21,7 +21,7 @@ nonisolated enum MetalResourceStoreError: Error, Equatable {
         expectedLevelCount: Int
     )
     case invalidTerrestrialPlanetTextureFormats(
-        elevation: MTLPixelFormat,
+        normal: MTLPixelFormat,
         surface: MTLPixelFormat,
         control: MTLPixelFormat,
         clouds: MTLPixelFormat

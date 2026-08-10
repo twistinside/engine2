@@ -50,17 +50,17 @@ extension GPUPlanetInstance {
             * instance.modelViewMatrix
         self.modelViewMatrix = instance.modelViewMatrix
         self.normalMatrix = instance.normalMatrix
-        self.surfaceReliefSeaCloudRadii = SIMD4<Float>(
+        self.surfaceCloudAtmosphereNormalStrength = SIMD4<Float>(
             description.surfaceRadius,
-            description.maximumRelief,
-            description.seaLevel,
-            description.cloudRadius
-        )
-        self.atmosphereCloudParameters = SIMD4<Float>(
+            description.cloudRadius,
             description.atmosphereRadius,
+            description.surfaceNormalStrength
+        )
+        self.cloudAtmosphereParameters = SIMD4<Float>(
             description.cloudOpacity,
             description.atmosphereIntensity,
-            description.cloudShadowStrength
+            description.cloudShadowStrength,
+            0
         )
         self.directionToLightViewPadding = SIMD4<Float>(
             directionToLightView.x,

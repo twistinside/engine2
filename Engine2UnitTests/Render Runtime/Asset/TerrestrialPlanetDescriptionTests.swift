@@ -3,13 +3,9 @@ import Testing
 
 struct TerrestrialPlanetDescriptionTests {
     private static let description = TerrestrialPlanetDescription(
-        elevationTextureID: .terrestrialPlanetElevation,
-        surfaceTextureID: .terrestrialPlanetSurface,
-        controlTextureID: .terrestrialPlanetControl,
-        cloudTextureID: .terrestrialPlanetClouds,
+        surfaceRecipe: .blueMarble,
         surfaceRadius: 1,
-        maximumRelief: 0.035,
-        seaLevel: 0.5,
+        surfaceNormalStrength: 0.35,
         cloudRadius: 1.05,
         atmosphereRadius: 1.10,
         cloudOpacity: 0.82,
@@ -17,20 +13,12 @@ struct TerrestrialPlanetDescriptionTests {
         cloudShadowStrength: 0.65
     )
 
-    @Test func preservesEveryAuthoredTextureAndParameter() {
+    @Test func preservesEveryAuthoredRecipeAndParameter() {
         let description = Self.description
 
-        #expect(
-            description.requiredTextureIDs == [
-                .terrestrialPlanetElevation,
-                .terrestrialPlanetSurface,
-                .terrestrialPlanetControl,
-                .terrestrialPlanetClouds
-            ]
-        )
+        #expect(description.surfaceRecipe == .blueMarble)
         #expect(description.surfaceRadius == 1)
-        #expect(description.maximumRelief == 0.035)
-        #expect(description.seaLevel == 0.5)
+        #expect(description.surfaceNormalStrength == 0.35)
         #expect(description.cloudRadius == 1.05)
         #expect(description.atmosphereRadius == 1.10)
         #expect(description.cloudOpacity == 0.82)
@@ -38,30 +26,10 @@ struct TerrestrialPlanetDescriptionTests {
         #expect(description.cloudShadowStrength == 0.65)
     }
 
-    @Test func textureValidationRequiresOneDistinctAssetPerRole() {
-        #expect(
-            TerrestrialPlanetDescription.acceptsDistinctTextureIDs(
-                elevationTextureID: .terrestrialPlanetElevation,
-                surfaceTextureID: .terrestrialPlanetSurface,
-                controlTextureID: .terrestrialPlanetControl,
-                cloudTextureID: .terrestrialPlanetClouds
-            )
-        )
-        #expect(
-            !TerrestrialPlanetDescription.acceptsDistinctTextureIDs(
-                elevationTextureID: .terrestrialPlanetElevation,
-                surfaceTextureID: .terrestrialPlanetElevation,
-                controlTextureID: .terrestrialPlanetControl,
-                cloudTextureID: .terrestrialPlanetClouds
-            )
-        )
-    }
-
     @Test func radiusValidationRequiresFiniteOrderedNestedShells() {
         #expect(
             TerrestrialPlanetDescription.acceptsRadii(
                 surfaceRadius: 1,
-                maximumRelief: 0.035,
                 cloudRadius: 1.05,
                 atmosphereRadius: 1.10
             )
@@ -69,7 +37,6 @@ struct TerrestrialPlanetDescriptionTests {
         #expect(
             !TerrestrialPlanetDescription.acceptsRadii(
                 surfaceRadius: 0,
-                maximumRelief: 0.035,
                 cloudRadius: 1.05,
                 atmosphereRadius: 1.10
             )
@@ -77,23 +44,13 @@ struct TerrestrialPlanetDescriptionTests {
         #expect(
             !TerrestrialPlanetDescription.acceptsRadii(
                 surfaceRadius: 1,
-                maximumRelief: -0.001,
-                cloudRadius: 1.05,
+                cloudRadius: 1,
                 atmosphereRadius: 1.10
             )
         )
         #expect(
             !TerrestrialPlanetDescription.acceptsRadii(
                 surfaceRadius: 1,
-                maximumRelief: 0.05,
-                cloudRadius: 1.05,
-                atmosphereRadius: 1.10
-            )
-        )
-        #expect(
-            !TerrestrialPlanetDescription.acceptsRadii(
-                surfaceRadius: 1,
-                maximumRelief: 0.035,
                 cloudRadius: 1.05,
                 atmosphereRadius: 1.05
             )
@@ -101,7 +58,6 @@ struct TerrestrialPlanetDescriptionTests {
         #expect(
             !TerrestrialPlanetDescription.acceptsRadii(
                 surfaceRadius: .nan,
-                maximumRelief: 0.035,
                 cloudRadius: 1.05,
                 atmosphereRadius: 1.10
             )

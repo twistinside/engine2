@@ -3,8 +3,9 @@ import simd
 /// Game Content entity for one layered terrestrial planet.
 ///
 /// The entity registers one authoritative transform and one backend-neutral
-/// mesh/material pair. Render expands that material into its private surface,
-/// cloud, and atmosphere layers without adding Render-only entities to ECS.
+/// sphere/material pair. Render expands that material into its generated
+/// surface, cloud, and atmosphere layers without adding Render-only entities
+/// to ECS.
 final class TerrestrialPlanet: Entity, PPositionable, POrientable, PScalable, PRenderable, PSelectable {
     /// Authored Apollo-style pose centered south of Africa.
     static let standardRotation = simd_quatf(
@@ -41,7 +42,7 @@ final class TerrestrialPlanet: Entity, PPositionable, POrientable, PScalable, PR
             selectionState: selectionState
         )
         let renderableState = RenderableInitialState(
-            meshID: .terrestrialPlanet,
+            meshID: .ball,
             materialID: .terrestrialPlanet
         )
         world.add(self, from: initialState, renderable: renderableState)

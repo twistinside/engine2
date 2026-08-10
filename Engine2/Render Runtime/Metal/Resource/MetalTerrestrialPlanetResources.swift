@@ -1,110 +1,122 @@
 import Metal
 
-/// Device-resolved maps for one authored terrestrial-planet appearance.
+/// Device-resolved generated maps for one terrestrial-planet appearance.
 ///
-/// The Render Runtime retains these immutable textures and makes them resident
-/// for its lifetime. Simulation and Game Content continue to carry only typed
-/// identities and backend-neutral source descriptions.
+/// Render generates the detached pixels from Game Content's recipe, writes the
+/// complete mip chains into immutable-after-construction textures, and retains
+/// those allocations for its lifetime. Simulation and Game Content never own
+/// decoded pixels or GPU resources.
 struct MetalTerrestrialPlanetResources {
     let description: TerrestrialPlanetDescription
-    let elevationTexture: any MTLTexture
+    let normalTexture: any MTLTexture
     let surfaceTexture: any MTLTexture
     let controlTexture: any MTLTexture
     let cloudTexture: any MTLTexture
 
-    /// Resolves the description's exact map identities from an already loaded table.
+    /// Complete texture allocation set required by every layered planet draw.
+    var allocations: [any MTLAllocation] {
+        [
+            normalTexture,
+            surfaceTexture,
+            controlTexture,
+            cloudTexture
+        ]
+    }
+
+    /// Generates and resolves every immutable map before publishing the resource set.
     init(
         description: TerrestrialPlanetDescription,
-        textures: [TextureID: any MTLTexture]
-    ) throws {
-        guard let elevationTexture = textures[
-            description.elevationTextureID
-        ] else {
-            throw MetalResourceStoreError.missingTextureResource(
-                description.elevationTextureID
-            )
-        }
-        guard let surfaceTexture = textures[
-            description.surfaceTextureID
-        ] else {
-            throw MetalResourceStoreError.missingTextureResource(
-                description.surfaceTextureID
-            )
-        }
-        guard let controlTexture = textures[
-            description.controlTextureID
-        ] else {
-            throw MetalResourceStoreError.missingTextureResource(
-                description.controlTextureID
-            )
-        }
-        guard let cloudTexture = textures[
-            description.cloudTextureID
-        ] else {
-            throw MetalResourceStoreError.missingTextureResource(
-                description.cloudTextureID
-            )
-        }
+        device: any MTLDevice
+    ) throws(MetalResourceStoreError) {
+        let maps = TerrestrialPlanetSurfaceGenerator().generate(
+            description.surfaceRecipe
+        )
+        let textureBuilder = MetalTerrestrialPlanetTextureBuilder(
+            device: device
+        )
+        let normalTexture = try textureBuilder.makeNormalTexture(
+            pixels: maps.normalRGBA8,
+            width: maps.width,
+            height: maps.height
+        )
+        let surfaceTexture = try textureBuilder.makeSurfaceTexture(
+            pixels: maps.surfaceRGBA8,
+            width: maps.width,
+            height: maps.height
+        )
+        let controlTexture = try textureBuilder.makeControlTexture(
+            pixels: maps.controlRGBA8,
+            width: maps.width,
+            height: maps.height
+        )
+        let cloudTexture = try textureBuilder.makeCloudTexture(
+            pixels: maps.cloudRGBA8,
+            width: maps.width,
+            height: maps.height
+        )
 
         try Self.validate(
-            elevationTexture: elevationTexture,
+            normalTexture: normalTexture,
             surfaceTexture: surfaceTexture,
             controlTexture: controlTexture,
-            cloudTexture: cloudTexture
+            cloudTexture: cloudTexture,
+            expectedWidth: maps.width,
+            expectedHeight: maps.height
         )
 
         self.description = description
-        self.elevationTexture = elevationTexture
+        self.normalTexture = normalTexture
         self.surfaceTexture = surfaceTexture
         self.controlTexture = controlTexture
         self.cloudTexture = cloudTexture
     }
 
-    /// Proves the fixed proof maps share their authored shape and GPU formats.
+    /// Proves the generated maps share their shape, mip coverage, and shader formats.
     private static func validate(
-        elevationTexture: any MTLTexture,
+        normalTexture: any MTLTexture,
         surfaceTexture: any MTLTexture,
         controlTexture: any MTLTexture,
-        cloudTexture: any MTLTexture
-    ) throws {
+        cloudTexture: any MTLTexture,
+        expectedWidth: Int,
+        expectedHeight: Int
+    ) throws(MetalResourceStoreError) {
         let textures = [
-            elevationTexture,
+            normalTexture,
             surfaceTexture,
             controlTexture,
             cloudTexture
         ]
-        let expectedWidth = 1_024
-        let expectedHeight = 512
-        let expectedMipmapLevelCount = 11
+        let expectedMipmapLevelCount = mipmapLevelCount(
+            width: expectedWidth,
+            height: expectedHeight
+        )
 
         for texture in textures {
             guard texture.width == expectedWidth,
                   texture.height == expectedHeight
             else {
-                throw MetalResourceStoreError
-                    .invalidTerrestrialPlanetTextureDimensions(
-                        label: texture.label,
-                        width: texture.width,
-                        height: texture.height
-                    )
+                throw .invalidTerrestrialPlanetTextureDimensions(
+                    label: texture.label,
+                    width: texture.width,
+                    height: texture.height
+                )
             }
             guard texture.mipmapLevelCount == expectedMipmapLevelCount else {
-                throw MetalResourceStoreError
-                    .incompleteTerrestrialPlanetMipChain(
-                        label: texture.label,
-                        actualLevelCount: texture.mipmapLevelCount,
-                        expectedLevelCount: expectedMipmapLevelCount
-                    )
+                throw .incompleteTerrestrialPlanetMipChain(
+                    label: texture.label,
+                    actualLevelCount: texture.mipmapLevelCount,
+                    expectedLevelCount: expectedMipmapLevelCount
+                )
             }
         }
 
-        guard elevationTexture.pixelFormat == .r16Unorm,
-              isColorTextureFormat(surfaceTexture.pixelFormat),
-              isLinearTextureFormat(controlTexture.pixelFormat),
-              isLinearTextureFormat(cloudTexture.pixelFormat)
+        guard normalTexture.pixelFormat == .rgba8Unorm,
+              surfaceTexture.pixelFormat == .rgba8Unorm_srgb,
+              controlTexture.pixelFormat == .rgba8Unorm,
+              cloudTexture.pixelFormat == .rgba8Unorm
         else {
-            throw MetalResourceStoreError.invalidTerrestrialPlanetTextureFormats(
-                elevation: elevationTexture.pixelFormat,
+            throw .invalidTerrestrialPlanetTextureFormats(
+                normal: normalTexture.pixelFormat,
                 surface: surfaceTexture.pixelFormat,
                 control: controlTexture.pixelFormat,
                 clouds: cloudTexture.pixelFormat
@@ -112,17 +124,13 @@ struct MetalTerrestrialPlanetResources {
         }
     }
 
-    /// Accepts either native four-channel byte order while preserving sRGB decoding.
-    private static func isColorTextureFormat(
-        _ pixelFormat: MTLPixelFormat
-    ) -> Bool {
-        pixelFormat == .rgba8Unorm_srgb || pixelFormat == .bgra8Unorm_srgb
-    }
-
-    /// Accepts either native four-channel byte order without transfer conversion.
-    private static func isLinearTextureFormat(
-        _ pixelFormat: MTLPixelFormat
-    ) -> Bool {
-        pixelFormat == .rgba8Unorm || pixelFormat == .bgra8Unorm
+    private static func mipmapLevelCount(width: Int, height: Int) -> Int {
+        var largestDimension = max(width, height)
+        var levelCount = 1
+        while largestDimension > 1 {
+            largestDimension /= 2
+            levelCount += 1
+        }
+        return levelCount
     }
 }

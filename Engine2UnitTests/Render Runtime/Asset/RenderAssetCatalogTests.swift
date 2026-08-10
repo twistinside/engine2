@@ -1,4 +1,3 @@
-import Foundation
 import Testing
 @testable import Engine2
 
@@ -10,32 +9,14 @@ struct RenderAssetCatalogTests {
     )
 
     private static let terrestrialPlanet = TerrestrialPlanetDescription(
-        elevationTextureID: .terrestrialPlanetElevation,
-        surfaceTextureID: .terrestrialPlanetSurface,
-        controlTextureID: .terrestrialPlanetControl,
-        cloudTextureID: .terrestrialPlanetClouds,
+        surfaceRecipe: .blueMarble,
         surfaceRadius: 1,
-        maximumRelief: 0.035,
-        seaLevel: 0.5,
+        surfaceNormalStrength: 0.35,
         cloudRadius: 1.05,
         atmosphereRadius: 1.10,
         cloudOpacity: 0.82,
         atmosphereIntensity: 0.75,
         cloudShadowStrength: 0.65
-    )
-
-    private static let textureAssets = Dictionary(
-        uniqueKeysWithValues: TextureID.allCases.map {
-            (
-                $0,
-                TextureAssetReference(
-                    resourceURL: URL(
-                        fileURLWithPath: "/tmp/\($0).png"
-                    ),
-                    interpretation: .linear
-                )
-            )
-        }
     )
 
     @Test func completeMaterialVocabularyPassesCoverageValidation() throws {
@@ -63,8 +44,7 @@ struct RenderAssetCatalogTests {
         let catalog = RenderAssetCatalog(
             models: [:],
             materials: [.terrestrialPlanet: Self.goldMetal],
-            terrestrialPlanets: [.terrestrialPlanet: Self.terrestrialPlanet],
-            textures: Self.textureAssets
+            terrestrialPlanets: [.terrestrialPlanet: Self.terrestrialPlanet]
         )
 
         do {
@@ -73,32 +53,6 @@ struct RenderAssetCatalogTests {
         } catch let error {
             #expect(
                 error == .overlappingMaterialDescriptions([.terrestrialPlanet])
-            )
-        }
-    }
-
-    @Test func missingReferencedTexturesUseExhaustiveVocabularyOrder() {
-        var incompleteTextures = Self.textureAssets
-        incompleteTextures[.terrestrialPlanetSurface] = nil
-        incompleteTextures[.terrestrialPlanetClouds] = nil
-        let catalog = RenderAssetCatalog(
-            models: [:],
-            materials: RenderAssetCatalog.everything.materials,
-            terrestrialPlanets: [
-                .terrestrialPlanet: Self.terrestrialPlanet
-            ],
-            textures: incompleteTextures
-        )
-
-        do {
-            try catalog.validateMaterialCoverage()
-            Issue.record("Expected missing texture assets to be rejected.")
-        } catch let error {
-            #expect(
-                error == .missingTextureAssets([
-                    .terrestrialPlanetSurface,
-                    .terrestrialPlanetClouds
-                ])
             )
         }
     }

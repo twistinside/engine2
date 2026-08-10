@@ -4,13 +4,9 @@ import Testing
 
 struct GPUPlanetInstanceTests {
     private let description = TerrestrialPlanetDescription(
-        elevationTextureID: .terrestrialPlanetElevation,
-        surfaceTextureID: .terrestrialPlanetSurface,
-        controlTextureID: .terrestrialPlanetControl,
-        cloudTextureID: .terrestrialPlanetClouds,
+        surfaceRecipe: .blueMarble,
         surfaceRadius: 1,
-        maximumRelief: 0.035,
-        seaLevel: 0.5,
+        surfaceNormalStrength: 0.35,
         cloudRadius: 1.05,
         atmosphereRadius: 1.10,
         cloudOpacity: 0.82,
@@ -37,12 +33,12 @@ struct GPUPlanetInstanceTests {
         )
         #expect(
             MemoryLayout<GPUPlanetInstance>.offset(
-                of: \.surfaceReliefSeaCloudRadii
+                of: \.surfaceCloudAtmosphereNormalStrength
             ) == 176
         )
         #expect(
             MemoryLayout<GPUPlanetInstance>.offset(
-                of: \.atmosphereCloudParameters
+                of: \.cloudAtmosphereParameters
             ) == 192
         )
         #expect(
@@ -78,12 +74,12 @@ struct GPUPlanetInstanceTests {
         #expect(packed.modelViewMatrix == renderInstance.modelViewMatrix)
         #expect(packed.normalMatrix == renderInstance.normalMatrix)
         #expect(
-            packed.surfaceReliefSeaCloudRadii ==
-                SIMD4<Float>(1, 0.035, 0.5, 1.05)
+            packed.surfaceCloudAtmosphereNormalStrength ==
+                SIMD4<Float>(1, 1.05, 1.10, 0.35)
         )
         #expect(
-            packed.atmosphereCloudParameters ==
-                SIMD4<Float>(1.10, 0.82, 0.75, 0.65)
+            packed.cloudAtmosphereParameters ==
+                SIMD4<Float>(0.82, 0.75, 0.65, 0)
         )
 
         let directionToLightView = SIMD3<Float>(
@@ -177,7 +173,7 @@ struct GPUPlanetInstanceTests {
             position: transform.position,
             rotation: transform.rotation,
             scale: transform.scale,
-            meshID: .terrestrialPlanet,
+            meshID: .ball,
             materialID: .terrestrialPlanet
         )
         return try RenderInstance(

@@ -32,8 +32,6 @@ final class MetalResourceStore {
 
     private var models: [MeshID: USDRenderModel] = [:]
 
-    private var textures: [TextureID: any MTLTexture] = [:]
-
     private var terrestrialPlanetResources: [
         MaterialID: MetalTerrestrialPlanetResources
     ] = [:]
@@ -89,7 +87,7 @@ final class MetalResourceStore {
             commandQueue: commandQueue,
             staticAssetCapacity: max(
                 renderAssetCatalog.models.count * 4
-                    + renderAssetCatalog.textures.count,
+                    + renderAssetCatalog.terrestrialPlanets.count * 4,
                 1
             ),
             frameResourceCapacity: frameCount * 4
@@ -130,16 +128,11 @@ final class MetalResourceStore {
         return .terrestrialPlanet(terrestrialPlanetDescriptions[id]!)
     }
 
-    /// Returns the retained GPU maps for one terrestrial-planet material.
+    /// Returns the retained generated GPU maps for one terrestrial-planet material.
     func terrestrialPlanetResources(
         for id: MaterialID
     ) -> MetalTerrestrialPlanetResources? {
         terrestrialPlanetResources[id]
-    }
-
-    /// Returns one decoded texture by its Game Content identity.
-    func texture(for id: TextureID) -> (any MTLTexture)? {
-        textures[id]
     }
 
     /// Creates a fixed ring of per-frame allocators and mutable buffers.
@@ -198,7 +191,6 @@ final class MetalResourceStore {
 
     private func loadStaticAssets(from catalog: RenderAssetCatalog) throws {
         try loadModels(from: catalog)
-        try loadTextures(from: catalog)
         try resolveTerrestrialPlanets(from: catalog)
 
         // Apply the complete initial asset batch together. Later streaming can
@@ -221,25 +213,19 @@ final class MetalResourceStore {
         }
     }
 
-    private func loadTextures(from catalog: RenderAssetCatalog) throws {
-        let loader = MetalTextureAssetLoader(device: device)
-
-        for (textureID, reference) in catalog.textures {
-            let texture = try loader.load(reference)
-            textures[textureID] = texture
-            residency.addStaticAllocation(texture)
-        }
-    }
-
     private func resolveTerrestrialPlanets(
         from catalog: RenderAssetCatalog
     ) throws {
         for (materialID, description) in catalog.terrestrialPlanets {
-            terrestrialPlanetResources[materialID] = try
-                MetalTerrestrialPlanetResources(
-                    description: description,
-                    textures: textures
-                )
+            let resources = try MetalTerrestrialPlanetResources(
+                description: description,
+                device: device
+            )
+            terrestrialPlanetResources[materialID] = resources
+
+            for allocation in resources.allocations {
+                residency.addStaticAllocation(allocation)
+            }
         }
     }
 }

@@ -223,13 +223,13 @@ struct MetalFrameEncoderTests {
         let expectedDescription = try #require(
             content.renderAssetCatalog.terrestrialPlanets[.terrestrialPlanet]
         )
-        #expect(planet.renderInstance.meshID == .terrestrialPlanet)
+        #expect(planet.renderInstance.meshID == .ball)
         #expect(planet.renderInstance.materialID == .terrestrialPlanet)
         #expect(planet.description == expectedDescription)
         #expect(planet.resources.description == expectedDescription)
 
         let preparedModel = try #require(planet.model)
-        let storedModel = try #require(resources.model(for: .terrestrialPlanet))
+        let storedModel = try #require(resources.model(for: .ball))
         #expect(
             preparedModel.meshes.map(ObjectIdentifier.init) ==
                 storedModel.meshes.map(ObjectIdentifier.init)

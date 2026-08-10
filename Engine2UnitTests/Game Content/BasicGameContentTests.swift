@@ -33,31 +33,10 @@ struct BasicGameContentTests {
     @Test func mapsEveryMeshIdentityToAnExactPackagedModelURL() throws {
         let models = RenderAssetCatalog.everything.models
         let ball = try #require(models[.ball])
-        let planet = try #require(models[.terrestrialPlanet])
 
         #expect(models.count == MeshID.allCases.count)
         #expect(ball.resourceURL.lastPathComponent == "Ball.usdz")
         #expect(ball.format == .usdz)
-        #expect(planet.resourceURL.lastPathComponent == "TerrestrialPlanet.usdz")
-        #expect(planet.format == .usdz)
-    }
-
-    @Test func mapsEveryPlanetTextureWithItsRequiredInterpretation() throws {
-        let textures = RenderAssetCatalog.everything.textures
-        let elevation = try #require(textures[.terrestrialPlanetElevation])
-        let surface = try #require(textures[.terrestrialPlanetSurface])
-        let control = try #require(textures[.terrestrialPlanetControl])
-        let clouds = try #require(textures[.terrestrialPlanetClouds])
-
-        #expect(textures.count == TextureID.allCases.count)
-        #expect(elevation.resourceURL.lastPathComponent == "TerrestrialPlanetElevation.png")
-        #expect(elevation.interpretation == .linear)
-        #expect(surface.resourceURL.lastPathComponent == "TerrestrialPlanetSurface.png")
-        #expect(surface.interpretation == .sRGB)
-        #expect(control.resourceURL.lastPathComponent == "TerrestrialPlanetControl.png")
-        #expect(control.interpretation == .linear)
-        #expect(clouds.resourceURL.lastPathComponent == "TerrestrialPlanetClouds.png")
-        #expect(clouds.interpretation == .linear)
     }
 
     @Test func suppliesExactAuthoredMaterialValidationMatrix() throws {
@@ -111,13 +90,9 @@ struct BasicGameContentTests {
         )
 
         #expect(catalog.terrestrialPlanets.count == 1)
-        #expect(description.elevationTextureID == .terrestrialPlanetElevation)
-        #expect(description.surfaceTextureID == .terrestrialPlanetSurface)
-        #expect(description.controlTextureID == .terrestrialPlanetControl)
-        #expect(description.cloudTextureID == .terrestrialPlanetClouds)
+        #expect(description.surfaceRecipe == .blueMarble)
         #expect(description.surfaceRadius == 1)
-        #expect(description.maximumRelief == 0.006)
-        #expect(description.seaLevel == 0.5)
+        #expect(description.surfaceNormalStrength == 0.30)
         #expect(description.cloudRadius == 1.008)
         #expect(description.atmosphereRadius == 1.018)
         #expect(description.cloudOpacity == 0.82)
