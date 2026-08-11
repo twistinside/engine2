@@ -2,7 +2,7 @@
 ///
 /// The shared base unit lets formation code conserve stellar, planetary, and
 /// satellite mass without mixing unlabelled solar- and Earth-mass values.
-nonisolated struct AstronomicalMass: Codable, Comparable, Equatable, Hashable, Sendable {
+nonisolated struct AstronomicalMass: Codable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalMass(kilograms: 0)
 
     private static let kilogramsPerEarthMass = 5.9722e24
@@ -33,8 +33,10 @@ nonisolated struct AstronomicalMass: Codable, Comparable, Equatable, Hashable, S
     init(solarMasses: Double) {
         self.init(kilograms: solarMasses * Self.kilogramsPerSolarMass)
     }
+}
 
-    static func < (lhs: AstronomicalMass, rhs: AstronomicalMass) -> Bool {
+extension AstronomicalMass: Comparable {
+    nonisolated static func < (lhs: AstronomicalMass, rhs: AstronomicalMass) -> Bool {
         lhs.kilograms < rhs.kilograms
     }
 }

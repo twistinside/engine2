@@ -3,7 +3,7 @@
 /// Generation uses this value for stellar radii, planetary radii, stellar
 /// orbits, and satellite orbits. Named projections make the unit explicit at
 /// every calculation boundary.
-nonisolated struct AstronomicalDistance: Codable, Comparable, Equatable, Hashable, Sendable {
+nonisolated struct AstronomicalDistance: Codable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalDistance(meters: 0)
     static let astronomicalUnit = AstronomicalDistance(meters: 149_597_870_700.0)
     static let earthRadius = AstronomicalDistance(meters: 6_371_000.0)
@@ -42,8 +42,10 @@ nonisolated struct AstronomicalDistance: Codable, Comparable, Equatable, Hashabl
     init(solarRadii: Double) {
         self.init(meters: solarRadii * Self.solarRadius.meters)
     }
+}
 
-    static func < (lhs: AstronomicalDistance, rhs: AstronomicalDistance) -> Bool {
+extension AstronomicalDistance: Comparable {
+    nonisolated static func < (lhs: AstronomicalDistance, rhs: AstronomicalDistance) -> Bool {
         lhs.meters < rhs.meters
     }
 }

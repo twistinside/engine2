@@ -41,17 +41,15 @@ nonisolated struct PlanetaryEnvironment: Codable, Equatable, Sendable {
             "Incident flux must be finite and nonnegative."
         )
         precondition(
-            bondAlbedo.isFinite && bondAlbedo >= 0 && bondAlbedo <= 1,
+            (0...1).contains(bondAlbedo),
             "Bond albedo must be finite in 0...1."
         )
         precondition(
-            liquidWaterCoverage.isFinite
-                && liquidWaterCoverage >= 0
-                && liquidWaterCoverage <= 1,
+            (0...1).contains(liquidWaterCoverage),
             "Liquid-water coverage must be finite in 0...1."
         )
         precondition(
-            waterIceCoverage.isFinite && waterIceCoverage >= 0 && waterIceCoverage <= 1,
+            (0...1).contains(waterIceCoverage),
             "Water-ice coverage must be finite in 0...1."
         )
         self.incidentFluxEarth = incidentFluxEarth

@@ -15,7 +15,7 @@ nonisolated struct KeplerianOrbit: Codable, Equatable, Sendable {
     ) {
         precondition(semiMajorAxis.meters > 0, "A bound orbit requires a positive semi-major axis.")
         precondition(
-            inclinationDegrees.isFinite && inclinationDegrees >= 0 && inclinationDegrees <= 180,
+            (0...180).contains(inclinationDegrees),
             "Orbital inclination must be finite in 0...180 degrees."
         )
         self.semiMajorAxis = semiMajorAxis

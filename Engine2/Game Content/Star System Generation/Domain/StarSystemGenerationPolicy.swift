@@ -140,9 +140,7 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
             && finalGiantPlanetSpacing.isFinite
             && finalGiantPlanetSpacing >= finalPlanetSpacing
             && Self.isPositiveFinite(giantMassThresholdEarth)
-            && atmosphereEscapeEfficiency.isFinite
-            && atmosphereEscapeEfficiency >= 0
-            && atmosphereEscapeEfficiency <= 1
+            && (0...1).contains(atmosphereEscapeEfficiency)
             && (0...Self.maximumMoonLimit).contains(maximumMoonCountPerPlanet)
     }
 

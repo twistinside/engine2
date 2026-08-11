@@ -2,19 +2,18 @@
 ///
 /// Seconds are the serialized base unit. Megayear and gigayear projections
 /// keep short disk evolution distinct from long present-day evolution.
-nonisolated struct AstronomicalDuration: Codable, Comparable, Equatable, Hashable, Sendable {
+nonisolated struct AstronomicalDuration: Codable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalDuration(seconds: 0)
-
-    private static let secondsPerYear = 31_557_600.0
+    static let year = AstronomicalDuration(seconds: 31_557_600.0)
 
     let seconds: Double
 
     var megayears: Double {
-        seconds / (Self.secondsPerYear * 1_000_000)
+        seconds / (Self.year.seconds * 1_000_000)
     }
 
     var gigayears: Double {
-        seconds / (Self.secondsPerYear * 1_000_000_000)
+        seconds / (Self.year.seconds * 1_000_000_000)
     }
 
     init(seconds: Double) {
@@ -26,14 +25,16 @@ nonisolated struct AstronomicalDuration: Codable, Comparable, Equatable, Hashabl
     }
 
     init(megayears: Double) {
-        self.init(seconds: megayears * Self.secondsPerYear * 1_000_000)
+        self.init(seconds: megayears * Self.year.seconds * 1_000_000)
     }
 
     init(gigayears: Double) {
-        self.init(seconds: gigayears * Self.secondsPerYear * 1_000_000_000)
+        self.init(seconds: gigayears * Self.year.seconds * 1_000_000_000)
     }
+}
 
-    static func < (lhs: AstronomicalDuration, rhs: AstronomicalDuration) -> Bool {
+extension AstronomicalDuration: Comparable {
+    nonisolated static func < (lhs: AstronomicalDuration, rhs: AstronomicalDuration) -> Bool {
         lhs.seconds < rhs.seconds
     }
 }

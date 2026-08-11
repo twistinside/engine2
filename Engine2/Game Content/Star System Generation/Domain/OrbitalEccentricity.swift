@@ -6,7 +6,7 @@ nonisolated struct OrbitalEccentricity: Codable, Equatable, Hashable, RawReprese
 
     init(rawValue: Double) {
         precondition(
-            rawValue.isFinite && rawValue >= 0 && rawValue < 1,
+            (0..<1).contains(rawValue),
             "A bound orbital eccentricity must be finite in 0..<1."
         )
         self.rawValue = rawValue

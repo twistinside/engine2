@@ -1,5 +1,5 @@
 /// Nonnegative thermodynamic temperature stored in kelvin.
-nonisolated struct ThermodynamicTemperature: Codable, Comparable, Equatable, Hashable, Sendable {
+nonisolated struct ThermodynamicTemperature: Codable, Equatable, Hashable, Sendable {
     static let absoluteZero = ThermodynamicTemperature(kelvin: 0)
 
     let kelvin: Double
@@ -11,8 +11,10 @@ nonisolated struct ThermodynamicTemperature: Codable, Comparable, Equatable, Has
         )
         self.kelvin = kelvin
     }
+}
 
-    static func < (lhs: ThermodynamicTemperature, rhs: ThermodynamicTemperature) -> Bool {
+extension ThermodynamicTemperature: Comparable {
+    nonisolated static func < (lhs: ThermodynamicTemperature, rhs: ThermodynamicTemperature) -> Bool {
         lhs.kelvin < rhs.kelvin
     }
 }
