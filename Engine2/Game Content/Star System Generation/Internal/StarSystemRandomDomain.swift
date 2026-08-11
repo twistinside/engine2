@@ -10,4 +10,5 @@ nonisolated enum StarSystemRandomDomain: UInt64, Sendable {
     case orbitalExcitation = 0x7A6A_0D15_4A4F_4D05
     case moons = 0x7A6A_0D15_4A4F_4D06
     case dynamicalClearing = 0x7A6A_0D15_4A4F_4D07
+    case resolvedPlanetMultiplicity = 0x7A6A_0D15_4A4F_4D08
 }

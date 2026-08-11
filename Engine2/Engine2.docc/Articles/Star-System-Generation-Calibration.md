@@ -83,6 +83,7 @@ solar, Earth, AU, Myr, Gyr, kelvin, and bar values are computed projections.
 | Eccentricity damping passes | `32` | Numerical control |
 | Climate iterations | `6` | Numerical control |
 | Maximum significant moons per planet | `4` | Numerical control |
+| Maximum resolved planets | `9` | Population calibration |
 
 One system performs its floating-point reductions serially. Independent seeds
 may be parallelized by an external population-audit caller, then ordered by
@@ -125,10 +126,13 @@ Named domain raw values are part of V1:
 | Orbital excitation | `0x7A6A0D154A4F4D05` |
 | Moons | `0x7A6A0D154A4F4D06` |
 | Dynamical clearing | `0x7A6A0D154A4F4D07` |
+| Resolved planet multiplicity | `0x7A6A0D154A4F4D08` |
 
 The formation domain supplies gas-disk collision-retention draws. Dynamical
 clearing uses a separate stream addressed by the adjacent body identities and
-encounter sequence, so one encounter cannot shift another phase's draws.
+encounter sequence, so one encounter cannot shift another phase's draws. The
+resolved-planet-multiplicity domain samples output capacity independently of
+formation and dynamical draws.
 
 The first four star-domain words for seed `0x1234`, discriminator zero, and
 model version one are pinned by tests:
@@ -156,6 +160,7 @@ branch is not taken.
 | Formation collision | solid-retention uniform; hydrogen-helium-retention uniform |
 | Dynamical encounter | outcome unit draw; conditional equal-mass ejection unit draw; conditional solid-retention uniform and hydrogen-helium-retention uniform for collision or failed scattering |
 | Orbital excitation | per-body Rayleigh eccentricity; normal inclination |
+| Resolved planet multiplicity | one bounded integer ticket for the capacity weights |
 | Parent moon system | regular-moon integer count, or impact eligibility unit draw followed conditionally by impact-mass uniform; then one weight uniform per moon |
 | Individual moon | Rayleigh eccentricity; normal inclination |
 
@@ -701,19 +706,42 @@ not silently change the other.
 All eccentricities multiply by `0.8` together until the requirement passes or
 32 attempts complete. The final fallback sets every eccentricity to zero.
 
-## Resolved-Planet Significance
+## Resolved-Planet Multiplicity and Eligibility
 
-After dynamical clearing, V1 publishes every surviving body with solid mass at
+After dynamical clearing, V1 samples one `resolvedPlanetCapacity` in `0...9`.
+The sample uses a uniformly selected ticket across these integer weights:
+
+```text
+capacity  0  1  2  3  4  5  6  7  8  9
+weight    5  9 12 14 15 15 14 12  9  5
+```
+
+The sampler draws one integer ticket from `0...109` and maps it through the
+cumulative weights. The symmetric weights form a beta-binomial-shaped capacity
+distribution. This is output/population calibration, not a claim that formation
+obeys a physical nine-body limit. Formation can leave more survivors. The
+ledger persists the sample so decoded output retains the choice that bounded
+its resolved planets.
+
+A survivor is eligible for resolved output when its pre-moon solid mass is at
 least `0.10 Earth masses`. This threshold is ten times the solid-only
-`0.01`-Earth-mass seed. If no survivor reaches it, the generator publishes the
-body with the greatest solid mass; an exact solid-mass tie selects the smaller
-stable identity.
+`0.01`-Earth-mass seed. Selection sorts eligible survivors by descending
+pre-moon solid mass, breaks an exact tie by smaller stable identity, and takes
+at most `resolvedPlanetCapacity` values. Zero is a valid capacity, and V1 does
+not force a fallback planet when the capacity is zero or no survivor is
+eligible.
+
+```text
+resolvedPlanetCount = min(resolvedPlanetCapacity, eligibleSurvivorCount)
+```
 
 Every omitted survivor contributes its full composition, body count, and
 progenitor count to the residual-body fields in ``StarSystemFormationLedger``.
-It receives no individually resolved radius, orbit, environment, moons, or
-classification. The aggregate is not a resolved belt or spatial distribution.
-Category: output-significance calibration and explicit conservation routing.
+The residual aggregate therefore includes both subthreshold survivors and
+eligible survivors beyond the sampled capacity. It receives no individually
+resolved radius, orbit, environment, moons, or classification. The aggregate is
+not a resolved belt or spatial distribution. Category: output/population
+calibration and explicit conservation routing.
 
 ## Significant Moon Calibration
 
@@ -1130,31 +1158,42 @@ and ordering remain exact. Category: numerical control.
 Validation also reconciles retained, residual, ejected, star-accreted, and
 collision-debris body and progenitor counts with the funded embryo count. It
 requires a zero residual composition exactly when both residual counts are
-zero. It requires:
+zero. For positive capacity, it also applies one necessary aggregate selection
+bound:
 
 ```text
-MresidualSolids <= minimumResolvedPlanetSolidMassEarth
-                   * residualBodyCount
-                   * (1 + 1e-9)
+boundary = minimumResolvedPlanetSolidMassEarth
+    when resolvedPlanetCount < resolvedPlanetCapacity
+
+boundary = minimum resolved parent-plus-moons solid mass
+    when resolvedPlanetCount == resolvedPlanetCapacity
+
+MresidualSolids <= boundary * residualBodyCount * (1 + 1e-9)
 ```
 
+When capacity is zero, the residual aggregate has no resolved selection
+boundary because every survivor is intentionally omitted.
+
 Validation includes residual and dynamical compositions in every mass closure.
-Selection compares each pre-moon embryo's solid mass with
+It replays `resolvedPlanetCapacity` from the root seed through the
+`resolvedPlanetMultiplicity` domain, rejects a value outside
+`0...maximumResolvedPlanetCount`, and rejects more published planets than the
+capacity permits. Selection compares each pre-moon embryo's solid mass with
 `minimumResolvedPlanetSolidMassEarth`. Moon extraction later partitions parent
-solids without changing the parent-plus-moons total, so validation compares
-that combined solid mass with the threshold. When more than one planet is
-present, every planetary system must meet it. Validation permits one
-subthreshold published planet for the fallback, but does not replay formation
-to prove that decoded body had the greatest solid mass.
+solids without changing the parent-plus-moons total, so validation requires
+every published parent-plus-moons system to meet that threshold. Validation
+uses the aggregate boundary above as a necessary ranking check, but does not
+replay formation to prove that each decoded planet was among the highest
+eligible survivors.
 
 The normal regression policy pins the first random words and three canonical
 resolved-system fingerprints. Focused tests cover same-seed equality,
 serialization, corruption rejection, conservation, stellar and disk bounds,
 Toomre admission through the shared disk profile, the fully funded seed-mass
 floor, orbit and moon stability, causal environment trends, both moon origins,
-and the exact-zero atmosphere boundary. A bounded 32-seed smoke ensemble checks
-finite validation and coarse regime reachability. These are regression
-contracts, not occurrence-rate calibration.
+and the exact-zero atmosphere boundary. A bounded representative-seed smoke
+ensemble checks finite validation plus regime, capacity, and resolved-count
+reachability. These are regression contracts, not occurrence-rate calibration.
 
 Fingerprint updates require a reviewed model change plus passing focused
 invariants; observing a new hash is not sufficient approval. The in-place V1
@@ -1169,7 +1208,8 @@ policy, seed interval, supported Swift toolchain, and execution platform. It
 records, at minimum:
 
 - generated failure count and reason
-- planet and significant-moon count distributions
+- sampled resolved-planet capacity, actual resolved-planet count, and
+  significant-moon count distributions
 - stellar mass, metallicity, age, and luminosity distributions
 - disk gas, solid, radius, lifetime, mass-radius correlation, admission-attempt,
   and minimum-Toomre-`Q` distributions
@@ -1192,42 +1232,78 @@ or wall-time assertions to the normal unit suite.
 
 ## Observed 1,000-Seed Baseline
 
-The in-place V1 rewrite was measured on August 11, 2026, with seeds `0..<1,000`
-in ascending serial order. A standalone Swift 6.4 executable compiled the
-production generator with `-O` and whole-module optimization on an Apple M4
-Mac mini with 16 GB of memory running macOS 27.0. Compilation was outside the
-measured interval. Each sample called `generate(seed:)` once; that operation
-includes the generator's normal validation pass.
+The sampled-capacity V1 calibration was measured on August 11, 2026, with seeds
+`0..<1,000` in ascending serial order. A standalone Swift 6.4 executable
+compiled the production generator with `-O` and whole-module optimization on an
+Apple M4 Mac mini with 16 GB of memory running macOS 27.0. Compilation was
+outside the measured interval. Each sample called `generate(seed:)` once; that
+operation includes the generator's normal validation pass.
 
 Performance:
 
 - `1,000` successes and `0` failures
-- `7.869` seconds of measured generator work, or `127.1` systems per second
-- per-system latency: `7.865 ms` mean, `7.980 ms` median, `9.261 ms` p95,
-  `9.710 ms` p99, and `10.177 ms` maximum
-- `10,043,392` bytes maximum resident set size, or `9.58 MiB`
+- `6.987` seconds of measured generator work, or `143.1` systems per second
+- per-system latency: `6.985 ms` mean, `7.083 ms` median, `8.230 ms` p95,
+  `8.691 ms` p99, and `13.273 ms` maximum
+- `9,895,936` bytes maximum resident set size, or `9.44 MiB`
+
+Sampled capacity histogram:
+
+```text
+capacity   0   1    2    3    4    5    6    7   8   9
+systems   39  72  103  138  150  143  119  117  74  45
+```
+
+Resolved-planet histogram:
+
+```text
+planets    0   1    2    3    4    5    6    7   8   9
+systems   51  72  106  141  147  149  114  108  70  42
+```
+
+The mean sampled capacity was `4.537`. The mean resolved count was `4.418`, the
+median was `4`, p95 was `8`, and all values were inside `0...9`. Residual formed
+bodies had mean count `23.074`, median `24`, p95 `32`, and maximum `36`; they
+remain conserved aggregate provenance rather than resolved planets.
 
 Resolved architecture and mass tail:
 
-- `14,659` resolved planets and `1,915` significant moons
-- planet count per system: `14.659` mean, `15` median, `22` p95, and `31`
-  maximum; `14` systems retained one fallback planet
-- planet mass: `0.518 Earth masses` median, `126.327 Earth masses` p99, and
+- `4,418` resolved planets and `1,574` significant moons
+- planet mass: `2.766 Earth masses` median, `386.076 Earth masses` p99, and
   `1,182.037 Earth masses` maximum, approximately `3.72 Jupiter masses`
-- `61` Jupiter-mass-or-larger planets and no body at or above `13 Jupiter`
+- `60` Jupiter-mass-or-larger planets and no body at or above `13 Jupiter`
   masses
 - `2,925` post-disk collisions, `6,037` scattering resolutions, `2,103`
   ejected bodies, and `178` star-accreted bodies
 
-Present atmosphere states included `4,686` airless, `577` tenuous, `6,405`
-secondary-atmosphere, and `2,991` deep-envelope planets. Every airless planet
-stored exactly zero atmosphere mass. Water states included `3,141` dry,
-`7,758` ice-covered, `10` partial-liquid, `59` global-ocean, `700` steam, and
-`2,991` inaccessible planets.
+Present atmosphere states included `228` airless, `71` tenuous, `1,903`
+secondary-atmosphere, and `2,216` deep-envelope planets. Every airless planet
+stored exactly zero atmosphere mass. Water states included `171` dry, `1,949`
+ice-covered, `6` partial-liquid, `23` global-ocean, `53` steam, and `2,216`
+inaccessible planets.
 
-This cohort is the first performance and outlier baseline for the rewritten
-V1 calibration. It is not an observational occurrence-rate fit, a complete
-population-audit artifact, or a timing assertion for CI.
+This cohort is a deterministic implementation and outlier baseline. It is not
+an observational occurrence-rate fit, a complete population-audit artifact, or
+a timing assertion for CI.
+
+An additional Release endurance check generated seeds `0..<10,000` plus `257`
+`UInt64` boundary and bit-pattern seeds. It completed `10,257` generations with
+zero failures. The check repeated generation and performed a canonical
+encode-decode-validate round trip for `1,257` systems with zero mismatches or
+validation failures. The sequential cohort produced this resolved-count
+histogram:
+
+```text
+planets     0    1     2     3     4     5     6     7    8    9
+systems   548  792  1099  1334  1398  1378  1210  1069  770  402
+```
+
+Its mean was `4.3995`, its median was `4`, and its maximum was `9`. Generation
+ran at `141.3` systems per second with `12,025,856` bytes maximum resident set
+size. The check also observed positive final Hill and radial-clearance margins,
+exact-zero atmosphere mass for every airless planet, and no zero-atmosphere
+planet classified as non-airless. This is a deterministic endurance check, not
+an observational occurrence-rate calibration.
 
 ## Known V1 Biases
 
@@ -1241,8 +1317,9 @@ V1 is expected to bias output in these ways:
 - Identical gas and solid surface-density weights omit radial drift and local
   dust evolution.
 - Fully funded logarithmic seed placement replaces a self-consistent residual
-  embryo and planetesimal population. Subthreshold survivors are aggregated,
-  so their individual orbits and environments are not available.
+  embryo and planetesimal population. Survivors omitted by eligibility or
+  output capacity are aggregated, so their individual orbits and environments
+  are not available.
 - Cooling, local supply, gap depth, and two attractors approximate rather than
   solve envelope growth and disk torques. Resonant capture is absent.
 - Collision retention, analytic scattering, conditional outcome probabilities,

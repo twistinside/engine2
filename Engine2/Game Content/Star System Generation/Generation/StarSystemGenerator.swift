@@ -3,8 +3,8 @@
 /// The generator is synchronous, value-semantic, and side-effect free. It owns
 /// no Runtime lifecycle or cadence and does not mutate ECS state. Callers persist
 /// the returned resolved value rather than relying on seed-only regeneration.
-/// Bodies below the resolved-planet solid-mass threshold remain aggregated in
-/// the formation ledger instead of receiving invented detailed environments.
+/// Bodies omitted by resolved-planet significance or multiplicity remain
+/// aggregated in the formation ledger instead of receiving invented details.
 nonisolated struct StarSystemGenerator: Sendable {
     let policy: StarSystemGenerationPolicy
 
@@ -31,7 +31,11 @@ nonisolated struct StarSystemGenerator: Sendable {
             within: diskOrbitalRangeAU,
             seed: seed
         )
-        let selection = selectResolvedPlanets(from: formation.embryos)
+        let selection = ResolvedPlanetSelection.select(
+            from: formation.embryos,
+            seed: seed,
+            policy: policy
+        )
         let resolved = resolvePresentDayPlanets(
             selection.embryos,
             around: star,
@@ -112,45 +116,6 @@ nonisolated struct StarSystemGenerator: Sendable {
         return (planets, escapedHydrogenHeliumMassEarth)
     }
 
-    private func selectResolvedPlanets(
-        from embryos: [FormationEmbryo]
-    ) -> ResolvedPlanetSelection {
-        var selectedIdentities = Set(
-            embryos.lazy
-                .filter {
-                    $0.composition.solidMass.earthMasses
-                        >= policy.minimumResolvedPlanetSolidMassEarth
-                }
-                .map(\.id)
-        )
-        if selectedIdentities.isEmpty,
-           let largest = embryos.max(by: isLessSignificant) {
-            selectedIdentities.insert(largest.id)
-        }
-        let selected = embryos.filter { selectedIdentities.contains($0.id) }
-        let residual = embryos.filter { !selectedIdentities.contains($0.id) }
-        return ResolvedPlanetSelection(
-            embryos: selected,
-            residualComposition: residual.reduce(CelestialMassComposition.zero) {
-                $0.adding($1.composition)
-            },
-            residualBodyCount: residual.count,
-            residualProgenitorCount: residual.reduce(0) { $0 + $1.progenitorCount }
-        )
-    }
-
-    private func isLessSignificant(
-        _ first: FormationEmbryo,
-        _ second: FormationEmbryo
-    ) -> Bool {
-        let firstMass = first.composition.solidMass.earthMasses
-        let secondMass = second.composition.solidMass.earthMasses
-        if firstMass != secondMass {
-            return firstMass < secondMass
-        }
-        return first.id.rawValue > second.id.rawValue
-    }
-
     private func makeFormationLedger(
         formation: PlanetaryFormationResult,
         planets: [GeneratedPlanet],
@@ -193,6 +158,7 @@ nonisolated struct StarSystemGenerator: Sendable {
             residualBodyComposition: selection.residualComposition,
             residualBodyCount: selection.residualBodyCount,
             residualProgenitorCount: selection.residualProgenitorCount,
+            resolvedPlanetCapacity: selection.resolvedPlanetCapacity,
             seededEmbryoCount: formation.seededEmbryoCount,
             formationMergerCount: formation.formationMergerCount,
             postDiskCollisionMergerCount: architecture.collisionMergerCount

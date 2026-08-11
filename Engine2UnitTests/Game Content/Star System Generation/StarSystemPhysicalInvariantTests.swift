@@ -62,14 +62,11 @@ nonisolated struct StarSystemPhysicalInvariantTests {
     }
 
     @Test func finalPlanetsAreOrderedAndConservativelyHillSpaced() throws {
-        let system = try generator.generate(seed: StarSystemSeed(rawValue: 7))
+        let system = try generatedSystem(minimumPlanetCount: 2)
         let planets = system.planets
 
-        #expect(!planets.isEmpty)
+        #expect(planets.count >= 2)
         #expect(planets == planets.sorted { $0.orbit.semiMajorAxis < $1.orbit.semiMajorAxis })
-        guard planets.count > 1 else {
-            return
-        }
         for index in 0..<(planets.count - 1) {
             let inner = planets[index]
             let outer = planets[index + 1]
@@ -85,11 +82,21 @@ nonisolated struct StarSystemPhysicalInvariantTests {
     }
 
     @Test func representativeMoonSystemsUseBothOriginsAndValidatedBounds() throws {
-        let systems = try [1, 5].map { rawSeed in
-            try generator.generate(seed: StarSystemSeed(rawValue: UInt64(rawSeed)))
+        var moons: [GeneratedMoon] = []
+        var origins: Set<MoonFormationOrigin> = []
+
+        for rawSeed in 0..<256 {
+            let system = try generator.generate(
+                seed: StarSystemSeed(rawValue: UInt64(rawSeed))
+            )
+            let generatedMoons = system.planets.flatMap(\.moons)
+            moons.append(contentsOf: generatedMoons)
+            origins.formUnion(generatedMoons.map(\.origin))
+            if origins.contains(.giantImpact)
+                && origins.contains(.circumplanetaryDisk) {
+                break
+            }
         }
-        let moons = systems.flatMap(\.planets).flatMap(\.moons)
-        let origins = Set(moons.map(\.origin))
 
         #expect(!moons.isEmpty)
         #expect(origins.contains(.giantImpact))
@@ -101,8 +108,9 @@ nonisolated struct StarSystemPhysicalInvariantTests {
     }
 
     @Test func meanFluxUsesLuminosityDistanceAndEccentricity() throws {
-        let system = try generator.generate(seed: StarSystemSeed(rawValue: 8))
+        let system = try generatedSystem(minimumPlanetCount: 1)
 
+        #expect(!system.planets.isEmpty)
         for planet in system.planets {
             let axis = planet.orbit.semiMajorAxis.astronomicalUnits
             let eccentricity = planet.orbit.eccentricity.rawValue
@@ -110,6 +118,25 @@ nonisolated struct StarSystemPhysicalInvariantTests {
                 / (axis * axis * sqrt(1 - eccentricity * eccentricity))
             #expect(relativeDifference(planet.environment.incidentFluxEarth, expected) < 1e-12)
         }
+    }
+
+    private func generatedSystem(
+        minimumPlanetCount: Int
+    ) throws -> GeneratedStarSystem {
+        var match: GeneratedStarSystem?
+        for rawSeed in 0..<64 {
+            let system = try generator.generate(
+                seed: StarSystemSeed(rawValue: UInt64(rawSeed))
+            )
+            if system.planets.count >= minimumPlanetCount {
+                match = system
+                break
+            }
+        }
+        return try #require(
+            match,
+            "The bounded seed range must include the requested resolved-planet population."
+        )
     }
 
     private func relativeDifference(_ first: Double, _ second: Double) -> Double {

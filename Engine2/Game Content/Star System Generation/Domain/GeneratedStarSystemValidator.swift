@@ -112,11 +112,16 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
     }
 
     private func validateBodiesAndIdentities() throws(StarSystemGenerationError) {
-        guard !planets.isEmpty, planets.count <= policy.maximumEmbryoCount else {
-            throw .noFundedEmbryos
+        let expectedCapacity = ResolvedPlanetSelection.resolvedPlanetCapacity(
+            for: seed,
+            policy: policy
+        )
+        guard formationLedger.resolvedPlanetCapacity == expectedCapacity,
+              (0...policy.maximumResolvedPlanetCount).contains(expectedCapacity),
+              planets.count <= expectedCapacity else {
+            throw .invalidResolvedPlanetSelection
         }
         var identities: Set<GeneratedBodyID> = []
-        var containsSubthresholdPlanet = false
         for planet in planets {
             guard isPlanetIdentity(planet.id) else {
                 throw .invalidPlanet(planet.id)
@@ -143,12 +148,9 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
             }
             let planetarySystemSolidMassEarth = planet.composition.solidMass.earthMasses
                 + planet.moons.reduce(0) { $0 + $1.composition.solidMass.earthMasses }
-            containsSubthresholdPlanet = containsSubthresholdPlanet
-                || planetarySystemSolidMassEarth
-                    < policy.minimumResolvedPlanetSolidMassEarth
-        }
-        guard planets.count == 1 || !containsSubthresholdPlanet else {
-            throw .invalidFormationLedger
+            guard planetarySystemSolidMassEarth >= policy.minimumResolvedPlanetSolidMassEarth else {
+                throw .invalidFormationLedger
+            }
         }
     }
 
@@ -326,10 +328,7 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
               formationLedger.residualBodyCount <= formationLedger.residualProgenitorCount,
               isValidComposition(residualComposition),
               residualCountsMatchComposition(),
-              residualComposition.solidMass.earthMasses
-                <= policy.minimumResolvedPlanetSolidMassEarth
-                    * Double(formationLedger.residualBodyCount)
-                    * (1 + 1e-9),
+              residualSolidMassFitsSelectionBoundary(),
               isNonnegativeFinite(formationLedger.initialSolidMass),
               isNonnegativeFinite(formationLedger.retainedSolidMass),
               isNonnegativeFinite(formationLedger.unaccretedSolidMass),
@@ -446,6 +445,35 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
             progenitorCount: formationLedger.residualProgenitorCount,
             composition: formationLedger.residualBodyComposition
         )
+    }
+
+    private func residualSolidMassFitsSelectionBoundary() -> Bool {
+        let residualBodyCount = formationLedger.residualBodyCount
+        guard residualBodyCount > 0 else {
+            return true
+        }
+        let capacity = formationLedger.resolvedPlanetCapacity
+        guard capacity > 0 else {
+            return true
+        }
+        let maximumSolidMassPerBodyEarth: Double
+        if planets.count < capacity {
+            maximumSolidMassPerBodyEarth = policy.minimumResolvedPlanetSolidMassEarth
+        } else {
+            guard let smallestResolvedSolidMassEarth = planets.map({ planet in
+                planet.composition.solidMass.earthMasses
+                    + planet.moons.reduce(0) {
+                        $0 + $1.composition.solidMass.earthMasses
+                    }
+            }).min() else {
+                return false
+            }
+            maximumSolidMassPerBodyEarth = smallestResolvedSolidMassEarth
+        }
+        return formationLedger.residualBodyComposition.solidMass.earthMasses
+            <= maximumSolidMassPerBodyEarth
+                * Double(residualBodyCount)
+                * (1 + 1e-9)
     }
 
     private func bodyAggregateMatches(

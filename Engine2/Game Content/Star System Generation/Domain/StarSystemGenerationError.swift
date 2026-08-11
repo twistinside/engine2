@@ -6,6 +6,7 @@ nonisolated enum StarSystemGenerationError: Error, Equatable, Sendable {
     case invalidStar
     case invalidDisk
     case invalidFormationLedger
+    case invalidResolvedPlanetSelection
     case duplicateBodyID(GeneratedBodyID)
     case planetsNotOrdered
     case invalidPlanet(GeneratedBodyID)

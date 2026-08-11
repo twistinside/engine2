@@ -208,8 +208,36 @@ nonisolated struct GeneratedStarSystemLedgerTests {
         }
     }
 
-    @Test func validationRejectsAnOverweightResidualPopulationWithClosedSolidLedger() throws {
-        let original = try generatedSystemWithResidualBodies()
+    @Test func validationRejectsCorruptedResolvedPlanetCapacity() throws {
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 1))
+        let ledger = original.formationLedger
+        let invalidLedger = replacing(
+            ledger,
+            resolvedPlanetCapacity: ledger.resolvedPlanetCapacity - 1
+        )
+        let invalid = GeneratedStarSystemFixture(system: original).replacingLedger(invalidLedger)
+
+        #expect(ledger.resolvedPlanetCapacity == 9)
+        #expect(throws: StarSystemGenerationError.invalidResolvedPlanetSelection) {
+            try invalid.validate()
+        }
+    }
+
+    @Test func validationRejectsResolvedPlanetCountAboveCapacity() throws {
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 1))
+        let extraPlanet = try #require(original.planets.first)
+        let invalid = GeneratedStarSystemFixture(system: original).replacingPlanets(
+            original.planets + [extraPlanet]
+        )
+
+        #expect(original.planets.count == original.formationLedger.resolvedPlanetCapacity)
+        #expect(throws: StarSystemGenerationError.invalidResolvedPlanetSelection) {
+            try invalid.validate()
+        }
+    }
+
+    @Test func validationRejectsResidualPopulationAboveEligibilityBoundary() throws {
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 51))
         let ledger = original.formationLedger
         let maximumResidualSolidMassEarth = original.policy.minimumResolvedPlanetSolidMassEarth
             * Double(ledger.residualBodyCount)
@@ -234,6 +262,9 @@ nonisolated struct GeneratedStarSystemLedgerTests {
         let invalidAccountedSolidMassEarth = invalidLedger.unaccretedSolidMass.earthMasses
             + invalidLedger.residualBodyComposition.solidMass.earthMasses
 
+        #expect(ledger.residualBodyCount > 0)
+        #expect(ledger.resolvedPlanetCapacity > 0)
+        #expect(original.planets.count < ledger.resolvedPlanetCapacity)
         #expect(transferredFraction > 0 && transferredFraction < 1)
         #expect(abs(originalAccountedSolidMassEarth - invalidAccountedSolidMassEarth) < 1e-9)
         #expect(throws: StarSystemGenerationError.invalidFormationLedger) {
@@ -271,18 +302,6 @@ nonisolated struct GeneratedStarSystemLedgerTests {
             }
         }
         return try #require(match, "The bounded seed range must include a recorded dynamical loss.")
-    }
-
-    private func generatedSystemWithResidualBodies() throws -> GeneratedStarSystem {
-        var match: GeneratedStarSystem?
-        for rawSeed in 0..<32 {
-            let system = try generator.generate(seed: StarSystemSeed(rawValue: UInt64(rawSeed)))
-            if system.formationLedger.residualBodyCount > 0 {
-                match = system
-                break
-            }
-        }
-        return try #require(match, "The bounded seed range must include residual formation bodies.")
     }
 
     private func addingIronToEmptyDestination(
@@ -357,7 +376,8 @@ nonisolated struct GeneratedStarSystemLedgerTests {
         dynamicalLosses: StarSystemDynamicalLossLedger? = nil,
         residualBodyComposition: CelestialMassComposition? = nil,
         residualBodyCount: Int? = nil,
-        residualProgenitorCount: Int? = nil
+        residualProgenitorCount: Int? = nil,
+        resolvedPlanetCapacity: Int? = nil
     ) -> StarSystemFormationLedger {
         StarSystemFormationLedger(
             initialSolidMass: ledger.initialSolidMass,
@@ -372,6 +392,7 @@ nonisolated struct GeneratedStarSystemLedgerTests {
             residualBodyComposition: residualBodyComposition ?? ledger.residualBodyComposition,
             residualBodyCount: residualBodyCount ?? ledger.residualBodyCount,
             residualProgenitorCount: residualProgenitorCount ?? ledger.residualProgenitorCount,
+            resolvedPlanetCapacity: resolvedPlanetCapacity ?? ledger.resolvedPlanetCapacity,
             seededEmbryoCount: ledger.seededEmbryoCount,
             formationMergerCount: ledger.formationMergerCount,
             postDiskCollisionMergerCount: ledger.postDiskCollisionMergerCount

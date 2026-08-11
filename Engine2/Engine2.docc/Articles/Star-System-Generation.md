@@ -42,8 +42,8 @@ meaning to the result:
   floor?
 - What iron, silicate, water, other-volatile, and hydrogen-helium masses remain
   in each final body?
-- How much of each condensed component remains in published bodies,
-  subthreshold survivors, or unaccreted annuli?
+- How much of each condensed component remains in published bodies, omitted
+  survivors, or unaccreted annuli?
 - How many embryo lineages merged into each final planet?
 - Which lineages and material were ejected, accreted by the star, or stripped
   into unresolved collision debris?
@@ -124,9 +124,9 @@ V1 supports:
   erosive gas-disk collisions whose solid debris can be reaccreted
 - bounded post-disk collisions, scattering, ejections, and stellar accretion
   followed by deterministic Hill and radial-clearance fallbacks
-- detailed output for survivors with at least `0.1` Earth masses of solids,
-  with one greatest-solid-mass fallback and an aggregate
-  composition-and-ancestry ledger for omitted subthreshold survivors
+- a sampled `0...9` output capacity, detailed output for the most massive
+  eligible survivors, and an aggregate composition-and-ancestry ledger for
+  every omitted survivor
 - present-day orbit-averaged irradiation, finite-budget boil-off,
   core-powered and energy-limited envelope loss, radius, optional
   exposed-surface pressure, albedo, and zero-dimensional visible-boundary
@@ -140,9 +140,9 @@ V1 does not support:
 
 - binary, multiple, evolved, or remnant stars
 - stellar-track table interpolation
-- individual orbits, environments, classifications, or moons for subthreshold
-  residual bodies, or a resolved planetesimal population outside the funded
-  seed and feeding-zone model
+- individual orbits, environments, classifications, or moons for residual
+  bodies, or a resolved planetesimal population outside the funded seed and
+  feeding-zone model
 - planetesimal velocity distributions, pebble accretion, resonant capture, or
   general torque reversals beyond the inner-trap and snow-line attractors
 - orbital phase, encounter geometry, fragmentation cascades, debris-body
@@ -166,7 +166,8 @@ an inspectable product of the implemented phases.
 - the complete ``StarSystemGenerationPolicy``
 - one ``GeneratedStar``
 - one ``GeneratedProtoplanetaryDisk`` summary
-- one ``StarSystemFormationLedger``
+- one ``StarSystemFormationLedger``, including the sampled resolved-planet
+  capacity
 - semimajor-axis-ordered ``GeneratedPlanet`` values
 
 Every published planet stores stable identity, conserved component masses,
@@ -180,12 +181,20 @@ close independently.
 The formation ledger also distinguishes post-disk ejected material,
 star-accreted material, and collision debris that remains in the system without
 becoming a resolved body. Event and ancestry counts let validation reconcile
-the funded embryo population with the surviving planets. Surviving bodies below
-the `0.1`-Earth-mass solid significance threshold contribute their complete
-aggregate composition, body count, and progenitor count to residual fields
-instead of appearing as individually resolved planets. If every survivor is
-subthreshold, the generator still publishes the one with the greatest solid
-mass; an exact solid-mass tie keeps the smaller stable identity.
+the funded embryo population with the surviving planets. V1 samples an output
+capacity from `0...9`, then considers survivors with at least `0.1` Earth masses
+of pre-moon solids. It selects up to that capacity by descending pre-moon solid
+mass; an exact tie ranks the smaller stable identity first. The published array
+remains ordered by semimajor axis. Every other survivor contributes its complete
+composition, body count, and progenitor count to the residual fields. This
+includes subthreshold survivors and eligible survivors beyond the sampled
+capacity. A zero capacity therefore produces a valid system with no resolved
+planets. V1 does not force a fallback planet.
+
+The capacity controls resolved output and population shape. It is not a
+physical nine-body law. Formation and dynamical clearing can leave more than
+nine survivors; the output aggregates those beyond the capacity instead of
+discarding their mass or ancestry.
 
 Residual-body aggregation happens before present-day atmosphere evolution and
 moon extraction. The aggregate therefore has no resolved orbit, radius,
@@ -312,7 +321,7 @@ generate present star and retained early activity
   -> disperse remaining gas
   -> resolve close post-disk pairs by collision, scattering, ejection, or stellar loss
   -> assign and damp orbital excitation
-  -> select significant resolved planets and aggregate subthreshold survivors
+  -> sample resolved-planet capacity, select eligible survivors, and aggregate omissions
   -> partition significant moon material
   -> subtract finite primordial-atmosphere budgets and project secondary atmosphere
   -> resolve present environments
@@ -391,8 +400,8 @@ V1 does not promote remaining annulus solids into a second embryo or
 planetesimal population. Those solids can feed the funded embryos during the
 96 epochs or remain unaccreted in the final ledger. This annulus reservoir is
 distinct from `residualBodyComposition`, which aggregates actual surviving
-formation bodies below the resolved-planet threshold. Neither aggregate
-provides a spatially resolved belt or individual residual-body facts.
+formation bodies omitted by eligibility or sampled output capacity. Neither
+aggregate provides a spatially resolved belt or individual residual-body facts.
 
 ## Simultaneous Solid Accretion
 
@@ -690,11 +699,11 @@ and the ledger retains unaccreted annulus, residual-body, and dynamical
 compositions, so equal aggregate solid mass cannot hide a component-transfer
 regression.
 
-The ledger also records funded embryo count, residual body and progenitor
-counts, formation and post-disk collision counts, scattering count, and removed
-body and progenitor counts. V1 keeps leftover annulus solids and subthreshold
-survivors in distinct aggregates; it does not invent belt locations or
-individual residual environments after formation.
+The ledger also records funded embryo count, sampled resolved-planet capacity,
+residual body and progenitor counts, formation and post-disk collision counts,
+scattering count, and removed body and progenitor counts. V1 keeps leftover
+annulus solids and omitted formed survivors in distinct aggregates; it does not
+invent belt locations or individual residual environments after formation.
 
 ## Validation and Failure
 
@@ -703,14 +712,16 @@ individual residual environments after formation.
 - a model version that differs from the stored policy
 - a policy that is invalid or not the exact canonical calibration for its version
 - star or disk facts that do not reproduce from the seed and canonical policy
+- a resolved-planet capacity outside the policy bound or different from the
+  seed-derived sample
 - nonfinite, nonpositive, overflowing, or causally inconsistent physical values
 - an invalid disk extent, component budget, lifetime, exponent, or annulus count
 - duplicate, out-of-namespace, wrong-parent, or out-of-range body identities
 - body, moon, progenitor, or merger counts outside their bounded ancestry ledger
 - residual-body composition, body count, or progenitor count that disagree on
   whether the residual branch is empty
-- aggregate residual solid mass above the per-body solid threshold times the
-  residual body count
+- aggregate residual solid mass above the eligibility boundary when capacity
+  remains, or above the smallest resolved solid mass when capacity is full
 - inconsistent ejection, stellar-accretion, scattering, collision-debris, or
   post-disk collision counts and composition destinations
 - nonpositive body mass or radius
@@ -724,8 +735,9 @@ individual residual environments after formation.
 - a moon outside those bounds or an adjacent moon pair without Hill clearance
 - a mismatch among resolved, residual, ejected, star-accreted, or merged ancestry
   and body counts
-- multiple published planetary systems whose parent-plus-moons solid mass is
-  below the resolved-planet significance threshold
+- a published planetary system whose parent-plus-moons solid mass is below the
+  resolved-planet eligibility threshold
+- more published planets than the persisted capacity permits
 - an open component-level solid or aggregate hydrogen-helium budget
 
 Replayed floating facts and mass comparisons use a relative tolerance of `1e-9`
@@ -735,10 +747,14 @@ disk-candidate, annulus, embryo, formation, encounter, evolution,
 eccentricity-damping, and moon-count bounds. Moon repair strictly reduces count.
 Moon extraction moves solids from a selected parent into its moons, so
 validation compares their combined solid mass with the selection threshold.
-Validation permits one subthreshold published planet for the generator's
-greatest-solid-mass fallback, but it does not replay formation to prove that a
-decoded body was the greatest survivor. The generator contains no unbounded
-candidate retry for a more interesting system.
+Validation replays the capacity draw, requires every published planet to remain
+eligible, and enforces the capacity bound. When capacity remains, residual
+solids cannot average above the eligibility floor. When capacity is full,
+residual solids cannot average above the smallest published parent-plus-moons
+solid mass. A zero capacity has no resolved selection boundary. These aggregate
+checks do not replay formation to prove that each decoded planet was among the
+highest-mass eligible survivors. The generator contains no unbounded candidate
+retry for a more interesting system.
 
 ## Persistence and Model Changes
 
@@ -778,8 +794,8 @@ The normal regression gate verifies:
   decoded-value rejection
 - stellar and stable-disk calibration bounds, shared-profile Toomre admission,
   fully funded seed-mass floor, and seed replay
-- resolved-versus-residual selection, dynamical outcome modes and destinations,
-  and complete embryo ancestry closure
+- resolved-capacity replay, resolved-versus-residual selection, dynamical
+  outcome modes and destinations, and complete embryo ancestry closure
 - paired disk-lifetime, luminosity, distance, XUV, and gravity causality
 - component-level solid and aggregate gas ledger closure
 - semimajor-axis ordering and mutual-Hill separation
@@ -787,17 +803,18 @@ The normal regression gate verifies:
 - the mean-flux equation
 - finite atmosphere-loss causality, exact-zero airless semantics, final-albedo
   temperature consistency, and opaque-boundary semantics
-- the expected bulk, atmosphere, thermal, water, and visible-boundary regime
-  sets across a 32-seed validated diversity smoke ensemble
+- the expected bulk, atmosphere, thermal, water, visible-boundary, capacity,
+  and resolved-count sets across a bounded representative-seed smoke ensemble
 
 Pinned fingerprints detect any resolved-output change; they do not decide
 whether the new population is acceptable. Invariant and focused causal tests
-must pass before fingerprints are deliberately replaced. The bounded 32-seed
-smoke ensemble checks finite execution and coarse regime reachability; it is not
-a calibration sample.
+must pass before fingerprints are deliberately replaced. The bounded
+representative-seed smoke ensemble checks finite execution and coarse
+reachability; it is not a calibration sample.
 
 The normal suite intentionally avoids observational occurrence-rate claims and
-wall-time assertions. Release calibration requires a separate large-seed audit
+wall-time assertions. Its representative seeds pin reachability, not frequency.
+Release calibration requires a separate large-seed audit
 that streams aggregate distributions without retaining every full system in
 memory. The audit records its model version, complete policy, seed range,
 toolchain, platform, failure counts, conservation residuals, dynamical
@@ -812,8 +829,8 @@ not silent mutation of V1:
 
 1. Replace analytic stellar proxies with bundled stellar and XUV tracks.
 2. Calibrate ensemble distributions against observational datasets.
-3. Resolve the residual planetesimal and subthreshold-body population when a
-   consumer needs individual or spatial facts.
+3. Resolve the residual planetesimal and omitted-body population when a consumer
+   needs individual or spatial facts.
 4. Replace analytic encounters with richer impact, debris, tide, and optional
    N-body audit models.
 5. Add richer interior, envelope, atmospheric chemistry, and climate tables.

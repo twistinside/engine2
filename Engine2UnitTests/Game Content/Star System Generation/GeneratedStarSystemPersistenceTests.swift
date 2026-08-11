@@ -15,6 +15,20 @@ nonisolated struct GeneratedStarSystemPersistenceTests {
         try decoded.validate()
     }
 
+    @Test func zeroPlanetSystemRoundTripsAndRetainsResidualProvenance() throws {
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 43))
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(GeneratedStarSystem.self, from: data)
+
+        #expect(original.formationLedger.resolvedPlanetCapacity == 0)
+        #expect(original.planets.isEmpty)
+        #expect(original.formationLedger.retainedSolidMass == .zero)
+        #expect(original.formationLedger.retainedHydrogenHeliumMass == .zero)
+        #expect(original.formationLedger.residualBodyCount > 0)
+        #expect(decoded == original)
+        try decoded.validate()
+    }
+
     @Test func validationRejectsDecodedPolicyThatBypassedTrustedInitializer() throws {
         let original = try generator.generate(seed: StarSystemSeed(rawValue: 101))
         let decoded = try GeneratedStarSystemFixture(system: original).decoded { object in
@@ -319,6 +333,7 @@ nonisolated struct GeneratedStarSystemPersistenceTests {
             residualBodyComposition: ledger.residualBodyComposition,
             residualBodyCount: ledger.residualBodyCount,
             residualProgenitorCount: ledger.residualProgenitorCount,
+            resolvedPlanetCapacity: ledger.resolvedPlanetCapacity,
             seededEmbryoCount: ledger.seededEmbryoCount,
             formationMergerCount: ledger.formationMergerCount,
             postDiskCollisionMergerCount: ledger.postDiskCollisionMergerCount

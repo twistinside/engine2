@@ -6,8 +6,8 @@ import Foundation
 /// Decoding does not establish trust; callers must invoke `validate()` before
 /// reusing decoded bytes. Runtime or ECS integration must consume this resolved
 /// value rather than rerunning the generator from inside `PWorldBuilder`.
-/// Significant planets retain detailed facts; solid-mass-subthreshold survivors
-/// remain aggregate ledger provenance.
+/// Selected significant planets retain detailed facts; every omitted survivor
+/// remains aggregate ledger provenance.
 nonisolated struct GeneratedStarSystem: Codable, Equatable, Sendable {
     let seed: StarSystemSeed
     let modelVersion: StarSystemGenerationModelVersion

@@ -2,9 +2,9 @@
 ///
 /// Retained bodies, unaccreted solids, and explicit post-disk dynamical
 /// destinations close every initial solid component. The residual-body fields
-/// aggregate surviving formation bodies below the model's resolved-planet
-/// threshold. Retained envelopes, residual gas, escaped atmosphere, dispersed
-/// nebular gas, and dynamical destinations close the initial hydrogen-helium budget.
+/// aggregate survivors omitted by resolved-planet significance or multiplicity.
+/// Retained envelopes, residual gas, escaped atmosphere, dispersed nebular gas,
+/// and dynamical destinations close the initial hydrogen-helium budget.
 nonisolated struct StarSystemFormationLedger: Codable, Equatable, Sendable {
     let initialSolidMass: AstronomicalMass
     let retainedSolidMass: AstronomicalMass
@@ -18,6 +18,7 @@ nonisolated struct StarSystemFormationLedger: Codable, Equatable, Sendable {
     let residualBodyComposition: CelestialMassComposition
     let residualBodyCount: Int
     let residualProgenitorCount: Int
+    let resolvedPlanetCapacity: Int
     let seededEmbryoCount: Int
     let formationMergerCount: Int
     let postDiskCollisionMergerCount: Int
