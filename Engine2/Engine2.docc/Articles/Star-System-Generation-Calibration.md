@@ -100,6 +100,11 @@ key = key XOR discriminator * 0xA0761D6478BD642F
 state = mix(key)
 ```
 
+``SplitMix64RandomNumberGenerator`` owns the reusable seed whitening, wrapped
+advancement, and mixing sequence. ``StarSystemRandomStream`` computes the
+star-system address above and owns the calibrated distribution transforms. This
+separation changes no V1 word, draw order, or fingerprint.
+
 All multiplication and addition in stream derivation and advancement wrap at
 64 bits. SplitMix64 advancement adds:
 

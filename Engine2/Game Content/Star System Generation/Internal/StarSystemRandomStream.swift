@@ -1,12 +1,13 @@
 import Foundation
 
-/// Pinned SplitMix64 stream derived from one named generation domain.
+/// Statistical sampling stream derived from one named star-system domain.
 ///
-/// This implementation is intentionally local and value-semantic. Swift's
-/// randomized hashing, system entropy, collection iteration order, and wall
-/// time never participate in generated output.
+/// The wrapper derives the model-specific address, delegates repeatable integer
+/// production to ``SplitMix64RandomNumberGenerator``, and owns only the
+/// distributions used by star-system generation. Swift hashing, system entropy,
+/// collection iteration order, and wall time never participate in output.
 nonisolated struct StarSystemRandomStream: Sendable {
-    private var state: UInt64
+    private var randomNumberGenerator: SplitMix64RandomNumberGenerator
 
     init(
         seed: StarSystemSeed,
@@ -17,12 +18,11 @@ nonisolated struct StarSystemRandomStream: Sendable {
         var key = seed.rawValue ^ domain.rawValue
         key &+= UInt64(modelVersion.rawValue) &* 0xD6E8_FEB8_6659_FD93
         key ^= discriminator &* 0xA076_1D64_78BD_642F
-        self.state = Self.mixed(key)
+        randomNumberGenerator = SplitMix64RandomNumberGenerator(seed: key)
     }
 
     mutating func nextUInt64() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        return Self.mixed(state)
+        randomNumberGenerator.next()
     }
 
     mutating func uniformUnit() -> Double {
@@ -82,12 +82,5 @@ nonisolated struct StarSystemRandomStream: Sendable {
         let lower = pow(range.lowerBound, transformedExponent)
         let upper = pow(range.upperBound, transformedExponent)
         return pow(uniform(in: min(lower, upper)...max(lower, upper)), 1 / transformedExponent)
-    }
-
-    private static func mixed(_ value: UInt64) -> UInt64 {
-        var mixed = value
-        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        mixed = (mixed ^ (mixed >> 27)) &* 0x94D0_49BB_1331_11EB
-        return mixed ^ (mixed >> 31)
     }
 }

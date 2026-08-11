@@ -267,10 +267,11 @@ root seed
   + optional stable body discriminator
 ```
 
-``StarSystemRandomStream`` applies a pinned SplitMix64 sequence. Unit uniform
-sampling uses the upper 53 random bits and multiplies by `2^-53`. Normal
-sampling uses Box-Muller without a cached spare. Log-normal and Rayleigh values
-derive only from those operations.
+``StarSystemRandomStream`` derives the star-system-specific address and delegates
+integer production to the reusable ``SplitMix64RandomNumberGenerator``. Unit
+uniform sampling uses the upper 53 random bits and multiplies by `2^-53`.
+Normal sampling uses Box-Muller without a cached spare. Log-normal and Rayleigh
+values derive only from those operations.
 
 The generator never uses:
 

@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 nonisolated struct StarSystemRandomStreamTests {
-    @Test func pinnedSplitMixWordsDefineTheVersionOneStream() {
+    @Test func pinnedAddressedWordsDefineTheVersionOneStream() {
         var random = StarSystemRandomStream(
             seed: StarSystemSeed(rawValue: 0x1234),
             modelVersion: .coreAccretionLiteV1,

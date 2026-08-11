@@ -1,13 +1,12 @@
 /// Nonnegative pressure stored in pascals.
 nonisolated struct SurfacePressure: Codable, Equatable, Hashable, Sendable {
     static let vacuum = SurfacePressure(pascals: 0)
-
-    private static let pascalsPerBar = 100_000.0
+    static let bar = SurfacePressure(pascals: 100_000.0)
 
     let pascals: Double
 
     var bars: Double {
-        pascals / Self.pascalsPerBar
+        pascals / Self.bar.pascals
     }
 
     init(pascals: Double) {
@@ -19,6 +18,6 @@ nonisolated struct SurfacePressure: Codable, Equatable, Hashable, Sendable {
     }
 
     init(bars: Double) {
-        self.init(pascals: bars * Self.pascalsPerBar)
+        self.init(pascals: bars * Self.bar.pascals)
     }
 }

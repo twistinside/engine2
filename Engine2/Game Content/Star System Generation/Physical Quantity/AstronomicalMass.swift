@@ -4,18 +4,17 @@
 /// satellite mass without mixing unlabelled solar- and Earth-mass values.
 nonisolated struct AstronomicalMass: Codable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalMass(kilograms: 0)
-
-    private static let kilogramsPerEarthMass = 5.9722e24
-    private static let kilogramsPerSolarMass = 1.98847e30
+    static let earth = AstronomicalMass(kilograms: 5.9722e24)
+    static let sun = AstronomicalMass(kilograms: 1.98847e30)
 
     let kilograms: Double
 
     var earthMasses: Double {
-        kilograms / Self.kilogramsPerEarthMass
+        kilograms / Self.earth.kilograms
     }
 
     var solarMasses: Double {
-        kilograms / Self.kilogramsPerSolarMass
+        kilograms / Self.sun.kilograms
     }
 
     init(kilograms: Double) {
@@ -27,11 +26,11 @@ nonisolated struct AstronomicalMass: Codable, Equatable, Hashable, Sendable {
     }
 
     init(earthMasses: Double) {
-        self.init(kilograms: earthMasses * Self.kilogramsPerEarthMass)
+        self.init(kilograms: earthMasses * Self.earth.kilograms)
     }
 
     init(solarMasses: Double) {
-        self.init(kilograms: solarMasses * Self.kilogramsPerSolarMass)
+        self.init(kilograms: solarMasses * Self.sun.kilograms)
     }
 }
 
