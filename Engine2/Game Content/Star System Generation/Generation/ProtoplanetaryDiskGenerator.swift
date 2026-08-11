@@ -1,7 +1,13 @@
 import Foundation
 
-/// Generates and numerically normalizes one conserved logarithmic annular disk.
+/// Generates one conserved logarithmic annular disk admitted by V1's stability bound.
+///
+/// V1 correlates characteristic radius with sampled gas-disk mass, rejects structures
+/// below its annular Toomre-Q bound, and stores only the mass represented between
+/// the resolved inner and outer edges.
 nonisolated struct ProtoplanetaryDiskGenerator: Sendable {
+    private static let diskMassRadiusExponent = 0.625
+
     let policy: StarSystemGenerationPolicy
 
     func generate(around star: GeneratedStar, seed: StarSystemSeed) -> FormationDisk {
@@ -36,9 +42,9 @@ nonisolated struct ProtoplanetaryDiskGenerator: Sendable {
         around star: GeneratedStar,
         random: inout StarSystemRandomStream
     ) -> SampledProtoplanetaryDisk {
-        let diskMassRatio = clamped(
-            random.logNormal10(median: policy.medianDiskMassRatio, scatterDex: policy.diskMassScatterDex),
-            to: policy.minimumDiskMassRatio...policy.maximumDiskMassRatio
+        let diskStructure = sampleSupportedDiskStructure(
+            around: star,
+            random: &random
         )
         let lifetimeMegayears = clamped(
             random.logNormal10(
@@ -46,17 +52,6 @@ nonisolated struct ProtoplanetaryDiskGenerator: Sendable {
                 scatterDex: policy.diskLifetimeScatterDex
             ),
             to: policy.minimumDiskLifetimeMegayears...policy.maximumDiskLifetimeMegayears
-        )
-        let characteristicRadiusAU = clamped(
-            random.logNormal10(
-                median: policy.medianCharacteristicRadiusAU * sqrt(star.mass.solarMasses),
-                scatterDex: policy.characteristicRadiusScatterDex
-            ),
-            to: 10...100
-        )
-        let surfaceDensityExponent = clamped(
-            random.normal(mean: 1, standardDeviation: 0.2),
-            to: 0.5...1.5
         )
         let ironFraction = clamped(random.normal(mean: 0.32, standardDeviation: 0.05), to: 0.20...0.42)
         let innerWaterFraction = random.uniformUnit() < 0.45
@@ -68,13 +63,86 @@ nonisolated struct ProtoplanetaryDiskGenerator: Sendable {
             to: 0.002...0.05
         )
         return SampledProtoplanetaryDisk(
-            diskMassRatio: diskMassRatio,
+            diskMassRatio: diskStructure.massRatio,
             lifetimeMegayears: lifetimeMegayears,
-            characteristicRadiusAU: characteristicRadiusAU,
-            surfaceDensityExponent: surfaceDensityExponent,
+            characteristicRadiusAU: diskStructure.characteristicRadiusAU,
+            surfaceDensityExponent: diskStructure.surfaceDensityExponent,
             innerIronFraction: ironFraction,
             innerWaterFraction: innerWaterFraction,
             solidFraction: solidFraction
+        )
+    }
+
+    private func sampleSupportedDiskStructure(
+        around star: GeneratedStar,
+        random: inout StarSystemRandomStream
+    ) -> (massRatio: Double, characteristicRadiusAU: Double, surfaceDensityExponent: Double) {
+        var finalRadiusScatter = 1.0
+        var finalSurfaceDensityExponent = 1.0
+        for _ in 0..<16 {
+            let massRatio = clamped(
+                random.logNormal10(
+                    median: policy.medianDiskMassRatio,
+                    scatterDex: policy.diskMassScatterDex
+                ),
+                to: policy.minimumDiskMassRatio...policy.maximumDiskMassRatio
+            )
+            finalRadiusScatter = pow(
+                10,
+                policy.characteristicRadiusScatterDex * random.normal()
+            )
+            finalSurfaceDensityExponent = clamped(
+                random.normal(mean: 1, standardDeviation: 0.2),
+                to: 0.5...1.5
+            )
+            let characteristicRadiusAU = correlatedCharacteristicRadiusAU(
+                forDiskMassRatio: massRatio,
+                radiusScatter: finalRadiusScatter,
+                around: star
+            )
+            let profile = diskProfile(
+                characteristicRadiusAU: characteristicRadiusAU,
+                surfaceDensityExponent: finalSurfaceDensityExponent,
+                around: star
+            )
+            let stabilityLimitedMaximumRatio = profile.maximumStableDiskMassRatio(around: star)
+            if massRatio <= stabilityLimitedMaximumRatio {
+                return (massRatio, characteristicRadiusAU, finalSurfaceDensityExponent)
+            }
+        }
+
+        let fallbackMassRatio = policy.minimumDiskMassRatio
+        let fallbackRadiusAU = correlatedCharacteristicRadiusAU(
+            forDiskMassRatio: fallbackMassRatio,
+            radiusScatter: finalRadiusScatter,
+            around: star
+        )
+        let profile = diskProfile(
+            characteristicRadiusAU: fallbackRadiusAU,
+            surfaceDensityExponent: finalSurfaceDensityExponent,
+            around: star
+        )
+        let stabilityLimitedMaximumRatio = profile.maximumStableDiskMassRatio(around: star)
+        precondition(
+            fallbackMassRatio <= stabilityLimitedMaximumRatio,
+            "The minimum supported disk prior must remain Toomre stable."
+        )
+        return (fallbackMassRatio, fallbackRadiusAU, finalSurfaceDensityExponent)
+    }
+
+    private func correlatedCharacteristicRadiusAU(
+        forDiskMassRatio massRatio: Double,
+        radiusScatter: Double,
+        around star: GeneratedStar
+    ) -> Double {
+        let diskMassRelativeToMedianSolarDisk = massRatio
+            * star.mass.solarMasses
+            / policy.medianDiskMassRatio
+        return clamped(
+            policy.medianCharacteristicRadiusAU
+                * pow(diskMassRelativeToMedianSolarDisk, Self.diskMassRadiusExponent)
+                * radiusScatter,
+            to: 10...100
         )
     }
 
@@ -82,37 +150,48 @@ nonisolated struct ProtoplanetaryDiskGenerator: Sendable {
         from sample: SampledProtoplanetaryDisk,
         around star: GeneratedStar
     ) -> ProtoplanetaryDiskLayout {
-        let gasMassEarth = star.mass.earthMasses * sample.diskMassRatio
-        let solidMassEarth = gasMassEarth * sample.solidFraction
-        let innerEdgeAU = max(
-            0.03,
-            1.15 * star.radius.astronomicalUnits
+        let innerEdgeAU = diskInnerEdgeAU(around: star)
+        let profile = ProtoplanetaryDiskProfile(
+            characteristicRadiusAU: sample.characteristicRadiusAU,
+            surfaceDensityExponent: sample.surfaceDensityExponent,
+            innerEdgeAU: innerEdgeAU,
+            annulusCount: policy.annulusCount
         )
-        let outerEdgeAU = max(innerEdgeAU * 4, min(40, 3 * sample.characteristicRadiusAU))
+        let gasMassEarth = star.mass.earthMasses
+            * sample.diskMassRatio
+            * profile.representedMassFraction
+        let solidMassEarth = gasMassEarth * sample.solidFraction
         let formationLuminositySolar = max(
             star.luminosity.solarLuminosities,
             1.5 * pow(star.mass.solarMasses, 2)
         )
         let snowLineAU = 2.7 * sqrt(formationLuminositySolar)
-        let radialEdges = logarithmicEdges(
-            lower: innerEdgeAU,
-            upper: outerEdgeAU,
-            count: policy.annulusCount
-        )
-        let weights = annulusWeights(
-            radialEdges: radialEdges,
-            characteristicRadiusAU: sample.characteristicRadiusAU,
-            exponent: sample.surfaceDensityExponent
-        )
         return ProtoplanetaryDiskLayout(
             gasMassEarth: gasMassEarth,
             solidMassEarth: solidMassEarth,
             innerEdgeAU: innerEdgeAU,
-            outerEdgeAU: outerEdgeAU,
+            outerEdgeAU: profile.outerEdgeAU,
             snowLineAU: snowLineAU,
-            radialEdges: radialEdges,
-            normalizedAnnulusWeights: normalized(weights)
+            radialEdges: profile.radialEdges,
+            normalizedAnnulusWeights: profile.normalizedAnnulusWeights
         )
+    }
+
+    private func diskProfile(
+        characteristicRadiusAU: Double,
+        surfaceDensityExponent: Double,
+        around star: GeneratedStar
+    ) -> ProtoplanetaryDiskProfile {
+        return ProtoplanetaryDiskProfile(
+            characteristicRadiusAU: characteristicRadiusAU,
+            surfaceDensityExponent: surfaceDensityExponent,
+            innerEdgeAU: diskInnerEdgeAU(around: star),
+            annulusCount: policy.annulusCount
+        )
+    }
+
+    private func diskInnerEdgeAU(around star: GeneratedStar) -> Double {
+        max(0.03, 1.15 * star.radius.astronomicalUnits)
     }
 
     private func makeSummary(
@@ -134,35 +213,6 @@ nonisolated struct ProtoplanetaryDiskGenerator: Sendable {
             waterSnowLine: AstronomicalDistance(astronomicalUnits: layout.snowLineAU),
             annulusCount: policy.annulusCount
         )
-    }
-
-    private func logarithmicEdges(lower: Double, upper: Double, count: Int) -> [Double] {
-        let logarithmicStep = log(upper / lower) / Double(count)
-        return (0...count).map { index in
-            lower * exp(Double(index) * logarithmicStep)
-        }
-    }
-
-    private func annulusWeights(
-        radialEdges: [Double],
-        characteristicRadiusAU: Double,
-        exponent: Double
-    ) -> [Double] {
-        (0..<(radialEdges.count - 1)).map { index in
-            let inner = radialEdges[index]
-            let outer = radialEdges[index + 1]
-            let center = sqrt(inner * outer)
-            let scaledRadius = center / characteristicRadiusAU
-            let surfaceDensity = pow(scaledRadius, -exponent)
-                * exp(-pow(scaledRadius, 2 - exponent))
-            return 2 * Double.pi * center * (outer - inner) * surfaceDensity
-        }
-    }
-
-    private func normalized(_ values: [Double]) -> [Double] {
-        let total = values.reduce(0, +)
-        precondition(total.isFinite && total > 0, "Disk annulus weights must have a positive finite sum.")
-        return values.map { $0 / total }
     }
 
     private func makeAnnuli(

@@ -1,8 +1,10 @@
 /// Conservation and bounded-work ledger for one completed generation run.
 ///
-/// Current planets and moons plus `unaccretedSolidComposition` close each
-/// initial solid component. Retained primordial envelopes plus escaped and
-/// dispersed gas close the initial gas budget.
+/// Retained bodies, unaccreted solids, and explicit post-disk dynamical
+/// destinations close every initial solid component. The residual-body fields
+/// aggregate surviving formation bodies below the model's resolved-planet
+/// threshold. Retained envelopes, residual gas, escaped atmosphere, dispersed
+/// nebular gas, and dynamical destinations close the initial hydrogen-helium budget.
 nonisolated struct StarSystemFormationLedger: Codable, Equatable, Sendable {
     let initialSolidMass: AstronomicalMass
     let retainedSolidMass: AstronomicalMass
@@ -12,7 +14,11 @@ nonisolated struct StarSystemFormationLedger: Codable, Equatable, Sendable {
     let retainedHydrogenHeliumMass: AstronomicalMass
     let escapedHydrogenHeliumMass: AstronomicalMass
     let dispersedGasMass: AstronomicalMass
+    let dynamicalLosses: StarSystemDynamicalLossLedger
+    let residualBodyComposition: CelestialMassComposition
+    let residualBodyCount: Int
+    let residualProgenitorCount: Int
     let seededEmbryoCount: Int
     let formationMergerCount: Int
-    let stabilityMergerCount: Int
+    let postDiskCollisionMergerCount: Int
 }

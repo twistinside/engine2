@@ -10,9 +10,10 @@ and validates the resolved result before any Runtime receives it.
 Implemented baseline.
 
 The current `coreAccretionLiteV1` model is a deterministic population-synthesis
-approximation. It is deliberately more causal than choosing a final planet kind
-from a weighted table and deliberately smaller than a numerical N-body or
-radiative-climate model.
+approximation. It resolves a gravitationally admitted disk, local formation,
+bounded dynamical outcomes, and finite atmosphere budgets. It is deliberately
+more causal than choosing a final planet kind from a weighted table and
+deliberately smaller than a numerical N-body or radiative-climate model.
 
 This article explains ownership, workflow, invariants, and output semantics. See
 <doc:Star-System-Generation-Calibration> for the canonical V1 distributions,
@@ -37,10 +38,15 @@ meaning to the result:
 
 - What star formed, how old is it, and how luminous is it now?
 - How much gas and condensed material did its disk contain?
+- Did the sampled mass-radius disk remain above the V1 gravitational-stability
+  floor?
 - What iron, silicate, water, other-volatile, and hydrogen-helium masses remain
   in each final body?
-- How much of each condensed component remains in bodies or unresolved annuli?
+- How much of each condensed component remains in published bodies,
+  subthreshold survivors, or unaccreted annuli?
 - How many embryo lineages merged into each final planet?
+- Which lineages and material were ejected, accreted by the star, or stripped
+  into unresolved collision debris?
 - Which present orbits satisfy the baseline construction filter?
 - How strongly does the current star irradiate each body?
 - How much primordial envelope survives the star's early high-energy output?
@@ -108,27 +114,39 @@ V1 supports:
 - exactly one main-sequence star from `0.5...1.2` solar masses
 - stellar metallicity, present age, luminosity, radius, effective temperature,
   and a slow, median, or fast early-activity track
-- one exponentially tapered gas-and-solid disk
+- one mass-radius-correlated, exponentially tapered gas-and-solid disk admitted
+  through an annular Toomre-stability bound
 - 128 logarithmic disk annuli
-- up to 64 funded embryos
+- up to 64 fully funded embryos
 - 96 bounded gas-disk formation epochs
-- simultaneous solid claims, primordial gas capture, inward migration, and
-  perfectly accretionary mergers
-- deterministic post-disk Hill clearing
-- present-day orbit-averaged irradiation, envelope loss, radius, optional
+- simultaneous solid claims, cooling- and supply-limited primordial gas
+  capture, local gap-aware migration toward an inner trap or snow line, and
+  erosive gas-disk collisions whose solid debris can be reaccreted
+- bounded post-disk collisions, scattering, ejections, and stellar accretion
+  followed by deterministic Hill and radial-clearance fallbacks
+- detailed output for survivors with at least `0.1` Earth masses of solids,
+  with one greatest-solid-mass fallback and an aggregate
+  composition-and-ancestry ledger for omitted subthreshold survivors
+- present-day orbit-averaged irradiation, finite-budget boil-off,
+  core-powered and energy-limited envelope loss, radius, optional
   exposed-surface pressure, albedo, and zero-dimensional visible-boundary
   temperature
 - orthogonal physical classifications
 - a bounded set of significant regular or giant-impact moons
-- per-component solid and aggregate hydrogen-helium conservation ledgers
+- per-component solid and aggregate hydrogen-helium conservation ledgers with
+  explicit post-disk destinations
 
 V1 does not support:
 
 - binary, multiple, evolved, or remnant stars
 - stellar-track table interpolation
-- planetesimal velocity distributions or pebble accretion
-- resonant capture, outward migration, or disk cavities beyond one inner trap
-- ejections, collisions with the star, fragmentation, or impact erosion
+- individual orbits, environments, classifications, or moons for subthreshold
+  residual bodies, or a resolved planetesimal population outside the funded
+  seed and feeding-zone model
+- planetesimal velocity distributions, pebble accretion, resonant capture, or
+  general torque reversals beyond the inner-trap and snow-line attractors
+- orbital phase, encounter geometry, fragmentation cascades, debris-body
+  resolution, or a free-floating-planet catalog
 - a numerical N-body stability proof
 - detailed planetary interiors, contraction, clouds, circulation, or chemistry
 - spatial climate, seasons, obliquity, rotation, tides, or radiogenic heating
@@ -151,13 +169,28 @@ an inspectable product of the implemented phases.
 - one ``StarSystemFormationLedger``
 - semimajor-axis-ordered ``GeneratedPlanet`` values
 
-Every generated planet stores stable identity, conserved component masses,
+Every published planet stores stable identity, conserved component masses,
 radius, reduced Keplerian orbit, environment, orthogonal physical state,
 significant moons, and progenitor count. Every moon stores its formation origin,
 composition, radius, parent-relative orbit, and the minimum and maximum
 semimajor-axis bounds used by validation. The disk and ledger retain initial and
 unaccreted solid compositions so iron, silicate, water, and other volatiles can
 close independently.
+
+The formation ledger also distinguishes post-disk ejected material,
+star-accreted material, and collision debris that remains in the system without
+becoming a resolved body. Event and ancestry counts let validation reconcile
+the funded embryo population with the surviving planets. Surviving bodies below
+the `0.1`-Earth-mass solid significance threshold contribute their complete
+aggregate composition, body count, and progenitor count to residual fields
+instead of appearing as individually resolved planets. If every survivor is
+subthreshold, the generator still publishes the one with the greatest solid
+mass; an exact solid-mass tie keeps the smaller stable identity.
+
+Residual-body aggregation happens before present-day atmosphere evolution and
+moon extraction. The aggregate therefore has no resolved orbit, radius,
+environment, escaped-atmosphere history, or moon system. Its hydrogen-helium
+remains in the residual composition branch of the gas ledger.
 
 The output is `Codable`, `Equatable`, and `Sendable`. Codable synthesis does not
 validate arbitrary decoded bytes. A persistence boundary must call
@@ -240,9 +273,11 @@ The generator never uses:
 - process-global mutable state
 - dictionary iteration order
 
-Star, disk, embryo placement, formation, orbital excitation, and moon generation
-have distinct stream domains. Final-body orbital and moon draws include stable
-body identity. Adding a moon draw cannot shift the generated star or disk.
+Star, disk, embryo placement, formation collision, post-disk dynamical clearing,
+orbital excitation, and moon generation have distinct stream domains. Final-body
+orbital and moon draws include stable body identity. A post-disk encounter
+stream includes the ordered body identities and encounter sequence. Adding a
+moon draw cannot shift the generated star or disk.
 
 Within a phase, floating-point reduction order is part of V1. Formation is
 serial and arrays are sorted by stable identity before claims. The contract is
@@ -251,7 +286,9 @@ exact reproduction on the pinned supported Swift toolchain and architecture.
 toolchains. Persist the resolved system instead of assuming bit-identical
 seed-only regeneration forever.
 
-Any change to these inputs requires a new model version:
+This in-place rewrite establishes the V1 compatibility baseline before its
+first persistence freeze. After that freeze, any change to these inputs
+requires a new model version:
 
 - a distribution or calibration
 - a formula
@@ -267,16 +304,19 @@ Any change to these inputs requires a new model version:
 
 ```text
 generate present star and retained early activity
-  -> generate and normalize protoplanetary disk
-  -> fund embryos from disk solids
-  -> evolve simultaneous solid and gas accretion
-  -> migrate and merge during gas-disk lifetime
+  -> sample a correlated disk and reject gravitationally unsupported structures
+  -> normalize its represented annular reservoirs
+  -> fully fund embryos from disk solids
+  -> evolve simultaneous solid claims and supply-limited gas capture
+  -> migrate through local disk zones and collide during the gas-disk lifetime
   -> disperse remaining gas
-  -> clear insufficiently spaced final planets
+  -> resolve close post-disk pairs by collision, scattering, ejection, or stellar loss
   -> assign and damp orbital excitation
+  -> select significant resolved planets and aggregate subthreshold survivors
   -> partition significant moon material
-  -> evolve bodies to their present environments
-  -> build conservation ledger
+  -> subtract finite primordial-atmosphere budgets and project secondary atmosphere
+  -> resolve present environments
+  -> build conservation and dynamical-destination ledgers
   -> validate complete immutable result
 ```
 
@@ -298,9 +338,20 @@ only the mature star.
 
 ## Conserved Disk Phase
 
-``ProtoplanetaryDiskGenerator`` samples gas mass, solid fraction, lifetime,
-characteristic radius, and surface-density exponent. It builds logarithmic
-annulus edges from the inner disk to `min(40 AU, 3 Rc)`.
+``ProtoplanetaryDiskGenerator`` jointly samples gas-to-star mass ratio,
+characteristic radius, and surface-density exponent. Characteristic radius
+scales with disk mass to the `0.625` power before independent radius scatter,
+so a massive disk is normally more extended instead of independently dense.
+The generator evaluates every candidate's 128 annuli and accepts it only when
+the minimum Toomre `Q` is at least `1.4`. It makes at most 16 attempts, then
+uses the minimum supported disk-mass ratio with the last sampled shape. The
+canonical policy caps the unconstrained ratio at `0.16`.
+
+The represented disk extends from the stellar inner edge through the smaller
+of `150 AU` and five characteristic radii. The stored gas reservoir is the
+analytic tapered-disk mass fraction inside those edges, not the mass of an
+unbounded disk. Solids are a metallicity-dependent fraction of that represented
+gas reservoir.
 
 The unnormalized mass weight for one annulus is:
 
@@ -310,9 +361,9 @@ w(a) = 2 pi a delta-a
        exp(-(a / Rc)^(2 - p))
 ```
 
-Numerical normalization makes all annulus weights sum to one. Each weight
-receives the same fraction of total gas and total solids, so the discrete disk
-exactly reproduces both sampled reservoirs before floating-point tolerance.
+Numerical normalization makes all represented-annulus weights sum to one. Each
+weight receives the same fraction of total gas and total solids, so the discrete
+disk exactly reproduces both sampled reservoirs before floating-point tolerance.
 
 The water snow line is based on the V1 formation luminosity. Forty-five percent
 of disks begin with dry inner solids. The other disks receive a seeded
@@ -324,15 +375,24 @@ inward does not retroactively turn its formation material into dry rock.
 
 ## Embryo Funding
 
-Embryo placement advances outward with a deterministic logarithmic spacing
-jitter. Each placement withdraws at most the configured seed mass from the five
-nearest annuli. Withdrawal uses one common fraction across those annuli, which
-preserves their local component mixture.
+Embryo placement advances outward through at most `40 AU` with the larger of a
+deterministic logarithmic spacing jitter and an eight-mutual-Hill-radius seed
+spacing. Each placement succeeds only when its five-annulus neighborhood can
+supply the complete configured `0.01`-Earth-mass seed. One common withdrawal
+fraction preserves the neighborhood's local component mixture.
 
-An unfunded placement creates no body. Generation fails with
-`noFundedEmbryos` only if the complete disk cannot fund any embryo. Identity is
-assigned monotonically to funded embryos and retained through later sorting. A
-merger keeps the smaller progenitor identity and sums progenitor counts.
+An underfunded placement withdraws nothing and creates no body. Generation
+fails with `noFundedEmbryos` only if placement creates no fully funded embryo.
+Identity is assigned monotonically to funded embryos and retained through later
+sorting. A collision remnant keeps the smaller progenitor identity and sums
+progenitor counts.
+
+V1 does not promote remaining annulus solids into a second embryo or
+planetesimal population. Those solids can feed the funded embryos during the
+96 epochs or remain unaccreted in the final ledger. This annulus reservoir is
+distinct from `residualBodyComposition`, which aggregates actual surviving
+formation bodies below the resolved-planet threshold. Neither aggregate
+provides a spatially resolved belt or individual residual-body facts.
 
 ## Simultaneous Solid Accretion
 
@@ -344,10 +404,12 @@ Each of 96 epochs follows this ordering:
 4. Sum all claims for each annulus.
 5. Scale contested claims proportionally when their sum exceeds one annulus.
 6. Apply every component-mass allocation.
-7. Calculate and apply gas-envelope claims.
-8. Apply bounded inward migration.
+7. Calculate and apply cooling-, hydrodynamic-, viscous-, and gap-limited
+   gas-envelope claims.
+8. Apply bounded local migration toward the selected disk attractor.
 9. Disperse one epoch of unbound disk gas.
-10. At every eighth epoch, merge bodies inside the formation Hill threshold.
+10. At every eighth epoch, collide bodies inside the formation Hill threshold
+    and return stripped material to explicit destinations.
 
 No annulus is debited while the next embryo's claim is being calculated. That
 rule prevents storage order from becoming hidden accretion priority.
@@ -361,22 +423,32 @@ mass before dispersal.
 
 ## Primordial Gas and Migration
 
-Gas capture derives a target envelope fraction from current solid mass and
-elapsed megayears. Each epoch moves a duration-scaled fraction of the remaining
-gap toward that target. Claims are distributed across local annuli and scaled
-proportionally if several embryos request the same gas.
+Only cores of at least `0.3` Earth masses request primordial gas. Cooling sets
+an attached-envelope demand from core mass and elapsed disk time; a
+Kelvin-Helmholtz timescale controls how much of that demand can be realized in
+one epoch. Once the envelope reaches `0.45` of core mass, the larger runaway
+demand is eligible.
 
-Migration is inward only. Its time-integrated fractional step depends on total
-body mass, remaining global gas fraction, epoch duration, and policy efficiency,
-with a hard three percent per-epoch cap. The disk inner edge supplies a `1.1`
-multiplier trap.
+Demand is not an allocation guarantee. The request is capped by gas in a local
+capture zone, a hydrodynamic response, a viscous-throughput estimate, and a gap
+flow factor. The disk aspect ratio, `0.002` turbulent-viscosity proxy, body-star
+mass ratio, and Hill radius determine gap opening and depth. Claims remain
+simultaneous and are scaled proportionally when embryos contest one annulus.
+
+Migration uses the remaining gas fraction in the nearest annulus rather than a
+system-wide gas fraction. A non-gap-opening body moves toward whichever is
+closer in log radius: the inner trap or snow line. It can therefore move inward
+or outward. A gap-opening body uses a depth-reduced rate capped by the local
+viscous rate and does not move outward. Every epoch caps the fractional step at
+three percent. The inner trap is the larger of `1.8` inner-edge radii and `0.18`
+snow-line radii.
 
 After capture and migration, every annulus loses the exponential fraction for
 that epoch's duration relative to the sampled disk lifetime. After the final
 epoch, the generator disperses all gas still in the disk. Captured gas remains
 on bodies until present-day escape; all other gas enters the dispersed ledger.
 
-## Mergers and Final Architecture
+## Collisions and Final Architecture
 
 The mutual Hill radius for adjacent bodies is:
 
@@ -385,21 +457,39 @@ RH,m = ((m1 + m2) / (3 Mstar))^(1/3) * (a1 + a2) / 2
 delta = (a2 - a1) / RH,m
 ```
 
-Formation merges use `delta < 3.5`. Post-disk clearing repeatedly merges the
-first semimajor-axis-ordered pair below:
+Formation treats `delta < 3.5` as a collision. The remnant retains
+`98.5...100%` of the combined solid mass and `55...90%` of hydrogen-helium.
+Stripped solids return to the nearest annulus and can be accreted later;
+stripped hydrogen-helium enters dispersed gas. The remnant orbit preserves the
+circular, star-dominated angular-momentum approximation:
+
+```text
+aRemnant = ((m1 sqrt(a1) + m2 sqrt(a2)) / (m1 + m2))^2
+```
+
+Post-disk clearing treats the first semimajor-axis-ordered pair below the
+required mutual-Hill spacing as an encounter:
 
 - `12` mutual Hill radii for ordinary pairs
 - `15` mutual Hill radii when either body is at least `30` Earth masses
 
-The merged semimajor axis preserves the circular, star-dominated angular
-momentum approximation:
+One pair-addressed random stream draws once against ordered conditional
+thresholds: stellar accretion first, ejection among survivors, collision among
+the remainder, and scattering otherwise. Encounter severity, stellar proximity,
+and an escape-to-orbit-speed proxy determine those probabilities. Ejection
+normally removes the lower-mass member.
+Scattering tries four bounded separations inside the modeled disk range while
+preserving the same circular angular-momentum approximation. A failed scatter
+becomes a collision. Post-disk collision retention falls as encounter severity
+rises, with a `90%` solid floor and `15%` hydrogen-helium floor. Collision
+debris stays in the system but is not assigned a resolved body. Ejected and
+star-accreted composition leave the planetary architecture and retain separate
+ledger destinations.
 
-```text
-aMerged = ((m1 sqrt(a1) + m2 sqrt(a2)) / (m1 + m2))^2
-```
-
-All five composition masses add exactly. V1 models neither lost impact material
-nor ejection.
+The encounter loop is bounded by the larger of 64 and the square of the maximum
+embryo count. If that limit is reached, the deterministic fallback ejects the
+smaller body from each remaining insufficiently spaced pair. The result therefore
+satisfies the persisted Hill-spacing filter without claiming an N-body proof.
 
 Each final identity addresses its own random stream. Ordinary bodies receive a
 Rayleigh eccentricity scale of `0.02`; giants and bodies with at least four
@@ -409,8 +499,9 @@ apoapsis-periapsis separation exceeds `3.5` mutual Hill radii. V1 persists the
 formation-merger and radial-clearance multipliers separately even though both
 initially equal `3.5`. Circular orbits are the deterministic final fallback.
 
-The Hill filter is a conservative construction heuristic. It does not replace a
-long-duration numerical integration.
+The encounter probabilities, analytic scattering, and Hill filter are
+population approximations. They do not replace a long-duration numerical
+integration or retain encounter phase geometry.
 
 ## Significant Moon Phase
 
@@ -454,12 +545,15 @@ V1 does not add tidal heat or model satellite migration and resonances.
 
 ## Present-Day Evolution
 
-``PlanetaryEnvironmentResolver`` integrates primordial-envelope escape over 48
-logarithmic age intervals from `0.01` Gyr to the system age. Each interval uses
-the star's stored present XUV fraction, a backward activity curve, incident
-flux, current mass, and an updated radius to derive a binding proxy. Escape
-subtracts only hydrogen and helium and records the removed mass in the gas
-ledger.
+``PlanetaryEnvironmentResolver`` gives the primordial envelope three finite
+loss phases. A Bondi-radius comparison removes up to 90 percent during boil-off.
+A core-powered budget then removes up to five percent of core mass according to
+equilibrium temperature and core mass. Finally, 48 logarithmic intervals from
+`0.01` Gyr to the system age subtract an absolute energy-limited XUV mass
+capacity. Each interval uses the star's stored present XUV fraction, a bounded
+backward activity curve, incident flux, current mass, and an updated radius.
+Every phase can reduce retained hydrogen-helium to exactly zero. Removed mass
+enters the escaped-gas ledger.
 
 The orbit-averaged bolometric flux is:
 
@@ -472,17 +566,19 @@ Gas-bearing bodies receive an age-, mass-, flux-, and envelope-dependent
 inflation proxy. Hydrogen-helium-dominated bodies above 30 Earth masses use a
 separate bounded giant-radius branch.
 
-Secondary atmosphere supply is a small fraction of accessible water and other
-volatiles. Survival uses a smooth form of the empirical cosmic-shoreline trend:
+Secondary-atmosphere supply is a finite `0.0001` fraction of accessible water
+and other volatiles, multiplied by a mass-dependent geologic-supply proxy. The
+empirical cosmic-shoreline trend is a hard survival boundary:
 
 ```text
 q = 4 log10(vescape / vescape,Earth) - log10(S / SEarth)
-survival = logistic(3 (q + 0.25))
+survives = q >= -0.25
 ```
 
-This is a population prior, not a deterministic law that small bodies cannot
-have atmospheres. Cold or volatile-rich small bodies can retain tenuous output;
-close, weakly bound bodies usually lose more.
+The supplied phase is retained in full when it survives and is exactly zero
+otherwise. This is a calibrated population boundary, not a claim that every
+real body follows one deterministic law. Mass, radius, flux, and volatile
+inventory still determine the modeled outcome.
 
 For an exposed solid radius, surface pressure scales as:
 
@@ -498,6 +594,10 @@ least one percent hydrogen-helium by mass or at least `100` bar at the solid
 radius has an opaque visible boundary. Its public `surfacePressure` is `nil`
 because V1 does not claim an accessible solid-surface pressure beneath that
 envelope. The climate branch still uses a bounded visible-column proxy.
+
+An exposed body is `airless` only when resolved atmosphere mass is exactly
+zero. Every positive atmosphere below the `0.05`-bar secondary threshold is
+`tenuous`; V1 does not erase a positive mass with an epsilon classification.
 
 ## Zero-Dimensional Climate
 
@@ -530,7 +630,9 @@ Opaque atmospheres publish zero exposed-boundary water coverage and the
 `inaccessible` water regime. For exposed bodies, the coverage proxy maps the
 accessible water mass fraction through a factor of `2,500`, allowing shallow
 seas, partial coverage, and flooded surfaces without requiring water to dominate
-the body's bulk mass.
+the body's bulk mass. A water-bearing exposed body is still classified as dry
+when its resolved pressure and temperature support neither liquid nor ice
+coverage.
 
 The result is not a habitable-zone or biology decision. It omits spatial
 circulation, clouds, atmospheric composition, pressure-dependent boiling,
@@ -563,6 +665,10 @@ and other volatiles:
 initial disk solids
   = retained planet and moon solids
   + unaccreted annulus solids
+  + residual-body solids
+  + ejected solids
+  + star-accreted solids
+  + post-disk collision-debris solids
 ```
 
 The final hydrogen-helium invariant is:
@@ -570,18 +676,25 @@ The final hydrogen-helium invariant is:
 ```text
 initial disk gas
   = retained planet and moon hydrogen-helium
+  + residual-body hydrogen-helium
   + escaped planetary hydrogen-helium
   + dispersed disk gas
+  + ejected hydrogen-helium
+  + star-accreted hydrogen-helium
+  + post-disk collision-debris hydrogen-helium
 ```
 
 Moon material appears exactly once. It is removed from the parent before both
 bodies enter `retainedSolidMass`. The disk retains its initial solid composition,
-and the ledger retains the unresolved annulus composition, so equal aggregate
-solid mass cannot hide a component-transfer regression.
+and the ledger retains unaccreted annulus, residual-body, and dynamical
+compositions, so equal aggregate solid mass cannot hide a component-transfer
+regression.
 
-The ledger also records funded embryo count plus formation and post-disk merger
-counts. V1 keeps leftover solids as unresolved material in the ledger; it does
-not invent belt locations after formation.
+The ledger also records funded embryo count, residual body and progenitor
+counts, formation and post-disk collision counts, scattering count, and removed
+body and progenitor counts. V1 keeps leftover annulus solids and subthreshold
+survivors in distinct aggregates; it does not invent belt locations or
+individual residual environments after formation.
 
 ## Validation and Failure
 
@@ -594,6 +707,12 @@ not invent belt locations after formation.
 - an invalid disk extent, component budget, lifetime, exponent, or annulus count
 - duplicate, out-of-namespace, wrong-parent, or out-of-range body identities
 - body, moon, progenitor, or merger counts outside their bounded ancestry ledger
+- residual-body composition, body count, or progenitor count that disagree on
+  whether the residual branch is empty
+- aggregate residual solid mass above the per-body solid threshold times the
+  residual body count
+- inconsistent ejection, stellar-accretion, scattering, collision-debris, or
+  post-disk collision counts and composition destinations
 - nonpositive body mass or radius
 - a planetary periapsis inside the stellar radius
 - planets not sorted by semimajor axis
@@ -603,14 +722,22 @@ not invent belt locations after formation.
   stored composition, orbit, star, and policy
 - moon bounds that do not rederive from parent, moon, and orbital eccentricities
 - a moon outside those bounds or an adjacent moon pair without Hill clearance
-- a mismatch between resolved bodies, ancestry, and retained ledger values
+- a mismatch among resolved, residual, ejected, star-accreted, or merged ancestry
+  and body counts
+- multiple published planetary systems whose parent-plus-moons solid mass is
+  below the resolved-planet significance threshold
 - an open component-level solid or aggregate hydrogen-helium budget
 
 Replayed floating facts and mass comparisons use a relative tolerance of `1e-9`
 with a unit absolute scale floor. Planetary Hill checks allow `1e-10` additive
 slack and moon radial checks allow one micrometer. Generation itself has finite
-annulus, embryo, formation, evolution, eccentricity-damping, and moon-count
-bounds. Moon repair strictly reduces count. The generator contains no unbounded
+disk-candidate, annulus, embryo, formation, encounter, evolution,
+eccentricity-damping, and moon-count bounds. Moon repair strictly reduces count.
+Moon extraction moves solids from a selected parent into its moons, so
+validation compares their combined solid mass with the selection threshold.
+Validation permits one subthreshold published planet for the generator's
+greatest-solid-mass fallback, but it does not replay formation to prove that a
+decoded body was the greatest survivor. The generator contains no unbounded
 candidate retry for a more interesting system.
 
 ## Persistence and Model Changes
@@ -638,7 +765,7 @@ authentication or signature policy.
 
 ## Verification
 
-Direct unit coverage verifies:
+The normal regression gate verifies:
 
 - pinned SplitMix64 words
 - three pinned canonical resolved-system fingerprints
@@ -649,20 +776,34 @@ Direct unit coverage verifies:
 - Codable round trip followed by validation
 - canonical policy admission, identity and ancestry integrity, and hostile
   decoded-value rejection
-- stellar and disk calibration bounds and seed replay
+- stellar and stable-disk calibration bounds, shared-profile Toomre admission,
+  fully funded seed-mass floor, and seed replay
+- resolved-versus-residual selection, dynamical outcome modes and destinations,
+  and complete embryo ancestry closure
 - paired disk-lifetime, luminosity, distance, XUV, and gravity causality
 - component-level solid and aggregate gas ledger closure
 - semimajor-axis ordering and mutual-Hill separation
 - both moon origins, eccentric Roche/Hill bounds, and moon-pair clearance
 - the mean-flux equation
-- final-albedo temperature consistency and opaque-boundary semantics
-- all bulk, atmosphere, thermal, water, and visible-boundary regimes across a
-  32-seed validated diversity smoke ensemble
+- finite atmosphere-loss causality, exact-zero airless semantics, final-albedo
+  temperature consistency, and opaque-boundary semantics
+- the expected bulk, atmosphere, thermal, water, and visible-boundary regime
+  sets across a 32-seed validated diversity smoke ensemble
+
+Pinned fingerprints detect any resolved-output change; they do not decide
+whether the new population is acceptable. Invariant and focused causal tests
+must pass before fingerprints are deliberately replaced. The bounded 32-seed
+smoke ensemble checks finite execution and coarse regime reachability; it is not
+a calibration sample.
 
 The normal suite intentionally avoids observational occurrence-rate claims and
-wall-time assertions. A future population-calibration executable should stream
-statistics over tens or hundreds of thousands of seeds without retaining every
-full system in memory.
+wall-time assertions. Release calibration requires a separate large-seed audit
+that streams aggregate distributions without retaining every full system in
+memory. The audit records its model version, complete policy, seed range,
+toolchain, platform, failure counts, conservation residuals, dynamical
+destinations, physical-state cross-tabulations, and timing. Reviewers compare
+that artifact with an explicitly approved baseline; they do not infer quality
+from a small passing seed set.
 
 ## Future Integration
 
@@ -671,12 +812,15 @@ not silent mutation of V1:
 
 1. Replace analytic stellar proxies with bundled stellar and XUV tracks.
 2. Calibrate ensemble distributions against observational datasets.
-3. Add late scattering, ejections, debris, impacts, tides, and N-body audits.
-4. Add richer interior, envelope, atmospheric chemistry, and climate tables.
-5. Design authoritative celestial ECS state and a world builder that consumes
+3. Resolve the residual planetesimal and subthreshold-body population when a
+   consumer needs individual or spatial facts.
+4. Replace analytic encounters with richer impact, debris, tide, and optional
+   N-body audit models.
+5. Add richer interior, envelope, atmospheric chemistry, and climate tables.
+6. Design authoritative celestial ECS state and a world builder that consumes
    an already resolved system.
-6. Add gameplay projections over physical facts.
-7. Add Render appearance descriptions and procedural surface inputs without
+7. Add gameplay projections over physical facts.
+8. Add Render appearance descriptions and procedural surface inputs without
    making Render authoritative for physical generation.
 
 ## Scientific Context

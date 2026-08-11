@@ -24,9 +24,9 @@ nonisolated struct StarSystemGeneratorTests {
 
     @Test func canonicalVersionOneSystemsHavePinnedFingerprints() throws {
         let expectedFingerprints: [UInt64: UInt64] = [
-            1: 14_866_552_184_008_552_229,
-            17: 9_718_631_471_162_595_641,
-            0xC0FFEE: 16_367_645_660_489_072_955
+            1: 13_088_087_713_995_921_324,
+            17: 12_646_875_072_848_049_920,
+            0xC0FFEE: 1_665_314_973_724_748_774
         ]
 
         for (rawSeed, expectedFingerprint) in expectedFingerprints.sorted(by: { $0.key < $1.key }) {

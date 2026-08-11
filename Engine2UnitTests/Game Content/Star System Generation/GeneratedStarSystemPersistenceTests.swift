@@ -126,8 +126,33 @@ nonisolated struct GeneratedStarSystemPersistenceTests {
         }
     }
 
+    @Test func validationRejectsPlanetInsideTheModeledDiskInnerEdge() throws {
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 110))
+        let bodyID = try #require(original.planets.first?.id)
+        let invalidSemiMajorAxis = (
+            original.star.radius.meters + original.protoplanetaryDisk.innerEdge.meters
+        ) / 2
+        let decoded = try GeneratedStarSystemFixture(system: original).decoded { object in
+            var planets = try #require(object["planets"] as? [[String: Any]])
+            var planet = try #require(planets.first)
+            var orbit = try #require(planet["orbit"] as? [String: Any])
+            var semiMajorAxis = try #require(orbit["semiMajorAxis"] as? [String: Any])
+            semiMajorAxis["meters"] = invalidSemiMajorAxis
+            orbit["semiMajorAxis"] = semiMajorAxis
+            planet["orbit"] = orbit
+            planets[0] = planet
+            object["planets"] = planets
+        }
+
+        #expect(decoded.planets[0].orbit.semiMajorAxis.meters > original.star.radius.meters)
+        #expect(decoded.planets[0].orbit.semiMajorAxis < original.protoplanetaryDisk.innerEdge)
+        #expect(throws: StarSystemGenerationError.invalidPlanet(bodyID)) {
+            try decoded.validate()
+        }
+    }
+
     @Test func validationRejectsNoncanonicalMoonIdentityBits() throws {
-        let original = try generator.generate(seed: StarSystemSeed(rawValue: 1))
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 5))
         let planetIndex = try #require(original.planets.firstIndex(where: { !$0.moons.isEmpty }))
         let planet = original.planets[planetIndex]
         let moon = try #require(planet.moons.first)
@@ -184,5 +209,119 @@ nonisolated struct GeneratedStarSystemPersistenceTests {
         #expect(throws: StarSystemGenerationError.invalidPlanet(bodyID)) {
             try decoded.validate()
         }
+    }
+
+    @Test func validationThrowsInsteadOfTrappingOnGreatestFiniteDecodedComponent() throws {
+        let original = try generator.generate(seed: StarSystemSeed(rawValue: 107))
+        let bodyID = try #require(original.planets.first?.id)
+        let decoded = try GeneratedStarSystemFixture(system: original).decoded { object in
+            var planets = try #require(object["planets"] as? [[String: Any]])
+            var planet = try #require(planets.first)
+            var composition = try #require(planet["composition"] as? [String: Any])
+            var iron = try #require(composition["iron"] as? [String: Any])
+            iron["kilograms"] = Double.greatestFiniteMagnitude
+            composition["iron"] = iron
+            planet["composition"] = composition
+            planets[0] = planet
+            object["planets"] = planets
+        }
+
+        #expect(decoded.planets[0].composition.iron.kilograms.isFinite)
+        #expect(throws: StarSystemGenerationError.invalidPlanet(bodyID)) {
+            try decoded.validate()
+        }
+    }
+
+    @Test func validationRejectsHydrogenHeliumOnlyResolvedPlanetWithClosedLedger() throws {
+        let selection = try generatedSystemWithEnvelopeBearingPlanet()
+        let original = selection.system
+        let planet = original.planets[selection.planetIndex]
+        let originalSolid = planet.composition.replacingHydrogenHelium(with: .zero)
+        let hydrogenHeliumOnly = CelestialMassComposition(
+            iron: .zero,
+            silicate: .zero,
+            water: .zero,
+            otherVolatiles: .zero,
+            hydrogenHelium: planet.composition.hydrogenHelium
+        )
+        let invalidPlanet = GeneratedPlanet(
+            id: planet.id,
+            composition: hydrogenHeliumOnly,
+            radius: planet.radius,
+            orbit: planet.orbit,
+            environment: planet.environment,
+            physicalState: planet.physicalState,
+            moons: planet.moons,
+            progenitorCount: planet.progenitorCount
+        )
+        var planets = original.planets
+        planets[selection.planetIndex] = invalidPlanet
+        let ledger = original.formationLedger
+        let invalidUnaccreted = ledger.unaccretedSolidComposition.adding(originalSolid)
+        let invalidLedger = replacing(
+            ledger,
+            retainedSolidMass: AstronomicalMass(
+                earthMasses: ledger.retainedSolidMass.earthMasses
+                    - originalSolid.solidMass.earthMasses
+            ),
+            unaccretedSolidMass: invalidUnaccreted.solidMass,
+            unaccretedSolidComposition: invalidUnaccreted
+        )
+        let systemWithInvalidPlanet = GeneratedStarSystemFixture(system: original).replacingPlanets(planets)
+        let invalid = GeneratedStarSystemFixture(system: systemWithInvalidPlanet).replacingLedger(invalidLedger)
+        let originalChangedSolidEarth = ledger.retainedSolidMass.earthMasses
+            + ledger.unaccretedSolidMass.earthMasses
+        let invalidChangedSolidEarth = invalidLedger.retainedSolidMass.earthMasses
+            + invalidLedger.unaccretedSolidMass.earthMasses
+
+        #expect(hydrogenHeliumOnly.solidMass == .zero)
+        #expect(hydrogenHeliumOnly.hydrogenHelium > .zero)
+        #expect(abs(originalChangedSolidEarth - invalidChangedSolidEarth) < 1e-9)
+        #expect(invalidLedger.retainedHydrogenHeliumMass == ledger.retainedHydrogenHeliumMass)
+        #expect(throws: StarSystemGenerationError.invalidPlanet(planet.id)) {
+            try invalid.validate()
+        }
+    }
+
+    private func generatedSystemWithEnvelopeBearingPlanet() throws -> (
+        system: GeneratedStarSystem,
+        planetIndex: Int
+    ) {
+        var match: (system: GeneratedStarSystem, planetIndex: Int)?
+        for rawSeed in 0..<32 {
+            let system = try generator.generate(seed: StarSystemSeed(rawValue: UInt64(rawSeed)))
+            if let planetIndex = system.planets.firstIndex(where: {
+                $0.composition.hydrogenHelium > .zero
+            }) {
+                match = (system, planetIndex)
+                break
+            }
+        }
+        return try #require(match, "The bounded seed range must include an envelope-bearing planet.")
+    }
+
+    private func replacing(
+        _ ledger: StarSystemFormationLedger,
+        retainedSolidMass: AstronomicalMass,
+        unaccretedSolidMass: AstronomicalMass,
+        unaccretedSolidComposition: CelestialMassComposition
+    ) -> StarSystemFormationLedger {
+        StarSystemFormationLedger(
+            initialSolidMass: ledger.initialSolidMass,
+            retainedSolidMass: retainedSolidMass,
+            unaccretedSolidMass: unaccretedSolidMass,
+            unaccretedSolidComposition: unaccretedSolidComposition,
+            initialGasMass: ledger.initialGasMass,
+            retainedHydrogenHeliumMass: ledger.retainedHydrogenHeliumMass,
+            escapedHydrogenHeliumMass: ledger.escapedHydrogenHeliumMass,
+            dispersedGasMass: ledger.dispersedGasMass,
+            dynamicalLosses: ledger.dynamicalLosses,
+            residualBodyComposition: ledger.residualBodyComposition,
+            residualBodyCount: ledger.residualBodyCount,
+            residualProgenitorCount: ledger.residualProgenitorCount,
+            seededEmbryoCount: ledger.seededEmbryoCount,
+            formationMergerCount: ledger.formationMergerCount,
+            postDiskCollisionMergerCount: ledger.postDiskCollisionMergerCount
+        )
     }
 }

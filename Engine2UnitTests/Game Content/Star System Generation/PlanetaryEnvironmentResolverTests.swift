@@ -5,6 +5,26 @@ import Testing
 nonisolated struct PlanetaryEnvironmentResolverTests {
     private let policy = StarSystemGenerationPolicy.coreAccretionLiteV1
 
+    @Test func visibleRadiusNeverFallsInsideTheSolidBody() {
+        let resolver = PlanetaryRadiusResolver()
+        let composition = CelestialMassComposition(
+            iron: AstronomicalMass(earthMasses: 2_000),
+            silicate: AstronomicalMass(earthMasses: 3_000),
+            water: .zero,
+            otherVolatiles: .zero,
+            hydrogenHelium: AstronomicalMass(earthMasses: 100)
+        )
+
+        let solidRadius = resolver.resolveSolidRadiusEarth(composition: composition)
+        let visibleRadius = resolver.resolveVisibleRadiusEarth(
+            composition: composition,
+            incidentFluxEarth: 1,
+            ageGigayears: 5
+        )
+
+        #expect(visibleRadius >= solidRadius)
+    }
+
     @Test func distanceAndLuminosityCausallyChangeFluxAndTemperature() {
         let resolver = PlanetaryEnvironmentResolver(policy: policy)
         let composition = rockyComposition(solidMassEarth: 1, hydrogenHeliumEarth: 0)
@@ -78,6 +98,79 @@ nonisolated struct PlanetaryEnvironmentResolverTests {
         #expect(highRetention > lowRetention)
     }
 
+    @Test func completePrimordialLossProducesAnExactlyAirlessBody() {
+        let resolver = PlanetaryEnvironmentResolver(policy: policy)
+        let initial = rockyComposition(solidMassEarth: 1, hydrogenHeliumEarth: 1e-7)
+        let baselineStar = MainSequenceStarGenerator(policy: policy).generate(
+            seed: StarSystemSeed(rawValue: 46)
+        )
+        let activeStar = replacingXUVFraction(of: baselineStar, with: 1e-3)
+
+        let evolved = resolver.resolve(
+            composition: initial,
+            orbit: orbit(astronomicalUnits: 0.03),
+            around: activeStar
+        )
+
+        #expect(evolved.composition.hydrogenHelium == .zero)
+        #expect(evolved.escapedHydrogenHeliumMass == initial.hydrogenHelium)
+        #expect(evolved.environment.atmosphereMass == .zero)
+        #expect(evolved.environment.surfacePressure?.bars == 0)
+        #expect(evolved.physicalState.atmosphere == .airless)
+    }
+
+    @Test func cosmicShorelineCanRemoveTheCompleteSecondaryAtmosphere() {
+        let resolver = PlanetaryEnvironmentResolver(policy: policy)
+        let composition = rockyComposition(solidMassEarth: 1, hydrogenHeliumEarth: 0)
+        let sampledStar = MainSequenceStarGenerator(policy: policy).generate(
+            seed: StarSystemSeed(rawValue: 47)
+        )
+        let star = replacingLuminosity(of: sampledStar, with: 1)
+
+        let irradiated = resolver.resolvePresentBody(
+            composition: composition,
+            orbit: orbit(astronomicalUnits: 0.05),
+            around: star
+        )
+        let temperate = resolver.resolvePresentBody(
+            composition: composition,
+            orbit: orbit(astronomicalUnits: 1),
+            around: star
+        )
+
+        #expect(irradiated.environment.atmosphereMass == .zero)
+        #expect(irradiated.physicalState.atmosphere == .airless)
+        #expect(temperate.environment.atmosphereMass > .zero)
+        #expect(temperate.physicalState.atmosphere == .secondary)
+    }
+
+    @Test func anyPositiveAtmosphereMassIsNotClassifiedAsAirless() {
+        let resolver = PlanetaryEnvironmentResolver(policy: policy)
+        let star = replacingLuminosity(
+            of: MainSequenceStarGenerator(policy: policy).generate(
+                seed: StarSystemSeed(rawValue: 48)
+            ),
+            with: 1
+        )
+        let composition = CelestialMassComposition(
+            iron: AstronomicalMass(earthMasses: 0.32),
+            silicate: AstronomicalMass(earthMasses: 0.68 - 1e-10),
+            water: .zero,
+            otherVolatiles: AstronomicalMass(earthMasses: 1e-10),
+            hydrogenHelium: .zero
+        )
+
+        let body = resolver.resolvePresentBody(
+            composition: composition,
+            orbit: orbit(astronomicalUnits: 1),
+            around: star
+        )
+
+        #expect(body.environment.atmosphereMass > .zero)
+        #expect(body.environment.surfacePressure?.bars ?? 0 < 0.05)
+        #expect(body.physicalState.atmosphere == .tenuous)
+    }
+
     @Test func opaqueAtmospheresPublishNoExposedSurfacePressureOrWaterCoverage() {
         let resolver = PlanetaryEnvironmentResolver(policy: policy)
         let star = MainSequenceStarGenerator(policy: policy).generate(
@@ -97,6 +190,33 @@ nonisolated struct PlanetaryEnvironmentResolverTests {
         #expect(body.environment.surfacePressure == nil)
         #expect(body.environment.liquidWaterCoverage == 0)
         #expect(body.environment.waterIceCoverage == 0)
+    }
+
+    @Test func warmLowPressureWaterInventoryDoesNotClaimSurfaceIce() {
+        let resolver = PlanetaryEnvironmentResolver(policy: policy)
+        let sampledStar = MainSequenceStarGenerator(policy: policy).generate(
+            seed: StarSystemSeed(rawValue: 49)
+        )
+        let star = replacingLuminosity(of: sampledStar, with: 1)
+        let composition = CelestialMassComposition(
+            iron: AstronomicalMass(earthMasses: 0.32),
+            silicate: AstronomicalMass(earthMasses: 0.679_989),
+            water: AstronomicalMass(earthMasses: 0.000_011),
+            otherVolatiles: .zero,
+            hydrogenHelium: .zero
+        )
+
+        let body = resolver.resolvePresentBody(
+            composition: composition,
+            orbit: orbit(astronomicalUnits: 0.8),
+            around: star
+        )
+
+        #expect((260...373).contains(body.environment.visibleBoundaryTemperature.kelvin))
+        #expect(body.environment.surfacePressure?.bars ?? 0 < 0.006)
+        #expect(body.environment.liquidWaterCoverage == 0)
+        #expect(body.environment.waterIceCoverage == 0)
+        #expect(body.physicalState.water == .dry)
     }
 
     @Test func storedEquilibriumTemperatureUsesTheStoredFinalAlbedo() {

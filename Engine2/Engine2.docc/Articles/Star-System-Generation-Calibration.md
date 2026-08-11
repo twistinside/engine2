@@ -9,9 +9,11 @@ numerical safety limits.
 
 Implemented V1 reference.
 
-Changing any value or equation in this article changes generated output and
-requires a new ``StarSystemGenerationModelVersion``. Correcting documentation to
-match unchanged code does not require a new model version.
+The current in-place rewrite establishes the V1 compatibility baseline before
+its first persistence freeze. After that freeze, changing any value, equation,
+draw, ordering rule, or fallback in this article requires a new
+``StarSystemGenerationModelVersion``. Correcting documentation to match unchanged
+code does not require a new model version.
 
 For ownership, workflow, output semantics, validation, and future integration,
 see <doc:Star-System-Generation>.
@@ -73,8 +75,10 @@ solar, Earth, AU, Myr, Gyr, kelvin, and bar values are computed projections.
 | Control | V1 value | Category |
 | --- | ---: | --- |
 | Disk annuli | `128` | Numerical control |
+| Candidate disk-structure attempts | `16` | Numerical control |
 | Maximum embryos | `64` | Numerical control |
 | Gas-disk epochs | `96` | Numerical control |
+| Post-disk encounter attempts | `max(64, maximumEmbryoCount^2)` | Numerical control |
 | Present-evolution epochs | `48` | Numerical control |
 | Eccentricity damping passes | `32` | Numerical control |
 | Climate iterations | `6` | Numerical control |
@@ -120,10 +124,11 @@ Named domain raw values are part of V1:
 | Formation | `0x7A6A0D154A4F4D04` |
 | Orbital excitation | `0x7A6A0D154A4F4D05` |
 | Moons | `0x7A6A0D154A4F4D06` |
+| Dynamical clearing | `0x7A6A0D154A4F4D07` |
 
-The formation domain is reserved in V1 even though the current deterministic
-formation equations consume no random draws after placement. Reserving its raw
-address avoids reusing a semantic lane later.
+The formation domain supplies gas-disk collision-retention draws. Dynamical
+clearing uses a separate stream addressed by the adjacent body identities and
+encounter sequence, so one encounter cannot shift another phase's draws.
 
 The first four star-domain words for seed `0x1234`, discriminator zero, and
 model version one are pinned by tests:
@@ -145,9 +150,11 @@ branch is not taken.
 | Domain | Operation order |
 | --- | --- |
 | Star | power-law mass; normal metallicity; uniform age; integer activity |
-| Disk | log-normal mass ratio; log-normal lifetime; log-normal characteristic radius; normal density exponent; normal iron fraction; dry-water unit draw; conditional wet-water uniform; normal solid-fraction scatter |
+| Disk candidate | log-normal mass ratio; normal radius scatter; normal density exponent; repeat for each rejected candidate, up to 16 |
+| Disk after structure admission | log-normal lifetime; normal iron fraction; dry-water unit draw; conditional wet-water uniform; normal solid-fraction scatter |
 | Embryos | initial-radius uniform; one multiplicative-spacing uniform after each placement attempt |
-| Formation | no draws; the domain remains reserved |
+| Formation collision | solid-retention uniform; hydrogen-helium-retention uniform |
+| Dynamical encounter | outcome unit draw; conditional equal-mass ejection unit draw; conditional solid-retention uniform and hydrogen-helium-retention uniform for collision or failed scattering |
 | Orbital excitation | per-body Rayleigh eccentricity; normal inclination |
 | Parent moon system | regular-moon integer count, or impact eligibility unit draw followed conditionally by impact-mass uniform; then one weight uniform per moon |
 | Individual moon | Rayleigh eccentricity; normal inclination |
@@ -210,10 +217,9 @@ The environment resolver consumes the stored present fraction directly. At
 each logarithmic evolution interval it reconstructs the historic factor as:
 
 ```text
-presentXUVFactor = fXUV / 1e-5
-historicXUVFactor = min(
-    100,
-    presentXUVFactor * max(intervalAge / finalAge, 0.002)^(-1.2)
+historicXUVFraction = min(
+    1e-3,
+    fXUV * max(intervalAge / finalAge, 0.002)^(-1.2)
 )
 ```
 
@@ -225,12 +231,13 @@ resolver does not maintain a second independent activity multiplier.
 | Quantity | V1 calibration | Category |
 | --- | --- | --- |
 | Gas-to-star mass ratio | Base-10 log-normal, median `0.02`, scatter `0.5 dex` | Sampled prior |
-| Gas-to-star clamp | `0.003...0.20` | Numerical control |
+| Gas-to-star clamp | `0.003...0.16` | Numerical control |
 | Disk lifetime | Base-10 log-normal, median `3 Myr`, scatter `0.25 dex` | Sampled prior |
 | Lifetime clamp | `1...10 Myr` | Numerical control |
-| Characteristic radius | Base-10 log-normal, median `30 sqrt(Mstar) AU`, scatter `0.25 dex` | Sampled prior |
+| Characteristic radius | Correlated with sampled gas-disk mass to power `0.625`, with `0.25 dex` scatter | Sampled prior and physical approximation |
 | Characteristic-radius clamp | `10...100 AU` | Numerical control |
 | Surface-density exponent | Normal `(1.0, 0.2)`, clamped `0.5...1.5` | Sampled prior |
+| Minimum annular Toomre `Q` | `1.4` | Physical admission bound |
 | Base solid-to-gas fraction | `0.014` | Population calibration |
 | Solid scatter | Normal `0.0, 0.1 dex` | Sampled prior |
 | Solid-fraction clamp | `0.002...0.05` | Numerical control |
@@ -250,6 +257,23 @@ fSolid = clamp(
 Metallicity controls the total condensed inventory. It does not directly set
 the iron-to-silicate ratio; the independent iron fraction draw does.
 
+For sampled gas-to-star ratio `fdisk`, stellar mass `Mstar` in solar units,
+and one standard-normal radius draw `zR`:
+
+```text
+Rc = clamp(
+    30 AU * ((fdisk Mstar) / 0.02)^0.625 * 10^(0.25 zR),
+    10 AU,
+    100 AU
+)
+```
+
+Mass ratio, radius scatter, and surface-density exponent are sampled together.
+The complete candidate is rejected when any represented annulus would have
+`Q < 1.4`. V1 makes at most 16 attempts. If none passes, it combines the last
+sampled radius scatter and exponent with the minimum ratio `0.003`; a
+precondition keeps that canonical fallback inside the same stability bound.
+
 ## Disk Geometry and Normalization
 
 The inner edge is:
@@ -261,7 +285,16 @@ ainner = max(0.03 AU, 1.15 Rstar)
 The outer edge is:
 
 ```text
-aouter = max(4 ainner, min(40 AU, 3 Rc))
+aouter = max(4 ainner, min(150 AU, 5 Rc))
+```
+
+The fraction of the analytic tapered disk represented inside these edges is:
+
+```text
+k = 2 - p
+frepresented = exp(-(ainner / Rc)^k) - exp(-(aouter / Rc)^k)
+Mgas,represented = Mstar fdisk frepresented
+Msolid,represented = Mgas,represented fSolid
 ```
 
 The annulus edges are logarithmically spaced. For each annulus with geometric
@@ -274,8 +307,26 @@ w = 2 pi a delta-a SigmaShape
 ```
 
 Every weight is divided by the sum of all 128 weights. Gas and solid masses use
-the same normalized radial weights. Category: physical approximation plus
-numerical normalization.
+the same normalized radial weights. Stored initial gas and solid masses are the
+represented reservoirs, not the unbounded analytic disk mass. Category:
+physical approximation plus numerical normalization.
+
+### Gravitational-stability admission
+
+For each annulus center `a`, V1 estimates:
+
+```text
+T = max(10 K, 280 K * Lstar^0.25 / sqrt(a / AU))
+cs = sqrt(kB T / (2.34 mp))
+Omega = sqrt(G Mstar / a^3)
+Sigmaunit = Mstar * fannulus / (pi (router^2 - rinner^2))
+Qunit = cs Omega / (pi G Sigmaunit)
+fdisk,maximum = minAnnuli(Qunit) / 1.4
+```
+
+`fannulus` includes the analytic represented-mass fraction. A candidate passes
+when its sampled `fdisk` does not exceed `fdisk,maximum`. This is a local
+thin-disk stability proxy, not a hydrodynamic fragmentation calculation.
 
 ## Formation Luminosity and Snow Line
 
@@ -333,17 +384,33 @@ or nitrogen condensation fronts.
 | Successive radius multiplier | Uniform `1.16...1.28` | Sampled prior |
 | Seed target mass | `0.01 Earth masses` | Population calibration |
 | Funding neighborhood | nearest annulus plus two on each side | Numerical control |
+| Maximum placement radius | `min(40 AU, disk outer edge)` | Numerical control |
 
 For one placement, V1 sums available solids in the five-annulus neighborhood.
-It withdraws:
+It withdraws the complete target only when the neighborhood can supply it:
 
 ```text
-fwithdraw = min(seedTarget / availableSolid, 1)
+availableSolid < seedTarget: no withdrawal and no embryo
+availableSolid >= seedTarget: fwithdraw = seedTarget / availableSolid
 ```
 
-from every neighborhood annulus. This preserves the local aggregate mixture.
-Identity is `fundedEmbryoIndex + 1`. Unfunded placements do not consume an
-identity.
+The successful branch applies `fwithdraw` to every neighborhood annulus. This
+preserves the local aggregate mixture and makes every created embryo exactly
+the configured seed mass. Identity is `fundedEmbryoIndex + 1`. Unfunded
+placements do not consume an identity.
+
+After each placement attempt, the radial step is the larger of the sampled
+geometric step and the seed-mass Hill step:
+
+```text
+delta-ageometric = a (uniform(1.16, 1.28) - 1)
+RHill,seed = a (2 Mseed / (3 Mstar))^(1/3)
+delta-aHill = max(8, 2 formationMergerSpacing) RHill,seed
+delta-a = max(delta-ageometric, delta-aHill)
+```
+
+With canonical `formationMergerSpacing = 3.5`, the Hill multiplier is eight.
+The maximum of 64 funded embryos still bounds placement.
 
 ## Feeding Zones and Solid Claims
 
@@ -380,58 +447,113 @@ For each annulus, if the sum of claims is `C`, each claim is multiplied by
 `min(1, 1/C)`. The annulus loses `min(C, 1)` of every solid component. This is
 the exact order-independence and conservation rule.
 
-## Primordial Envelope Target
+## Primordial Envelope Demand and Supply
 
-At elapsed disk time `T` in Myr:
+Only a core with `Mcore >= 0.3 Earth masses` requests gas. At elapsed disk time
+`T` and epoch duration `delta-t`, both in Myr:
 
 ```text
-ftarget = min(
-    0.95,
-    0.0025 Msolid^1.7 (1 - exp(-T))
-)
-
-MtargetEnvelope = Msolid ftarget / max(1 - ftarget, 0.05)
-
-captureResponse = 1 - exp(-5.2 gasAccretionEfficiency delta-t)
-Mrequested = max(0, MtargetEnvelope - McurrentEnvelope)
-           * captureResponse
+fsupported = min(1, 0.0025 Mcore^1.7 sqrt(max(T, 1e-6)))
+Msupported = Mcore fsupported
+tKH = max(0.01, 4 (Mcore / 5)^(-3))
+fcooling = 1 - exp(-gasAccretionEfficiency delta-t / tKH)
+Mattached = max(0, Msupported - Mcurrent) fcooling
 ```
 
-`gasAccretionEfficiency` is `0.60`.
+When `Mcurrent >= 0.45 Mcore`, runaway demand is also eligible:
 
-Category: population calibration.
+```text
+xrunaway = min(3, gasAccretionEfficiency delta-t / tKH)
+Mrunaway = max(Mcurrent, 0.01 Mcore) expm1(xrunaway)
+McoolingDemand = max(Mattached, Mrunaway)
+```
 
-Requested gas is distributed across feeding-zone annuli in proportion to their
-current gas masses. Contested gas requests scale by
-`min(1, available/requested)`. V1 has no explicit gap-opening or local viscous
-supply solver.
+Otherwise `McoolingDemand = Mattached`. `gasAccretionEfficiency` is `0.60`.
+
+The local capture half-width is:
+
+```text
+delta-acapture = max(0.75 RHill, 0.01 a)
+```
+
+For body-star mass ratio `q`, disk aspect ratio `h`, and turbulent-viscosity
+proxy `alpha = 0.002`:
+
+```text
+h = clamp(
+    0.033 max(Lstar, 1e-6)^0.125 max(a, 0.03)^0.25 / sqrt(Mstar),
+    0.025,
+    0.12
+)
+q = max(Mtotal / Mstar, 1e-12)
+K = q^2 / (alpha h^5)
+gapDepth = 1 / (1 + 0.04 K)
+fgapFlow = max(0.02, sqrt(gapDepth))
+```
+
+The local hydrodynamic and viscous supply caps are:
+
+```text
+Mhydro = MlocalGas
+       * (1 - exp(-3 gasAccretionEfficiency
+           * (max(Mtotal, 0.1) / 10)^(2/3)
+           * delta-t))
+       * fgapFlow
+
+tvisc = max(0.05, 0.35 (max(a, 0.03) / 5)^0.75 / sqrt(Mstar))
+Mvisc = MlocalGas (1 - exp(-delta-t / tvisc)) fgapFlow
+
+Mrequested = min(McoolingDemand, Mhydro, Mvisc)
+```
+
+Masses use Earth units, radii use AU, and times use Myr in these calibration
+equations. Requested gas is distributed across overlapping local annuli in
+proportion to current gas. Contested requests scale by
+`min(1, available/requested)`. Category: physical approximation, population
+calibration, and numerical control.
 
 ## Migration and Disk Dispersal
 
-Global gas availability is:
+Local gas availability uses the nearest annulus:
 
 ```text
-fgas = remainingAnnulusGas / initialDiskGas
+flocalGas = nearestAnnulusRemainingGas / nearestAnnulusInitialGas
 ```
 
-For epoch duration `delta-t` in Myr, inward migration is:
+For epoch duration `delta-t` in Myr, the unsuppressed type-I rate is:
 
 ```text
-rateMigration = 0.384 / Myr
-              * migrationEfficiency
-              * Mtotal / (1 + Mtotal / 30)
-              * fgas
-
-fmigration = min(0.03, 1 - exp(-rateMigration delta-t))
+rateTypeI = 0.384 / Myr
+          * migrationEfficiency
+          * Mtotal / (1 + Mtotal / 30)
+          * flocalGas
 ```
 
-`migrationEfficiency` is `0.18`. The new radius is:
+`migrationEfficiency` is `0.18`. Gap opening uses:
 
 ```text
-anew = max(1.1 ainner, a (1 - fmigration))
+Pgap = 0.75 h a / RHill + 50 alpha h^2 / q
 ```
 
-Category: population calibration and numerical control.
+When `Pgap > 1`, the body uses `rateTypeI` and moves toward the nearer attractor
+in log radius:
+
+```text
+ainnerTrap = max(1.8 ainner, 0.18 asnow)
+attractor = nearestInLogRadius(ainnerTrap, asnow)
+```
+
+This branch can move inward or outward. When `Pgap <= 1`, the rate and attractor
+are:
+
+```text
+rateGap = min(rateTypeI * max(0.03, gapDepth), 1 / tvisc)
+attractor = min(a, ainnerTrap)
+```
+
+The applied fractional step is `min(0.03, 1 - exp(-rate delta-t))` and stops at
+the selected attractor. Category: physical approximation, population
+calibration, and numerical control.
 
 Each epoch then multiplies all unbound gas by:
 
@@ -443,29 +565,42 @@ The removed difference enters dispersed gas. After the final epoch, all
 remaining annulus gas also enters dispersed gas. Category: physical
 approximation.
 
-## Formation Mergers
+## Gas-Disk Collisions
 
 Every eighth epoch, and once after the last epoch, adjacent bodies with fewer
-than `3.5` mutual Hill radii merge. This is the persisted
+than `3.5` mutual Hill radii collide. This is the persisted
 `formationMergerSpacing` calibration. The array sorts by semimajor axis, then
-stable identity. The first failing pair merges and the scan restarts.
+stable identity. The first failing pair collides and the scan restarts.
 
 Identity and progenitor rules are:
 
 ```text
-mergedID = min(firstID, secondID)
-mergedProgenitorCount = firstCount + secondCount
+remnantID = min(firstID, secondID)
+remnantProgenitorCount = firstCount + secondCount
 ```
 
-All composition masses add without loss. The merged semimajor axis is:
+The collision samples one common retention factor for every solid component
+and a separate hydrogen-helium factor:
 
 ```text
-aMerged = ((m1 sqrt(a1) + m2 sqrt(a2)) / (m1 + m2))^2
+fsolidRetained = uniform(0.985, 1)
+fgasRetained = uniform(0.55, 0.90)
 ```
 
-Category: physical approximation and deterministic tie-break.
+The remnant receives each combined component times its retention factor. The
+remainder is explicit collision debris. Stripped solids return to the nearest
+disk annulus. They remain eligible for accretion when formation epochs remain;
+solids returned by the final collision pass remain unaccreted. Stripped
+hydrogen-helium enters dispersed gas. The remnant semimajor axis is:
 
-## Final Architecture Filter
+```text
+aRemnant = ((m1 sqrt(a1) + m2 sqrt(a2)) / (m1 + m2))^2
+```
+
+Category: physical approximation, population calibration, deterministic
+tie-break, and explicit conservation routing.
+
+## Post-Disk Encounters and Final Architecture
 
 Required mutual-Hill spacing is:
 
@@ -479,6 +614,69 @@ Category: population calibration and conservative construction filter.
 The ordinary value is motivated by the clustering Pu and Wu report for compact
 Kepler systems. The giant value is an additional Engine2 margin, not a threshold
 from that study.
+
+The first adjacent pair below its required spacing enters an encounter. With
+current spacing `delta`, required spacing `deltaRequired`, estimated formation
+radii `R1` and `R2`, and mean semimajor axis `amean`:
+
+```text
+Rcore = max(Msolid, 1e-6)^0.27 Earth radii
+
+Restimated = Rcore                                      when fenv <= 1e-6
+Restimated = min(12, max(Rcore, 8 + 4 min(fenv, 1)))   when Mtotal >= 50 or fenv >= 0.5
+Restimated = Rcore (1 + min(2.5, 4 sqrt(fenv)))        otherwise
+```
+
+The encounter converts these radii to AU before evaluating `x`:
+
+```text
+s = clamp((deltaRequired - delta) / deltaRequired, 0, 1)
+x = 2 ((M1 + M2) / Mstar) amean / (R1 + R2)
+proximity = min(1, 0.1 / max(ainner, 0.01))
+
+pstar = min(0.12, 0.015 + 0.08 s proximity)
+pejectGivenSurvival = min(0.72, max(0, (x - 0.8) / 4) s)
+pcollisionGivenRemaining = min(0.55, 0.18 + 0.38 / (1 + x))
+```
+
+One unit-uniform draw selects the outcome with conditional thresholds:
+
+```text
+tstar = pstar
+teject = tstar + (1 - tstar) pejectGivenSurvival
+tcollision = teject + (1 - teject) pcollisionGivenRemaining
+
+u < tstar:       inner body accretes onto the star
+u < teject:      one body is ejected
+u < tcollision:  the pair collides
+otherwise:       attempt scattering
+```
+
+The ejection branch removes the lower-mass body. An exact mass tie consumes one
+additional unit draw. Ejected and star-accreted composition and ancestry remain
+separate ledger destinations.
+
+Post-disk collision retention depends on encounter severity:
+
+```text
+fsolidRetained = max(0.90, 0.995 - 0.08 s uniform(0.5, 1))
+fgasRetained = max(0.15, 0.80 - 0.60 s uniform(0.5, 1))
+```
+
+The stripped composition enters the collision-debris ledger and is not returned
+to an annulus after disk dispersal.
+
+Scattering preserves `M1 sqrt(a1) + M2 sqrt(a2)` while trying separation
+expansions `1`, `1.25`, `1.5`, and `2`. Its target separation is `1.05` times
+the required spacing times the pair's current mutual Hill radius. Candidate
+orbits must stay above `1.001` times the disk inner edge and below `0.999` times
+the disk outer edge. A failed scatter becomes a collision.
+
+Successful scattering resets both pair eccentricities to zero. The loop
+attempts at most `max(64, maximumEmbryoCount^2)` encounters. If close pairs
+remain, the bounded fallback ejects the smaller body from each pair until the
+Hill-spacing requirement passes; an exact mass tie ejects the inner body. These
+are population approximations, not phase-resolved orbital dynamics.
 
 Final orbital excitation is:
 
@@ -502,6 +700,20 @@ not silently change the other.
 
 All eccentricities multiply by `0.8` together until the requirement passes or
 32 attempts complete. The final fallback sets every eccentricity to zero.
+
+## Resolved-Planet Significance
+
+After dynamical clearing, V1 publishes every surviving body with solid mass at
+least `0.10 Earth masses`. This threshold is ten times the solid-only
+`0.01`-Earth-mass seed. If no survivor reaches it, the generator publishes the
+body with the greatest solid mass; an exact solid-mass tie selects the smaller
+stable identity.
+
+Every omitted survivor contributes its full composition, body count, and
+progenitor count to the residual-body fields in ``StarSystemFormationLedger``.
+It receives no individually resolved radius, orbit, environment, moons, or
+classification. The aggregate is not a resolved belt or spatial distribution.
+Category: output-significance calibration and explicit conservation routing.
 
 ## Significant Moon Calibration
 
@@ -622,38 +834,66 @@ derived from the stored luminosity and orbit when a later consumer needs them.
 
 ## Primordial Envelope Escape
 
-The resolver integrates 48 logarithmic intervals from `0.01 Gyr` to the sampled
-system age.
+The resolver first applies boil-off and core-powered budgets. With initial
+visible radius evaluated at `0.01 Gyr` and a first-pass equilibrium temperature
+using albedo `0.30`:
+
+```text
+Teq,initial = 278.5 K * max(0.7 S, 0)^0.25
+RBondi = G M (2.3 mp) / (kB max(Teq,initial, 30 K))
+Rcontracted = 0.1 RBondi
+
+funbound = min(0.9, 1 - Rcontracted / Rinitial) when Rinitial > Rcontracted
+funbound = 0 otherwise
+MafterBoilOff = Mgas,initial (1 - funbound)
+```
+
+The core-powered vulnerable ratio is:
+
+```text
+fvulnerable = min(
+    0.05,
+    0.015
+        * max(Teq,initial / 1000 K, 0.05)^1.5
+        * max(Mcore / 5, 0.002)^(-0.5)
+)
+
+MafterCorePower = max(0, MafterBoilOff - Mcore fvulnerable)
+```
+
+The surviving envelope then enters 48 logarithmic energy-limited intervals
+from `0.01 Gyr` to the sampled system age.
 
 At midpoint age `t`, the stored present XUV fraction drives historic exposure:
 
 ```text
-presentXUVFactor = fXUV / 1e-5
-historicXUVFactor = min(
-    100,
-    presentXUVFactor * max(t / finalAge, 0.002)^(-1.2)
+fXUV,historic = min(
+    1e-3,
+    fXUV,present * max(t / finalAge, 0.002)^(-1.2)
 )
 ```
 
-With current total mass `M`, resolved radius `R`, and mean flux `S`:
+With current total mass `M`, resolved radius `R`, mean bolometric flux relative
+to Earth `S`, and interval duration `delta-t`, V1 evaluates the absolute
+energy-limited capacity in SI units:
 
 ```text
-binding = M^2 / max(R^3 * max(S, 1e-6) * historicXUVFactor, 1e-9)
-epochWeight = (upperAge - lowerAge) / finalAge
-lossExponent = atmosphereEscapeEfficiency
-             * epochWeight
-             * 80 / (binding + 2)
-Mgas,new = Mgas,old * exp(-min(lossExponent, 4))
+FXUV = 1361 W/m^2 * max(S, 0) * fXUV,historic
+delta-Mcapacity = atmosphereEscapeEfficiency
+                    * pi R^3 FXUV delta-t
+                    / (G M)
+Mgas,new = max(0, Mgas,old - delta-Mcapacity)
 ```
 
 `atmosphereEscapeEfficiency` is `0.10`.
 
 Category: physical approximation and population calibration.
 
-This is not the energy-limited escape equation. It is a smooth V1 binding proxy
-chosen to preserve the expected dependencies on mass, radius, irradiation,
-activity, and time. Retained hydrogen-helium below `1e-12 Earth masses` is set
-to exactly zero after the last interval.
+Each phase subtracts a finite absolute mass budget and can produce exactly zero.
+The implementation does not apply a trace-mass cutoff. A nonfinite
+energy-limited capacity strips the remaining envelope rather than retaining an
+invalid mass. The relation omits Roche enhancement, composition-dependent
+heating, hydrodynamic chemistry, and interior cooling solutions.
 
 ## Radius Approximation
 
@@ -675,14 +915,17 @@ delta-R = 2.2
         * max(S, 0.01)^0.04
         * max(age / 5 Gyr, 0.02)^(-0.08)
 
-R = min(10, max(Rsolid, Rsolid + delta-R))
+R = max(Rsolid, min(10, Rsolid + delta-R))
 ```
 
 If envelope fraction is at least `0.5` and mass is at least `30 Earth masses`:
 
 ```text
-R = clamp(10.5 + 0.6 log10(max(M / 100, 0.1)), 8, 14)
+R = max(Rsolid, clamp(10.5 + 0.6 log10(max(M / 100, 0.1)), 8, 14))
 ```
+
+Both branches preserve `R >= Rsolid`; a visible atmospheric boundary never
+falls inside the modeled solid body.
 
 Category: physical approximation and population calibration.
 
@@ -704,20 +947,20 @@ The shoreline and supply terms are:
 q = 4 log10(max(vescapeRelative, 1e-5))
   - log10(max(S, 1e-6))
 
-survival = 1 / (1 + exp(-3 (q + 0.25)))
 geologicSupply = M / (M + 0.3)
 accessibleVolatiles = Mwater + MotherVolatiles
+Msupplied = accessibleVolatiles * 0.0001 * geologicSupply
 
-MsecondaryAtmosphere = accessibleVolatiles
-                     * 0.0001
-                     * survival
-                     * geologicSupply
+MsecondaryAtmosphere = Msupplied when q >= -0.25
+MsecondaryAtmosphere = 0 otherwise
 ```
 
 Category: physical approximation and population calibration.
 
-The fourth-power shoreline trend comes from Zahnle and Catling. The sigmoid
-zero point, slope, supply fraction, and geologic term are V1 calibrations.
+The fourth-power shoreline trend comes from Zahnle and Catling. The hard
+`-0.25` boundary, supply fraction, and geologic term are V1 calibrations. The
+erosive side loses the complete supplied phase; V1 does not manufacture a
+positive trace with a sigmoid tail.
 
 Total atmosphere phase mass is:
 
@@ -816,8 +1059,9 @@ Category: population calibration.
 
 This is a regime mapper, not a phase-diagram solver. Water classification uses
 `inaccessible` for opaque boundaries and `steam` above `373 K` for exposed
-bodies; otherwise it derives global ocean, partial liquid, ice, or dry from the
-resolved coverage and inventory.
+bodies. Otherwise it derives global ocean, partial liquid, or ice only from the
+corresponding positive coverage. A water-bearing body with no modeled stable
+surface coverage is dry.
 
 ## Derived Physical Thresholds
 
@@ -836,11 +1080,13 @@ The first matching rule wins:
 | --- | --- |
 | Surface pressure is absent because the boundary is opaque | Deep envelope |
 | Exposed surface pressure at least `0.05 bar` | Secondary |
-| Exposed surface pressure at least `1e-5 bar` | Tenuous |
-| Otherwise | Airless |
+| Exposed atmosphere mass is greater than zero and pressure is below `0.05 bar` | Tenuous |
+| Atmosphere mass is exactly zero | Airless |
 
 Deep envelopes produce an opaque visible boundary. All other atmosphere regimes
-produce an exposed-solid boundary in V1.
+produce an exposed-solid boundary in V1. There is no trace-pressure cutoff:
+complete primordial and secondary loss remains exact zero, while every positive
+resolved atmosphere mass is at least tenuous.
 
 ### Thermal
 
@@ -860,7 +1106,8 @@ The first matching rule wins:
 3. Boundary temperature above `373 K`: steam.
 4. Liquid coverage at least `0.80`: global ocean.
 5. Positive liquid coverage: partial liquid.
-6. Otherwise: ice covered.
+6. Positive ice coverage: ice covered.
+7. Otherwise: dry because no stable surface water is modeled.
 
 All thresholds in this section are derived-classification calibration. They do
 not change component masses or environment values.
@@ -880,33 +1127,107 @@ numeric slack. Moon orbit-bound and pair-clearance comparisons allow `1e-6 m`
 additive slack. Enum values, optionality, identity namespaces, counts, ancestry,
 and ordering remain exact. Category: numerical control.
 
-The normal unit suite pins the first random words and three canonical resolved
-system fingerprints. It also validates same-seed equality, serialization,
-corruption rejection, conservation, stellar and disk bounds, orbit and moon
-stability, causal environment trends, both moon origins, and exact coverage of
-all V1 bulk, atmosphere, thermal, water, and visible-boundary regimes across a
-bounded 32-seed smoke ensemble. These are regression contracts, not
-occurrence-rate calibration.
+Validation also reconciles retained, residual, ejected, star-accreted, and
+collision-debris body and progenitor counts with the funded embryo count. It
+requires a zero residual composition exactly when both residual counts are
+zero. It requires:
+
+```text
+MresidualSolids <= minimumResolvedPlanetSolidMassEarth
+                   * residualBodyCount
+                   * (1 + 1e-9)
+```
+
+Validation includes residual and dynamical compositions in every mass closure.
+Selection compares each pre-moon embryo's solid mass with
+`minimumResolvedPlanetSolidMassEarth`. Moon extraction later partitions parent
+solids without changing the parent-plus-moons total, so validation compares
+that combined solid mass with the threshold. When more than one planet is
+present, every planetary system must meet it. Validation permits one
+subthreshold published planet for the fallback, but does not replay formation
+to prove that decoded body had the greatest solid mass.
+
+The normal regression policy pins the first random words and three canonical
+resolved-system fingerprints. Focused tests cover same-seed equality,
+serialization, corruption rejection, conservation, stellar and disk bounds,
+Toomre admission through the shared disk profile, the fully funded seed-mass
+floor, orbit and moon stability, causal environment trends, both moon origins,
+and the exact-zero atmosphere boundary. A bounded 32-seed smoke ensemble checks
+finite validation and coarse regime reachability. These are regression
+contracts, not occurrence-rate calibration.
+
+Fingerprint updates require a reviewed model change plus passing focused
+invariants; observing a new hash is not sufficient approval. The in-place V1
+rewrite establishes a new baseline before the compatibility freeze. Later
+behavioral changes require a new model version instead of replacing V1 hashes.
 
 ## Expected Population Audits
 
 Ordinary unit tests prove causal and invariant behavior. Calibration requires a
-separate large-seed audit that records, at minimum:
+separate large-seed audit whose artifact identifies the model version, complete
+policy, seed interval, supported Swift toolchain, and execution platform. It
+records, at minimum:
 
 - generated failure count and reason
 - planet and significant-moon count distributions
 - stellar mass, metallicity, age, and luminosity distributions
-- disk gas, solid, radius, and lifetime distributions
-- retained and unresolved mass fractions
+- disk gas, solid, radius, lifetime, mass-radius correlation, admission-attempt,
+  and minimum-Toomre-`Q` distributions
+- retained, unaccreted-annulus, residual-body, ejected, star-accreted,
+  collision-debris, escaped, and dispersed mass fractions
 - planet mass, radius, semimajor axis, eccentricity, and composition quantiles
+- formation collision, post-disk collision, scattering, ejection, stellar-loss,
+  residual-body, and residual-progenitor counts
 - primordial-envelope occurrence by mass and flux
+- exact-zero atmosphere occurrence by body mass and flux
 - physical-state cross-tabulations
 - minimum final Hill spacing
 - conservation residual maxima
 - generation operation time and peak memory
 
-Occurrence-rate targets must live in an audit specification beside the model
-version. Do not add tight noisy population percentages to the normal unit suite.
+Occurrence-rate targets and acceptable deltas must live in an audit
+specification beside the model version. The audit should stream aggregates
+rather than retain every system. Do not add tight noisy population percentages
+or wall-time assertions to the normal unit suite.
+
+## Observed 1,000-Seed Baseline
+
+The in-place V1 rewrite was measured on August 11, 2026, with seeds `0..<1,000`
+in ascending serial order. A standalone Swift 6.4 executable compiled the
+production generator with `-O` and whole-module optimization on an Apple M4
+Mac mini with 16 GB of memory running macOS 27.0. Compilation was outside the
+measured interval. Each sample called `generate(seed:)` once; that operation
+includes the generator's normal validation pass.
+
+Performance:
+
+- `1,000` successes and `0` failures
+- `7.869` seconds of measured generator work, or `127.1` systems per second
+- per-system latency: `7.865 ms` mean, `7.980 ms` median, `9.261 ms` p95,
+  `9.710 ms` p99, and `10.177 ms` maximum
+- `10,043,392` bytes maximum resident set size, or `9.58 MiB`
+
+Resolved architecture and mass tail:
+
+- `14,659` resolved planets and `1,915` significant moons
+- planet count per system: `14.659` mean, `15` median, `22` p95, and `31`
+  maximum; `14` systems retained one fallback planet
+- planet mass: `0.518 Earth masses` median, `126.327 Earth masses` p99, and
+  `1,182.037 Earth masses` maximum, approximately `3.72 Jupiter masses`
+- `61` Jupiter-mass-or-larger planets and no body at or above `13 Jupiter`
+  masses
+- `2,925` post-disk collisions, `6,037` scattering resolutions, `2,103`
+  ejected bodies, and `178` star-accreted bodies
+
+Present atmosphere states included `4,686` airless, `577` tenuous, `6,405`
+secondary-atmosphere, and `2,991` deep-envelope planets. Every airless planet
+stored exactly zero atmosphere mass. Water states included `3,141` dry,
+`7,758` ice-covered, `10` partial-liquid, `59` global-ocean, `700` steam, and
+`2,991` inaccessible planets.
+
+This cohort is the first performance and outlier baseline for the rewritten
+V1 calibration. It is not an observational occurrence-rate fit, a complete
+population-audit artifact, or a timing assertion for CI.
 
 ## Known V1 Biases
 
@@ -915,17 +1236,23 @@ V1 is expected to bias output in these ways:
 - A narrow stellar-mass range omits abundant lower-mass red dwarfs and all
   higher-mass main-sequence stars.
 - Smooth stellar proxies omit track structure and pre-main-sequence duration.
+- The analytic mass-radius correlation and Toomre admission filter can distort
+  the sampled disk priors; neither replaces a viscous, self-gravitating disk.
 - Identical gas and solid surface-density weights omit radial drift and local
   dust evolution.
-- Logarithmic placement ratios replace self-consistent oligarchic spacing.
-- Perfect mergers retain too much solid and volatile material.
-- Inward-only migration overproduces trapped inner architectures unless later
-  calibration compensates.
-- Merging every final unstable pair suppresses ejected planets and dynamically
-  hot survivors.
+- Fully funded logarithmic seed placement replaces a self-consistent residual
+  embryo and planetesimal population. Subthreshold survivors are aggregated,
+  so their individual orbits and environments are not available.
+- Cooling, local supply, gap depth, and two attractors approximate rather than
+  solve envelope growth and disk torques. Resonant capture is absent.
+- Collision retention, analytic scattering, conditional outcome probabilities,
+  and the encounter-limit ejection fallback omit phase geometry and can bias
+  survivor and debris distributions.
 - The analytic Hill filter cannot certify long-term stability or resonance.
-- Envelope targets, escape, and radius are not structure solvers.
-- The secondary-atmosphere model omits atmospheric species and diffusion limits.
+- Boil-off, core-powered loss, energy-limited XUV escape, and radius are not
+  coupled thermal-structure solvers.
+- The hard cosmic-shoreline boundary omits atmospheric species, diffusion
+  limits, and transitional survival behavior.
 - Pressure and gray optical depth can become unrealistically large.
 - The climate loop lacks clouds, circulation, chemistry, topography, seasons,
   and internal heat.

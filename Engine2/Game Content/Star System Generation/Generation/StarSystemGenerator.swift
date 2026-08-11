@@ -3,6 +3,8 @@
 /// The generator is synchronous, value-semantic, and side-effect free. It owns
 /// no Runtime lifecycle or cadence and does not mutate ECS state. Callers persist
 /// the returned resolved value rather than relying on seed-only regeneration.
+/// Bodies below the resolved-planet solid-mass threshold remain aggregated in
+/// the formation ledger instead of receiving invented detailed environments.
 nonisolated struct StarSystemGenerator: Sendable {
     let policy: StarSystemGenerationPolicy
 
@@ -21,13 +23,17 @@ nonisolated struct StarSystemGenerator: Sendable {
             around: star,
             seed: seed
         )
-        let stabilityMergerCount = PlanetaryArchitectureResolver(policy: policy).resolve(
+        let diskOrbitalRangeAU = formation.disk.summary.innerEdge.astronomicalUnits
+            ... formation.disk.summary.outerEdge.astronomicalUnits
+        let architecture = PlanetaryArchitectureResolver(policy: policy).resolve(
             &formation.embryos,
             around: star,
+            within: diskOrbitalRangeAU,
             seed: seed
         )
+        let selection = selectResolvedPlanets(from: formation.embryos)
         let resolved = resolvePresentDayPlanets(
-            formation.embryos,
+            selection.embryos,
             around: star,
             seed: seed
         )
@@ -35,7 +41,8 @@ nonisolated struct StarSystemGenerator: Sendable {
             formation: formation,
             planets: resolved.planets,
             escapedHydrogenHeliumMassEarth: resolved.escapedHydrogenHeliumMassEarth,
-            stabilityMergerCount: stabilityMergerCount
+            architecture: architecture,
+            selection: selection
         )
         let system = GeneratedStarSystem(
             seed: seed,
@@ -105,11 +112,51 @@ nonisolated struct StarSystemGenerator: Sendable {
         return (planets, escapedHydrogenHeliumMassEarth)
     }
 
+    private func selectResolvedPlanets(
+        from embryos: [FormationEmbryo]
+    ) -> ResolvedPlanetSelection {
+        var selectedIdentities = Set(
+            embryos.lazy
+                .filter {
+                    $0.composition.solidMass.earthMasses
+                        >= policy.minimumResolvedPlanetSolidMassEarth
+                }
+                .map(\.id)
+        )
+        if selectedIdentities.isEmpty,
+           let largest = embryos.max(by: isLessSignificant) {
+            selectedIdentities.insert(largest.id)
+        }
+        let selected = embryos.filter { selectedIdentities.contains($0.id) }
+        let residual = embryos.filter { !selectedIdentities.contains($0.id) }
+        return ResolvedPlanetSelection(
+            embryos: selected,
+            residualComposition: residual.reduce(CelestialMassComposition.zero) {
+                $0.adding($1.composition)
+            },
+            residualBodyCount: residual.count,
+            residualProgenitorCount: residual.reduce(0) { $0 + $1.progenitorCount }
+        )
+    }
+
+    private func isLessSignificant(
+        _ first: FormationEmbryo,
+        _ second: FormationEmbryo
+    ) -> Bool {
+        let firstMass = first.composition.solidMass.earthMasses
+        let secondMass = second.composition.solidMass.earthMasses
+        if firstMass != secondMass {
+            return firstMass < secondMass
+        }
+        return first.id.rawValue > second.id.rawValue
+    }
+
     private func makeFormationLedger(
         formation: PlanetaryFormationResult,
         planets: [GeneratedPlanet],
         escapedHydrogenHeliumMassEarth: Double,
-        stabilityMergerCount: Int
+        architecture: PlanetaryArchitectureResolution,
+        selection: ResolvedPlanetSelection
     ) -> StarSystemFormationLedger {
         let compositions = planets.flatMap { planet in
             [planet.composition] + planet.moons.map(\.composition)
@@ -133,9 +180,22 @@ nonisolated struct StarSystemGenerator: Sendable {
             retainedHydrogenHeliumMass: AstronomicalMass(earthMasses: retainedHydrogenHeliumMassEarth),
             escapedHydrogenHeliumMass: AstronomicalMass(earthMasses: escapedHydrogenHeliumMassEarth),
             dispersedGasMass: AstronomicalMass(earthMasses: formation.disk.dispersedGasMassEarth),
+            dynamicalLosses: StarSystemDynamicalLossLedger(
+                ejectedComposition: architecture.ejectedComposition,
+                starAccretedComposition: architecture.starAccretedComposition,
+                collisionDebrisComposition: architecture.collisionDebrisComposition,
+                scatteringCount: architecture.scatteringCount,
+                ejectedBodyCount: architecture.ejectedBodyCount,
+                ejectedProgenitorCount: architecture.ejectedProgenitorCount,
+                starAccretedBodyCount: architecture.starAccretedBodyCount,
+                starAccretedProgenitorCount: architecture.starAccretedProgenitorCount
+            ),
+            residualBodyComposition: selection.residualComposition,
+            residualBodyCount: selection.residualBodyCount,
+            residualProgenitorCount: selection.residualProgenitorCount,
             seededEmbryoCount: formation.seededEmbryoCount,
             formationMergerCount: formation.formationMergerCount,
-            stabilityMergerCount: stabilityMergerCount
+            postDiskCollisionMergerCount: architecture.collisionMergerCount
         )
     }
 }

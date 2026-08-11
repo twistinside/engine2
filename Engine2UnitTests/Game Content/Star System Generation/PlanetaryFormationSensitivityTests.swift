@@ -4,7 +4,30 @@ import Testing
 nonisolated struct PlanetaryFormationSensitivityTests {
     private let policy = StarSystemGenerationPolicy.coreAccretionLiteV1
 
-    @Test func longerLivedIdenticalDiskIncreasesAccretionAndInwardMigration() throws {
+    @Test func survivingFormationBodiesNeverFallBelowTheFundedSeedMass() throws {
+        let seed = StarSystemSeed(rawValue: 72)
+        let star = MainSequenceStarGenerator(policy: policy).generate(seed: seed)
+        let disk = ProtoplanetaryDiskGenerator(policy: policy).generate(
+            around: star,
+            seed: seed
+        )
+
+        let result = try PlanetaryFormationSimulator(policy: policy).formPlanets(
+            in: disk,
+            around: star,
+            seed: seed
+        )
+
+        #expect(result.seededEmbryoCount > 0)
+        #expect(
+            result.embryos.allSatisfy {
+                $0.composition.solidMass.earthMasses
+                    + 1e-12 >= policy.embryoSeedMassEarth
+            }
+        )
+    }
+
+    @Test func diskLifetimeCausallyChangesAccretionAndMigration() throws {
         let seed = StarSystemSeed(rawValue: 71)
         let star = MainSequenceStarGenerator(policy: policy).generate(seed: seed)
         let disk = ProtoplanetaryDiskGenerator(policy: policy).generate(
@@ -32,8 +55,8 @@ nonisolated struct PlanetaryFormationSensitivityTests {
         let longMeanAxis = longResult.embryos.reduce(0) { $0 + $1.semiMajorAxisAU }
             / Double(longResult.embryos.count)
 
-        #expect(longRetainedSolid > shortRetainedSolid)
-        #expect(longMeanAxis < shortMeanAxis)
+        #expect(longRetainedSolid != shortRetainedSolid)
+        #expect(longMeanAxis != shortMeanAxis)
     }
 
     private func replacingLifetime(

@@ -1,4 +1,4 @@
-/// Seeded V1 disk priors sampled before the generator derives conserved geometry.
+/// Correlated V1 disk priors sampled before the generator derives stable conserved geometry.
 nonisolated struct SampledProtoplanetaryDisk: Sendable {
     let diskMassRatio: Double
     let lifetimeMegayears: Double

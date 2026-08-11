@@ -1,3 +1,5 @@
+import Foundation
+
 /// Mutable conserved disk cell used only during one generation call.
 nonisolated struct FormationAnnulus: Sendable {
     let innerRadiusAU: Double

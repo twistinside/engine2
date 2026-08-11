@@ -1,11 +1,18 @@
 import Foundation
 
-/// Evolves funded embryos through bounded simultaneous accretion, gas capture, migration, and mergers.
+/// Evolves fully funded embryos through bounded accretion, gas capture, migration, and collisions.
 ///
 /// Every epoch calculates material claims from one pre-application snapshot and
-/// proportionally scales contested annuli. No embryo can gain priority merely
-/// because of its array position.
+/// proportionally scales contested annuli. Gas growth and migration use local
+/// supply and gap state. Collision debris returns to explicit disk destinations.
 nonisolated struct PlanetaryFormationSimulator: Sendable {
+    private static let diskTurbulentViscosityAlpha = 0.002
+    private static let gasCaptureHillRadii = 0.75
+    private static let maximumEmbryoFormationRadiusAU = 40.0
+    private static let minimumGasCapturingCoreMassEarth = 0.3
+    private static let minimumGapFlowFactor = 0.02
+    private static let runawayEnvelopeToCoreMassRatio = 0.45
+
     let policy: StarSystemGenerationPolicy
 
     func formPlanets(
@@ -19,7 +26,16 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
             modelVersion: policy.modelVersion,
             domain: .embryos
         )
-        var embryos = seedEmbryos(in: &disk, random: &placementRandom)
+        var formationRandom = StarSystemRandomStream(
+            seed: seed,
+            modelVersion: policy.modelVersion,
+            domain: .formation
+        )
+        var embryos = seedEmbryos(
+            in: &disk,
+            around: star,
+            random: &placementRandom
+        )
         guard !embryos.isEmpty else {
             throw .noFundedEmbryos
         }
@@ -43,9 +59,10 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
                 elapsedMegayears: Double(step + 1) * epochDurationMegayears,
                 epochDurationMegayears: epochDurationMegayears
             )
-            applyInwardMigration(
+            applyDiskDrivenMigration(
                 to: &embryos,
                 through: disk,
+                around: star,
                 epochDurationMegayears: epochDurationMegayears
             )
             disperseGasEpoch(
@@ -55,17 +72,19 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
             )
 
             if (step + 1).isMultiple(of: 8) {
-                formationMergerCount += mergeCloseEmbryos(
+                formationMergerCount += resolveCloseEmbryosDuringGasDisk(
                     &embryos,
+                    disk: &disk,
                     around: star,
-                    requiredSpacing: policy.formationMergerSpacing
+                    random: &formationRandom
                 )
             }
         }
-        formationMergerCount += mergeCloseEmbryos(
+        formationMergerCount += resolveCloseEmbryosDuringGasDisk(
             &embryos,
+            disk: &disk,
             around: star,
-            requiredSpacing: policy.formationMergerSpacing
+            random: &formationRandom
         )
         disperseRemainingGas(in: &disk)
         embryos.sort {
@@ -82,10 +101,14 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
 
     private func seedEmbryos(
         in disk: inout FormationDisk,
+        around star: GeneratedStar,
         random: inout StarSystemRandomStream
     ) -> [FormationEmbryo] {
         let innerEdgeAU = disk.summary.innerEdge.astronomicalUnits
-        let outerEdgeAU = disk.summary.outerEdge.astronomicalUnits
+        let outerEdgeAU = min(
+            Self.maximumEmbryoFormationRadiusAU,
+            disk.summary.outerEdge.astronomicalUnits
+        )
         var radiusAU = innerEdgeAU * random.uniform(in: 1.25...1.45)
         var embryos: [FormationEmbryo] = []
 
@@ -96,7 +119,7 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
                 nearestAnnulus: nearestAnnulus,
                 annuli: &disk.annuli
             )
-            if seedComposition.solidMass.earthMasses > 1e-10 {
+            if seedComposition.solidMass.earthMasses > 0 {
                 embryos.append(
                     FormationEmbryo(
                         id: .planet(formationIndex: embryos.count),
@@ -108,7 +131,13 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
                     )
                 )
             }
-            radiusAU *= random.uniform(in: 1.16...1.28)
+            let geometricSpacingAU = radiusAU * (random.uniform(in: 1.16...1.28) - 1)
+            let mutualHillRadiusAU = radiusAU * pow(
+                2 * policy.embryoSeedMassEarth / (3 * star.mass.earthMasses),
+                1.0 / 3.0
+            )
+            let hillSpacingAU = max(8, 2 * policy.formationMergerSpacing) * mutualHillRadiusAU
+            radiusAU += max(geometricSpacingAU, hillSpacingAU)
         }
         return embryos
     }
@@ -121,10 +150,10 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
         let lower = max(0, nearestAnnulus - 2)
         let upper = min(annuli.count - 1, nearestAnnulus + 2)
         let available = annuli[lower...upper].reduce(0) { $0 + $1.remainingSolidMassEarth }
-        guard available > 0 else {
+        guard available >= targetMassEarth else {
             return .zero
         }
-        let withdrawnFraction = min(targetMassEarth / available, 1)
+        let withdrawnFraction = targetMassEarth / available
         var withdrawn = CelestialMassComposition.zero
         for index in lower...upper {
             let source = annuli[index].solidComposition
@@ -262,37 +291,92 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
 
         for embryoIndex in embryos.indices {
             let embryo = embryos[embryoIndex]
-            let solidMass = embryo.composition.solidMass.earthMasses
-            let currentEnvelope = embryo.composition.hydrogenHelium.earthMasses
-            let targetFraction = min(
-                0.95,
-                0.0025 * pow(max(solidMass, 1e-6), 1.7) * (1 - exp(-elapsedMegayears))
+            let coolingDemandEarth = coolingLimitedGasDemandEarth(
+                for: embryo,
+                elapsedMegayears: elapsedMegayears,
+                epochDurationMegayears: epochDurationMegayears
             )
-            let targetEnvelope = solidMass * targetFraction / max(1 - targetFraction, 0.05)
-            let captureResponse = 1 - exp(
-                -5.2 * policy.gasAccretionEfficiency * epochDurationMegayears
-            )
-            let requestedEnvelope = max(
-                0,
-                (targetEnvelope - currentEnvelope) * captureResponse
-            )
-            guard requestedEnvelope > 0 else {
+            guard coolingDemandEarth > 0 else {
                 continue
             }
-            let halfWidth = feedingZoneHalfWidthAU(for: embryo, around: star)
+            let halfWidth = gasCaptureHalfWidthAU(for: embryo, around: star)
             let localIndices = annuli.indices.filter { index in
-                abs(annuli[index].centerRadiusAU - embryo.semiMajorAxisAU) <= halfWidth
+                annuli[index].innerRadiusAU <= embryo.semiMajorAxisAU + halfWidth
+                    && annuli[index].outerRadiusAU >= embryo.semiMajorAxisAU - halfWidth
             }
             let localGas = localIndices.reduce(0) { $0 + annuli[$1].remainingGasMassEarth }
             guard localGas > 0 else {
                 continue
             }
+            let gapDepth = diskGapDepth(for: embryo, around: star)
+            let gapFlowFactor = max(Self.minimumGapFlowFactor, sqrt(gapDepth))
+            let hydrodynamicResponsePerMegayear = 3
+                * policy.gasAccretionEfficiency
+                * pow(max(embryo.composition.totalMass.earthMasses, 0.1) / 10, 2.0 / 3.0)
+            let hydrodynamicSupplyEarth = localGas
+                * (1 - exp(-hydrodynamicResponsePerMegayear * epochDurationMegayears))
+                * gapFlowFactor
+            let viscousTimescale = viscousTimescaleMegayears(
+                at: embryo.semiMajorAxisAU,
+                around: star
+            )
+            let viscousSupplyEarth = localGas
+                * (1 - exp(-epochDurationMegayears / viscousTimescale))
+                * gapFlowFactor
+            let requestedEnvelope = min(
+                coolingDemandEarth,
+                min(hydrodynamicSupplyEarth, viscousSupplyEarth)
+            )
             for annulusIndex in localIndices {
                 let share = annuli[annulusIndex].remainingGasMassEarth / localGas
                 requestedMasses[embryoIndex][annulusIndex] = requestedEnvelope * share
             }
         }
         return requestedMasses
+    }
+
+    private func coolingLimitedGasDemandEarth(
+        for embryo: FormationEmbryo,
+        elapsedMegayears: Double,
+        epochDurationMegayears: Double
+    ) -> Double {
+        let coreMassEarth = embryo.composition.solidMass.earthMasses
+        guard coreMassEarth >= Self.minimumGasCapturingCoreMassEarth else {
+            return 0
+        }
+        let currentEnvelopeEarth = embryo.composition.hydrogenHelium.earthMasses
+        let supportedEnvelopeRatio = min(
+            1,
+            0.0025
+                * pow(coreMassEarth, 1.7)
+                * sqrt(max(elapsedMegayears, 1e-6))
+        )
+        let supportedEnvelopeEarth = coreMassEarth * supportedEnvelopeRatio
+        let kelvinHelmholtzTimescaleMegayears = max(
+            0.01,
+            4 * pow(coreMassEarth / 5, -3)
+        )
+        let coolingResponse = 1 - exp(
+            -policy.gasAccretionEfficiency
+                * epochDurationMegayears
+                / kelvinHelmholtzTimescaleMegayears
+        )
+        let attachedDemandEarth = max(
+            0,
+            supportedEnvelopeEarth - currentEnvelopeEarth
+        ) * coolingResponse
+        guard currentEnvelopeEarth >= Self.runawayEnvelopeToCoreMassRatio * coreMassEarth else {
+            return attachedDemandEarth
+        }
+        let runawayExponent = min(
+            3,
+            policy.gasAccretionEfficiency
+                * epochDurationMegayears
+                / kelvinHelmholtzTimescaleMegayears
+        )
+        let runawayDemandEarth = max(currentEnvelopeEarth, 0.01 * coreMassEarth)
+            * expm1(runawayExponent)
+        return max(attachedDemandEarth, runawayDemandEarth)
     }
 
     private func allocateGasCaptureRequests(
@@ -333,30 +417,100 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
         }
     }
 
-    private func applyInwardMigration(
+    private func applyDiskDrivenMigration(
         to embryos: inout [FormationEmbryo],
         through disk: FormationDisk,
+        around star: GeneratedStar,
         epochDurationMegayears: Double
     ) {
-        let initialGas = disk.summary.initialGasMass.earthMasses
-        let remainingGas = disk.annuli.reduce(0) { $0 + $1.remainingGasMassEarth }
-        let gasAvailability = initialGas > 0 ? remainingGas / initialGas : 0
-        let innerTrapAU = disk.summary.innerEdge.astronomicalUnits * 1.1
         for index in embryos.indices {
-            let mass = embryos[index].composition.totalMass.earthMasses
-            let migrationRatePerMegayear = 0.384
+            let embryo = embryos[index]
+            let nearestAnnulus = nearestAnnulusIndex(
+                to: embryo.semiMajorAxisAU,
+                in: disk.annuli
+            )
+            let annulus = disk.annuli[nearestAnnulus]
+            let localGasAvailability = annulus.initialGasMassEarth > 0
+                ? annulus.remainingGasMassEarth / annulus.initialGasMassEarth
+                : 0
+            let massEarth = embryo.composition.totalMass.earthMasses
+            let typeIMigrationRatePerMegayear = 0.384
                 * policy.migrationEfficiency
-                * mass / (1 + mass / 30)
-                * gasAvailability
+                * massEarth / (1 + massEarth / 30)
+                * localGasAvailability
+            let gapOpeningParameter = diskGapOpeningParameter(
+                for: embryo,
+                around: star
+            )
+            let migrationRatePerMegayear: Double
+            let attractorAU: Double
+            if gapOpeningParameter <= 1 {
+                let viscousTimescale = viscousTimescaleMegayears(
+                    at: embryo.semiMajorAxisAU,
+                    around: star
+                )
+                migrationRatePerMegayear = min(
+                    typeIMigrationRatePerMegayear * max(0.03, diskGapDepth(for: embryo, around: star)),
+                    1 / viscousTimescale
+                )
+                attractorAU = min(
+                    embryo.semiMajorAxisAU,
+                    innerMigrationTrapAU(in: disk)
+                )
+            } else {
+                migrationRatePerMegayear = typeIMigrationRatePerMegayear
+                attractorAU = typeIMigrationAttractorAU(for: embryo, in: disk)
+            }
             let fractionalStep = min(
                 0.03,
                 1 - exp(-migrationRatePerMegayear * epochDurationMegayears)
             )
-            embryos[index].semiMajorAxisAU = max(
-                innerTrapAU,
-                embryos[index].semiMajorAxisAU * (1 - fractionalStep)
-            )
+            let radialStepAU = embryo.semiMajorAxisAU * fractionalStep
+            if attractorAU < embryo.semiMajorAxisAU {
+                embryos[index].semiMajorAxisAU = max(
+                    attractorAU,
+                    embryo.semiMajorAxisAU - radialStepAU
+                )
+            } else {
+                embryos[index].semiMajorAxisAU = min(
+                    attractorAU,
+                    embryo.semiMajorAxisAU + radialStepAU
+                )
+            }
         }
+    }
+
+    private func viscousTimescaleMegayears(
+        at semiMajorAxisAU: Double,
+        around star: GeneratedStar
+    ) -> Double {
+        max(
+            0.05,
+            0.35
+                * pow(max(semiMajorAxisAU, 0.03) / 5, 0.75)
+                / sqrt(star.mass.solarMasses)
+        )
+    }
+
+    private func typeIMigrationAttractorAU(
+        for embryo: FormationEmbryo,
+        in disk: FormationDisk
+    ) -> Double {
+        let snowLineAU = disk.summary.waterSnowLine.astronomicalUnits
+        let innerTrapAU = innerMigrationTrapAU(in: disk)
+        let distanceToInnerTrap = abs(log(embryo.semiMajorAxisAU / innerTrapAU))
+        let distanceToSnowLine = abs(log(embryo.semiMajorAxisAU / snowLineAU))
+        let baseAttractorAU = distanceToInnerTrap < distanceToSnowLine
+            ? innerTrapAU
+            : snowLineAU
+        return baseAttractorAU
+    }
+
+    private func innerMigrationTrapAU(in disk: FormationDisk) -> Double {
+        max(
+            1.8 * disk.summary.innerEdge.astronomicalUnits,
+            0.18 * disk.summary.waterSnowLine.astronomicalUnits
+        )
     }
 
     private func disperseGasEpoch(
@@ -380,10 +534,11 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
         }
     }
 
-    private func mergeCloseEmbryos(
+    private func resolveCloseEmbryosDuringGasDisk(
         _ embryos: inout [FormationEmbryo],
+        disk: inout FormationDisk,
         around star: GeneratedStar,
-        requiredSpacing: Double
+        random: inout StarSystemRandomStream
     ) -> Int {
         var mergerCount = 0
         var foundMerger = true
@@ -396,16 +551,85 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
                 let inner = embryos[index]
                 let outer = embryos[index + 1]
                 let clearance = inner.orbitalClearance(to: outer, around: star.mass)
-                guard clearance.mutualHillSpacing < requiredSpacing else {
+                guard clearance.mutualHillSpacing < policy.formationMergerSpacing else {
                     continue
                 }
-                embryos.replaceSubrange(index...(index + 1), with: [inner.merging(with: outer)])
+                let collision = inner.colliding(
+                    with: outer,
+                    retainedSolidFraction: random.uniform(in: 0.985...1),
+                    retainedHydrogenHeliumFraction: random.uniform(in: 0.55...0.90)
+                )
+                embryos.replaceSubrange(index...(index + 1), with: [collision.remnant])
+                disk.returnCollisionDebris(
+                    collision.debris,
+                    near: collision.remnant.semiMajorAxisAU
+                )
                 mergerCount += 1
                 foundMerger = true
                 break
             }
         }
         return mergerCount
+    }
+
+    private func gasCaptureHalfWidthAU(
+        for embryo: FormationEmbryo,
+        around star: GeneratedStar
+    ) -> Double {
+        let hillRadius = embryo.semiMajorAxisAU
+            * pow(embryo.composition.totalMass.earthMasses / (3 * star.mass.earthMasses), 1.0 / 3.0)
+        return max(Self.gasCaptureHillRadii * hillRadius, embryo.semiMajorAxisAU * 0.01)
+    }
+
+    private func diskGapOpeningParameter(
+        for embryo: FormationEmbryo,
+        around star: GeneratedStar
+    ) -> Double {
+        let massRatio = max(
+            embryo.composition.totalMass.earthMasses / star.mass.earthMasses,
+            1e-12
+        )
+        let aspectRatio = diskAspectRatio(
+            at: embryo.semiMajorAxisAU,
+            around: star
+        )
+        let hillRadiusAU = embryo.semiMajorAxisAU * pow(massRatio / 3, 1.0 / 3.0)
+        let pressureTerm = 0.75 * aspectRatio * embryo.semiMajorAxisAU / hillRadiusAU
+        let viscousTerm = 50
+            * Self.diskTurbulentViscosityAlpha
+            * aspectRatio * aspectRatio
+            / massRatio
+        return pressureTerm + viscousTerm
+    }
+
+    private func diskGapDepth(
+        for embryo: FormationEmbryo,
+        around star: GeneratedStar
+    ) -> Double {
+        let massRatio = max(
+            embryo.composition.totalMass.earthMasses / star.mass.earthMasses,
+            1e-12
+        )
+        let aspectRatio = diskAspectRatio(
+            at: embryo.semiMajorAxisAU,
+            around: star
+        )
+        let gapStrength = massRatio * massRatio
+            / (Self.diskTurbulentViscosityAlpha * pow(aspectRatio, 5))
+        return 1 / (1 + 0.04 * gapStrength)
+    }
+
+    private func diskAspectRatio(
+        at radiusAU: Double,
+        around star: GeneratedStar
+    ) -> Double {
+        clamped(
+            0.033
+                * pow(max(star.luminosity.solarLuminosities, 1e-6), 0.125)
+                * pow(max(radiusAU, 0.03), 0.25)
+                / sqrt(star.mass.solarMasses),
+            to: 0.025...0.12
+        )
     }
 
     private func feedingZoneHalfWidthAU(
@@ -422,5 +646,9 @@ nonisolated struct PlanetaryFormationSimulator: Sendable {
             abs(annuli[first].centerRadiusAU - radiusAU)
                 < abs(annuli[second].centerRadiusAU - radiusAU)
         } ?? 0
+    }
+
+    private func clamped(_ value: Double, to range: ClosedRange<Double>) -> Double {
+        min(max(value, range.lowerBound), range.upperBound)
     }
 }

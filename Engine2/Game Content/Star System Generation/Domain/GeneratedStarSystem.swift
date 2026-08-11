@@ -1,10 +1,13 @@
 import Foundation
 
-/// Fully resolved, immutable result of one deterministic construction-time generation.
+/// Resolved, immutable result of one deterministic construction-time generation.
 ///
-/// The value is safe to persist and reuse across runtime reconstruction. Runtime
-/// or ECS integration must consume this resolved value rather than rerunning the
-/// generator from inside `PWorldBuilder`.
+/// Generator-produced values have passed validation and can be persisted.
+/// Decoding does not establish trust; callers must invoke `validate()` before
+/// reusing decoded bytes. Runtime or ECS integration must consume this resolved
+/// value rather than rerunning the generator from inside `PWorldBuilder`.
+/// Significant planets retain detailed facts; solid-mass-subthreshold survivors
+/// remain aggregate ledger provenance.
 nonisolated struct GeneratedStarSystem: Codable, Equatable, Sendable {
     let seed: StarSystemSeed
     let modelVersion: StarSystemGenerationModelVersion
@@ -17,8 +20,8 @@ nonisolated struct GeneratedStarSystem: Codable, Equatable, Sendable {
     /// Validates persistence input and the generator's complete output invariants.
     ///
     /// Validation admits only the canonical policy, replays seed-derived and
-    /// present-day facts, then checks identities, ancestry, orbital stability,
-    /// satellite bounds, and both conserved disk mass budgets.
+    /// present-day facts, then checks identities, retained and residual ancestry,
+    /// orbital stability, satellite bounds, and both conserved disk mass budgets.
     func validate() throws(StarSystemGenerationError) {
         try GeneratedStarSystemValidator(system: self).validate()
     }

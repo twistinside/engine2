@@ -1,11 +1,29 @@
 import Foundation
 
-/// Resolves present-day envelope loss, radius, zero-dimensional climate, and physical state.
+/// Resolves bounded post-disk atmosphere evolution, radius, zero-dimensional climate, and physical state.
 ///
-/// This phase uses bounded regime approximations. It never assigns gameplay
-/// value, habitability, life, or an authored appearance.
+/// The resolver conserves primordial hydrogen and helium by returning every
+/// removed mass to the caller's escaped-gas ledger. Secondary atmosphere is a
+/// finite phase projection within the body's solid volatile reservoirs. Complete
+/// stripping remains exactly zero so the airless classification has no epsilon
+/// threshold. This phase never assigns gameplay value, habitability, life, or
+/// an authored appearance.
 nonisolated struct PlanetaryEnvironmentResolver: Sendable {
     let policy: StarSystemGenerationPolicy
+    private let radiusResolver: PlanetaryRadiusResolver
+    private let primordialAtmosphereEvolver: PrimordialAtmosphereEvolver
+    private let secondaryAtmosphereResolver: SecondaryAtmosphereResolver
+
+    init(policy: StarSystemGenerationPolicy) {
+        let radiusResolver = PlanetaryRadiusResolver()
+        self.policy = policy
+        self.radiusResolver = radiusResolver
+        self.primordialAtmosphereEvolver = PrimordialAtmosphereEvolver(
+            policy: policy,
+            radiusResolver: radiusResolver
+        )
+        self.secondaryAtmosphereResolver = SecondaryAtmosphereResolver()
+    }
 
     func resolve(
         composition initialComposition: CelestialMassComposition,
@@ -13,7 +31,7 @@ nonisolated struct PlanetaryEnvironmentResolver: Sendable {
         around star: GeneratedStar
     ) -> EvolvedPlanetaryBody {
         let incidentFlux = meanIncidentFluxEarth(orbit: orbit, star: star)
-        let retainedComposition = evolvePrimordialEnvelope(
+        let retainedComposition = primordialAtmosphereEvolver.evolve(
             initialComposition,
             incidentFluxEarth: incidentFlux,
             around: star
@@ -44,12 +62,12 @@ nonisolated struct PlanetaryEnvironmentResolver: Sendable {
         around star: GeneratedStar
     ) -> EvolvedPlanetaryBody {
         let incidentFlux = meanIncidentFluxEarth(orbit: orbit, star: star)
-        let radiusEarth = resolvedRadiusEarth(
+        let radiusEarth = radiusResolver.resolveVisibleRadiusEarth(
             composition: composition,
             incidentFluxEarth: incidentFlux,
             ageGigayears: star.age.gigayears
         )
-        let solidRadiusEarth = resolvedSolidRadiusEarth(composition: composition)
+        let solidRadiusEarth = radiusResolver.resolveSolidRadiusEarth(composition: composition)
         let climate = resolveClimate(
             composition: composition,
             massEarth: composition.totalMass.earthMasses,
@@ -67,92 +85,6 @@ nonisolated struct PlanetaryEnvironmentResolver: Sendable {
             environment: climate,
             physicalState: physicalState,
             escapedHydrogenHeliumMass: .zero
-        )
-    }
-
-    private func evolvePrimordialEnvelope(
-        _ initialComposition: CelestialMassComposition,
-        incidentFluxEarth: Double,
-        around star: GeneratedStar
-    ) -> CelestialMassComposition {
-        var retainedGas = initialComposition.hydrogenHelium.earthMasses
-        guard retainedGas > 0 else {
-            return initialComposition
-        }
-        let finalAgeGigayears = max(star.age.gigayears, 0.02)
-        let logarithmicSpan = log(finalAgeGigayears / 0.01)
-        let presentXUVFactor = star.xuvLuminosityFraction / 1e-5
-
-        for step in 0..<policy.evolutionStepCount {
-            let lowerFraction = Double(step) / Double(policy.evolutionStepCount)
-            let upperFraction = Double(step + 1) / Double(policy.evolutionStepCount)
-            let lowerAge = 0.01 * exp(logarithmicSpan * lowerFraction)
-            let upperAge = 0.01 * exp(logarithmicSpan * upperFraction)
-            let middleAge = sqrt(lowerAge * upperAge)
-            let currentComposition = initialComposition.replacingHydrogenHelium(
-                with: AstronomicalMass(earthMasses: retainedGas)
-            )
-            let radiusEarth = resolvedRadiusEarth(
-                composition: currentComposition,
-                incidentFluxEarth: incidentFluxEarth,
-                ageGigayears: middleAge
-            )
-            let massEarth = currentComposition.totalMass.earthMasses
-            let historicXUVFactor = min(
-                100,
-                presentXUVFactor
-                    * pow(max(middleAge / finalAgeGigayears, 0.002), -1.2)
-            )
-            let binding = massEarth * massEarth
-                / max(
-                    pow(radiusEarth, 3)
-                        * max(incidentFluxEarth, 1e-6)
-                        * historicXUVFactor,
-                    1e-9
-                )
-            let epochWeight = (upperAge - lowerAge) / finalAgeGigayears
-            let lossExponent = policy.atmosphereEscapeEfficiency
-                * epochWeight * 80 / (binding + 2)
-            retainedGas *= exp(-min(lossExponent, 4))
-        }
-        if retainedGas < 1e-12 {
-            retainedGas = 0
-        }
-        return initialComposition.replacingHydrogenHelium(
-            with: AstronomicalMass(earthMasses: retainedGas)
-        )
-    }
-
-    private func resolvedRadiusEarth(
-        composition: CelestialMassComposition,
-        incidentFluxEarth: Double,
-        ageGigayears: Double
-    ) -> Double {
-        let solidRadius = resolvedSolidRadiusEarth(composition: composition)
-        let totalMass = composition.totalMass.earthMasses
-        let envelopeFraction = composition.hydrogenHeliumMassFraction
-        guard envelopeFraction > 1e-5 else {
-            return max(solidRadius, 0.03)
-        }
-        if envelopeFraction >= 0.5 && totalMass >= 30 {
-            return min(14, max(8, 10.5 + 0.6 * log10(max(totalMass / 100, 0.1))))
-        }
-        let envelopeInflation = 2.2
-            * pow(max(envelopeFraction / 0.05, 1e-4), 0.25)
-            * pow(max(totalMass / 5, 0.1), -0.10)
-            * pow(max(incidentFluxEarth, 0.01), 0.04)
-            * pow(max(ageGigayears / 5, 0.02), -0.08)
-        return min(10, max(solidRadius, solidRadius + envelopeInflation))
-    }
-
-    private func resolvedSolidRadiusEarth(composition: CelestialMassComposition) -> Double {
-        let solidMass = max(composition.solidMass.earthMasses, 1e-8)
-        let waterFraction = composition.waterMassFraction
-        let otherVolatileFraction = composition.otherVolatiles.earthMasses / solidMass
-        return max(
-            0.03,
-            pow(solidMass, 0.27)
-                * (1 + 0.25 * waterFraction + 0.10 * otherVolatileFraction)
         )
     }
 
@@ -209,14 +141,12 @@ nonisolated struct PlanetaryEnvironmentResolver: Sendable {
         visibleRadiusEarth: Double,
         incidentFluxEarth: Double
     ) -> PlanetaryAtmosphericBoundary {
-        let escapeVelocityEarth = sqrt(max(massEarth / solidRadiusEarth, 1e-8))
-        let shorelineIndex = 4 * log10(max(escapeVelocityEarth, 1e-5))
-            - log10(max(incidentFluxEarth, 1e-6))
-        let secondarySurvival = 1 / (1 + exp(-3 * (shorelineIndex + 0.25)))
-        let geologicSupply = massEarth / (massEarth + 0.3)
-        let accessibleVolatiles = composition.water.earthMasses
-            + composition.otherVolatiles.earthMasses
-        let secondaryAtmosphereEarth = accessibleVolatiles * 0.0001 * secondarySurvival * geologicSupply
+        let secondaryAtmosphereEarth = secondaryAtmosphereResolver.atmosphereMassEarth(
+            composition: composition,
+            massEarth: massEarth,
+            solidRadiusEarth: solidRadiusEarth,
+            incidentFluxEarth: incidentFluxEarth
+        )
         let atmosphereEarth = composition.hydrogenHelium.earthMasses + secondaryAtmosphereEarth
         let envelopeFraction = composition.hydrogenHeliumMassFraction
         let exposedSurfacePressureBars = atmosphereEarth / 8.62e-7
@@ -369,7 +299,7 @@ nonisolated struct PlanetaryEnvironmentResolver: Sendable {
         if pressureBars >= 0.05 {
             return .secondary
         }
-        return pressureBars >= 1e-5 ? .tenuous : .airless
+        return environment.atmosphereMass == .zero ? .airless : .tenuous
     }
 
     private func thermalRegime(
@@ -402,7 +332,10 @@ nonisolated struct PlanetaryEnvironmentResolver: Sendable {
         if environment.liquidWaterCoverage >= 0.80 {
             return .globalOcean
         }
-        return environment.liquidWaterCoverage > 0 ? .partialLiquid : .iceCovered
+        if environment.liquidWaterCoverage > 0 {
+            return .partialLiquid
+        }
+        return environment.waterIceCoverage > 0 ? .iceCovered : .dry
     }
 
     private func meanIncidentFluxEarth(orbit: KeplerianOrbit, star: GeneratedStar) -> Double {

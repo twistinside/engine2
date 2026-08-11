@@ -24,7 +24,7 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
         medianDiskMassRatio: 0.02,
         diskMassScatterDex: 0.5,
         minimumDiskMassRatio: 0.003,
-        maximumDiskMassRatio: 0.20,
+        maximumDiskMassRatio: 0.16,
         medianDiskLifetimeMegayears: 3,
         diskLifetimeScatterDex: 0.25,
         minimumDiskLifetimeMegayears: 1,
@@ -37,6 +37,7 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
         formationStepCount: 96,
         evolutionStepCount: 48,
         embryoSeedMassEarth: 0.01,
+        minimumResolvedPlanetSolidMassEarth: 0.10,
         solidAccretionEfficiency: 0.45,
         gasAccretionEfficiency: 0.60,
         migrationEfficiency: 0.18,
@@ -74,6 +75,12 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
     let formationStepCount: Int
     let evolutionStepCount: Int
     let embryoSeedMassEarth: Double
+
+    /// Minimum pre-moon solid mass for detailed planet output.
+    ///
+    /// When every survivor is smaller, generation retains the survivor with the
+    /// greatest solid mass and aggregates the others in the formation ledger.
+    let minimumResolvedPlanetSolidMassEarth: Double
     let solidAccretionEfficiency: Double
     let gasAccretionEfficiency: Double
     let migrationEfficiency: Double
@@ -84,6 +91,11 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
     let giantMassThresholdEarth: Double
     let atmosphereEscapeEfficiency: Double
     let maximumMoonCountPerPlanet: Int
+
+    /// Maximum bounded post-disk encounters that generation and validation admit.
+    var maximumPostDiskEncounterCount: Int {
+        max(64, maximumEmbryoCount * maximumEmbryoCount)
+    }
 
     /// Whether policy values satisfy the shared trusted-construction and decoded admission contract.
     var isValid: Bool {
@@ -116,6 +128,8 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
             && (1...Self.maximumFormationStepCount).contains(formationStepCount)
             && (1...Self.maximumEvolutionStepCount).contains(evolutionStepCount)
             && Self.isPositiveFinite(embryoSeedMassEarth)
+            && minimumResolvedPlanetSolidMassEarth.isFinite
+            && minimumResolvedPlanetSolidMassEarth >= embryoSeedMassEarth
             && Self.isNonnegativeFinite(solidAccretionEfficiency)
             && Self.isNonnegativeFinite(gasAccretionEfficiency)
             && Self.isNonnegativeFinite(migrationEfficiency)
@@ -164,6 +178,7 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
         formationStepCount: Int,
         evolutionStepCount: Int,
         embryoSeedMassEarth: Double,
+        minimumResolvedPlanetSolidMassEarth: Double,
         solidAccretionEfficiency: Double,
         gasAccretionEfficiency: Double,
         migrationEfficiency: Double,
@@ -200,6 +215,7 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
         self.formationStepCount = formationStepCount
         self.evolutionStepCount = evolutionStepCount
         self.embryoSeedMassEarth = embryoSeedMassEarth
+        self.minimumResolvedPlanetSolidMassEarth = minimumResolvedPlanetSolidMassEarth
         self.solidAccretionEfficiency = solidAccretionEfficiency
         self.gasAccretionEfficiency = gasAccretionEfficiency
         self.migrationEfficiency = migrationEfficiency

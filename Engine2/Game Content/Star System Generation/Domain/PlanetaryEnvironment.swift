@@ -9,6 +9,8 @@ nonisolated struct PlanetaryEnvironment: Codable, Equatable, Sendable {
 
     let equilibriumTemperature: ThermodynamicTemperature
     let visibleBoundaryTemperature: ThermodynamicTemperature
+    /// Total resolved atmosphere phase mass. Exact zero denotes complete loss;
+    /// every positive mass remains atmospheric even when its pressure is tiny.
     let atmosphereMass: AstronomicalMass
 
     /// Estimated pressure on an exposed solid boundary, or `nil` when a deep
@@ -34,7 +36,10 @@ nonisolated struct PlanetaryEnvironment: Codable, Equatable, Sendable {
         liquidWaterCoverage: Double,
         waterIceCoverage: Double
     ) {
-        precondition(incidentFluxEarth.isFinite && incidentFluxEarth >= 0, "Incident flux must be finite and nonnegative.")
+        precondition(
+            incidentFluxEarth.isFinite && incidentFluxEarth >= 0,
+            "Incident flux must be finite and nonnegative."
+        )
         precondition(Self.acceptsUnitFraction(bondAlbedo), "Bond albedo must be finite in 0...1.")
         precondition(Self.acceptsUnitFraction(liquidWaterCoverage), "Liquid-water coverage must be finite in 0...1.")
         precondition(Self.acceptsUnitFraction(waterIceCoverage), "Water-ice coverage must be finite in 0...1.")

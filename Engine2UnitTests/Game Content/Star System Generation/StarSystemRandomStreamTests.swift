@@ -43,6 +43,11 @@ nonisolated struct StarSystemRandomStreamTests {
             modelVersion: .coreAccretionLiteV1,
             domain: .disk
         )
+        var dynamicalClearing = StarSystemRandomStream(
+            seed: StarSystemSeed(rawValue: 42),
+            modelVersion: .coreAccretionLiteV1,
+            domain: .dynamicalClearing
+        )
         var firstMoon = StarSystemRandomStream(
             seed: StarSystemSeed(rawValue: 42),
             modelVersion: .coreAccretionLiteV1,
@@ -56,7 +61,13 @@ nonisolated struct StarSystemRandomStreamTests {
             discriminator: 2
         )
 
-        #expect(star.nextUInt64() != disk.nextUInt64())
+        let domainWords = Set([
+            star.nextUInt64(),
+            disk.nextUInt64(),
+            dynamicalClearing.nextUInt64()
+        ])
+
+        #expect(domainWords.count == 3)
         #expect(firstMoon.nextUInt64() != secondMoon.nextUInt64())
     }
 

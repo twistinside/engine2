@@ -3,7 +3,8 @@ import Foundation
 /// Validates one persisted generated system against its model inputs and physical invariants.
 ///
 /// The validator replays deterministic stellar, disk, and environmental derivations before
-/// checking body identities, orbital stability, satellite bounds, and conserved mass ledgers.
+/// checking body identities, orbital stability, satellite bounds, dynamical destinations,
+/// ancestry closure, and conserved mass ledgers.
 nonisolated struct GeneratedStarSystemValidator: Sendable {
     private static let planetaryOrbitalSlack = 1e-10
     private static let moonOrbitalSlackMeters = 1e-6
@@ -87,8 +88,8 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
               isValidComposition(disk.initialSolidComposition),
               disk.initialSolidComposition.hydrogenHelium == .zero,
               approximatelyEqual(
-                  disk.initialSolidMass.earthMasses,
-                  disk.initialSolidComposition.solidMass.earthMasses
+                  disk.initialSolidMass.kilograms,
+                  solidMassKilograms(in: disk.initialSolidComposition)
               ),
               disk.lifetime.seconds.isFinite,
               disk.lifetime.seconds > 0,
@@ -115,6 +116,7 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
             throw .noFundedEmbryos
         }
         var identities: Set<GeneratedBodyID> = []
+        var containsSubthresholdPlanet = false
         for planet in planets {
             guard isPlanetIdentity(planet.id) else {
                 throw .invalidPlanet(planet.id)
@@ -139,6 +141,14 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
                     throw .invalidMoon(moon.id)
                 }
             }
+            let planetarySystemSolidMassEarth = planet.composition.solidMass.earthMasses
+                + planet.moons.reduce(0) { $0 + $1.composition.solidMass.earthMasses }
+            containsSubthresholdPlanet = containsSubthresholdPlanet
+                || planetarySystemSolidMassEarth
+                    < policy.minimumResolvedPlanetSolidMassEarth
+        }
+        guard planets.count == 1 || !containsSubthresholdPlanet else {
+            throw .invalidFormationLedger
         }
     }
 
@@ -268,16 +278,58 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
     }
 
     private func validateMassLedgers() throws(StarSystemGenerationError) {
-        let retainedProgenitorCount = planets.reduce(0) { partial, planet in
-            partial + planet.progenitorCount
-        }
-        guard formationLedger.seededEmbryoCount > 0,
-              formationLedger.seededEmbryoCount <= policy.maximumEmbryoCount,
-              formationLedger.formationMergerCount >= 0,
-              formationLedger.formationMergerCount <= formationLedger.seededEmbryoCount,
-              formationLedger.stabilityMergerCount >= 0,
-              formationLedger.stabilityMergerCount <= formationLedger.seededEmbryoCount,
-              retainedProgenitorCount == formationLedger.seededEmbryoCount,
+        let seededEmbryoCount = formationLedger.seededEmbryoCount
+        let dynamicalLosses = formationLedger.dynamicalLosses
+        let residualComposition = formationLedger.residualBodyComposition
+        try validateLedgerDestinationsAndCounts(
+            seededEmbryoCount: seededEmbryoCount,
+            dynamicalLosses: dynamicalLosses,
+            residualComposition: residualComposition
+        )
+        try validateSurvivorAndAncestryClosure(
+            seededEmbryoCount: seededEmbryoCount,
+            dynamicalLosses: dynamicalLosses
+        )
+        try validateSolidMassClosure(
+            dynamicalLosses: dynamicalLosses,
+            residualComposition: residualComposition
+        )
+        try validateHydrogenHeliumMassClosure(
+            dynamicalLosses: dynamicalLosses,
+            residualComposition: residualComposition
+        )
+    }
+
+    private func validateLedgerDestinationsAndCounts(
+        seededEmbryoCount: Int,
+        dynamicalLosses: StarSystemDynamicalLossLedger,
+        residualComposition: CelestialMassComposition
+    ) throws(StarSystemGenerationError) {
+        guard (1...policy.maximumEmbryoCount).contains(seededEmbryoCount),
+              (0...seededEmbryoCount).contains(formationLedger.formationMergerCount),
+              (0...seededEmbryoCount).contains(formationLedger.postDiskCollisionMergerCount),
+              (0...policy.maximumPostDiskEncounterCount).contains(
+                  dynamicalLosses.scatteringCount
+              ),
+              (0...seededEmbryoCount).contains(dynamicalLosses.ejectedBodyCount),
+              (0...seededEmbryoCount).contains(dynamicalLosses.ejectedProgenitorCount),
+              dynamicalLosses.ejectedBodyCount <= dynamicalLosses.ejectedProgenitorCount,
+              (0...seededEmbryoCount).contains(dynamicalLosses.starAccretedBodyCount),
+              (0...seededEmbryoCount).contains(dynamicalLosses.starAccretedProgenitorCount),
+              dynamicalLosses.starAccretedBodyCount <= dynamicalLosses.starAccretedProgenitorCount,
+              isValidComposition(dynamicalLosses.ejectedComposition),
+              isValidComposition(dynamicalLosses.starAccretedComposition),
+              isValidComposition(dynamicalLosses.collisionDebrisComposition),
+              lossCountsMatchComposition(dynamicalLosses),
+              (0...seededEmbryoCount).contains(formationLedger.residualBodyCount),
+              (0...seededEmbryoCount).contains(formationLedger.residualProgenitorCount),
+              formationLedger.residualBodyCount <= formationLedger.residualProgenitorCount,
+              isValidComposition(residualComposition),
+              residualCountsMatchComposition(),
+              residualComposition.solidMass.earthMasses
+                <= policy.minimumResolvedPlanetSolidMassEarth
+                    * Double(formationLedger.residualBodyCount)
+                    * (1 + 1e-9),
               isNonnegativeFinite(formationLedger.initialSolidMass),
               isNonnegativeFinite(formationLedger.retainedSolidMass),
               isNonnegativeFinite(formationLedger.unaccretedSolidMass),
@@ -289,15 +341,40 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
               isNonnegativeFinite(formationLedger.dispersedGasMass) else {
             throw .invalidFormationLedger
         }
+    }
+
+    private func validateSurvivorAndAncestryClosure(
+        seededEmbryoCount: Int,
+        dynamicalLosses: StarSystemDynamicalLossLedger
+    ) throws(StarSystemGenerationError) {
+        let retainedProgenitorCount = planets.reduce(0) { partial, planet in
+            partial + planet.progenitorCount
+        }
         let totalMergerCount = formationLedger.formationMergerCount
-            + formationLedger.stabilityMergerCount
-        guard totalMergerCount < formationLedger.seededEmbryoCount,
-              planets.count == formationLedger.seededEmbryoCount - totalMergerCount else {
+            + formationLedger.postDiskCollisionMergerCount
+        let removedBodyCount = dynamicalLosses.ejectedBodyCount
+            + dynamicalLosses.starAccretedBodyCount
+        guard retainedProgenitorCount
+                + formationLedger.residualProgenitorCount
+                + dynamicalLosses.ejectedProgenitorCount
+                + dynamicalLosses.starAccretedProgenitorCount == seededEmbryoCount,
+              totalMergerCount + removedBodyCount < seededEmbryoCount,
+              planets.count + formationLedger.residualBodyCount
+                == seededEmbryoCount - totalMergerCount - removedBodyCount else {
             throw .invalidFormationLedger
         }
+    }
+
+    private func validateSolidMassClosure(
+        dynamicalLosses: StarSystemDynamicalLossLedger,
+        residualComposition: CelestialMassComposition
+    ) throws(StarSystemGenerationError) {
         let actualSolid = allCompositions.reduce(0) { $0 + $1.solidMass.earthMasses }
-        let actualGas = allCompositions.reduce(0) { $0 + $1.hydrogenHelium.earthMasses }
+        let dynamicalSolidMass = dynamicalLosses.ejectedComposition.solidMass.earthMasses
+            + dynamicalLosses.starAccretedComposition.solidMass.earthMasses
+            + dynamicalLosses.collisionDebrisComposition.solidMass.earthMasses
         guard actualSolid.isFinite,
+              dynamicalSolidMass.isFinite,
               approximatelyEqual(actualSolid, formationLedger.retainedSolidMass.earthMasses),
               approximatelyEqual(
                   formationLedger.unaccretedSolidMass.earthMasses,
@@ -305,7 +382,10 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
               ),
               approximatelyEqual(
                 formationLedger.initialSolidMass.earthMasses,
-                formationLedger.retainedSolidMass.earthMasses + formationLedger.unaccretedSolidMass.earthMasses
+                formationLedger.retainedSolidMass.earthMasses
+                    + formationLedger.unaccretedSolidMass.earthMasses
+                    + residualComposition.solidMass.earthMasses
+                    + dynamicalSolidMass
               ),
               approximatelyEqual(
                 formationLedger.initialSolidMass.earthMasses,
@@ -314,13 +394,27 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
               solidComponentsClose() else {
             throw .massConservationFailure(.solids)
         }
+    }
+
+    private func validateHydrogenHeliumMassClosure(
+        dynamicalLosses: StarSystemDynamicalLossLedger,
+        residualComposition: CelestialMassComposition
+    ) throws(StarSystemGenerationError) {
+        let actualGas = allCompositions.reduce(0) { $0 + $1.hydrogenHelium.earthMasses }
+        let dynamicalHydrogenHeliumMass = dynamicalLosses.ejectedComposition
+            .hydrogenHelium.earthMasses
+            + dynamicalLosses.starAccretedComposition.hydrogenHelium.earthMasses
+            + dynamicalLosses.collisionDebrisComposition.hydrogenHelium.earthMasses
         guard actualGas.isFinite,
+              dynamicalHydrogenHeliumMass.isFinite,
               approximatelyEqual(actualGas, formationLedger.retainedHydrogenHeliumMass.earthMasses),
               approximatelyEqual(
                 formationLedger.initialGasMass.earthMasses,
                 formationLedger.retainedHydrogenHeliumMass.earthMasses
                     + formationLedger.escapedHydrogenHeliumMass.earthMasses
                     + formationLedger.dispersedGasMass.earthMasses
+                    + residualComposition.hydrogenHelium.earthMasses
+                    + dynamicalHydrogenHeliumMass
               ),
               approximatelyEqual(
                 formationLedger.initialGasMass.earthMasses,
@@ -330,15 +424,61 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
         }
     }
 
+    private func lossCountsMatchComposition(
+        _ losses: StarSystemDynamicalLossLedger
+    ) -> Bool {
+        return bodyAggregateMatches(
+            bodyCount: losses.ejectedBodyCount,
+            progenitorCount: losses.ejectedProgenitorCount,
+            composition: losses.ejectedComposition
+        )
+            && bodyAggregateMatches(
+                bodyCount: losses.starAccretedBodyCount,
+                progenitorCount: losses.starAccretedProgenitorCount,
+                composition: losses.starAccretedComposition
+            )
+            && collisionDebrisMatches()
+    }
+
+    private func residualCountsMatchComposition() -> Bool {
+        bodyAggregateMatches(
+            bodyCount: formationLedger.residualBodyCount,
+            progenitorCount: formationLedger.residualProgenitorCount,
+            composition: formationLedger.residualBodyComposition
+        )
+    }
+
+    private func bodyAggregateMatches(
+        bodyCount: Int,
+        progenitorCount: Int,
+        composition: CelestialMassComposition
+    ) -> Bool {
+        if bodyCount == 0 {
+            return progenitorCount == 0 && composition == .zero
+        }
+        return progenitorCount >= bodyCount
+            && composition.solidMass.earthMasses > 0
+    }
+
+    private func collisionDebrisMatches() -> Bool {
+        if formationLedger.postDiskCollisionMergerCount == 0 {
+            return formationLedger.dynamicalLosses.collisionDebrisComposition == .zero
+        }
+        return formationLedger.dynamicalLosses.collisionDebrisComposition
+            .solidMass.earthMasses > 0
+    }
+
     private func isValidPlanet(_ planet: GeneratedPlanet) -> Bool {
         let availableDiskMassEarth = protoplanetaryDisk.initialSolidMass.earthMasses
             + protoplanetaryDisk.initialGasMass.earthMasses
         return isValidComposition(planet.composition)
+            && planet.composition.solidMass.kilograms > 0
             && planet.mass.kilograms > 0
             && planet.mass.earthMasses <= availableDiskMassEarth * (1 + 1e-9)
             && planet.radius.meters.isFinite
             && planet.radius.meters > 0
             && planet.orbit.semiMajorAxis.meters > star.radius.meters
+            && planet.orbit.semiMajorAxis >= protoplanetaryDisk.innerEdge
             && planet.orbit.semiMajorAxis.meters
                 * (1 - planet.orbit.eccentricity.rawValue) > star.radius.meters
             && planet.orbit.semiMajorAxis <= protoplanetaryDisk.outerEdge
@@ -349,6 +489,7 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
 
     private func isValidMoon(_ moon: GeneratedMoon) -> Bool {
         isValidComposition(moon.composition)
+            && moon.composition.solidMass.kilograms > 0
             && moon.mass.kilograms > 0
             && moon.radius.meters.isFinite
             && moon.radius.meters > 0
@@ -375,7 +516,12 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
         guard components.allSatisfy({ $0.isFinite && $0 >= 0 }) else {
             return false
         }
-        return components.reduce(0, +).isFinite
+        let totalKilograms = components.reduce(0, +)
+        let availableDiskKilograms = protoplanetaryDisk.initialSolidMass.kilograms
+            + protoplanetaryDisk.initialGasMass.kilograms
+        return totalKilograms.isFinite
+            && availableDiskKilograms.isFinite
+            && totalKilograms <= availableDiskKilograms
     }
 
     private func isValidEnvironment(_ environment: PlanetaryEnvironment) -> Bool {
@@ -436,36 +582,73 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
         mass.kilograms.isFinite && mass.kilograms >= 0
     }
 
+    private func solidMassKilograms(in composition: CelestialMassComposition) -> Double {
+        composition.iron.kilograms
+            + composition.silicate.kilograms
+            + composition.water.kilograms
+            + composition.otherVolatiles.kilograms
+    }
+
     private func solidComponentsClose() -> Bool {
         let initial = protoplanetaryDisk.initialSolidComposition
         let unaccreted = formationLedger.unaccretedSolidComposition
+        let losses = formationLedger.dynamicalLosses
+        let residual = formationLedger.residualBodyComposition
         let retainedIron = allCompositions.reduce(0) { $0 + $1.iron.earthMasses }
         let retainedSilicate = allCompositions.reduce(0) { $0 + $1.silicate.earthMasses }
         let retainedWater = allCompositions.reduce(0) { $0 + $1.water.earthMasses }
         let retainedOtherVolatiles = allCompositions.reduce(0) {
             $0 + $1.otherVolatiles.earthMasses
         }
+        let dynamicalIron = losses.ejectedComposition.iron.earthMasses
+            + losses.starAccretedComposition.iron.earthMasses
+            + losses.collisionDebrisComposition.iron.earthMasses
+        let dynamicalSilicate = losses.ejectedComposition.silicate.earthMasses
+            + losses.starAccretedComposition.silicate.earthMasses
+            + losses.collisionDebrisComposition.silicate.earthMasses
+        let dynamicalWater = losses.ejectedComposition.water.earthMasses
+            + losses.starAccretedComposition.water.earthMasses
+            + losses.collisionDebrisComposition.water.earthMasses
+        let dynamicalOtherVolatiles = losses.ejectedComposition.otherVolatiles.earthMasses
+            + losses.starAccretedComposition.otherVolatiles.earthMasses
+            + losses.collisionDebrisComposition.otherVolatiles.earthMasses
         guard retainedIron.isFinite,
               retainedSilicate.isFinite,
               retainedWater.isFinite,
-              retainedOtherVolatiles.isFinite else {
+              retainedOtherVolatiles.isFinite,
+              dynamicalIron.isFinite,
+              dynamicalSilicate.isFinite,
+              dynamicalWater.isFinite,
+              dynamicalOtherVolatiles.isFinite else {
             return false
         }
         return approximatelyEqual(
             initial.iron.earthMasses,
-            retainedIron + unaccreted.iron.earthMasses
+            retainedIron
+                + unaccreted.iron.earthMasses
+                + residual.iron.earthMasses
+                + dynamicalIron
         )
             && approximatelyEqual(
                 initial.silicate.earthMasses,
-                retainedSilicate + unaccreted.silicate.earthMasses
+                retainedSilicate
+                    + unaccreted.silicate.earthMasses
+                    + residual.silicate.earthMasses
+                    + dynamicalSilicate
             )
             && approximatelyEqual(
                 initial.water.earthMasses,
-                retainedWater + unaccreted.water.earthMasses
+                retainedWater
+                    + unaccreted.water.earthMasses
+                    + residual.water.earthMasses
+                    + dynamicalWater
             )
             && approximatelyEqual(
                 initial.otherVolatiles.earthMasses,
-                retainedOtherVolatiles + unaccreted.otherVolatiles.earthMasses
+                retainedOtherVolatiles
+                    + unaccreted.otherVolatiles.earthMasses
+                    + residual.otherVolatiles.earthMasses
+                    + dynamicalOtherVolatiles
             )
     }
 
