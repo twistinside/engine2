@@ -1,0 +1,25 @@
+/// Nonnegative bolometric luminosity stored in watts.
+nonisolated struct StellarLuminosity: Codable, Equatable, Hashable, Sendable {
+    static let zero = StellarLuminosity(watts: 0)
+
+    private static let wattsPerSolarLuminosity = 3.828e26
+
+    let watts: Double
+
+    var solarLuminosities: Double {
+        watts / Self.wattsPerSolarLuminosity
+    }
+
+    init(watts: Double) {
+        precondition(Self.accepts(watts), "Stellar luminosity must be finite and nonnegative.")
+        self.watts = watts
+    }
+
+    init(solarLuminosities: Double) {
+        self.init(watts: solarLuminosities * Self.wattsPerSolarLuminosity)
+    }
+
+    static func accepts(_ watts: Double) -> Bool {
+        watts.isFinite && watts >= 0
+    }
+}
