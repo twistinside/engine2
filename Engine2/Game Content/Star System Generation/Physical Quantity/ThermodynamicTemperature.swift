@@ -5,12 +5,11 @@ nonisolated struct ThermodynamicTemperature: Codable, Comparable, Equatable, Has
     let kelvin: Double
 
     init(kelvin: Double) {
-        precondition(Self.accepts(kelvin), "Thermodynamic temperature must be finite and nonnegative.")
+        precondition(
+            kelvin.isFinite && kelvin >= 0,
+            "Thermodynamic temperature must be finite and nonnegative."
+        )
         self.kelvin = kelvin
-    }
-
-    static func accepts(_ kelvin: Double) -> Bool {
-        kelvin.isFinite && kelvin >= 0
     }
 
     static func < (lhs: ThermodynamicTemperature, rhs: ThermodynamicTemperature) -> Bool {

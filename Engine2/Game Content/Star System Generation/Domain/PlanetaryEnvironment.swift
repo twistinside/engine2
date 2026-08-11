@@ -40,9 +40,20 @@ nonisolated struct PlanetaryEnvironment: Codable, Equatable, Sendable {
             incidentFluxEarth.isFinite && incidentFluxEarth >= 0,
             "Incident flux must be finite and nonnegative."
         )
-        precondition(Self.acceptsUnitFraction(bondAlbedo), "Bond albedo must be finite in 0...1.")
-        precondition(Self.acceptsUnitFraction(liquidWaterCoverage), "Liquid-water coverage must be finite in 0...1.")
-        precondition(Self.acceptsUnitFraction(waterIceCoverage), "Water-ice coverage must be finite in 0...1.")
+        precondition(
+            bondAlbedo.isFinite && bondAlbedo >= 0 && bondAlbedo <= 1,
+            "Bond albedo must be finite in 0...1."
+        )
+        precondition(
+            liquidWaterCoverage.isFinite
+                && liquidWaterCoverage >= 0
+                && liquidWaterCoverage <= 1,
+            "Liquid-water coverage must be finite in 0...1."
+        )
+        precondition(
+            waterIceCoverage.isFinite && waterIceCoverage >= 0 && waterIceCoverage <= 1,
+            "Water-ice coverage must be finite in 0...1."
+        )
         self.incidentFluxEarth = incidentFluxEarth
         self.equilibriumTemperature = equilibriumTemperature
         self.visibleBoundaryTemperature = visibleBoundaryTemperature
@@ -51,9 +62,5 @@ nonisolated struct PlanetaryEnvironment: Codable, Equatable, Sendable {
         self.bondAlbedo = bondAlbedo
         self.liquidWaterCoverage = liquidWaterCoverage
         self.waterIceCoverage = waterIceCoverage
-    }
-
-    private static func acceptsUnitFraction(_ value: Double) -> Bool {
-        value.isFinite && value >= 0 && value <= 1
     }
 }

@@ -534,22 +534,26 @@ nonisolated struct GeneratedStarSystemValidator: Sendable {
             && environment.atmosphereMass.kilograms.isFinite
             && environment.atmosphereMass.kilograms >= 0
             && isValidSurfacePressure(environment.surfacePressure)
-            && acceptsUnitFraction(environment.bondAlbedo)
-            && acceptsUnitFraction(environment.liquidWaterCoverage)
-            && acceptsUnitFraction(environment.waterIceCoverage)
+            && environment.bondAlbedo.isFinite
+            && environment.bondAlbedo >= 0
+            && environment.bondAlbedo <= 1
+            && environment.liquidWaterCoverage.isFinite
+            && environment.liquidWaterCoverage >= 0
+            && environment.liquidWaterCoverage <= 1
+            && environment.waterIceCoverage.isFinite
+            && environment.waterIceCoverage >= 0
+            && environment.waterIceCoverage <= 1
     }
 
     private func isValidOrbit(_ orbit: KeplerianOrbit) -> Bool {
         orbit.semiMajorAxis.meters.isFinite
             && orbit.semiMajorAxis.meters > 0
-            && OrbitalEccentricity.accepts(orbit.eccentricity.rawValue)
+            && orbit.eccentricity.rawValue.isFinite
+            && orbit.eccentricity.rawValue >= 0
+            && orbit.eccentricity.rawValue < 1
             && orbit.inclinationDegrees.isFinite
             && orbit.inclinationDegrees >= 0
             && orbit.inclinationDegrees <= 180
-    }
-
-    private func acceptsUnitFraction(_ value: Double) -> Bool {
-        value.isFinite && value >= 0 && value <= 1
     }
 
     private func isValidSurfacePressure(_ pressure: SurfacePressure?) -> Bool {

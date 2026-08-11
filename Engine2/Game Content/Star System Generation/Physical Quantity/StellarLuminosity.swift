@@ -11,15 +11,14 @@ nonisolated struct StellarLuminosity: Codable, Equatable, Hashable, Sendable {
     }
 
     init(watts: Double) {
-        precondition(Self.accepts(watts), "Stellar luminosity must be finite and nonnegative.")
+        precondition(
+            watts.isFinite && watts >= 0,
+            "Stellar luminosity must be finite and nonnegative."
+        )
         self.watts = watts
     }
 
     init(solarLuminosities: Double) {
         self.init(watts: solarLuminosities * Self.wattsPerSolarLuminosity)
-    }
-
-    static func accepts(_ watts: Double) -> Bool {
-        watts.isFinite && watts >= 0
     }
 }

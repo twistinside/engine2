@@ -140,7 +140,9 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
             && finalGiantPlanetSpacing.isFinite
             && finalGiantPlanetSpacing >= finalPlanetSpacing
             && Self.isPositiveFinite(giantMassThresholdEarth)
-            && Self.acceptsUnitFactor(atmosphereEscapeEfficiency)
+            && atmosphereEscapeEfficiency.isFinite
+            && atmosphereEscapeEfficiency >= 0
+            && atmosphereEscapeEfficiency <= 1
             && (0...Self.maximumMoonLimit).contains(maximumMoonCountPerPlanet)
     }
 
@@ -255,9 +257,5 @@ nonisolated struct StarSystemGenerationPolicy: Codable, Equatable, Sendable {
 
     private static func isNonnegativeFinite(_ value: Double) -> Bool {
         value.isFinite && value >= 0
-    }
-
-    private static func acceptsUnitFactor(_ value: Double) -> Bool {
-        value.isFinite && value >= 0 && value <= 1
     }
 }

@@ -5,11 +5,10 @@ nonisolated struct OrbitalEccentricity: Codable, Equatable, Hashable, RawReprese
     let rawValue: Double
 
     init(rawValue: Double) {
-        precondition(Self.accepts(rawValue), "A bound orbital eccentricity must be finite in 0..<1.")
+        precondition(
+            rawValue.isFinite && rawValue >= 0 && rawValue < 1,
+            "A bound orbital eccentricity must be finite in 0..<1."
+        )
         self.rawValue = rawValue
-    }
-
-    static func accepts(_ rawValue: Double) -> Bool {
-        rawValue.isFinite && rawValue >= 0 && rawValue < 1
     }
 }

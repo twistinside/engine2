@@ -18,7 +18,10 @@ nonisolated struct AstronomicalDuration: Codable, Comparable, Equatable, Hashabl
     }
 
     init(seconds: Double) {
-        precondition(Self.accepts(seconds), "Astronomical duration must be finite and nonnegative.")
+        precondition(
+            seconds.isFinite && seconds >= 0,
+            "Astronomical duration must be finite and nonnegative."
+        )
         self.seconds = seconds
     }
 
@@ -28,10 +31,6 @@ nonisolated struct AstronomicalDuration: Codable, Comparable, Equatable, Hashabl
 
     init(gigayears: Double) {
         self.init(seconds: gigayears * Self.secondsPerYear * 1_000_000_000)
-    }
-
-    static func accepts(_ seconds: Double) -> Bool {
-        seconds.isFinite && seconds >= 0
     }
 
     static func < (lhs: AstronomicalDuration, rhs: AstronomicalDuration) -> Bool {

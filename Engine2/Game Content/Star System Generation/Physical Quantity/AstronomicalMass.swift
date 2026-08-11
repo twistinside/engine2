@@ -19,7 +19,10 @@ nonisolated struct AstronomicalMass: Codable, Comparable, Equatable, Hashable, S
     }
 
     init(kilograms: Double) {
-        precondition(Self.accepts(kilograms), "Astronomical mass must be finite and nonnegative.")
+        precondition(
+            kilograms.isFinite && kilograms >= 0,
+            "Astronomical mass must be finite and nonnegative."
+        )
         self.kilograms = kilograms
     }
 
@@ -29,10 +32,6 @@ nonisolated struct AstronomicalMass: Codable, Comparable, Equatable, Hashable, S
 
     init(solarMasses: Double) {
         self.init(kilograms: solarMasses * Self.kilogramsPerSolarMass)
-    }
-
-    static func accepts(_ kilograms: Double) -> Bool {
-        kilograms.isFinite && kilograms >= 0
     }
 
     static func < (lhs: AstronomicalMass, rhs: AstronomicalMass) -> Bool {

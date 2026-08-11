@@ -2,7 +2,7 @@
 ///
 /// A merger keeps the smaller progenitor identity. Satellite identities occupy
 /// a disjoint high-bit namespace derived from their parent identity.
-nonisolated struct GeneratedBodyID: Codable, Comparable, Equatable, Hashable, RawRepresentable, Sendable {
+nonisolated struct GeneratedBodyID: Codable, Equatable, Hashable, RawRepresentable, Sendable {
     private static let moonNamespaceBit: UInt64 = 0x8000_0000_0000_0000
     private static let moonParentMask: UInt64 = 0x0000_00FF_FFFF_FFFF
     private static let moonOrdinalMask: UInt64 = 0x0000_0000_0000_FFFF
@@ -70,8 +70,10 @@ nonisolated struct GeneratedBodyID: Codable, Comparable, Equatable, Hashable, Ra
                 | ordinal
         )
     }
+}
 
-    static func < (lhs: GeneratedBodyID, rhs: GeneratedBodyID) -> Bool {
+extension GeneratedBodyID: Comparable {
+    nonisolated static func < (lhs: GeneratedBodyID, rhs: GeneratedBodyID) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
 }

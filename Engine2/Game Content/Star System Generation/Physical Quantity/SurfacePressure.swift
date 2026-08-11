@@ -11,15 +11,14 @@ nonisolated struct SurfacePressure: Codable, Equatable, Hashable, Sendable {
     }
 
     init(pascals: Double) {
-        precondition(Self.accepts(pascals), "Surface pressure must be finite and nonnegative.")
+        precondition(
+            pascals.isFinite && pascals >= 0,
+            "Surface pressure must be finite and nonnegative."
+        )
         self.pascals = pascals
     }
 
     init(bars: Double) {
         self.init(pascals: bars * Self.pascalsPerBar)
-    }
-
-    static func accepts(_ pascals: Double) -> Bool {
-        pascals.isFinite && pascals >= 0
     }
 }

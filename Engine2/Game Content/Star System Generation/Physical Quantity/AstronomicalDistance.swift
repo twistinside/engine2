@@ -5,44 +5,42 @@
 /// every calculation boundary.
 nonisolated struct AstronomicalDistance: Codable, Comparable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalDistance(meters: 0)
-
-    private static let metersPerAstronomicalUnit = 149_597_870_700.0
-    private static let metersPerEarthRadius = 6_371_000.0
-    private static let metersPerSolarRadius = 695_700_000.0
+    static let astronomicalUnit = AstronomicalDistance(meters: 149_597_870_700.0)
+    static let earthRadius = AstronomicalDistance(meters: 6_371_000.0)
+    static let solarRadius = AstronomicalDistance(meters: 695_700_000.0)
 
     let meters: Double
 
     var astronomicalUnits: Double {
-        meters / Self.metersPerAstronomicalUnit
+        meters / Self.astronomicalUnit.meters
     }
 
     var earthRadii: Double {
-        meters / Self.metersPerEarthRadius
+        meters / Self.earthRadius.meters
     }
 
     var solarRadii: Double {
-        meters / Self.metersPerSolarRadius
+        meters / Self.solarRadius.meters
     }
 
     init(meters: Double) {
-        precondition(Self.accepts(meters), "Astronomical distance must be finite and nonnegative.")
+        precondition(
+            meters.isFinite && meters >= 0,
+            "Astronomical distance must be finite and nonnegative."
+        )
         self.meters = meters
     }
 
     init(astronomicalUnits: Double) {
-        self.init(meters: astronomicalUnits * Self.metersPerAstronomicalUnit)
+        self.init(meters: astronomicalUnits * Self.astronomicalUnit.meters)
     }
 
     init(earthRadii: Double) {
-        self.init(meters: earthRadii * Self.metersPerEarthRadius)
+        self.init(meters: earthRadii * Self.earthRadius.meters)
     }
 
     init(solarRadii: Double) {
-        self.init(meters: solarRadii * Self.metersPerSolarRadius)
-    }
-
-    static func accepts(_ meters: Double) -> Bool {
-        meters.isFinite && meters >= 0
+        self.init(meters: solarRadii * Self.solarRadius.meters)
     }
 
     static func < (lhs: AstronomicalDistance, rhs: AstronomicalDistance) -> Bool {
