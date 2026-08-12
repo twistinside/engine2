@@ -26,26 +26,10 @@ struct StarSystemOverview: View {
             tint: .cyan
         ) {
             HStack(alignment: .center, spacing: 22) {
-                ZStack {
-                    Circle()
-                        .fill(.yellow.opacity(0.18))
-                        .frame(width: 92, height: 92)
-                        .blur(radius: 12)
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [.white, .yellow, .orange],
-                                center: .topLeading,
-                                startRadius: 1,
-                                endRadius: 42
-                            )
-                        )
-                        .frame(width: 64, height: 64)
-                        .shadow(color: .yellow.opacity(0.8), radius: 18)
-                }
-                .accessibilityLabel("Host star")
+                StellarBodySymbol(diameter: 64)
+                    .accessibilityLabel("Host star")
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
+                EagerAdaptiveGrid(minimumColumnWidth: 150, horizontalSpacing: 10, verticalSpacing: 10) {
                     MetricTile(
                         "Model",
                         value: presentation.label(for: system.modelVersion),
@@ -87,6 +71,7 @@ struct StarSystemOverview: View {
                         tint: .teal
                     )
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }

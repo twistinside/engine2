@@ -77,7 +77,7 @@ struct GeneratedPlanetCard: View {
             }
             .scrollIndicators(.hidden)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 8)], spacing: 8) {
+            EagerAdaptiveGrid(minimumColumnWidth: 145, horizontalSpacing: 8, verticalSpacing: 8) {
                 MetricTile(
                     "Mass", value: presentation.earthMasses(planet.mass), systemImage: "scalemass.fill", tint: .indigo)
                 MetricTile(

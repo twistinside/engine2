@@ -7,7 +7,7 @@ struct PlanetaryEnvironmentGrid: View {
     private let presentation = StarSystemPresentation()
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 8)], spacing: 8) {
+        EagerAdaptiveGrid(minimumColumnWidth: 135, horizontalSpacing: 8, verticalSpacing: 8) {
             MetricTile(
                 "Incident flux", value: "\(presentation.number(environment.incidentFluxEarth)) S⊕",
                 systemImage: "sun.rain.fill", tint: .yellow)

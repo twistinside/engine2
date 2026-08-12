@@ -18,7 +18,7 @@ struct StarSystemPolicyCard: View {
             DisclosureGroup(isExpanded: $isExpanded) {
                 VStack(alignment: .leading, spacing: 18) {
                     policySectionTitle("Stellar population")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: 8)], spacing: 8) {
+                    EagerAdaptiveGrid(minimumColumnWidth: 165, horizontalSpacing: 8, verticalSpacing: 8) {
                         MetricTile(
                             "Minimum stellar mass", value: "\(presentation.number(policy.minimumStellarMassSolar)) M☉")
                         MetricTile(
@@ -36,7 +36,7 @@ struct StarSystemPolicyCard: View {
                     }
 
                     policySectionTitle("Disk population")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: 8)], spacing: 8) {
+                    EagerAdaptiveGrid(minimumColumnWidth: 165, horizontalSpacing: 8, verticalSpacing: 8) {
                         MetricTile("Median disk ratio", value: presentation.number(policy.medianDiskMassRatio))
                         MetricTile("Disk scatter", value: "\(presentation.number(policy.diskMassScatterDex)) dex")
                         MetricTile("Minimum disk ratio", value: presentation.number(policy.minimumDiskMassRatio))
@@ -62,7 +62,7 @@ struct StarSystemPolicyCard: View {
                     }
 
                     policySectionTitle("Bounded formation work")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: 8)], spacing: 8) {
+                    EagerAdaptiveGrid(minimumColumnWidth: 165, horizontalSpacing: 8, verticalSpacing: 8) {
                         MetricTile("Maximum embryos", value: String(policy.maximumEmbryoCount))
                         MetricTile("Formation steps", value: String(policy.formationStepCount))
                         MetricTile("Evolution steps", value: String(policy.evolutionStepCount))
@@ -75,7 +75,7 @@ struct StarSystemPolicyCard: View {
                     }
 
                     policySectionTitle("Accretion and architecture")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: 8)], spacing: 8) {
+                    EagerAdaptiveGrid(minimumColumnWidth: 165, horizontalSpacing: 8, verticalSpacing: 8) {
                         MetricTile("Solid efficiency", value: presentation.percent(policy.solidAccretionEfficiency))
                         MetricTile("Gas efficiency", value: presentation.percent(policy.gasAccretionEfficiency))
                         MetricTile("Migration efficiency", value: presentation.percent(policy.migrationEfficiency))
@@ -91,7 +91,7 @@ struct StarSystemPolicyCard: View {
                     }
 
                     policySectionTitle("Atmospheres and moons")
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: 8)], spacing: 8) {
+                    EagerAdaptiveGrid(minimumColumnWidth: 165, horizontalSpacing: 8, verticalSpacing: 8) {
                         MetricTile("Escape efficiency", value: presentation.percent(policy.atmosphereEscapeEfficiency))
                         MetricTile("Maximum moons", value: String(policy.maximumMoonCountPerPlanet))
                     }

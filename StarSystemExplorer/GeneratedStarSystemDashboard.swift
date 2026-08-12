@@ -6,17 +6,11 @@ struct GeneratedStarSystemDashboard: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 18) {
                 StarSystemOverview(system: system)
                 StarSystemOrbitDiagram(system: system)
 
-                LazyVGrid(
-                    columns: [
-                        GridItem(.adaptive(minimum: 470), spacing: 18, alignment: .topLeading)
-                    ],
-                    alignment: .leading,
-                    spacing: 18
-                ) {
+                EagerAdaptiveGrid(minimumColumnWidth: 470, horizontalSpacing: 18, verticalSpacing: 18) {
                     GeneratedStarCard(star: system.star)
                     ProtoplanetaryDiskCard(disk: system.protoplanetaryDisk)
                 }
@@ -45,9 +39,7 @@ struct GeneratedStarSystemDashboard: View {
                     .frame(maxWidth: .infinity)
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 } else {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 520), spacing: 18)], alignment: .leading, spacing: 18
-                    ) {
+                    EagerAdaptiveGrid(minimumColumnWidth: 520, horizontalSpacing: 18, verticalSpacing: 18) {
                         ForEach(Array(system.planets.enumerated()), id: \.element.id) { index, planet in
                             GeneratedPlanetCard(planet: planet, ordinal: index + 1)
                         }

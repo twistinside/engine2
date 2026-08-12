@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// Gives one coherent system section a consistent translucent observatory surface.
-struct ExplorerCard<Content: View>: View {
+struct ExplorerCard<Accessory: View, Content: View>: View {
     let title: String
     let subtitle: String?
     let systemImage: String
     let tint: Color
+    private let accessory: Accessory
     private let content: Content
 
     var body: some View {
@@ -25,6 +26,7 @@ struct ExplorerCard<Content: View>: View {
                     }
                 }
                 Spacer()
+                accessory
             }
 
             content
@@ -46,12 +48,33 @@ struct ExplorerCard<Content: View>: View {
         subtitle: String? = nil,
         systemImage: String,
         tint: Color,
+        @ViewBuilder accessory: () -> Accessory,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
         self.subtitle = subtitle
         self.systemImage = systemImage
         self.tint = tint
+        self.accessory = accessory()
         self.content = content()
+    }
+}
+
+extension ExplorerCard where Accessory == EmptyView {
+    init(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        tint: Color,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title: title,
+            subtitle: subtitle,
+            systemImage: systemImage,
+            tint: tint,
+            accessory: EmptyView.init,
+            content: content
+        )
     }
 }

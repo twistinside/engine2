@@ -14,19 +14,10 @@ struct GeneratedStarCard: View {
             tint: .yellow
         ) {
             HStack(spacing: 18) {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.white, .yellow, .orange],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: 38
-                        )
-                    )
-                    .frame(width: 72, height: 72)
-                    .shadow(color: .yellow.opacity(0.7), radius: 16)
+                StellarBodySymbol(diameter: 72)
+                    .accessibilityLabel("Host star")
 
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 9)], spacing: 9) {
+                EagerAdaptiveGrid(minimumColumnWidth: 140, horizontalSpacing: 9, verticalSpacing: 9) {
                     MetricTile(
                         "Mass", value: "\(presentation.number(star.mass.solarMasses)) M☉",
                         systemImage: "scalemass.fill", tint: .yellow)
@@ -49,6 +40,7 @@ struct GeneratedStarCard: View {
                         "XUV fraction", value: presentation.percent(star.xuvLuminosityFraction),
                         systemImage: "wave.3.right", tint: .purple)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }

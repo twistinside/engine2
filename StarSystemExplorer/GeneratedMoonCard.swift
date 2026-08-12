@@ -63,7 +63,7 @@ struct GeneratedMoonCard: View {
             }
             .scrollIndicators(.hidden)
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 135), spacing: 8)], spacing: 8) {
+            EagerAdaptiveGrid(minimumColumnWidth: 135, horizontalSpacing: 8, verticalSpacing: 8) {
                 MetricTile(
                     "Mass", value: presentation.earthMasses(moon.mass), systemImage: "scalemass.fill", tint: .indigo)
                 MetricTile(

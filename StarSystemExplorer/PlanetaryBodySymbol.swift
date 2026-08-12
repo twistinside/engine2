@@ -38,11 +38,19 @@ struct PlanetaryBodySymbol: View {
         min(1, max(0, liquidWaterCoverage + waterIceCoverage))
     }
 
+    private var atmosphereLineWidth: Double {
+        max(0.75, diameter * 0.11)
+    }
+
+    private var waterLineWidth: Double {
+        max(0.75, min(2.2, diameter * 0.12))
+    }
+
     var body: some View {
         ZStack {
             if physicalState.atmosphere != .airless {
                 Circle()
-                    .stroke(atmosphereColor, lineWidth: max(2, diameter * 0.11))
+                    .stroke(atmosphereColor, lineWidth: atmosphereLineWidth)
                     .blur(radius: diameter * 0.05)
                     .padding(diameter * 0.05)
             }
@@ -64,7 +72,7 @@ struct PlanetaryBodySymbol: View {
             if accessibleWaterCoverage > 0 {
                 Circle()
                     .trim(from: 0, to: accessibleWaterCoverage)
-                    .stroke(.blue.opacity(0.9), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+                    .stroke(.blue.opacity(0.9), style: StrokeStyle(lineWidth: waterLineWidth, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .padding(1.5)
             }

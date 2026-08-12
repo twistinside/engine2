@@ -45,7 +45,7 @@ struct LedgerBudgetBar: View {
                     .stroke(.white.opacity(0.16), lineWidth: 1)
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 8)], alignment: .leading, spacing: 6) {
+            EagerAdaptiveGrid(minimumColumnWidth: 170, horizontalSpacing: 8, verticalSpacing: 6) {
                 ForEach(values.indices, id: \.self) { index in
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 2)

@@ -13,7 +13,7 @@ struct ProtoplanetaryDiskCard: View {
             systemImage: "hurricane",
             tint: .teal
         ) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 145), spacing: 9)], spacing: 9) {
+            EagerAdaptiveGrid(minimumColumnWidth: 145, horizontalSpacing: 9, verticalSpacing: 9) {
                 MetricTile(
                     "Initial gas", value: presentation.earthMasses(disk.initialGasMass), systemImage: "cloud.fill",
                     tint: .purple)

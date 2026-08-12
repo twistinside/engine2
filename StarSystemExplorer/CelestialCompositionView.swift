@@ -55,7 +55,7 @@ struct CelestialCompositionView: View {
                     .stroke(.white.opacity(0.16), lineWidth: 1)
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], alignment: .leading, spacing: 6) {
+            EagerAdaptiveGrid(minimumColumnWidth: 140, horizontalSpacing: 8, verticalSpacing: 6) {
                 ForEach(masses.indices, id: \.self) { index in
                     HStack(spacing: 6) {
                         Circle()

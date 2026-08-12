@@ -56,7 +56,7 @@ struct StarSystemFormationCard: View {
                 colors: [.purple, .cyan, .indigo, .secondary, .red, .orange, .yellow]
             )
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], spacing: 8) {
+            EagerAdaptiveGrid(minimumColumnWidth: 150, horizontalSpacing: 8, verticalSpacing: 8) {
                 MetricTile(
                     "Seeded embryos", value: String(ledger.seededEmbryoCount), systemImage: "circle.grid.3x3.fill",
                     tint: .teal)
@@ -83,7 +83,8 @@ struct StarSystemFormationCard: View {
                     tint: .secondary)
                 MetricTile(
                     "Resolved capacity", value: String(ledger.resolvedPlanetCapacity),
-                    detail: "Maximum detailed planets", systemImage: "rectangle.stack.fill", tint: .cyan)
+                    detail: "Maximum detailed planets",
+                    systemImage: "rectangle.stack.fill", tint: .cyan)
             }
 
             DisclosureGroup("Material destination compositions", isExpanded: $showsMaterialDestinations) {
@@ -116,5 +117,18 @@ struct StarSystemFormationCard: View {
         .frame(width: 900, height: 900)
         .background(Color(red: 0.025, green: 0.035, blue: 0.075))
         .preferredColorScheme(.dark)
+    }
+}
+
+#Preview("Seed 10925987079005406032 · Wide Formation") {
+    let system = try? StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+        seed: StarSystemSeed(rawValue: 10_925_987_079_005_406_032)
+    )
+    if let ledger = system?.formationLedger {
+        StarSystemFormationCard(ledger: ledger)
+            .padding()
+            .frame(width: 1_600, height: 560)
+            .background(Color(red: 0.025, green: 0.035, blue: 0.075))
+            .preferredColorScheme(.dark)
     }
 }

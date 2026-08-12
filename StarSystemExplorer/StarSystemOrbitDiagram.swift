@@ -9,7 +9,10 @@ struct StarSystemOrbitDiagram: View {
 
     private let presentation = StarSystemPresentation()
     private let orbitRange: StarSystemOrbitRange
-    private let trackInset = 58.0
+    private let leadingTrackInset = 58.0
+    private let trailingTrackInset = 78.0
+    private let moonDiameter = 10.0
+    private let moonSpacing = 2.0
 
     private var orbitalRange: ClosedRange<Double> {
         orbitRange.visibleRange
@@ -43,31 +46,35 @@ struct StarSystemOrbitDiagram: View {
         }
     }
 
+    private var orbitScalePicker: some View {
+        Picker("Orbit scale", selection: $scale) {
+            ForEach(StarSystemOrbitScale.allCases) { option in
+                Text(option.title)
+                    .tag(option)
+            }
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+        .frame(width: 300)
+        .help("Switch between linear and zero-safe logarithmic orbital distance")
+    }
+
     var body: some View {
         ExplorerCard(
             title: "Orbital Architecture",
             subtitle: subtitle,
             systemImage: "circle.hexagongrid.fill",
-            tint: .indigo
-        ) {
-            Picker("Orbit scale", selection: $scale) {
-                ForEach(StarSystemOrbitScale.allCases) { option in
-                    Text(option.title)
-                        .tag(option)
-                }
+            tint: .indigo,
+            accessory: {
+                orbitScalePicker
             }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .frame(width: 220)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .help("Switch between linear and zero-safe logarithmic orbital distance")
-
+        ) {
             GeometryReader { proxy in
                 ZStack {
                     Canvas { context, size in
                         let midY = size.height * 0.47
-                        let trackStart = trackInset
-                        let trackEnd = size.width - trackInset * 0.45
+                        let trackStart = leadingTrackInset
+                        let trackEnd = size.width - trailingTrackInset
                         let diskRect = CGRect(
                             x: trackStart,
                             y: midY - 12,
@@ -150,31 +157,21 @@ struct StarSystemOrbitDiagram: View {
                         }
                     }
 
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [.white, .yellow, .orange],
-                                center: .topLeading,
-                                startRadius: 0,
-                                endRadius: 22
-                            )
-                        )
-                        .frame(width: 36, height: 36)
-                        .shadow(color: .yellow.opacity(0.75), radius: 12)
-                        .position(x: trackInset, y: proxy.size.height * 0.47)
+                    StellarBodySymbol(diameter: 36)
+                        .position(x: leadingTrackInset, y: proxy.size.height * 0.47)
                         .accessibilityLabel("Host star at zero astronomical units")
 
                     ForEach(Array(system.planets.enumerated()), id: \.element.id) { index, planet in
                         planetMarker(for: planet, index: index)
-                        .position(
-                            x: orbitPosition(
-                                for: planet.orbit.semiMajorAxis.astronomicalUnits, width: proxy.size.width),
-                            y: planetLaneY(index: index, height: proxy.size.height)
-                        )
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(
-                            "Planet \(index + 1), \(presentation.astronomicalUnits(planet.orbit.semiMajorAxis)), \(presentation.earthMasses(planet.mass))"
-                        )
+                            .position(
+                                x: orbitPosition(
+                                    for: planet.orbit.semiMajorAxis.astronomicalUnits,
+                                    width: proxy.size.width
+                                ),
+                                y: planetLaneY(index: index, height: proxy.size.height)
+                            )
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(planetAccessibilityLabel(for: planet, index: index))
                     }
                 }
             }
@@ -188,7 +185,7 @@ struct StarSystemOrbitDiagram: View {
                 }
                 Label("Eccentric range", systemImage: "arrow.left.and.right")
                 if resolvedMoonCount > 0 {
-                    Label("Moon count", systemImage: "moon.fill")
+                    Label("Resolved moons", systemImage: "moon.fill")
                         .foregroundStyle(.indigo)
                 }
                 Spacer()
@@ -213,8 +210,8 @@ struct StarSystemOrbitDiagram: View {
     }
 
     private func orbitPosition(for astronomicalUnits: Double, width: Double) -> Double {
-        let availableWidth = max(1, width - trackInset * 1.45)
-        return trackInset + availableWidth * scale.position(for: astronomicalUnits, in: orbitalRange)
+        let availableWidth = max(1, width - leadingTrackInset - trailingTrackInset)
+        return leadingTrackInset + availableWidth * scale.position(for: astronomicalUnits, in: orbitalRange)
     }
 
     private func planetLaneY(index: Int, height: Double) -> Double {
@@ -230,22 +227,20 @@ struct StarSystemOrbitDiagram: View {
             waterIceCoverage: planet.environment.waterIceCoverage,
             diameter: diameter
         )
-        .overlay(alignment: .topTrailing) {
-            if !planet.moons.isEmpty {
-                Label("\(planet.moons.count)", systemImage: "moon.fill")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(.indigo.opacity(0.9), in: Capsule())
-                    .overlay {
-                        Capsule()
-                            .stroke(.white.opacity(0.25), lineWidth: 1)
-                    }
-                    .fixedSize()
-                    .offset(x: 12, y: -10)
-                    .help(planet.moons.count == 1 ? "1 resolved moon" : "\(planet.moons.count) resolved moons")
+        .overlay(alignment: .leading) {
+            HStack(spacing: moonSpacing) {
+                ForEach(planet.moons, id: \.id) { moon in
+                    PlanetaryBodySymbol(
+                        physicalState: moon.physicalState,
+                        liquidWaterCoverage: moon.environment.liquidWaterCoverage,
+                        waterIceCoverage: moon.environment.waterIceCoverage,
+                        diameter: moonDiameter
+                    )
+                }
             }
+            .fixedSize()
+            .offset(x: diameter + 5)
+            .accessibilityHidden(true)
         }
         .overlay {
             VStack(spacing: 4) {
@@ -259,6 +254,11 @@ struct StarSystemOrbitDiagram: View {
             .fixedSize()
             .offset(y: diameter / 2 + 18)
         }
+    }
+
+    private func planetAccessibilityLabel(for planet: GeneratedPlanet, index: Int) -> String {
+        let moonDescription = planet.moons.count == 1 ? "1 resolved moon" : "\(planet.moons.count) resolved moons"
+        return "Planet \(index + 1), \(presentation.astronomicalUnits(planet.orbit.semiMajorAxis)), \(presentation.earthMasses(planet.mass)), \(moonDescription)"
     }
 
     private func symbolDiameter(for mass: AstronomicalMass) -> Double {
@@ -279,7 +279,7 @@ struct StarSystemOrbitDiagram: View {
     }
 }
 
-#Preview("Seed 10925987079005406032 · Moon Badges") {
+#Preview("Seed 10925987079005406032 · Moon Symbols") {
     let system = try? StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
         seed: StarSystemSeed(rawValue: 10_925_987_079_005_406_032)
     )

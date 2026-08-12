@@ -14,10 +14,15 @@ struct ClassificationTag: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(tint.opacity(0.12), in: Capsule())
+            .background {
+                HoverHelpSurface(text: helpText)
+            }
             .overlay {
                 Capsule()
                     .stroke(tint.opacity(0.24), lineWidth: 1)
+                    .allowsHitTesting(false)
             }
-            .help(helpText)
+            .contentShape(.interaction, Capsule())
+            .accessibilityHint(helpText)
     }
 }

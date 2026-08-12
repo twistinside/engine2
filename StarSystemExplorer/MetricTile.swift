@@ -34,7 +34,7 @@ struct MetricTile: View {
             Spacer(minLength: 0)
         }
         .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 66, maxHeight: .infinity, alignment: .topLeading)
         .background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
