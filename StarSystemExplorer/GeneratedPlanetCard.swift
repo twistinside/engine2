@@ -45,26 +45,31 @@ struct GeneratedPlanetCard: View {
                 HStack(spacing: 6) {
                     ClassificationTag(
                         label: presentation.label(for: planet.physicalState.bulk),
+                        helpText: presentation.classificationHelp(for: planet.physicalState.bulk),
                         systemImage: "cube.fill",
                         tint: .orange
                     )
                     ClassificationTag(
                         label: presentation.label(for: planet.physicalState.visibleBoundary),
+                        helpText: presentation.classificationHelp(for: planet.physicalState.visibleBoundary),
                         systemImage: "circle.lefthalf.striped.horizontal",
                         tint: .secondary
                     )
                     ClassificationTag(
                         label: presentation.label(for: planet.physicalState.atmosphere),
+                        helpText: presentation.classificationHelp(for: planet.physicalState.atmosphere),
                         systemImage: "aqi.medium",
                         tint: .cyan
                     )
                     ClassificationTag(
                         label: presentation.label(for: planet.physicalState.thermal),
+                        helpText: presentation.classificationHelp(for: planet.physicalState.thermal),
                         systemImage: "thermometer.medium",
                         tint: .red
                     )
                     ClassificationTag(
                         label: presentation.label(for: planet.physicalState.water),
+                        helpText: presentation.classificationHelp(for: planet.physicalState.water),
                         systemImage: "drop.fill",
                         tint: .blue
                     )
@@ -88,7 +93,7 @@ struct GeneratedPlanetCard: View {
                     "Inclination", value: "\(presentation.number(planet.orbit.inclinationDegrees))°",
                     systemImage: "angle", tint: .green)
                 MetricTile(
-                    "Progenitors", value: String(planet.progenitorCount), detail: "Merged formation ancestry",
+                    "Progenitors", value: String(planet.progenitorCount),
                     systemImage: "point.3.filled.connected.trianglepath.dotted", tint: .purple)
             }
 

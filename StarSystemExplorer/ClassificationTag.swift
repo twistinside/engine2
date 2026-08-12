@@ -3,6 +3,7 @@ import SwiftUI
 /// Encodes one orthogonal body classification without collapsing it into a single planet kind.
 struct ClassificationTag: View {
     let label: String
+    let helpText: String
     let systemImage: String
     let tint: Color
 
@@ -17,5 +18,6 @@ struct ClassificationTag: View {
                 Capsule()
                     .stroke(tint.opacity(0.24), lineWidth: 1)
             }
+            .help(helpText)
     }
 }

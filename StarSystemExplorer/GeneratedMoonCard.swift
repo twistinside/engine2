@@ -31,26 +31,31 @@ struct GeneratedMoonCard: View {
                 HStack(spacing: 6) {
                     ClassificationTag(
                         label: presentation.label(for: moon.physicalState.bulk),
+                        helpText: presentation.classificationHelp(for: moon.physicalState.bulk),
                         systemImage: "cube.fill",
                         tint: .orange
                     )
                     ClassificationTag(
                         label: presentation.label(for: moon.physicalState.visibleBoundary),
+                        helpText: presentation.classificationHelp(for: moon.physicalState.visibleBoundary),
                         systemImage: "circle.lefthalf.striped.horizontal",
                         tint: .secondary
                     )
                     ClassificationTag(
                         label: presentation.label(for: moon.physicalState.atmosphere),
+                        helpText: presentation.classificationHelp(for: moon.physicalState.atmosphere),
                         systemImage: "aqi.medium",
                         tint: .cyan
                     )
                     ClassificationTag(
                         label: presentation.label(for: moon.physicalState.thermal),
+                        helpText: presentation.classificationHelp(for: moon.physicalState.thermal),
                         systemImage: "thermometer.medium",
                         tint: .red
                     )
                     ClassificationTag(
                         label: presentation.label(for: moon.physicalState.water),
+                        helpText: presentation.classificationHelp(for: moon.physicalState.water),
                         systemImage: "drop.fill",
                         tint: .blue
                     )
@@ -74,11 +79,11 @@ struct GeneratedMoonCard: View {
                     "Inclination", value: "\(presentation.number(moon.orbit.inclinationDegrees))°",
                     systemImage: "angle", tint: .green)
                 MetricTile(
-                    "Stable inner bound", value: presentation.kilometers(moon.minimumStableOrbit),
-                    detail: "Roche limit", systemImage: "arrow.down.right.and.arrow.up.left", tint: .red)
+                    "Inner bound", value: presentation.kilometers(moon.minimumStableOrbit),
+                    systemImage: "arrow.down.right.and.arrow.up.left", tint: .red)
                 MetricTile(
-                    "Stable outer bound", value: presentation.kilometers(moon.maximumStableOrbit),
-                    detail: "Eccentric Hill limit", systemImage: "arrow.up.left.and.arrow.down.right", tint: .purple)
+                    "Outer bound", value: presentation.kilometers(moon.maximumStableOrbit),
+                    systemImage: "arrow.up.left.and.arrow.down.right", tint: .purple)
             }
 
             CelestialCompositionView(title: "Moon composition", composition: moon.composition)

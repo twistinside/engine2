@@ -75,7 +75,7 @@ struct StarSystemOverview: View {
                     MetricTile(
                         "Residual bodies",
                         value: String(system.formationLedger.residualBodyCount),
-                        detail: "Aggregated, not given invented orbits",
+                        detail: "No resolved orbits",
                         systemImage: "circle.dotted",
                         tint: .secondary
                     )
@@ -89,5 +89,18 @@ struct StarSystemOverview: View {
                 }
             }
         }
+    }
+}
+
+#Preview("Seed 10925987079005406032 · Overview") {
+    let system = try? StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+        seed: StarSystemSeed(rawValue: 10_925_987_079_005_406_032)
+    )
+    if let system {
+        StarSystemOverview(system: system)
+            .padding()
+            .frame(width: 1_600, height: 300)
+            .background(Color(red: 0.025, green: 0.035, blue: 0.075))
+            .preferredColorScheme(.dark)
     }
 }

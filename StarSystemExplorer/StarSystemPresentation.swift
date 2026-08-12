@@ -77,10 +77,26 @@ nonisolated struct StarSystemPresentation: Sendable {
         }
     }
 
+    func classificationHelp(for value: PlanetaryBulkRegime) -> String {
+        switch value {
+        case .metalRich: "Iron is at least 38% of the body's solid mass."
+        case .rocky: "Rock and metal dominate the solid mass without meeting the metal-rich threshold."
+        case .volatileRich: "Water and other volatiles are at least 25% of the body's solid mass."
+        case .hydrogenHeliumDominated: "Hydrogen and helium are at least half of the body's total mass."
+        }
+    }
+
     func label(for value: PlanetaryVisibleBoundary) -> String {
         switch value {
         case .exposedSolid: "Exposed solid"
         case .opaqueAtmosphere: "Opaque atmosphere"
+        }
+    }
+
+    func classificationHelp(for value: PlanetaryVisibleBoundary) -> String {
+        switch value {
+        case .exposedSolid: "The solid surface supplies the body's visible boundary."
+        case .opaqueAtmosphere: "A deep gas envelope hides the solid surface."
         }
     }
 
@@ -93,12 +109,30 @@ nonisolated struct StarSystemPresentation: Sendable {
         }
     }
 
+    func classificationHelp(for value: PlanetaryAtmosphereRegime) -> String {
+        switch value {
+        case .airless: "No resolved atmosphere remains."
+        case .tenuous: "A positive atmosphere remains below 0.05 bar."
+        case .secondary: "The exposed atmosphere has at least 0.05 bar of surface pressure."
+        case .deepEnvelope: "An opaque gas envelope prevents a surface-pressure estimate."
+        }
+    }
+
     func label(for value: PlanetaryThermalRegime) -> String {
         switch value {
         case .frozen: "Frozen"
         case .temperate: "Temperate"
         case .hot: "Hot"
         case .molten: "Molten"
+        }
+    }
+
+    func classificationHelp(for value: PlanetaryThermalRegime) -> String {
+        switch value {
+        case .frozen: "The visible-boundary temperature is below 240 K."
+        case .temperate: "The visible-boundary temperature is from 240 K through 350 K."
+        case .hot: "The visible-boundary temperature is above 350 K and below 1,200 K."
+        case .molten: "The visible-boundary temperature is at least 1,200 K."
         }
     }
 
@@ -110,6 +144,17 @@ nonisolated struct StarSystemPresentation: Sendable {
         case .globalOcean: "Global ocean"
         case .steam: "Steam"
         case .inaccessible: "Inaccessible water"
+        }
+    }
+
+    func classificationHelp(for value: PlanetaryWaterRegime) -> String {
+        switch value {
+        case .dry: "The accessible water inventory is negligible or absent."
+        case .iceCovered: "Accessible water is surface ice, with no liquid-water coverage."
+        case .partialLiquid: "Liquid water covers some, but less than 80%, of the surface."
+        case .globalOcean: "Liquid water covers at least 80% of the surface."
+        case .steam: "Water is present and the visible-boundary temperature exceeds 373 K."
+        case .inaccessible: "A deep atmosphere prevents a surface-water assessment."
         }
     }
 

@@ -37,6 +37,12 @@ struct StarSystemOrbitDiagram: View {
         orbitRange.usesFallback ? "Disk outer edge" : "Outer orbit + 10%"
     }
 
+    private var resolvedMoonCount: Int {
+        system.planets.reduce(0) { count, planet in
+            count + planet.moons.count
+        }
+    }
+
     var body: some View {
         ExplorerCard(
             title: "Orbital Architecture",
@@ -144,39 +150,22 @@ struct StarSystemOrbitDiagram: View {
                         }
                     }
 
-                    VStack(spacing: 4) {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [.white, .yellow, .orange],
-                                    center: .topLeading,
-                                    startRadius: 0,
-                                    endRadius: 22
-                                )
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [.white, .yellow, .orange],
+                                center: .topLeading,
+                                startRadius: 0,
+                                endRadius: 22
                             )
-                            .frame(width: 36, height: 36)
-                            .shadow(color: .yellow.opacity(0.75), radius: 12)
-                        Text("STAR · 0 AU")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.yellow)
-                    }
-                    .position(x: trackInset, y: proxy.size.height * 0.47)
+                        )
+                        .frame(width: 36, height: 36)
+                        .shadow(color: .yellow.opacity(0.75), radius: 12)
+                        .position(x: trackInset, y: proxy.size.height * 0.47)
+                        .accessibilityLabel("Host star at zero astronomical units")
 
                     ForEach(Array(system.planets.enumerated()), id: \.element.id) { index, planet in
-                        VStack(spacing: 4) {
-                            PlanetaryBodySymbol(
-                                physicalState: planet.physicalState,
-                                liquidWaterCoverage: planet.environment.liquidWaterCoverage,
-                                waterIceCoverage: planet.environment.waterIceCoverage,
-                                diameter: symbolDiameter(for: planet.mass)
-                            )
-                            Text("P\(index + 1)")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text(presentation.number(planet.orbit.semiMajorAxis.astronomicalUnits))
-                                .font(.caption2.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                        }
+                        planetMarker(for: planet, index: index)
                         .position(
                             x: orbitPosition(
                                 for: planet.orbit.semiMajorAxis.astronomicalUnits, width: proxy.size.width),
@@ -198,6 +187,10 @@ struct StarSystemOrbitDiagram: View {
                         .foregroundStyle(.cyan)
                 }
                 Label("Eccentric range", systemImage: "arrow.left.and.right")
+                if resolvedMoonCount > 0 {
+                    Label("Moon count", systemImage: "moon.fill")
+                        .foregroundStyle(.indigo)
+                }
                 Spacer()
                 Text(presentation.resolvedPlanetRangeLabel(count: system.planets.count))
                     .font(.caption.monospaced())
@@ -229,6 +222,45 @@ struct StarSystemOrbitDiagram: View {
         return lanes[index % lanes.count]
     }
 
+    private func planetMarker(for planet: GeneratedPlanet, index: Int) -> some View {
+        let diameter = symbolDiameter(for: planet.mass)
+        return PlanetaryBodySymbol(
+            physicalState: planet.physicalState,
+            liquidWaterCoverage: planet.environment.liquidWaterCoverage,
+            waterIceCoverage: planet.environment.waterIceCoverage,
+            diameter: diameter
+        )
+        .overlay(alignment: .topTrailing) {
+            if !planet.moons.isEmpty {
+                Label("\(planet.moons.count)", systemImage: "moon.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.indigo.opacity(0.9), in: Capsule())
+                    .overlay {
+                        Capsule()
+                            .stroke(.white.opacity(0.25), lineWidth: 1)
+                    }
+                    .fixedSize()
+                    .offset(x: 12, y: -10)
+                    .help(planet.moons.count == 1 ? "1 resolved moon" : "\(planet.moons.count) resolved moons")
+            }
+        }
+        .overlay {
+            VStack(spacing: 4) {
+                Text("P\(index + 1)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.primary)
+                Text("\(presentation.number(planet.orbit.semiMajorAxis.astronomicalUnits)) AU")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            .fixedSize()
+            .offset(y: diameter / 2 + 18)
+        }
+    }
+
     private func symbolDiameter(for mass: AstronomicalMass) -> Double {
         min(40, max(15, 17 + log10(max(0.01, mass.earthMasses)) * 6))
     }
@@ -242,6 +274,19 @@ struct StarSystemOrbitDiagram: View {
         StarSystemOrbitDiagram(system: system, initialScale: .linear)
             .padding()
             .frame(width: 1_280, height: 470)
+            .background(Color(red: 0.025, green: 0.035, blue: 0.075))
+            .preferredColorScheme(.dark)
+    }
+}
+
+#Preview("Seed 10925987079005406032 · Moon Badges") {
+    let system = try? StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+        seed: StarSystemSeed(rawValue: 10_925_987_079_005_406_032)
+    )
+    if let system {
+        StarSystemOrbitDiagram(system: system)
+            .padding()
+            .frame(width: 1_600, height: 470)
             .background(Color(red: 0.025, green: 0.035, blue: 0.075))
             .preferredColorScheme(.dark)
     }
