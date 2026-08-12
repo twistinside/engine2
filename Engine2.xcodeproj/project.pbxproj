@@ -7,77 +7,137 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E32000000000000000000001 /* Duration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000001 /* Duration.swift */; };
-		E32000000000000000000002 /* SIMD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000002 /* SIMD.swift */; };
-		E32000000000000000000003 /* simd_float4x4.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000003 /* simd_float4x4.swift */; };
-		E32000000000000000000004 /* simd_quatf.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000004 /* simd_quatf.swift */; };
-		E32000000000000000000005 /* Ball.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000005 /* Ball.swift */; };
-		E32000000000000000000006 /* HeadlessSimulationWorldBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000006 /* HeadlessSimulationWorldBuilder.swift */; };
-		E32000000000000000000007 /* MaterialID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000007 /* MaterialID.swift */; };
-		E32000000000000000000008 /* MeshID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000008 /* MeshID.swift */; };
-		E32000000000000000000009 /* HeadlessSimulationConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000009 /* HeadlessSimulationConfiguration.swift */; };
-		E3200000000000000000000A /* HeadlessSimulationEntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000A /* HeadlessSimulationEntityStore.swift */; };
-		E3200000000000000000000B /* HeadlessSimulationEnvironmentKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000B /* HeadlessSimulationEnvironmentKey.swift */; };
-		E3200000000000000000000C /* HeadlessSimulationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000C /* HeadlessSimulationError.swift */; };
-		E3200000000000000000000D /* HeadlessSimulationResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000D /* HeadlessSimulationResult.swift */; };
-		E3200000000000000000000E /* HeadlessSimulationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000E /* HeadlessSimulationRunner.swift */; };
-		E3200000000000000000000F /* InputRevision.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000F /* InputRevision.swift */; };
-		E32000000000000000000010 /* InputSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000010 /* InputSnapshot.swift */; };
-		E32000000000000000000011 /* KeyboardKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000011 /* KeyboardKey.swift */; };
-		E32000000000000000000012 /* MouseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000012 /* MouseButton.swift */; };
-		E32000000000000000000013 /* Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000013 /* Camera.swift */; };
-		E32000000000000000000014 /* PSimulationAdvanceTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000014 /* PSimulationAdvanceTarget.swift */; };
-		E32000000000000000000015 /* SimulationAdvanceOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000015 /* SimulationAdvanceOutcome.swift */; };
-		E32000000000000000000016 /* SimulationAdvanceRejection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000016 /* SimulationAdvanceRejection.swift */; };
-		E32000000000000000000017 /* SimulationAdvanceRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000017 /* SimulationAdvanceRequest.swift */; };
-		E32000000000000000000018 /* SimulationAdvanceResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000018 /* SimulationAdvanceResult.swift */; };
-		E32000000000000000000019 /* SimulationCompletedStepCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000019 /* SimulationCompletedStepCount.swift */; };
-		E3200000000000000000001A /* SimulationInputAssignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001A /* SimulationInputAssignment.swift */; };
-		E3200000000000000000001B /* SimulationStepCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001B /* SimulationStepCount.swift */; };
-		E3200000000000000000001C /* ComponentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001C /* ComponentStore.swift */; };
-		E3200000000000000000001D /* Entity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001D /* Entity.swift */; };
-		E3200000000000000000001E /* EntityID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001E /* EntityID.swift */; };
-		E3200000000000000000001F /* World.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001F /* World.swift */; };
-		E32000000000000000000020 /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000020 /* Engine.swift */; };
-		E32000000000000000000021 /* PComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000021 /* PComponent.swift */; };
-		E32000000000000000000022 /* PResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000022 /* PResource.swift */; };
-		E32000000000000000000023 /* PSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000023 /* PSystem.swift */; };
-		E32000000000000000000024 /* PWorldBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000024 /* PWorldBuilder.swift */; };
-		E32000000000000000000025 /* InputConsumptionBaseline.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000025 /* InputConsumptionBaseline.swift */; };
-		E32000000000000000000026 /* InputHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000026 /* InputHistory.swift */; };
-		E32000000000000000000027 /* InputHistoryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000027 /* InputHistoryEntry.swift */; };
-		E32000000000000000000028 /* InputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000028 /* InputState.swift */; };
-		E32000000000000000000029 /* SCameraInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000029 /* SCameraInput.swift */; };
-		E3200000000000000000002A /* SInputCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002A /* SInputCleanup.swift */; };
-		E3200000000000000000002B /* SInputHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002B /* SInputHistory.swift */; };
-		E3200000000000000000002C /* SInputMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002C /* SInputMapping.swift */; };
-		E3200000000000000000002D /* CAngularMotionAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002D /* CAngularMotionAccumulator.swift */; };
-		E3200000000000000000002E /* CAngularVelocity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002E /* CAngularVelocity.swift */; };
-		E3200000000000000000002F /* CMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002F /* CMotion.swift */; };
-		E32000000000000000000030 /* CPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000030 /* CPosition.swift */; };
-		E32000000000000000000031 /* CRotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000031 /* CRotation.swift */; };
-		E32000000000000000000032 /* CScale.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000032 /* CScale.swift */; };
-		E32000000000000000000033 /* PMovable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000033 /* PMovable.swift */; };
-		E32000000000000000000034 /* POrientable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000034 /* POrientable.swift */; };
-		E32000000000000000000035 /* PPositionable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000035 /* PPositionable.swift */; };
-		E32000000000000000000036 /* PRotatable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000036 /* PRotatable.swift */; };
-		E32000000000000000000037 /* PScalable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000037 /* PScalable.swift */; };
-		E32000000000000000000038 /* SAccelerationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000038 /* SAccelerationIntent.swift */; };
-		E32000000000000000000039 /* SMovement.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000039 /* SMovement.swift */; };
-		E3200000000000000000003A /* SRotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003A /* SRotation.swift */; };
-		E3200000000000000000003B /* CRenderable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003B /* CRenderable.swift */; };
-		E3200000000000000000003C /* PRenderable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003C /* PRenderable.swift */; };
-		E3200000000000000000003D /* RenderableInitialState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003D /* RenderableInitialState.swift */; };
-		E3200000000000000000003E /* CSelectable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003E /* CSelectable.swift */; };
-		E3200000000000000000003F /* PSelectable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003F /* PSelectable.swift */; };
-		E32000000000000000000040 /* SimulationConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000040 /* SimulationConfiguration.swift */; };
-		E32000000000000000000041 /* SimulationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000041 /* SimulationRuntime.swift */; };
-		E32000000000000000000042 /* EntityPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000042 /* EntityPresentationSnapshot.swift */; };
-		E32000000000000000000043 /* PSimulationPresentationSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000043 /* PSimulationPresentationSource.swift */; };
-		E32000000000000000000044 /* SimulationCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000044 /* SimulationCursor.swift */; };
-		E32000000000000000000045 /* SimulationPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000045 /* SimulationPresentationSnapshot.swift */; };
-		E32000000000000000000046 /* SimulationSessionID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000046 /* SimulationSessionID.swift */; };
-		E32000000000000000000047 /* SimulationTick.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000047 /* SimulationTick.swift */; };
+		E32000000000000000000001 /* Extension/Duration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000001 /* Extension/Duration.swift */; };
+		E32000000000000000000002 /* Extension/SIMD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000002 /* Extension/SIMD.swift */; };
+		E32000000000000000000003 /* Extension/simd_float4x4.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000003 /* Extension/simd_float4x4.swift */; };
+		E32000000000000000000004 /* Extension/simd_quatf.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000004 /* Extension/simd_quatf.swift */; };
+		E32000000000000000000005 /* Game Content/Entity/Ball.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000005 /* Game Content/Entity/Ball.swift */; };
+		E32000000000000000000006 /* Game Content/HeadlessSimulationWorldBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000006 /* Game Content/HeadlessSimulationWorldBuilder.swift */; };
+		E32000000000000000000007 /* Game Content/Material/MaterialID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000007 /* Game Content/Material/MaterialID.swift */; };
+		E32000000000000000000008 /* Game Content/Model/MeshID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000008 /* Game Content/Model/MeshID.swift */; };
+		E32000000000000000000009 /* Headless Simulation/HeadlessSimulationConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000009 /* Headless Simulation/HeadlessSimulationConfiguration.swift */; };
+		E3200000000000000000000A /* Headless Simulation/HeadlessSimulationEntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000A /* Headless Simulation/HeadlessSimulationEntityStore.swift */; };
+		E3200000000000000000000B /* Headless Simulation/HeadlessSimulationEnvironmentKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000B /* Headless Simulation/HeadlessSimulationEnvironmentKey.swift */; };
+		E3200000000000000000000C /* Headless Simulation/HeadlessSimulationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000C /* Headless Simulation/HeadlessSimulationError.swift */; };
+		E3200000000000000000000D /* Headless Simulation/HeadlessSimulationResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000D /* Headless Simulation/HeadlessSimulationResult.swift */; };
+		E3200000000000000000000E /* Headless Simulation/HeadlessSimulationRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000E /* Headless Simulation/HeadlessSimulationRunner.swift */; };
+		E3200000000000000000000F /* Input Runtime/InputRevision.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000000F /* Input Runtime/InputRevision.swift */; };
+		E32000000000000000000010 /* Input Runtime/InputSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000010 /* Input Runtime/InputSnapshot.swift */; };
+		E32000000000000000000011 /* Input Runtime/KeyboardKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000011 /* Input Runtime/KeyboardKey.swift */; };
+		E32000000000000000000012 /* Input Runtime/MouseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000012 /* Input Runtime/MouseButton.swift */; };
+		E32000000000000000000013 /* Render Runtime/Frame/Camera.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000013 /* Render Runtime/Frame/Camera.swift */; };
+		E32000000000000000000014 /* Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000014 /* Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift */; };
+		E32000000000000000000015 /* Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000015 /* Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift */; };
+		E32000000000000000000016 /* Simulation Runtime/Advancement/SimulationAdvanceRejection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000016 /* Simulation Runtime/Advancement/SimulationAdvanceRejection.swift */; };
+		E32000000000000000000017 /* Simulation Runtime/Advancement/SimulationAdvanceRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000017 /* Simulation Runtime/Advancement/SimulationAdvanceRequest.swift */; };
+		E32000000000000000000018 /* Simulation Runtime/Advancement/SimulationAdvanceResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000018 /* Simulation Runtime/Advancement/SimulationAdvanceResult.swift */; };
+		E32000000000000000000019 /* Simulation Runtime/Advancement/SimulationCompletedStepCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000019 /* Simulation Runtime/Advancement/SimulationCompletedStepCount.swift */; };
+		E3200000000000000000001A /* Simulation Runtime/Advancement/SimulationInputAssignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001A /* Simulation Runtime/Advancement/SimulationInputAssignment.swift */; };
+		E3200000000000000000001B /* Simulation Runtime/Advancement/SimulationStepCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001B /* Simulation Runtime/Advancement/SimulationStepCount.swift */; };
+		E3200000000000000000001C /* Simulation Runtime/Engine/ECS/ComponentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001C /* Simulation Runtime/Engine/ECS/ComponentStore.swift */; };
+		E3200000000000000000001D /* Simulation Runtime/Engine/ECS/Entity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001D /* Simulation Runtime/Engine/ECS/Entity.swift */; };
+		E3200000000000000000001E /* Simulation Runtime/Engine/ECS/EntityID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001E /* Simulation Runtime/Engine/ECS/EntityID.swift */; };
+		E3200000000000000000001F /* Simulation Runtime/Engine/ECS/World.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000001F /* Simulation Runtime/Engine/ECS/World.swift */; };
+		E32000000000000000000020 /* Simulation Runtime/Engine/Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000020 /* Simulation Runtime/Engine/Engine.swift */; };
+		E32000000000000000000021 /* Simulation Runtime/Engine/Protocol/PComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000021 /* Simulation Runtime/Engine/Protocol/PComponent.swift */; };
+		E32000000000000000000022 /* Simulation Runtime/Engine/Protocol/PResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000022 /* Simulation Runtime/Engine/Protocol/PResource.swift */; };
+		E32000000000000000000023 /* Simulation Runtime/Engine/Protocol/PSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000023 /* Simulation Runtime/Engine/Protocol/PSystem.swift */; };
+		E32000000000000000000024 /* Simulation Runtime/Engine/Protocol/PWorldBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000024 /* Simulation Runtime/Engine/Protocol/PWorldBuilder.swift */; };
+		E32000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift */; };
+		E32000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift */; };
+		E32000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift */; };
+		E32000000000000000000028 /* Simulation Runtime/Engine/System/Input/InputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000028 /* Simulation Runtime/Engine/System/Input/InputState.swift */; };
+		E32000000000000000000029 /* Simulation Runtime/Engine/System/Input/System/SCameraInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000029 /* Simulation Runtime/Engine/System/Input/System/SCameraInput.swift */; };
+		E3200000000000000000002A /* Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002A /* Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift */; };
+		E3200000000000000000002B /* Simulation Runtime/Engine/System/Input/System/SInputHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002B /* Simulation Runtime/Engine/System/Input/System/SInputHistory.swift */; };
+		E3200000000000000000002C /* Simulation Runtime/Engine/System/Input/System/SInputMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002C /* Simulation Runtime/Engine/System/Input/System/SInputMapping.swift */; };
+		E3200000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift */; };
+		E3200000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift */; };
+		E3200000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift */; };
+		E32000000000000000000030 /* Simulation Runtime/Engine/System/Position/Component/CPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000030 /* Simulation Runtime/Engine/System/Position/Component/CPosition.swift */; };
+		E32000000000000000000031 /* Simulation Runtime/Engine/System/Position/Component/CRotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000031 /* Simulation Runtime/Engine/System/Position/Component/CRotation.swift */; };
+		E32000000000000000000032 /* Simulation Runtime/Engine/System/Position/Component/CScale.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000032 /* Simulation Runtime/Engine/System/Position/Component/CScale.swift */; };
+		E32000000000000000000033 /* Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000033 /* Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift */; };
+		E32000000000000000000034 /* Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000034 /* Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift */; };
+		E32000000000000000000035 /* Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000035 /* Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift */; };
+		E32000000000000000000036 /* Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000036 /* Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift */; };
+		E32000000000000000000037 /* Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000037 /* Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift */; };
+		E32000000000000000000038 /* Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000038 /* Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift */; };
+		E32000000000000000000039 /* Simulation Runtime/Engine/System/Position/System/SMovement.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000039 /* Simulation Runtime/Engine/System/Position/System/SMovement.swift */; };
+		E3200000000000000000003A /* Simulation Runtime/Engine/System/Position/System/SRotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003A /* Simulation Runtime/Engine/System/Position/System/SRotation.swift */; };
+		E3200000000000000000003B /* Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003B /* Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift */; };
+		E3200000000000000000003C /* Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003C /* Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift */; };
+		E3200000000000000000003D /* Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003D /* Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift */; };
+		E3200000000000000000003E /* Simulation Runtime/Engine/System/Selection/CSelectable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003E /* Simulation Runtime/Engine/System/Selection/CSelectable.swift */; };
+		E3200000000000000000003F /* Simulation Runtime/Engine/System/Selection/PSelectable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000003F /* Simulation Runtime/Engine/System/Selection/PSelectable.swift */; };
+		E32000000000000000000040 /* Simulation Runtime/SimulationConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000040 /* Simulation Runtime/SimulationConfiguration.swift */; };
+		E32000000000000000000041 /* Simulation Runtime/SimulationRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000041 /* Simulation Runtime/SimulationRuntime.swift */; };
+		E32000000000000000000042 /* Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000042 /* Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift */; };
+		E32000000000000000000043 /* Simulation Runtime/Snapshot/PSimulationPresentationSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000043 /* Simulation Runtime/Snapshot/PSimulationPresentationSource.swift */; };
+		E32000000000000000000044 /* Simulation Runtime/Snapshot/SimulationCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000044 /* Simulation Runtime/Snapshot/SimulationCursor.swift */; };
+		E32000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */; };
+		E32000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */; };
+		E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */; };
+		E42000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */; };
+		E42000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */; };
+		E42000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */; };
+		E42000000000000000000004 /* Game Content/Star System Generation/Domain/GeneratedPlanet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000004 /* Game Content/Star System Generation/Domain/GeneratedPlanet.swift */; };
+		E42000000000000000000005 /* Game Content/Star System Generation/Domain/GeneratedProtoplanetaryDisk.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000005 /* Game Content/Star System Generation/Domain/GeneratedProtoplanetaryDisk.swift */; };
+		E42000000000000000000006 /* Game Content/Star System Generation/Domain/GeneratedStar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000006 /* Game Content/Star System Generation/Domain/GeneratedStar.swift */; };
+		E42000000000000000000007 /* Game Content/Star System Generation/Domain/GeneratedStarSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000007 /* Game Content/Star System Generation/Domain/GeneratedStarSystem.swift */; };
+		E42000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift */; };
+		E42000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift */; };
+		E4200000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift */; };
+		E4200000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift */; };
+		E4200000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift */; };
+		E4200000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift */; };
+		E4200000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift */; };
+		E4200000000000000000000F /* Game Content/Star System Generation/Domain/PlanetaryPhysicalState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000F /* Game Content/Star System Generation/Domain/PlanetaryPhysicalState.swift */; };
+		E42000000000000000000010 /* Game Content/Star System Generation/Domain/PlanetaryThermalRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000010 /* Game Content/Star System Generation/Domain/PlanetaryThermalRegime.swift */; };
+		E42000000000000000000011 /* Game Content/Star System Generation/Domain/PlanetaryVisibleBoundary.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000011 /* Game Content/Star System Generation/Domain/PlanetaryVisibleBoundary.swift */; };
+		E42000000000000000000012 /* Game Content/Star System Generation/Domain/PlanetaryWaterRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000012 /* Game Content/Star System Generation/Domain/PlanetaryWaterRegime.swift */; };
+		E42000000000000000000013 /* Game Content/Star System Generation/Domain/StarSystemDynamicalLossLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000013 /* Game Content/Star System Generation/Domain/StarSystemDynamicalLossLedger.swift */; };
+		E42000000000000000000014 /* Game Content/Star System Generation/Domain/StarSystemFormationLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000014 /* Game Content/Star System Generation/Domain/StarSystemFormationLedger.swift */; };
+		E42000000000000000000015 /* Game Content/Star System Generation/Domain/StarSystemGenerationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000015 /* Game Content/Star System Generation/Domain/StarSystemGenerationError.swift */; };
+		E42000000000000000000016 /* Game Content/Star System Generation/Domain/StarSystemGenerationModelVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000016 /* Game Content/Star System Generation/Domain/StarSystemGenerationModelVersion.swift */; };
+		E42000000000000000000017 /* Game Content/Star System Generation/Domain/StarSystemGenerationPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000017 /* Game Content/Star System Generation/Domain/StarSystemGenerationPolicy.swift */; };
+		E42000000000000000000018 /* Game Content/Star System Generation/Domain/StarSystemMassBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000018 /* Game Content/Star System Generation/Domain/StarSystemMassBudget.swift */; };
+		E42000000000000000000019 /* Game Content/Star System Generation/Domain/StarSystemSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000019 /* Game Content/Star System Generation/Domain/StarSystemSeed.swift */; };
+		E4200000000000000000001A /* Game Content/Star System Generation/Domain/StellarActivityRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000001A /* Game Content/Star System Generation/Domain/StellarActivityRegime.swift */; };
+		E4200000000000000000001B /* Game Content/Star System Generation/Generation/MainSequenceStarGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000001B /* Game Content/Star System Generation/Generation/MainSequenceStarGenerator.swift */; };
+		E4200000000000000000001C /* Game Content/Star System Generation/Generation/MoonSystemGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000001C /* Game Content/Star System Generation/Generation/MoonSystemGenerator.swift */; };
+		E4200000000000000000001D /* Game Content/Star System Generation/Generation/PlanetaryArchitectureResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000001D /* Game Content/Star System Generation/Generation/PlanetaryArchitectureResolver.swift */; };
+		E4200000000000000000001E /* Game Content/Star System Generation/Generation/PlanetaryAtmosphericBoundary.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000001E /* Game Content/Star System Generation/Generation/PlanetaryAtmosphericBoundary.swift */; };
+		E4200000000000000000001F /* Game Content/Star System Generation/Generation/PlanetaryClimateSolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000001F /* Game Content/Star System Generation/Generation/PlanetaryClimateSolution.swift */; };
+		E42000000000000000000020 /* Game Content/Star System Generation/Generation/PlanetaryEnvironmentResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000020 /* Game Content/Star System Generation/Generation/PlanetaryEnvironmentResolver.swift */; };
+		E42000000000000000000021 /* Game Content/Star System Generation/Generation/PlanetaryFormationSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000021 /* Game Content/Star System Generation/Generation/PlanetaryFormationSimulator.swift */; };
+		E42000000000000000000022 /* Game Content/Star System Generation/Generation/PlanetaryRadiusResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000022 /* Game Content/Star System Generation/Generation/PlanetaryRadiusResolver.swift */; };
+		E42000000000000000000023 /* Game Content/Star System Generation/Generation/PlanetaryWaterCoverage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000023 /* Game Content/Star System Generation/Generation/PlanetaryWaterCoverage.swift */; };
+		E42000000000000000000024 /* Game Content/Star System Generation/Generation/PrimordialAtmosphereEvolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000024 /* Game Content/Star System Generation/Generation/PrimordialAtmosphereEvolver.swift */; };
+		E42000000000000000000025 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000025 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskGenerator.swift */; };
+		E42000000000000000000026 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000026 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskLayout.swift */; };
+		E42000000000000000000027 /* Game Content/Star System Generation/Generation/SampledProtoplanetaryDisk.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000027 /* Game Content/Star System Generation/Generation/SampledProtoplanetaryDisk.swift */; };
+		E42000000000000000000028 /* Game Content/Star System Generation/Generation/SecondaryAtmosphereResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000028 /* Game Content/Star System Generation/Generation/SecondaryAtmosphereResolver.swift */; };
+		E42000000000000000000029 /* Game Content/Star System Generation/Generation/StarSystemGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000029 /* Game Content/Star System Generation/Generation/StarSystemGenerator.swift */; };
+		E4200000000000000000002A /* Game Content/Star System Generation/Internal/EvolvedPlanetaryBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000002A /* Game Content/Star System Generation/Internal/EvolvedPlanetaryBody.swift */; };
+		E4200000000000000000002B /* Game Content/Star System Generation/Internal/FormationAnnulus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000002B /* Game Content/Star System Generation/Internal/FormationAnnulus.swift */; };
+		E4200000000000000000002C /* Game Content/Star System Generation/Internal/FormationDisk.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000002C /* Game Content/Star System Generation/Internal/FormationDisk.swift */; };
+		E4200000000000000000002D /* Game Content/Star System Generation/Internal/FormationEmbryo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000002D /* Game Content/Star System Generation/Internal/FormationEmbryo.swift */; };
+		E4200000000000000000002E /* Game Content/Star System Generation/Internal/FormationMoonSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000002E /* Game Content/Star System Generation/Internal/FormationMoonSeed.swift */; };
+		E4200000000000000000002F /* Game Content/Star System Generation/Internal/OrbitalPairClearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000002F /* Game Content/Star System Generation/Internal/OrbitalPairClearance.swift */; };
+		E42000000000000000000030 /* Game Content/Star System Generation/Internal/PlanetaryArchitectureResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000030 /* Game Content/Star System Generation/Internal/PlanetaryArchitectureResolution.swift */; };
+		E42000000000000000000031 /* Game Content/Star System Generation/Internal/PlanetaryFormationResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000031 /* Game Content/Star System Generation/Internal/PlanetaryFormationResult.swift */; };
+		E42000000000000000000032 /* Game Content/Star System Generation/Internal/ProtoplanetaryDiskProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000032 /* Game Content/Star System Generation/Internal/ProtoplanetaryDiskProfile.swift */; };
+		E42000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */; };
+		E42000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */; };
+		E42000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */; };
+		E42000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */; };
+		E42000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */; };
+		E42000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */; };
+		E42000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */; };
+		E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */; };
+		E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */; };
+		E4200000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -95,6 +155,13 @@
 			remoteGlobalIDString = CB1B38342F5E1E1000A375C6;
 			remoteInfo = Engine2;
 		};
+		E44000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CB1B382D2F5E1E1000A375C6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CBCE2390302C0CE800D36DD1;
+			remoteInfo = StarSystemExplorer;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -103,81 +170,142 @@
 		CB1B38422F5E1E1000A375C6 /* Engine2UnitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2UnitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CBCBF59730108B93005FE6FE /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		CBCBF59830108B93005FE6FE /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		CBCE2391302C0CE800D36DD1 /* StarSystemExplorer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StarSystemExplorer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CBCE279C302C113100D36DD1 /* StarSystemExplorerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StarSystemExplorerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E20000000000000000000002 /* Engine2RenderTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Engine2RenderTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E30000000000000000000001 /* HeadlessSimulation */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = HeadlessSimulation; sourceTree = BUILT_PRODUCTS_DIR; };
-		E31000000000000000000001 /* Duration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Extension/Duration.swift"; sourceTree = "<group>"; };
-		E31000000000000000000002 /* SIMD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Extension/SIMD.swift"; sourceTree = "<group>"; };
-		E31000000000000000000003 /* simd_float4x4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Extension/simd_float4x4.swift"; sourceTree = "<group>"; };
-		E31000000000000000000004 /* simd_quatf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Extension/simd_quatf.swift"; sourceTree = "<group>"; };
-		E31000000000000000000005 /* Ball.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Entity/Ball.swift"; sourceTree = "<group>"; };
-		E31000000000000000000006 /* HeadlessSimulationWorldBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/HeadlessSimulationWorldBuilder.swift"; sourceTree = "<group>"; };
-		E31000000000000000000007 /* MaterialID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Material/MaterialID.swift"; sourceTree = "<group>"; };
-		E31000000000000000000008 /* MeshID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Model/MeshID.swift"; sourceTree = "<group>"; };
-		E31000000000000000000009 /* HeadlessSimulationConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationConfiguration.swift"; sourceTree = "<group>"; };
-		E3100000000000000000000A /* HeadlessSimulationEntityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationEntityStore.swift"; sourceTree = "<group>"; };
-		E3100000000000000000000B /* HeadlessSimulationEnvironmentKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationEnvironmentKey.swift"; sourceTree = "<group>"; };
-		E3100000000000000000000C /* HeadlessSimulationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationError.swift"; sourceTree = "<group>"; };
-		E3100000000000000000000D /* HeadlessSimulationResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationResult.swift"; sourceTree = "<group>"; };
-		E3100000000000000000000E /* HeadlessSimulationRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationRunner.swift"; sourceTree = "<group>"; };
-		E3100000000000000000000F /* InputRevision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/InputRevision.swift"; sourceTree = "<group>"; };
-		E31000000000000000000010 /* InputSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/InputSnapshot.swift"; sourceTree = "<group>"; };
-		E31000000000000000000011 /* KeyboardKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/KeyboardKey.swift"; sourceTree = "<group>"; };
-		E31000000000000000000012 /* MouseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/MouseButton.swift"; sourceTree = "<group>"; };
-		E31000000000000000000013 /* Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Render Runtime/Frame/Camera.swift"; sourceTree = "<group>"; };
-		E31000000000000000000014 /* PSimulationAdvanceTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift"; sourceTree = "<group>"; };
-		E31000000000000000000015 /* SimulationAdvanceOutcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift"; sourceTree = "<group>"; };
-		E31000000000000000000016 /* SimulationAdvanceRejection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceRejection.swift"; sourceTree = "<group>"; };
-		E31000000000000000000017 /* SimulationAdvanceRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceRequest.swift"; sourceTree = "<group>"; };
-		E31000000000000000000018 /* SimulationAdvanceResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceResult.swift"; sourceTree = "<group>"; };
-		E31000000000000000000019 /* SimulationCompletedStepCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationCompletedStepCount.swift"; sourceTree = "<group>"; };
-		E3100000000000000000001A /* SimulationInputAssignment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationInputAssignment.swift"; sourceTree = "<group>"; };
-		E3100000000000000000001B /* SimulationStepCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationStepCount.swift"; sourceTree = "<group>"; };
-		E3100000000000000000001C /* ComponentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/ComponentStore.swift"; sourceTree = "<group>"; };
-		E3100000000000000000001D /* Entity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/Entity.swift"; sourceTree = "<group>"; };
-		E3100000000000000000001E /* EntityID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/EntityID.swift"; sourceTree = "<group>"; };
-		E3100000000000000000001F /* World.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/World.swift"; sourceTree = "<group>"; };
-		E31000000000000000000020 /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Engine.swift"; sourceTree = "<group>"; };
-		E31000000000000000000021 /* PComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PComponent.swift"; sourceTree = "<group>"; };
-		E31000000000000000000022 /* PResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PResource.swift"; sourceTree = "<group>"; };
-		E31000000000000000000023 /* PSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PSystem.swift"; sourceTree = "<group>"; };
-		E31000000000000000000024 /* PWorldBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PWorldBuilder.swift"; sourceTree = "<group>"; };
-		E31000000000000000000025 /* InputConsumptionBaseline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift"; sourceTree = "<group>"; };
-		E31000000000000000000026 /* InputHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputHistory.swift"; sourceTree = "<group>"; };
-		E31000000000000000000027 /* InputHistoryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift"; sourceTree = "<group>"; };
-		E31000000000000000000028 /* InputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputState.swift"; sourceTree = "<group>"; };
-		E31000000000000000000029 /* SCameraInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SCameraInput.swift"; sourceTree = "<group>"; };
-		E3100000000000000000002A /* SInputCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift"; sourceTree = "<group>"; };
-		E3100000000000000000002B /* SInputHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SInputHistory.swift"; sourceTree = "<group>"; };
-		E3100000000000000000002C /* SInputMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SInputMapping.swift"; sourceTree = "<group>"; };
-		E3100000000000000000002D /* CAngularMotionAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift"; sourceTree = "<group>"; };
-		E3100000000000000000002E /* CAngularVelocity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift"; sourceTree = "<group>"; };
-		E3100000000000000000002F /* CMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CMotion.swift"; sourceTree = "<group>"; };
-		E31000000000000000000030 /* CPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CPosition.swift"; sourceTree = "<group>"; };
-		E31000000000000000000031 /* CRotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CRotation.swift"; sourceTree = "<group>"; };
-		E31000000000000000000032 /* CScale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CScale.swift"; sourceTree = "<group>"; };
-		E31000000000000000000033 /* PMovable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift"; sourceTree = "<group>"; };
-		E31000000000000000000034 /* POrientable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift"; sourceTree = "<group>"; };
-		E31000000000000000000035 /* PPositionable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift"; sourceTree = "<group>"; };
-		E31000000000000000000036 /* PRotatable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift"; sourceTree = "<group>"; };
-		E31000000000000000000037 /* PScalable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift"; sourceTree = "<group>"; };
-		E31000000000000000000038 /* SAccelerationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift"; sourceTree = "<group>"; };
-		E31000000000000000000039 /* SMovement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/System/SMovement.swift"; sourceTree = "<group>"; };
-		E3100000000000000000003A /* SRotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/System/SRotation.swift"; sourceTree = "<group>"; };
-		E3100000000000000000003B /* CRenderable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift"; sourceTree = "<group>"; };
-		E3100000000000000000003C /* PRenderable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift"; sourceTree = "<group>"; };
-		E3100000000000000000003D /* RenderableInitialState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift"; sourceTree = "<group>"; };
-		E3100000000000000000003E /* CSelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Selection/CSelectable.swift"; sourceTree = "<group>"; };
-		E3100000000000000000003F /* PSelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Selection/PSelectable.swift"; sourceTree = "<group>"; };
-		E31000000000000000000040 /* SimulationConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/SimulationConfiguration.swift"; sourceTree = "<group>"; };
-		E31000000000000000000041 /* SimulationRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/SimulationRuntime.swift"; sourceTree = "<group>"; };
-		E31000000000000000000042 /* EntityPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift"; sourceTree = "<group>"; };
-		E31000000000000000000043 /* PSimulationPresentationSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/PSimulationPresentationSource.swift"; sourceTree = "<group>"; };
-		E31000000000000000000044 /* SimulationCursor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationCursor.swift"; sourceTree = "<group>"; };
-		E31000000000000000000045 /* SimulationPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift"; sourceTree = "<group>"; };
-		E31000000000000000000046 /* SimulationSessionID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationSessionID.swift"; sourceTree = "<group>"; };
-		E31000000000000000000047 /* SimulationTick.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationTick.swift"; sourceTree = "<group>"; };
+		E31000000000000000000001 /* Extension/Duration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension/Duration.swift; sourceTree = "<group>"; };
+		E31000000000000000000002 /* Extension/SIMD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension/SIMD.swift; sourceTree = "<group>"; };
+		E31000000000000000000003 /* Extension/simd_float4x4.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension/simd_float4x4.swift; sourceTree = "<group>"; };
+		E31000000000000000000004 /* Extension/simd_quatf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension/simd_quatf.swift; sourceTree = "<group>"; };
+		E31000000000000000000005 /* Game Content/Entity/Ball.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Entity/Ball.swift"; sourceTree = "<group>"; };
+		E31000000000000000000006 /* Game Content/HeadlessSimulationWorldBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/HeadlessSimulationWorldBuilder.swift"; sourceTree = "<group>"; };
+		E31000000000000000000007 /* Game Content/Material/MaterialID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Material/MaterialID.swift"; sourceTree = "<group>"; };
+		E31000000000000000000008 /* Game Content/Model/MeshID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Model/MeshID.swift"; sourceTree = "<group>"; };
+		E31000000000000000000009 /* Headless Simulation/HeadlessSimulationConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationConfiguration.swift"; sourceTree = "<group>"; };
+		E3100000000000000000000A /* Headless Simulation/HeadlessSimulationEntityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationEntityStore.swift"; sourceTree = "<group>"; };
+		E3100000000000000000000B /* Headless Simulation/HeadlessSimulationEnvironmentKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationEnvironmentKey.swift"; sourceTree = "<group>"; };
+		E3100000000000000000000C /* Headless Simulation/HeadlessSimulationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationError.swift"; sourceTree = "<group>"; };
+		E3100000000000000000000D /* Headless Simulation/HeadlessSimulationResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationResult.swift"; sourceTree = "<group>"; };
+		E3100000000000000000000E /* Headless Simulation/HeadlessSimulationRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Headless Simulation/HeadlessSimulationRunner.swift"; sourceTree = "<group>"; };
+		E3100000000000000000000F /* Input Runtime/InputRevision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/InputRevision.swift"; sourceTree = "<group>"; };
+		E31000000000000000000010 /* Input Runtime/InputSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/InputSnapshot.swift"; sourceTree = "<group>"; };
+		E31000000000000000000011 /* Input Runtime/KeyboardKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/KeyboardKey.swift"; sourceTree = "<group>"; };
+		E31000000000000000000012 /* Input Runtime/MouseButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Input Runtime/MouseButton.swift"; sourceTree = "<group>"; };
+		E31000000000000000000013 /* Render Runtime/Frame/Camera.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Render Runtime/Frame/Camera.swift"; sourceTree = "<group>"; };
+		E31000000000000000000014 /* Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift"; sourceTree = "<group>"; };
+		E31000000000000000000015 /* Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift"; sourceTree = "<group>"; };
+		E31000000000000000000016 /* Simulation Runtime/Advancement/SimulationAdvanceRejection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceRejection.swift"; sourceTree = "<group>"; };
+		E31000000000000000000017 /* Simulation Runtime/Advancement/SimulationAdvanceRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceRequest.swift"; sourceTree = "<group>"; };
+		E31000000000000000000018 /* Simulation Runtime/Advancement/SimulationAdvanceResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationAdvanceResult.swift"; sourceTree = "<group>"; };
+		E31000000000000000000019 /* Simulation Runtime/Advancement/SimulationCompletedStepCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationCompletedStepCount.swift"; sourceTree = "<group>"; };
+		E3100000000000000000001A /* Simulation Runtime/Advancement/SimulationInputAssignment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationInputAssignment.swift"; sourceTree = "<group>"; };
+		E3100000000000000000001B /* Simulation Runtime/Advancement/SimulationStepCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Advancement/SimulationStepCount.swift"; sourceTree = "<group>"; };
+		E3100000000000000000001C /* Simulation Runtime/Engine/ECS/ComponentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/ComponentStore.swift"; sourceTree = "<group>"; };
+		E3100000000000000000001D /* Simulation Runtime/Engine/ECS/Entity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/Entity.swift"; sourceTree = "<group>"; };
+		E3100000000000000000001E /* Simulation Runtime/Engine/ECS/EntityID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/EntityID.swift"; sourceTree = "<group>"; };
+		E3100000000000000000001F /* Simulation Runtime/Engine/ECS/World.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/ECS/World.swift"; sourceTree = "<group>"; };
+		E31000000000000000000020 /* Simulation Runtime/Engine/Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Engine.swift"; sourceTree = "<group>"; };
+		E31000000000000000000021 /* Simulation Runtime/Engine/Protocol/PComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PComponent.swift"; sourceTree = "<group>"; };
+		E31000000000000000000022 /* Simulation Runtime/Engine/Protocol/PResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PResource.swift"; sourceTree = "<group>"; };
+		E31000000000000000000023 /* Simulation Runtime/Engine/Protocol/PSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PSystem.swift"; sourceTree = "<group>"; };
+		E31000000000000000000024 /* Simulation Runtime/Engine/Protocol/PWorldBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/Protocol/PWorldBuilder.swift"; sourceTree = "<group>"; };
+		E31000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift"; sourceTree = "<group>"; };
+		E31000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputHistory.swift"; sourceTree = "<group>"; };
+		E31000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift"; sourceTree = "<group>"; };
+		E31000000000000000000028 /* Simulation Runtime/Engine/System/Input/InputState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/InputState.swift"; sourceTree = "<group>"; };
+		E31000000000000000000029 /* Simulation Runtime/Engine/System/Input/System/SCameraInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SCameraInput.swift"; sourceTree = "<group>"; };
+		E3100000000000000000002A /* Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift"; sourceTree = "<group>"; };
+		E3100000000000000000002B /* Simulation Runtime/Engine/System/Input/System/SInputHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SInputHistory.swift"; sourceTree = "<group>"; };
+		E3100000000000000000002C /* Simulation Runtime/Engine/System/Input/System/SInputMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Input/System/SInputMapping.swift"; sourceTree = "<group>"; };
+		E3100000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift"; sourceTree = "<group>"; };
+		E3100000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift"; sourceTree = "<group>"; };
+		E3100000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CMotion.swift"; sourceTree = "<group>"; };
+		E31000000000000000000030 /* Simulation Runtime/Engine/System/Position/Component/CPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CPosition.swift"; sourceTree = "<group>"; };
+		E31000000000000000000031 /* Simulation Runtime/Engine/System/Position/Component/CRotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CRotation.swift"; sourceTree = "<group>"; };
+		E31000000000000000000032 /* Simulation Runtime/Engine/System/Position/Component/CScale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Component/CScale.swift"; sourceTree = "<group>"; };
+		E31000000000000000000033 /* Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift"; sourceTree = "<group>"; };
+		E31000000000000000000034 /* Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift"; sourceTree = "<group>"; };
+		E31000000000000000000035 /* Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift"; sourceTree = "<group>"; };
+		E31000000000000000000036 /* Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift"; sourceTree = "<group>"; };
+		E31000000000000000000037 /* Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift"; sourceTree = "<group>"; };
+		E31000000000000000000038 /* Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift"; sourceTree = "<group>"; };
+		E31000000000000000000039 /* Simulation Runtime/Engine/System/Position/System/SMovement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/System/SMovement.swift"; sourceTree = "<group>"; };
+		E3100000000000000000003A /* Simulation Runtime/Engine/System/Position/System/SRotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Position/System/SRotation.swift"; sourceTree = "<group>"; };
+		E3100000000000000000003B /* Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift"; sourceTree = "<group>"; };
+		E3100000000000000000003C /* Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift"; sourceTree = "<group>"; };
+		E3100000000000000000003D /* Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift"; sourceTree = "<group>"; };
+		E3100000000000000000003E /* Simulation Runtime/Engine/System/Selection/CSelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Selection/CSelectable.swift"; sourceTree = "<group>"; };
+		E3100000000000000000003F /* Simulation Runtime/Engine/System/Selection/PSelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Selection/PSelectable.swift"; sourceTree = "<group>"; };
+		E31000000000000000000040 /* Simulation Runtime/SimulationConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/SimulationConfiguration.swift"; sourceTree = "<group>"; };
+		E31000000000000000000041 /* Simulation Runtime/SimulationRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/SimulationRuntime.swift"; sourceTree = "<group>"; };
+		E31000000000000000000042 /* Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift"; sourceTree = "<group>"; };
+		E31000000000000000000043 /* Simulation Runtime/Snapshot/PSimulationPresentationSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/PSimulationPresentationSource.swift"; sourceTree = "<group>"; };
+		E31000000000000000000044 /* Simulation Runtime/Snapshot/SimulationCursor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationCursor.swift"; sourceTree = "<group>"; };
+		E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift"; sourceTree = "<group>"; };
+		E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationSessionID.swift"; sourceTree = "<group>"; };
+		E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationTick.swift"; sourceTree = "<group>"; };
+		E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/CelestialMassComposition.swift"; sourceTree = "<group>"; };
+		E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedBodyID.swift"; sourceTree = "<group>"; };
+		E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedMoon.swift"; sourceTree = "<group>"; };
+		E41000000000000000000004 /* Game Content/Star System Generation/Domain/GeneratedPlanet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedPlanet.swift"; sourceTree = "<group>"; };
+		E41000000000000000000005 /* Game Content/Star System Generation/Domain/GeneratedProtoplanetaryDisk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedProtoplanetaryDisk.swift"; sourceTree = "<group>"; };
+		E41000000000000000000006 /* Game Content/Star System Generation/Domain/GeneratedStar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedStar.swift"; sourceTree = "<group>"; };
+		E41000000000000000000007 /* Game Content/Star System Generation/Domain/GeneratedStarSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedStarSystem.swift"; sourceTree = "<group>"; };
+		E41000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift"; sourceTree = "<group>"; };
+		E41000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/KeplerianOrbit.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/MoonFormationOrigin.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/OrbitalEccentricity.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000F /* Game Content/Star System Generation/Domain/PlanetaryPhysicalState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryPhysicalState.swift"; sourceTree = "<group>"; };
+		E41000000000000000000010 /* Game Content/Star System Generation/Domain/PlanetaryThermalRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryThermalRegime.swift"; sourceTree = "<group>"; };
+		E41000000000000000000011 /* Game Content/Star System Generation/Domain/PlanetaryVisibleBoundary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryVisibleBoundary.swift"; sourceTree = "<group>"; };
+		E41000000000000000000012 /* Game Content/Star System Generation/Domain/PlanetaryWaterRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryWaterRegime.swift"; sourceTree = "<group>"; };
+		E41000000000000000000013 /* Game Content/Star System Generation/Domain/StarSystemDynamicalLossLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemDynamicalLossLedger.swift"; sourceTree = "<group>"; };
+		E41000000000000000000014 /* Game Content/Star System Generation/Domain/StarSystemFormationLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemFormationLedger.swift"; sourceTree = "<group>"; };
+		E41000000000000000000015 /* Game Content/Star System Generation/Domain/StarSystemGenerationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemGenerationError.swift"; sourceTree = "<group>"; };
+		E41000000000000000000016 /* Game Content/Star System Generation/Domain/StarSystemGenerationModelVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemGenerationModelVersion.swift"; sourceTree = "<group>"; };
+		E41000000000000000000017 /* Game Content/Star System Generation/Domain/StarSystemGenerationPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemGenerationPolicy.swift"; sourceTree = "<group>"; };
+		E41000000000000000000018 /* Game Content/Star System Generation/Domain/StarSystemMassBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemMassBudget.swift"; sourceTree = "<group>"; };
+		E41000000000000000000019 /* Game Content/Star System Generation/Domain/StarSystemSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StarSystemSeed.swift"; sourceTree = "<group>"; };
+		E4100000000000000000001A /* Game Content/Star System Generation/Domain/StellarActivityRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/StellarActivityRegime.swift"; sourceTree = "<group>"; };
+		E4100000000000000000001B /* Game Content/Star System Generation/Generation/MainSequenceStarGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/MainSequenceStarGenerator.swift"; sourceTree = "<group>"; };
+		E4100000000000000000001C /* Game Content/Star System Generation/Generation/MoonSystemGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/MoonSystemGenerator.swift"; sourceTree = "<group>"; };
+		E4100000000000000000001D /* Game Content/Star System Generation/Generation/PlanetaryArchitectureResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryArchitectureResolver.swift"; sourceTree = "<group>"; };
+		E4100000000000000000001E /* Game Content/Star System Generation/Generation/PlanetaryAtmosphericBoundary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryAtmosphericBoundary.swift"; sourceTree = "<group>"; };
+		E4100000000000000000001F /* Game Content/Star System Generation/Generation/PlanetaryClimateSolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryClimateSolution.swift"; sourceTree = "<group>"; };
+		E41000000000000000000020 /* Game Content/Star System Generation/Generation/PlanetaryEnvironmentResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryEnvironmentResolver.swift"; sourceTree = "<group>"; };
+		E41000000000000000000021 /* Game Content/Star System Generation/Generation/PlanetaryFormationSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryFormationSimulator.swift"; sourceTree = "<group>"; };
+		E41000000000000000000022 /* Game Content/Star System Generation/Generation/PlanetaryRadiusResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryRadiusResolver.swift"; sourceTree = "<group>"; };
+		E41000000000000000000023 /* Game Content/Star System Generation/Generation/PlanetaryWaterCoverage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PlanetaryWaterCoverage.swift"; sourceTree = "<group>"; };
+		E41000000000000000000024 /* Game Content/Star System Generation/Generation/PrimordialAtmosphereEvolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/PrimordialAtmosphereEvolver.swift"; sourceTree = "<group>"; };
+		E41000000000000000000025 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/ProtoplanetaryDiskGenerator.swift"; sourceTree = "<group>"; };
+		E41000000000000000000026 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/ProtoplanetaryDiskLayout.swift"; sourceTree = "<group>"; };
+		E41000000000000000000027 /* Game Content/Star System Generation/Generation/SampledProtoplanetaryDisk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/SampledProtoplanetaryDisk.swift"; sourceTree = "<group>"; };
+		E41000000000000000000028 /* Game Content/Star System Generation/Generation/SecondaryAtmosphereResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/SecondaryAtmosphereResolver.swift"; sourceTree = "<group>"; };
+		E41000000000000000000029 /* Game Content/Star System Generation/Generation/StarSystemGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Generation/StarSystemGenerator.swift"; sourceTree = "<group>"; };
+		E4100000000000000000002A /* Game Content/Star System Generation/Internal/EvolvedPlanetaryBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/EvolvedPlanetaryBody.swift"; sourceTree = "<group>"; };
+		E4100000000000000000002B /* Game Content/Star System Generation/Internal/FormationAnnulus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/FormationAnnulus.swift"; sourceTree = "<group>"; };
+		E4100000000000000000002C /* Game Content/Star System Generation/Internal/FormationDisk.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/FormationDisk.swift"; sourceTree = "<group>"; };
+		E4100000000000000000002D /* Game Content/Star System Generation/Internal/FormationEmbryo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/FormationEmbryo.swift"; sourceTree = "<group>"; };
+		E4100000000000000000002E /* Game Content/Star System Generation/Internal/FormationMoonSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/FormationMoonSeed.swift"; sourceTree = "<group>"; };
+		E4100000000000000000002F /* Game Content/Star System Generation/Internal/OrbitalPairClearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/OrbitalPairClearance.swift"; sourceTree = "<group>"; };
+		E41000000000000000000030 /* Game Content/Star System Generation/Internal/PlanetaryArchitectureResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/PlanetaryArchitectureResolution.swift"; sourceTree = "<group>"; };
+		E41000000000000000000031 /* Game Content/Star System Generation/Internal/PlanetaryFormationResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/PlanetaryFormationResult.swift"; sourceTree = "<group>"; };
+		E41000000000000000000032 /* Game Content/Star System Generation/Internal/ProtoplanetaryDiskProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/ProtoplanetaryDiskProfile.swift"; sourceTree = "<group>"; };
+		E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift"; sourceTree = "<group>"; };
+		E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift"; sourceTree = "<group>"; };
+		E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/StarSystemRandomStream.swift"; sourceTree = "<group>"; };
+		E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift"; sourceTree = "<group>"; };
+		E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift"; sourceTree = "<group>"; };
+		E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift"; sourceTree = "<group>"; };
+		E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Random Number Generation/SplitMix64RandomNumberGenerator.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CB1B38372F5E1E1000A375C6 /* Engine2 */ = {
@@ -188,6 +316,16 @@
 		CB1B38452F5E1E1000A375C6 /* Engine2UnitTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Engine2UnitTests;
+			sourceTree = "<group>";
+		};
+		CBCE2392302C0CE800D36DD1 /* StarSystemExplorer */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StarSystemExplorer;
+			sourceTree = "<group>";
+		};
+		CBCE279D302C113100D36DD1 /* StarSystemExplorerTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StarSystemExplorerTests;
 			sourceTree = "<group>";
 		};
 		E20000000000000000000003 /* Engine2RenderTests */ = {
@@ -211,6 +349,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		CB1B383F2F5E1E1000A375C6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBCE238E302C0CE800D36DD1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBCE2799302C113100D36DD1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -241,10 +393,13 @@
 				CBCBF59830108B93005FE6FE /* README.md */,
 				A61E75D13C8B4C5EA4F10201 /* AGENTS.md */,
 				CB1B38372F5E1E1000A375C6 /* Engine2 */,
+				E43000000000000000000001 /* Star System Explorer Shared Sources */,
 				E33000000000000000000001 /* Headless Simulation Shared Sources */,
 				E30000000000000000000002 /* Engine2HeadlessSimulation */,
 				CB1B38452F5E1E1000A375C6 /* Engine2UnitTests */,
 				E20000000000000000000003 /* Engine2RenderTests */,
+				CBCE2392302C0CE800D36DD1 /* StarSystemExplorer */,
+				CBCE279D302C113100D36DD1 /* StarSystemExplorerTests */,
 				CB1B38362F5E1E1000A375C6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -256,6 +411,8 @@
 				E30000000000000000000001 /* HeadlessSimulation */,
 				CB1B38422F5E1E1000A375C6 /* Engine2UnitTests.xctest */,
 				E20000000000000000000002 /* Engine2RenderTests.xctest */,
+				CBCE2391302C0CE800D36DD1 /* StarSystemExplorer.app */,
+				CBCE279C302C113100D36DD1 /* StarSystemExplorerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -263,79 +420,147 @@
 		E33000000000000000000001 /* Headless Simulation Shared Sources */ = {
 			isa = PBXGroup;
 			children = (
-				E31000000000000000000001 /* Duration.swift */,
-				E31000000000000000000002 /* SIMD.swift */,
-				E31000000000000000000003 /* simd_float4x4.swift */,
-				E31000000000000000000004 /* simd_quatf.swift */,
-				E31000000000000000000005 /* Ball.swift */,
-				E31000000000000000000006 /* HeadlessSimulationWorldBuilder.swift */,
-				E31000000000000000000007 /* MaterialID.swift */,
-				E31000000000000000000008 /* MeshID.swift */,
-				E31000000000000000000009 /* HeadlessSimulationConfiguration.swift */,
-				E3100000000000000000000A /* HeadlessSimulationEntityStore.swift */,
-				E3100000000000000000000B /* HeadlessSimulationEnvironmentKey.swift */,
-				E3100000000000000000000C /* HeadlessSimulationError.swift */,
-				E3100000000000000000000D /* HeadlessSimulationResult.swift */,
-				E3100000000000000000000E /* HeadlessSimulationRunner.swift */,
-				E3100000000000000000000F /* InputRevision.swift */,
-				E31000000000000000000010 /* InputSnapshot.swift */,
-				E31000000000000000000011 /* KeyboardKey.swift */,
-				E31000000000000000000012 /* MouseButton.swift */,
-				E31000000000000000000013 /* Camera.swift */,
-				E31000000000000000000014 /* PSimulationAdvanceTarget.swift */,
-				E31000000000000000000015 /* SimulationAdvanceOutcome.swift */,
-				E31000000000000000000016 /* SimulationAdvanceRejection.swift */,
-				E31000000000000000000017 /* SimulationAdvanceRequest.swift */,
-				E31000000000000000000018 /* SimulationAdvanceResult.swift */,
-				E31000000000000000000019 /* SimulationCompletedStepCount.swift */,
-				E3100000000000000000001A /* SimulationInputAssignment.swift */,
-				E3100000000000000000001B /* SimulationStepCount.swift */,
-				E3100000000000000000001C /* ComponentStore.swift */,
-				E3100000000000000000001D /* Entity.swift */,
-				E3100000000000000000001E /* EntityID.swift */,
-				E3100000000000000000001F /* World.swift */,
-				E31000000000000000000020 /* Engine.swift */,
-				E31000000000000000000021 /* PComponent.swift */,
-				E31000000000000000000022 /* PResource.swift */,
-				E31000000000000000000023 /* PSystem.swift */,
-				E31000000000000000000024 /* PWorldBuilder.swift */,
-				E31000000000000000000025 /* InputConsumptionBaseline.swift */,
-				E31000000000000000000026 /* InputHistory.swift */,
-				E31000000000000000000027 /* InputHistoryEntry.swift */,
-				E31000000000000000000028 /* InputState.swift */,
-				E31000000000000000000029 /* SCameraInput.swift */,
-				E3100000000000000000002A /* SInputCleanup.swift */,
-				E3100000000000000000002B /* SInputHistory.swift */,
-				E3100000000000000000002C /* SInputMapping.swift */,
-				E3100000000000000000002D /* CAngularMotionAccumulator.swift */,
-				E3100000000000000000002E /* CAngularVelocity.swift */,
-				E3100000000000000000002F /* CMotion.swift */,
-				E31000000000000000000030 /* CPosition.swift */,
-				E31000000000000000000031 /* CRotation.swift */,
-				E31000000000000000000032 /* CScale.swift */,
-				E31000000000000000000033 /* PMovable.swift */,
-				E31000000000000000000034 /* POrientable.swift */,
-				E31000000000000000000035 /* PPositionable.swift */,
-				E31000000000000000000036 /* PRotatable.swift */,
-				E31000000000000000000037 /* PScalable.swift */,
-				E31000000000000000000038 /* SAccelerationIntent.swift */,
-				E31000000000000000000039 /* SMovement.swift */,
-				E3100000000000000000003A /* SRotation.swift */,
-				E3100000000000000000003B /* CRenderable.swift */,
-				E3100000000000000000003C /* PRenderable.swift */,
-				E3100000000000000000003D /* RenderableInitialState.swift */,
-				E3100000000000000000003E /* CSelectable.swift */,
-				E3100000000000000000003F /* PSelectable.swift */,
-				E31000000000000000000040 /* SimulationConfiguration.swift */,
-				E31000000000000000000041 /* SimulationRuntime.swift */,
-				E31000000000000000000042 /* EntityPresentationSnapshot.swift */,
-				E31000000000000000000043 /* PSimulationPresentationSource.swift */,
-				E31000000000000000000044 /* SimulationCursor.swift */,
-				E31000000000000000000045 /* SimulationPresentationSnapshot.swift */,
-				E31000000000000000000046 /* SimulationSessionID.swift */,
-				E31000000000000000000047 /* SimulationTick.swift */,
+				E31000000000000000000001 /* Extension/Duration.swift */,
+				E31000000000000000000002 /* Extension/SIMD.swift */,
+				E31000000000000000000003 /* Extension/simd_float4x4.swift */,
+				E31000000000000000000004 /* Extension/simd_quatf.swift */,
+				E31000000000000000000005 /* Game Content/Entity/Ball.swift */,
+				E31000000000000000000006 /* Game Content/HeadlessSimulationWorldBuilder.swift */,
+				E31000000000000000000007 /* Game Content/Material/MaterialID.swift */,
+				E31000000000000000000008 /* Game Content/Model/MeshID.swift */,
+				E31000000000000000000009 /* Headless Simulation/HeadlessSimulationConfiguration.swift */,
+				E3100000000000000000000A /* Headless Simulation/HeadlessSimulationEntityStore.swift */,
+				E3100000000000000000000B /* Headless Simulation/HeadlessSimulationEnvironmentKey.swift */,
+				E3100000000000000000000C /* Headless Simulation/HeadlessSimulationError.swift */,
+				E3100000000000000000000D /* Headless Simulation/HeadlessSimulationResult.swift */,
+				E3100000000000000000000E /* Headless Simulation/HeadlessSimulationRunner.swift */,
+				E3100000000000000000000F /* Input Runtime/InputRevision.swift */,
+				E31000000000000000000010 /* Input Runtime/InputSnapshot.swift */,
+				E31000000000000000000011 /* Input Runtime/KeyboardKey.swift */,
+				E31000000000000000000012 /* Input Runtime/MouseButton.swift */,
+				E31000000000000000000013 /* Render Runtime/Frame/Camera.swift */,
+				E31000000000000000000014 /* Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift */,
+				E31000000000000000000015 /* Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift */,
+				E31000000000000000000016 /* Simulation Runtime/Advancement/SimulationAdvanceRejection.swift */,
+				E31000000000000000000017 /* Simulation Runtime/Advancement/SimulationAdvanceRequest.swift */,
+				E31000000000000000000018 /* Simulation Runtime/Advancement/SimulationAdvanceResult.swift */,
+				E31000000000000000000019 /* Simulation Runtime/Advancement/SimulationCompletedStepCount.swift */,
+				E3100000000000000000001A /* Simulation Runtime/Advancement/SimulationInputAssignment.swift */,
+				E3100000000000000000001B /* Simulation Runtime/Advancement/SimulationStepCount.swift */,
+				E3100000000000000000001C /* Simulation Runtime/Engine/ECS/ComponentStore.swift */,
+				E3100000000000000000001D /* Simulation Runtime/Engine/ECS/Entity.swift */,
+				E3100000000000000000001E /* Simulation Runtime/Engine/ECS/EntityID.swift */,
+				E3100000000000000000001F /* Simulation Runtime/Engine/ECS/World.swift */,
+				E31000000000000000000020 /* Simulation Runtime/Engine/Engine.swift */,
+				E31000000000000000000021 /* Simulation Runtime/Engine/Protocol/PComponent.swift */,
+				E31000000000000000000022 /* Simulation Runtime/Engine/Protocol/PResource.swift */,
+				E31000000000000000000023 /* Simulation Runtime/Engine/Protocol/PSystem.swift */,
+				E31000000000000000000024 /* Simulation Runtime/Engine/Protocol/PWorldBuilder.swift */,
+				E31000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift */,
+				E31000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift */,
+				E31000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift */,
+				E31000000000000000000028 /* Simulation Runtime/Engine/System/Input/InputState.swift */,
+				E31000000000000000000029 /* Simulation Runtime/Engine/System/Input/System/SCameraInput.swift */,
+				E3100000000000000000002A /* Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift */,
+				E3100000000000000000002B /* Simulation Runtime/Engine/System/Input/System/SInputHistory.swift */,
+				E3100000000000000000002C /* Simulation Runtime/Engine/System/Input/System/SInputMapping.swift */,
+				E3100000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift */,
+				E3100000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift */,
+				E3100000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift */,
+				E31000000000000000000030 /* Simulation Runtime/Engine/System/Position/Component/CPosition.swift */,
+				E31000000000000000000031 /* Simulation Runtime/Engine/System/Position/Component/CRotation.swift */,
+				E31000000000000000000032 /* Simulation Runtime/Engine/System/Position/Component/CScale.swift */,
+				E31000000000000000000033 /* Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift */,
+				E31000000000000000000034 /* Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift */,
+				E31000000000000000000035 /* Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift */,
+				E31000000000000000000036 /* Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift */,
+				E31000000000000000000037 /* Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift */,
+				E31000000000000000000038 /* Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift */,
+				E31000000000000000000039 /* Simulation Runtime/Engine/System/Position/System/SMovement.swift */,
+				E3100000000000000000003A /* Simulation Runtime/Engine/System/Position/System/SRotation.swift */,
+				E3100000000000000000003B /* Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift */,
+				E3100000000000000000003C /* Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift */,
+				E3100000000000000000003D /* Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift */,
+				E3100000000000000000003E /* Simulation Runtime/Engine/System/Selection/CSelectable.swift */,
+				E3100000000000000000003F /* Simulation Runtime/Engine/System/Selection/PSelectable.swift */,
+				E31000000000000000000040 /* Simulation Runtime/SimulationConfiguration.swift */,
+				E31000000000000000000041 /* Simulation Runtime/SimulationRuntime.swift */,
+				E31000000000000000000042 /* Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift */,
+				E31000000000000000000043 /* Simulation Runtime/Snapshot/PSimulationPresentationSource.swift */,
+				E31000000000000000000044 /* Simulation Runtime/Snapshot/SimulationCursor.swift */,
+				E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */,
+				E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */,
+				E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */,
 			);
 			name = "Headless Simulation Shared Sources";
+			path = Engine2;
+			sourceTree = "<group>";
+		};
+		E43000000000000000000001 /* Star System Explorer Shared Sources */ = {
+			isa = PBXGroup;
+			children = (
+				E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */,
+				E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */,
+				E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */,
+				E41000000000000000000004 /* Game Content/Star System Generation/Domain/GeneratedPlanet.swift */,
+				E41000000000000000000005 /* Game Content/Star System Generation/Domain/GeneratedProtoplanetaryDisk.swift */,
+				E41000000000000000000006 /* Game Content/Star System Generation/Domain/GeneratedStar.swift */,
+				E41000000000000000000007 /* Game Content/Star System Generation/Domain/GeneratedStarSystem.swift */,
+				E41000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift */,
+				E41000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift */,
+				E4100000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift */,
+				E4100000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift */,
+				E4100000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift */,
+				E4100000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift */,
+				E4100000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift */,
+				E4100000000000000000000F /* Game Content/Star System Generation/Domain/PlanetaryPhysicalState.swift */,
+				E41000000000000000000010 /* Game Content/Star System Generation/Domain/PlanetaryThermalRegime.swift */,
+				E41000000000000000000011 /* Game Content/Star System Generation/Domain/PlanetaryVisibleBoundary.swift */,
+				E41000000000000000000012 /* Game Content/Star System Generation/Domain/PlanetaryWaterRegime.swift */,
+				E41000000000000000000013 /* Game Content/Star System Generation/Domain/StarSystemDynamicalLossLedger.swift */,
+				E41000000000000000000014 /* Game Content/Star System Generation/Domain/StarSystemFormationLedger.swift */,
+				E41000000000000000000015 /* Game Content/Star System Generation/Domain/StarSystemGenerationError.swift */,
+				E41000000000000000000016 /* Game Content/Star System Generation/Domain/StarSystemGenerationModelVersion.swift */,
+				E41000000000000000000017 /* Game Content/Star System Generation/Domain/StarSystemGenerationPolicy.swift */,
+				E41000000000000000000018 /* Game Content/Star System Generation/Domain/StarSystemMassBudget.swift */,
+				E41000000000000000000019 /* Game Content/Star System Generation/Domain/StarSystemSeed.swift */,
+				E4100000000000000000001A /* Game Content/Star System Generation/Domain/StellarActivityRegime.swift */,
+				E4100000000000000000001B /* Game Content/Star System Generation/Generation/MainSequenceStarGenerator.swift */,
+				E4100000000000000000001C /* Game Content/Star System Generation/Generation/MoonSystemGenerator.swift */,
+				E4100000000000000000001D /* Game Content/Star System Generation/Generation/PlanetaryArchitectureResolver.swift */,
+				E4100000000000000000001E /* Game Content/Star System Generation/Generation/PlanetaryAtmosphericBoundary.swift */,
+				E4100000000000000000001F /* Game Content/Star System Generation/Generation/PlanetaryClimateSolution.swift */,
+				E41000000000000000000020 /* Game Content/Star System Generation/Generation/PlanetaryEnvironmentResolver.swift */,
+				E41000000000000000000021 /* Game Content/Star System Generation/Generation/PlanetaryFormationSimulator.swift */,
+				E41000000000000000000022 /* Game Content/Star System Generation/Generation/PlanetaryRadiusResolver.swift */,
+				E41000000000000000000023 /* Game Content/Star System Generation/Generation/PlanetaryWaterCoverage.swift */,
+				E41000000000000000000024 /* Game Content/Star System Generation/Generation/PrimordialAtmosphereEvolver.swift */,
+				E41000000000000000000025 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskGenerator.swift */,
+				E41000000000000000000026 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskLayout.swift */,
+				E41000000000000000000027 /* Game Content/Star System Generation/Generation/SampledProtoplanetaryDisk.swift */,
+				E41000000000000000000028 /* Game Content/Star System Generation/Generation/SecondaryAtmosphereResolver.swift */,
+				E41000000000000000000029 /* Game Content/Star System Generation/Generation/StarSystemGenerator.swift */,
+				E4100000000000000000002A /* Game Content/Star System Generation/Internal/EvolvedPlanetaryBody.swift */,
+				E4100000000000000000002B /* Game Content/Star System Generation/Internal/FormationAnnulus.swift */,
+				E4100000000000000000002C /* Game Content/Star System Generation/Internal/FormationDisk.swift */,
+				E4100000000000000000002D /* Game Content/Star System Generation/Internal/FormationEmbryo.swift */,
+				E4100000000000000000002E /* Game Content/Star System Generation/Internal/FormationMoonSeed.swift */,
+				E4100000000000000000002F /* Game Content/Star System Generation/Internal/OrbitalPairClearance.swift */,
+				E41000000000000000000030 /* Game Content/Star System Generation/Internal/PlanetaryArchitectureResolution.swift */,
+				E41000000000000000000031 /* Game Content/Star System Generation/Internal/PlanetaryFormationResult.swift */,
+				E41000000000000000000032 /* Game Content/Star System Generation/Internal/ProtoplanetaryDiskProfile.swift */,
+				E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */,
+				E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */,
+				E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */,
+				E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */,
+				E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */,
+				E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */,
+				E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */,
+				E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */,
+				E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */,
+				E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */,
+			);
+			name = "Star System Explorer Shared Sources";
 			path = Engine2;
 			sourceTree = "<group>";
 		};
@@ -385,6 +610,51 @@
 			);
 			productName = Engine2UnitTests;
 			productReference = CB1B38422F5E1E1000A375C6 /* Engine2UnitTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		CBCE2390302C0CE800D36DD1 /* StarSystemExplorer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CBCE239B302C0CEA00D36DD1 /* Build configuration list for PBXNativeTarget "StarSystemExplorer" */;
+			buildPhases = (
+				CBCE238D302C0CE800D36DD1 /* Sources */,
+				CBCE238E302C0CE800D36DD1 /* Frameworks */,
+				CBCE238F302C0CE800D36DD1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CBCE2392302C0CE800D36DD1 /* StarSystemExplorer */,
+			);
+			name = StarSystemExplorer;
+			packageProductDependencies = (
+			);
+			productName = StarSystemExplorer;
+			productReference = CBCE2391302C0CE800D36DD1 /* StarSystemExplorer.app */;
+			productType = "com.apple.product-type.application";
+		};
+		CBCE279B302C113100D36DD1 /* StarSystemExplorerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CBCE27A0302C113100D36DD1 /* Build configuration list for PBXNativeTarget "StarSystemExplorerTests" */;
+			buildPhases = (
+				CBCE2798302C113100D36DD1 /* Sources */,
+				CBCE2799302C113100D36DD1 /* Frameworks */,
+				CBCE279A302C113100D36DD1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E44000000000000000000002 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CBCE279D302C113100D36DD1 /* StarSystemExplorerTests */,
+			);
+			name = StarSystemExplorerTests;
+			packageProductDependencies = (
+			);
+			productName = StarSystemExplorerTests;
+			productReference = CBCE279C302C113100D36DD1 /* StarSystemExplorerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		E20000000000000000000005 /* Engine2RenderTests */ = {
@@ -448,6 +718,13 @@
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = CB1B38342F5E1E1000A375C6;
 					};
+					CBCE2390302C0CE800D36DD1 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					CBCE279B302C113100D36DD1 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = CBCE2390302C0CE800D36DD1;
+					};
 					E20000000000000000000005 = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = CB1B38342F5E1E1000A375C6;
@@ -477,6 +754,8 @@
 				E30000000000000000000006 /* HeadlessSimulation */,
 				CB1B38412F5E1E1000A375C6 /* Engine2UnitTests */,
 				E20000000000000000000005 /* Engine2RenderTests */,
+				CBCE2390302C0CE800D36DD1 /* StarSystemExplorer */,
+				CBCE279B302C113100D36DD1 /* StarSystemExplorerTests */,
 			);
 		};
 /* End PBXProject section */
@@ -490,6 +769,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		CB1B38402F5E1E1000A375C6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBCE238F302C0CE800D36DD1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBCE279A302C113100D36DD1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -520,6 +813,80 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CBCE238D302C0CE800D36DD1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E42000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift in Sources */,
+				E42000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift in Sources */,
+				E42000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift in Sources */,
+				E42000000000000000000004 /* Game Content/Star System Generation/Domain/GeneratedPlanet.swift in Sources */,
+				E42000000000000000000005 /* Game Content/Star System Generation/Domain/GeneratedProtoplanetaryDisk.swift in Sources */,
+				E42000000000000000000006 /* Game Content/Star System Generation/Domain/GeneratedStar.swift in Sources */,
+				E42000000000000000000007 /* Game Content/Star System Generation/Domain/GeneratedStarSystem.swift in Sources */,
+				E42000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift in Sources */,
+				E42000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift in Sources */,
+				E4200000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift in Sources */,
+				E4200000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift in Sources */,
+				E4200000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift in Sources */,
+				E4200000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift in Sources */,
+				E4200000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift in Sources */,
+				E4200000000000000000000F /* Game Content/Star System Generation/Domain/PlanetaryPhysicalState.swift in Sources */,
+				E42000000000000000000010 /* Game Content/Star System Generation/Domain/PlanetaryThermalRegime.swift in Sources */,
+				E42000000000000000000011 /* Game Content/Star System Generation/Domain/PlanetaryVisibleBoundary.swift in Sources */,
+				E42000000000000000000012 /* Game Content/Star System Generation/Domain/PlanetaryWaterRegime.swift in Sources */,
+				E42000000000000000000013 /* Game Content/Star System Generation/Domain/StarSystemDynamicalLossLedger.swift in Sources */,
+				E42000000000000000000014 /* Game Content/Star System Generation/Domain/StarSystemFormationLedger.swift in Sources */,
+				E42000000000000000000015 /* Game Content/Star System Generation/Domain/StarSystemGenerationError.swift in Sources */,
+				E42000000000000000000016 /* Game Content/Star System Generation/Domain/StarSystemGenerationModelVersion.swift in Sources */,
+				E42000000000000000000017 /* Game Content/Star System Generation/Domain/StarSystemGenerationPolicy.swift in Sources */,
+				E42000000000000000000018 /* Game Content/Star System Generation/Domain/StarSystemMassBudget.swift in Sources */,
+				E42000000000000000000019 /* Game Content/Star System Generation/Domain/StarSystemSeed.swift in Sources */,
+				E4200000000000000000001A /* Game Content/Star System Generation/Domain/StellarActivityRegime.swift in Sources */,
+				E4200000000000000000001B /* Game Content/Star System Generation/Generation/MainSequenceStarGenerator.swift in Sources */,
+				E4200000000000000000001C /* Game Content/Star System Generation/Generation/MoonSystemGenerator.swift in Sources */,
+				E4200000000000000000001D /* Game Content/Star System Generation/Generation/PlanetaryArchitectureResolver.swift in Sources */,
+				E4200000000000000000001E /* Game Content/Star System Generation/Generation/PlanetaryAtmosphericBoundary.swift in Sources */,
+				E4200000000000000000001F /* Game Content/Star System Generation/Generation/PlanetaryClimateSolution.swift in Sources */,
+				E42000000000000000000020 /* Game Content/Star System Generation/Generation/PlanetaryEnvironmentResolver.swift in Sources */,
+				E42000000000000000000021 /* Game Content/Star System Generation/Generation/PlanetaryFormationSimulator.swift in Sources */,
+				E42000000000000000000022 /* Game Content/Star System Generation/Generation/PlanetaryRadiusResolver.swift in Sources */,
+				E42000000000000000000023 /* Game Content/Star System Generation/Generation/PlanetaryWaterCoverage.swift in Sources */,
+				E42000000000000000000024 /* Game Content/Star System Generation/Generation/PrimordialAtmosphereEvolver.swift in Sources */,
+				E42000000000000000000025 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskGenerator.swift in Sources */,
+				E42000000000000000000026 /* Game Content/Star System Generation/Generation/ProtoplanetaryDiskLayout.swift in Sources */,
+				E42000000000000000000027 /* Game Content/Star System Generation/Generation/SampledProtoplanetaryDisk.swift in Sources */,
+				E42000000000000000000028 /* Game Content/Star System Generation/Generation/SecondaryAtmosphereResolver.swift in Sources */,
+				E42000000000000000000029 /* Game Content/Star System Generation/Generation/StarSystemGenerator.swift in Sources */,
+				E4200000000000000000002A /* Game Content/Star System Generation/Internal/EvolvedPlanetaryBody.swift in Sources */,
+				E4200000000000000000002B /* Game Content/Star System Generation/Internal/FormationAnnulus.swift in Sources */,
+				E4200000000000000000002C /* Game Content/Star System Generation/Internal/FormationDisk.swift in Sources */,
+				E4200000000000000000002D /* Game Content/Star System Generation/Internal/FormationEmbryo.swift in Sources */,
+				E4200000000000000000002E /* Game Content/Star System Generation/Internal/FormationMoonSeed.swift in Sources */,
+				E4200000000000000000002F /* Game Content/Star System Generation/Internal/OrbitalPairClearance.swift in Sources */,
+				E42000000000000000000030 /* Game Content/Star System Generation/Internal/PlanetaryArchitectureResolution.swift in Sources */,
+				E42000000000000000000031 /* Game Content/Star System Generation/Internal/PlanetaryFormationResult.swift in Sources */,
+				E42000000000000000000032 /* Game Content/Star System Generation/Internal/ProtoplanetaryDiskProfile.swift in Sources */,
+				E42000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift in Sources */,
+				E42000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift in Sources */,
+				E42000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift in Sources */,
+				E42000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift in Sources */,
+				E42000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift in Sources */,
+				E42000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift in Sources */,
+				E42000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift in Sources */,
+				E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */,
+				E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */,
+				E4200000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CBCE2798302C113100D36DD1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E20000000000000000000007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -531,77 +898,77 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E32000000000000000000001 /* Duration.swift in Sources */,
-				E32000000000000000000002 /* SIMD.swift in Sources */,
-				E32000000000000000000003 /* simd_float4x4.swift in Sources */,
-				E32000000000000000000004 /* simd_quatf.swift in Sources */,
-				E32000000000000000000005 /* Ball.swift in Sources */,
-				E32000000000000000000006 /* HeadlessSimulationWorldBuilder.swift in Sources */,
-				E32000000000000000000007 /* MaterialID.swift in Sources */,
-				E32000000000000000000008 /* MeshID.swift in Sources */,
-				E32000000000000000000009 /* HeadlessSimulationConfiguration.swift in Sources */,
-				E3200000000000000000000A /* HeadlessSimulationEntityStore.swift in Sources */,
-				E3200000000000000000000B /* HeadlessSimulationEnvironmentKey.swift in Sources */,
-				E3200000000000000000000C /* HeadlessSimulationError.swift in Sources */,
-				E3200000000000000000000D /* HeadlessSimulationResult.swift in Sources */,
-				E3200000000000000000000E /* HeadlessSimulationRunner.swift in Sources */,
-				E3200000000000000000000F /* InputRevision.swift in Sources */,
-				E32000000000000000000010 /* InputSnapshot.swift in Sources */,
-				E32000000000000000000011 /* KeyboardKey.swift in Sources */,
-				E32000000000000000000012 /* MouseButton.swift in Sources */,
-				E32000000000000000000013 /* Camera.swift in Sources */,
-				E32000000000000000000014 /* PSimulationAdvanceTarget.swift in Sources */,
-				E32000000000000000000015 /* SimulationAdvanceOutcome.swift in Sources */,
-				E32000000000000000000016 /* SimulationAdvanceRejection.swift in Sources */,
-				E32000000000000000000017 /* SimulationAdvanceRequest.swift in Sources */,
-				E32000000000000000000018 /* SimulationAdvanceResult.swift in Sources */,
-				E32000000000000000000019 /* SimulationCompletedStepCount.swift in Sources */,
-				E3200000000000000000001A /* SimulationInputAssignment.swift in Sources */,
-				E3200000000000000000001B /* SimulationStepCount.swift in Sources */,
-				E3200000000000000000001C /* ComponentStore.swift in Sources */,
-				E3200000000000000000001D /* Entity.swift in Sources */,
-				E3200000000000000000001E /* EntityID.swift in Sources */,
-				E3200000000000000000001F /* World.swift in Sources */,
-				E32000000000000000000020 /* Engine.swift in Sources */,
-				E32000000000000000000021 /* PComponent.swift in Sources */,
-				E32000000000000000000022 /* PResource.swift in Sources */,
-				E32000000000000000000023 /* PSystem.swift in Sources */,
-				E32000000000000000000024 /* PWorldBuilder.swift in Sources */,
-				E32000000000000000000025 /* InputConsumptionBaseline.swift in Sources */,
-				E32000000000000000000026 /* InputHistory.swift in Sources */,
-				E32000000000000000000027 /* InputHistoryEntry.swift in Sources */,
-				E32000000000000000000028 /* InputState.swift in Sources */,
-				E32000000000000000000029 /* SCameraInput.swift in Sources */,
-				E3200000000000000000002A /* SInputCleanup.swift in Sources */,
-				E3200000000000000000002B /* SInputHistory.swift in Sources */,
-				E3200000000000000000002C /* SInputMapping.swift in Sources */,
-				E3200000000000000000002D /* CAngularMotionAccumulator.swift in Sources */,
-				E3200000000000000000002E /* CAngularVelocity.swift in Sources */,
-				E3200000000000000000002F /* CMotion.swift in Sources */,
-				E32000000000000000000030 /* CPosition.swift in Sources */,
-				E32000000000000000000031 /* CRotation.swift in Sources */,
-				E32000000000000000000032 /* CScale.swift in Sources */,
-				E32000000000000000000033 /* PMovable.swift in Sources */,
-				E32000000000000000000034 /* POrientable.swift in Sources */,
-				E32000000000000000000035 /* PPositionable.swift in Sources */,
-				E32000000000000000000036 /* PRotatable.swift in Sources */,
-				E32000000000000000000037 /* PScalable.swift in Sources */,
-				E32000000000000000000038 /* SAccelerationIntent.swift in Sources */,
-				E32000000000000000000039 /* SMovement.swift in Sources */,
-				E3200000000000000000003A /* SRotation.swift in Sources */,
-				E3200000000000000000003B /* CRenderable.swift in Sources */,
-				E3200000000000000000003C /* PRenderable.swift in Sources */,
-				E3200000000000000000003D /* RenderableInitialState.swift in Sources */,
-				E3200000000000000000003E /* CSelectable.swift in Sources */,
-				E3200000000000000000003F /* PSelectable.swift in Sources */,
-				E32000000000000000000040 /* SimulationConfiguration.swift in Sources */,
-				E32000000000000000000041 /* SimulationRuntime.swift in Sources */,
-				E32000000000000000000042 /* EntityPresentationSnapshot.swift in Sources */,
-				E32000000000000000000043 /* PSimulationPresentationSource.swift in Sources */,
-				E32000000000000000000044 /* SimulationCursor.swift in Sources */,
-				E32000000000000000000045 /* SimulationPresentationSnapshot.swift in Sources */,
-				E32000000000000000000046 /* SimulationSessionID.swift in Sources */,
-				E32000000000000000000047 /* SimulationTick.swift in Sources */,
+				E32000000000000000000001 /* Extension/Duration.swift in Sources */,
+				E32000000000000000000002 /* Extension/SIMD.swift in Sources */,
+				E32000000000000000000003 /* Extension/simd_float4x4.swift in Sources */,
+				E32000000000000000000004 /* Extension/simd_quatf.swift in Sources */,
+				E32000000000000000000005 /* Game Content/Entity/Ball.swift in Sources */,
+				E32000000000000000000006 /* Game Content/HeadlessSimulationWorldBuilder.swift in Sources */,
+				E32000000000000000000007 /* Game Content/Material/MaterialID.swift in Sources */,
+				E32000000000000000000008 /* Game Content/Model/MeshID.swift in Sources */,
+				E32000000000000000000009 /* Headless Simulation/HeadlessSimulationConfiguration.swift in Sources */,
+				E3200000000000000000000A /* Headless Simulation/HeadlessSimulationEntityStore.swift in Sources */,
+				E3200000000000000000000B /* Headless Simulation/HeadlessSimulationEnvironmentKey.swift in Sources */,
+				E3200000000000000000000C /* Headless Simulation/HeadlessSimulationError.swift in Sources */,
+				E3200000000000000000000D /* Headless Simulation/HeadlessSimulationResult.swift in Sources */,
+				E3200000000000000000000E /* Headless Simulation/HeadlessSimulationRunner.swift in Sources */,
+				E3200000000000000000000F /* Input Runtime/InputRevision.swift in Sources */,
+				E32000000000000000000010 /* Input Runtime/InputSnapshot.swift in Sources */,
+				E32000000000000000000011 /* Input Runtime/KeyboardKey.swift in Sources */,
+				E32000000000000000000012 /* Input Runtime/MouseButton.swift in Sources */,
+				E32000000000000000000013 /* Render Runtime/Frame/Camera.swift in Sources */,
+				E32000000000000000000014 /* Simulation Runtime/Advancement/PSimulationAdvanceTarget.swift in Sources */,
+				E32000000000000000000015 /* Simulation Runtime/Advancement/SimulationAdvanceOutcome.swift in Sources */,
+				E32000000000000000000016 /* Simulation Runtime/Advancement/SimulationAdvanceRejection.swift in Sources */,
+				E32000000000000000000017 /* Simulation Runtime/Advancement/SimulationAdvanceRequest.swift in Sources */,
+				E32000000000000000000018 /* Simulation Runtime/Advancement/SimulationAdvanceResult.swift in Sources */,
+				E32000000000000000000019 /* Simulation Runtime/Advancement/SimulationCompletedStepCount.swift in Sources */,
+				E3200000000000000000001A /* Simulation Runtime/Advancement/SimulationInputAssignment.swift in Sources */,
+				E3200000000000000000001B /* Simulation Runtime/Advancement/SimulationStepCount.swift in Sources */,
+				E3200000000000000000001C /* Simulation Runtime/Engine/ECS/ComponentStore.swift in Sources */,
+				E3200000000000000000001D /* Simulation Runtime/Engine/ECS/Entity.swift in Sources */,
+				E3200000000000000000001E /* Simulation Runtime/Engine/ECS/EntityID.swift in Sources */,
+				E3200000000000000000001F /* Simulation Runtime/Engine/ECS/World.swift in Sources */,
+				E32000000000000000000020 /* Simulation Runtime/Engine/Engine.swift in Sources */,
+				E32000000000000000000021 /* Simulation Runtime/Engine/Protocol/PComponent.swift in Sources */,
+				E32000000000000000000022 /* Simulation Runtime/Engine/Protocol/PResource.swift in Sources */,
+				E32000000000000000000023 /* Simulation Runtime/Engine/Protocol/PSystem.swift in Sources */,
+				E32000000000000000000024 /* Simulation Runtime/Engine/Protocol/PWorldBuilder.swift in Sources */,
+				E32000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift in Sources */,
+				E32000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift in Sources */,
+				E32000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift in Sources */,
+				E32000000000000000000028 /* Simulation Runtime/Engine/System/Input/InputState.swift in Sources */,
+				E32000000000000000000029 /* Simulation Runtime/Engine/System/Input/System/SCameraInput.swift in Sources */,
+				E3200000000000000000002A /* Simulation Runtime/Engine/System/Input/System/SInputCleanup.swift in Sources */,
+				E3200000000000000000002B /* Simulation Runtime/Engine/System/Input/System/SInputHistory.swift in Sources */,
+				E3200000000000000000002C /* Simulation Runtime/Engine/System/Input/System/SInputMapping.swift in Sources */,
+				E3200000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift in Sources */,
+				E3200000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift in Sources */,
+				E3200000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift in Sources */,
+				E32000000000000000000030 /* Simulation Runtime/Engine/System/Position/Component/CPosition.swift in Sources */,
+				E32000000000000000000031 /* Simulation Runtime/Engine/System/Position/Component/CRotation.swift in Sources */,
+				E32000000000000000000032 /* Simulation Runtime/Engine/System/Position/Component/CScale.swift in Sources */,
+				E32000000000000000000033 /* Simulation Runtime/Engine/System/Position/Protocol/PMovable.swift in Sources */,
+				E32000000000000000000034 /* Simulation Runtime/Engine/System/Position/Protocol/POrientable.swift in Sources */,
+				E32000000000000000000035 /* Simulation Runtime/Engine/System/Position/Protocol/PPositionable.swift in Sources */,
+				E32000000000000000000036 /* Simulation Runtime/Engine/System/Position/Protocol/PRotatable.swift in Sources */,
+				E32000000000000000000037 /* Simulation Runtime/Engine/System/Position/Protocol/PScalable.swift in Sources */,
+				E32000000000000000000038 /* Simulation Runtime/Engine/System/Position/System/SAccelerationIntent.swift in Sources */,
+				E32000000000000000000039 /* Simulation Runtime/Engine/System/Position/System/SMovement.swift in Sources */,
+				E3200000000000000000003A /* Simulation Runtime/Engine/System/Position/System/SRotation.swift in Sources */,
+				E3200000000000000000003B /* Simulation Runtime/Engine/System/Rendering/Component/CRenderable.swift in Sources */,
+				E3200000000000000000003C /* Simulation Runtime/Engine/System/Rendering/Protocol/PRenderable.swift in Sources */,
+				E3200000000000000000003D /* Simulation Runtime/Engine/System/Rendering/RenderableInitialState.swift in Sources */,
+				E3200000000000000000003E /* Simulation Runtime/Engine/System/Selection/CSelectable.swift in Sources */,
+				E3200000000000000000003F /* Simulation Runtime/Engine/System/Selection/PSelectable.swift in Sources */,
+				E32000000000000000000040 /* Simulation Runtime/SimulationConfiguration.swift in Sources */,
+				E32000000000000000000041 /* Simulation Runtime/SimulationRuntime.swift in Sources */,
+				E32000000000000000000042 /* Simulation Runtime/Snapshot/EntityPresentationSnapshot.swift in Sources */,
+				E32000000000000000000043 /* Simulation Runtime/Snapshot/PSimulationPresentationSource.swift in Sources */,
+				E32000000000000000000044 /* Simulation Runtime/Snapshot/SimulationCursor.swift in Sources */,
+				E32000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift in Sources */,
+				E32000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift in Sources */,
+				E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -617,6 +984,11 @@
 			isa = PBXTargetDependency;
 			target = CB1B38342F5E1E1000A375C6 /* Engine2 */;
 			targetProxy = E20000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		E44000000000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CBCE2390302C0CE800D36DD1 /* StarSystemExplorer */;
+			targetProxy = E44000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -851,6 +1223,130 @@
 			};
 			name = Release;
 		};
+		CBCE2399302C0CEA00D36DD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Star System Explorer";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StarSystemExplorer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		CBCE239A302C0CEA00D36DD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Star System Explorer";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StarSystemExplorer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		CBCE27A1302C113100D36DD1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StarSystemExplorerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StarSystemExplorer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StarSystemExplorer";
+			};
+			name = Debug;
+		};
+		CBCE27A2302C113100D36DD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StarSystemExplorerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/StarSystemExplorer.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/StarSystemExplorer";
+			};
+			name = Release;
+		};
 		E20000000000000000000009 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -947,6 +1443,24 @@
 			buildConfigurations = (
 				CB1B385A2F5E1E1000A375C6 /* Debug */,
 				CB1B385B2F5E1E1000A375C6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CBCE239B302C0CEA00D36DD1 /* Build configuration list for PBXNativeTarget "StarSystemExplorer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CBCE2399302C0CEA00D36DD1 /* Debug */,
+				CBCE239A302C0CEA00D36DD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CBCE27A0302C113100D36DD1 /* Build configuration list for PBXNativeTarget "StarSystemExplorerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CBCE27A1302C113100D36DD1 /* Debug */,
+				CBCE27A2302C113100D36DD1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
