@@ -22,4 +22,14 @@ nonisolated struct StarSystemExplorerGeneratorIntegrationTests {
         #expect(system.formationLedger.residualBodyCount > 0)
         try system.validate()
     }
+
+    @Test func onePlanetAndMoonRemainAStableVisualFixture() throws {
+        let system = try StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+            seed: StarSystemSeed(rawValue: 67)
+        )
+
+        #expect(system.planets.count == 1)
+        #expect(system.planets.first?.moons.count == 1)
+        try system.validate()
+    }
 }

@@ -140,3 +140,18 @@ struct GeneratedPlanetCard: View {
         .preferredColorScheme(.dark)
     }
 }
+
+#Preview("Seed 67 · One Planet and Moon") {
+    let system = try? StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+        seed: StarSystemSeed(rawValue: 67)
+    )
+    if let planet = system?.planets.first {
+        ScrollView {
+            GeneratedPlanetCard(planet: planet, ordinal: 1)
+                .padding()
+        }
+        .frame(width: 1_280, height: 1_400)
+        .background(Color(red: 0.025, green: 0.035, blue: 0.075))
+        .preferredColorScheme(.dark)
+    }
+}

@@ -10,10 +10,10 @@ struct GeneratedStarSystemDashboard: View {
                 StarSystemOverview(system: system)
                 StarSystemOrbitDiagram(system: system)
 
-                EagerAdaptiveGrid(minimumColumnWidth: 470, horizontalSpacing: 18, verticalSpacing: 18) {
-                    GeneratedStarCard(star: system.star)
-                    ProtoplanetaryDiskCard(disk: system.protoplanetaryDisk)
-                }
+                GeneratedStarCard(star: system.star)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                ProtoplanetaryDiskCard(disk: system.protoplanetaryDisk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 StarSystemFormationCard(ledger: system.formationLedger)
 
@@ -39,9 +39,10 @@ struct GeneratedStarSystemDashboard: View {
                     .frame(maxWidth: .infinity)
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 } else {
-                    EagerAdaptiveGrid(minimumColumnWidth: 520, horizontalSpacing: 18, verticalSpacing: 18) {
+                    VStack(spacing: 18) {
                         ForEach(Array(system.planets.enumerated()), id: \.element.id) { index, planet in
                             GeneratedPlanetCard(planet: planet, ordinal: index + 1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
@@ -63,5 +64,17 @@ struct GeneratedStarSystemDashboard: View {
             .padding(22)
         }
         .scrollIndicators(.visible)
+    }
+}
+
+#Preview("Seed 67 · One Planet and Moon") {
+    let system = try? StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+        seed: StarSystemSeed(rawValue: 67)
+    )
+    if let system {
+        GeneratedStarSystemDashboard(system: system)
+            .frame(width: 1_280, height: 1_000)
+            .background(Color(red: 0.025, green: 0.035, blue: 0.075))
+            .preferredColorScheme(.dark)
     }
 }
