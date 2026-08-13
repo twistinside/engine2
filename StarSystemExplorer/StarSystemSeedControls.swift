@@ -38,18 +38,28 @@ struct StarSystemSeedControls: View {
                         .help("Choose a random seed and generate its star system")
                         .disabled(model.isGenerating)
 
-                        Button("Generate", systemImage: "sparkles") {
+                        Button {
                             model.generate()
+                        } label: {
+                            HStack(spacing: 6) {
+                                ZStack {
+                                    Image(systemName: "sparkles")
+                                        .opacity(model.isGenerating ? 0 : 1)
+
+                                    if model.isGenerating {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    }
+                                }
+                                .frame(width: 16, height: 16)
+
+                                Text("Generate")
+                            }
                         }
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
                         .disabled(model.isGenerating)
-
-                        if model.isGenerating {
-                            ProgressView()
-                                .controlSize(.small)
-                                .accessibilityLabel("Generating star system")
-                        }
+                        .accessibilityLabel(model.isGenerating ? "Generating star system" : "Generate star system")
                     }
 
                     Text("UInt64 seed: decimal or 0x hex; underscores allowed.")
