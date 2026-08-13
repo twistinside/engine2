@@ -18,10 +18,6 @@ struct StarSystemOrbitDiagram: View {
         orbitRange.visibleRange
     }
 
-    private var tickValues: [Double] {
-        scale.tickValues(in: orbitalRange)
-    }
-
     private var snowLineAstronomicalUnits: Double {
         system.protoplanetaryDisk.waterSnowLine.astronomicalUnits
     }
@@ -94,26 +90,6 @@ struct StarSystemOrbitDiagram: View {
                         axis.move(to: CGPoint(x: trackStart, y: midY))
                         axis.addLine(to: CGPoint(x: trackEnd, y: midY))
                         context.stroke(axis, with: .color(.white.opacity(0.25)), lineWidth: 1)
-
-                        for (index, tick) in tickValues.enumerated() where orbitalRange.contains(tick) {
-                            let x = orbitPosition(for: tick, width: size.width)
-                            var mark = Path()
-                            mark.move(to: CGPoint(x: x, y: midY - 18))
-                            mark.addLine(to: CGPoint(x: x, y: midY + 18))
-                            context.stroke(mark, with: .color(.white.opacity(0.18)), lineWidth: 1)
-                            if index > 0 {
-                                let isLastTick = index == tickValues.indices.last
-                                let labelAnchor: UnitPoint = isLastTick ? .bottomTrailing : .top
-                                let labelY = isLastTick ? midY - 20 : midY + 31
-                                context.draw(
-                                    Text("\(presentation.number(tick)) AU")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary),
-                                    at: CGPoint(x: x, y: labelY),
-                                    anchor: labelAnchor
-                                )
-                            }
-                        }
 
                         if showsSnowLine {
                             let snowLineX = orbitPosition(for: snowLineAstronomicalUnits, width: size.width)
