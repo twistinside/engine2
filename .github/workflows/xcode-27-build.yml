@@ -46,6 +46,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Build Star System Explorer for testing
+        run: |
+          xcodebuild \
+            -project Engine2.xcodeproj \
+            -scheme StarSystemExplorer \
+            -configuration Debug \
+            -destination 'generic/platform=macOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing
+
       - name: Build Headless Simulation
         run: |
           xcodebuild \
