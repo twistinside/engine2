@@ -237,6 +237,51 @@ The important ownership rules are:
 
 The runtime that performs work owns the construction interfaces it consumes. Simulation therefore owns ``PWorldBuilder`` because it defines what is required to construct a valid ``World``. Runtime publications follow a complementary ownership rule: a publisher owns the snapshot and event vocabulary describing its authority, while a consumer owns the projections and private operational models it derives. Simulation owns `SimulationPresentationSnapshot`; Render owns its transformation into a private render snapshot. Game Content supplies conforming values and descriptions without owning runtime protocols, publication schemas, or invariant scheduling. See <doc:Runtime-Communication>.
 
+## Procedural Systems Are Construction Content
+
+The implemented ``StarSystemGenerator`` is a finite, deterministic Game Content
+construction utility. It uses one ``StarSystemSeed`` and one complete versioned
+``StarSystemGenerationPolicy`` to produce a validated, immutable
+``GeneratedStarSystem``. It owns no cadence, lifecycle, task, Runtime resource,
+or ECS state, so procedural generation does not create a new Runtime boundary.
+
+Generation deliberately remains outside ``PGameContent`` for this first
+physical-model step. The common assembly seam still exposes exactly the three
+values its current runtime topologies consume. Adding a generated system before
+Simulation has a coherent celestial-state contract would turn unresolved future
+integration into a placeholder common dependency.
+
+Generation also remains outside ``PWorldBuilder/buildWorld()``. That operation
+is a nonthrowing one-shot Simulation construction interface. Running the
+generator there would hide a generation failure and could repeat expensive
+formation when an assembly rebuilds its world. The intended future path is:
+
+```text
+seed + versioned policy
+        |
+        v
+StarSystemGenerator.generate(seed:)
+        |
+        v
+validated and persisted GeneratedStarSystem
+        |
+        v
+future GeneratedStarSystemWorldBuilder
+        |
+        v
+authoritative celestial ECS state
+```
+
+The resolved system retains star, disk, planet, moon, orbit, composition,
+environment, physical-state, determinism, and mass-ledger facts. A later
+gameplay layer may project scenario categories from those facts. A later Render
+catalog may project visual recipes from them. Neither projection should mutate
+formation history or make its consumer authoritative for physical generation.
+
+See <doc:Star-System-Generation> and
+<doc:Star-System-Generation-Calibration> for the implemented phases, equations,
+determinism contract, persistence requirements, calibration, and limitations.
+
 ## Game Content Is a Natural Consumer Module
 
 The Engine2 package should provide reusable runtime contracts and implementations. A consumer can place its Game Content in an application target, a local SwiftPM target, or a separately distributed package.

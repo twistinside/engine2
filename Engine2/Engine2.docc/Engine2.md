@@ -6,6 +6,7 @@ The current codebase is intentionally small, but the core direction is already e
 - ``InputRuntime`` accepts platform input through `PInputEventSink` and publishes a revisioned latest `InputSnapshot` through `PInputSnapshotSource`.
 - The Simulation Runtime is authoritative for gameplay state and contains the engine, world, and ECS systems.
 - Game Content supplies consumer-defined entities, world construction, presentation descriptions, and assets without becoming a runtime.
+- ``StarSystemGenerator`` performs finite, deterministic Game Content construction from a stable correlated disk through significance selection and atmosphere evolution. It returns a validated, serializable physical system with explicit retained, residual, and dynamical conservation destinations without starting a Runtime or mutating ECS state.
 - ``World`` owns authoritative simulation state.
 - ``Engine`` owns exact fixed-step execution and one complete ordered system schedule; cadence and pause policy exist only in assembly-owned drivers.
 - ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
@@ -35,6 +36,7 @@ At the moment, the codebase already includes:
 - an asynchronous Image I/O artifact layer supporting validated JPEG quality and lossless PNG, with detached encoded data and exact request/cursor/viewpoint/render/encoding provenance
 - a concrete serial offline capture assembly constructed from injected Game Content and direct limit and identity values, whose typed outcomes preserve either committed Simulation progress or the exact retained current presentation and, after rendering, the raw result needed for retryable artifact derivation
 - a transport-neutral agent-session assembly constructed from injected Game Content and direct limit and identity values, whose closed operational surface exposes starting identity, ``PAgentSessionTarget``, and explicit-host drain lifecycle while its body presents static initial identity without closing the live session on disappearance; focused coverage validates both capture sources through one admission/idempotency/cache/cursor/cancellation/lifecycle policy, and real integration advances to tick one, captures and replays an alternate view at tick one, then advances to tick two
+- a versioned core-accretion-lite star-system generator with named deterministic random domains, a stable mass-radius-correlated annular disk, fully funded embryos, supply- and gap-limited accretion and migration, bounded collision/scattering/ejection/stellar-loss outcomes, significant-planet selection with aggregate residual survivors, finite-budget atmosphere evolution, significant moon formation, orthogonal physical classifications, persistence provenance, and validated solid and hydrogen-helium ledgers
 
 The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pause gate, and presentation-side camera bypass have been removed. ``SInputMapping`` and ``SCameraInput`` now form one focused Simulation-owned control path: imported pointer and scroll transients become semantic orbit/zoom commands, `World.camera` changes only within a complete tick, and the real-time screen observes that camera only after completed publication. Exact raw offscreen rendering, explicit request-carried viewpoints, CPU-side JPEG and PNG derivation, serial advance-or-current capture, and the live-process idempotent agent wrapper are implemented. The agent layer has no automatic cadence and preserves the offline coordinator as the only advance authority. Its current-cursor image artifact is visual output, not structured observation. An actual MCP Runtime or transport, authentication, wire DTOs, restart-safe idempotency journal, general physical or semantic gameplay controls, structured observations, persistence/sinks, dedicated render worker, pooled targets, atomic multi-view jobs, high-quality accumulation/HDR policy, additional artifact formats, typed routing, multi-window bindings, and observer anchors remain proposed; advancing agent requests currently assign `.none`.
 ## Topics
@@ -49,3 +51,6 @@ The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pau
 - <doc:PBR-Implementation-Plan>
 ### Scheduling
 - <doc:System-Scheduling>
+### Generation
+- <doc:Star-System-Generation>
+- <doc:Star-System-Generation-Calibration>

@@ -9,6 +9,7 @@ The project is exploring a hybrid architecture:
 - Typed `Entity` facades and capability protocols provide a convenient game-facing API.
 - Input, simulation, and rendering live in independently owned runtimes connected through explicit snapshots and events.
 - Consumer-defined Game Content supplies entities, world construction, presentation descriptions, and assets without owning runtime infrastructure.
+- Versioned procedural star-system generation resolves physical Game Content before ECS, gameplay, or rendering consumes it.
 - The App injects selected Game Content into one `PRuntimeAssembly` and presents the assembly as its SwiftUI root. Each assembly body owns any topology-specific presentation lifecycle.
 
 Engine2 is early and intentionally small, but its architectural direction is documented as it develops.
@@ -21,6 +22,8 @@ Start with the [Engine2 DocC catalog](Engine2/Engine2.docc/Engine2.md), or jump 
 - [Runtime Assemblies and Advancement](Engine2/Engine2.docc/Articles/Runtime-Assemblies-and-Advancement.md) — App hosting, topology construction, and exact advancement
 - [Runtime Communication](Engine2/Engine2.docc/Articles/Runtime-Communication.md) — snapshots, events, and request/result workflows
 - [Game Content Architecture](Engine2/Engine2.docc/Articles/Game-Content-Architecture.md) — the consumer-content boundary
+- [Star System Generation](Engine2/Engine2.docc/Articles/Star-System-Generation.md) — deterministic disk, planet, residual-body, encounter, atmosphere, and moon generation with explicit conservation destinations
+- [Star System Generation Calibration](Engine2/Engine2.docc/Articles/Star-System-Generation-Calibration.md) — exact V1 distributions, equations, bounded fallbacks, audit policy, and limitations
 - [Engine Architecture](Engine2/Engine2.docc/Articles/Engine-Architecture.md) — the ECS core and fixed-step simulation
 - [System Scheduling](Engine2/Engine2.docc/Articles/System-Scheduling.md) — current scheduling and proposed future direction
 - [Rendering Architecture](Engine2/Engine2.docc/Articles/Rendering-Architecture.md) — presentation snapshots and Metal rendering
