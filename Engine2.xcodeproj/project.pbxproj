@@ -138,6 +138,28 @@
 		E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */; };
 		E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */; };
 		E4200000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */; };
+		E4200000000000000000003D /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003D /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift */; };
+		E4200000000000000000003E /* Celestial Dynamics/Domain/CelestialEpoch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003E /* Celestial Dynamics/Domain/CelestialEpoch.swift */; };
+		E4200000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift */; };
+		E42000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift */; };
+		E42000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */; };
+		E42000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift */; };
+		E42000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift */; };
+		E42000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift */; };
+		E42000000000000000000045 /* Celestial Dynamics/Domain/PlanarVelocity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000045 /* Celestial Dynamics/Domain/PlanarVelocity.swift */; };
+		E42000000000000000000046 /* Celestial Dynamics/Gravity/PlanarGravityField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000046 /* Celestial Dynamics/Gravity/PlanarGravityField.swift */; };
+		E42000000000000000000047 /* Celestial Dynamics/Gravity/PlanarGravityFieldError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000047 /* Celestial Dynamics/Gravity/PlanarGravityFieldError.swift */; };
+		E42000000000000000000048 /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000048 /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift */; };
+		E42000000000000000000049 /* Celestial Dynamics/Transfer/HohmannTransferError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000049 /* Celestial Dynamics/Transfer/HohmannTransferError.swift */; };
+		E4200000000000000000004A /* Celestial Dynamics/Transfer/HohmannTransferPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000004A /* Celestial Dynamics/Transfer/HohmannTransferPlan.swift */; };
+		E4200000000000000000004B /* Celestial Dynamics/Transfer/HohmannTransferPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000004B /* Celestial Dynamics/Transfer/HohmannTransferPlanner.swift */; };
+		E4200000000000000000004C /* Game Content/Gravity System Generation/GeneratedGravitySystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000004C /* Game Content/Gravity System Generation/GeneratedGravitySystem.swift */; };
+		E4200000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift */; };
+		E4200000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift */; };
+		E4200000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift */; };
+		E42000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift */; };
+		E42000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift */; };
+		E42000000000000000000052 /* Extension/SIMD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000052 /* Extension/SIMD.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -305,6 +327,28 @@
 		E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift"; sourceTree = "<group>"; };
 		E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift"; sourceTree = "<group>"; };
 		E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Random Number Generation/SplitMix64RandomNumberGenerator.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003D /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003E /* Celestial Dynamics/Domain/CelestialEpoch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/CelestialEpoch.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/GravitationalParameter.swift"; sourceTree = "<group>"; };
+		E41000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarAcceleration.swift"; sourceTree = "<group>"; };
+		E41000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarKeplerianRail.swift"; sourceTree = "<group>"; };
+		E41000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarPosition.swift"; sourceTree = "<group>"; };
+		E41000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarStateVector.swift"; sourceTree = "<group>"; };
+		E41000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarTrajectorySample.swift"; sourceTree = "<group>"; };
+		E41000000000000000000045 /* Celestial Dynamics/Domain/PlanarVelocity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarVelocity.swift"; sourceTree = "<group>"; };
+		E41000000000000000000046 /* Celestial Dynamics/Gravity/PlanarGravityField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Gravity/PlanarGravityField.swift"; sourceTree = "<group>"; };
+		E41000000000000000000047 /* Celestial Dynamics/Gravity/PlanarGravityFieldError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Gravity/PlanarGravityFieldError.swift"; sourceTree = "<group>"; };
+		E41000000000000000000048 /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift"; sourceTree = "<group>"; };
+		E41000000000000000000049 /* Celestial Dynamics/Transfer/HohmannTransferError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Transfer/HohmannTransferError.swift"; sourceTree = "<group>"; };
+		E4100000000000000000004A /* Celestial Dynamics/Transfer/HohmannTransferPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Transfer/HohmannTransferPlan.swift"; sourceTree = "<group>"; };
+		E4100000000000000000004B /* Celestial Dynamics/Transfer/HohmannTransferPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Transfer/HohmannTransferPlanner.swift"; sourceTree = "<group>"; };
+		E4100000000000000000004C /* Game Content/Gravity System Generation/GeneratedGravitySystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GeneratedGravitySystem.swift"; sourceTree = "<group>"; };
+		E4100000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravityBodyState.swift"; sourceTree = "<group>"; };
+		E4100000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravityRailBody.swift"; sourceTree = "<group>"; };
+		E4100000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemEphemeris.swift"; sourceTree = "<group>"; };
+		E41000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemGenerationError.swift"; sourceTree = "<group>"; };
+		E41000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemGenerator.swift"; sourceTree = "<group>"; };
+		E41000000000000000000052 /* Extension/SIMD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension/SIMD.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -559,6 +603,28 @@
 				E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */,
 				E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */,
 				E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */,
+				E4100000000000000000003D /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift */,
+				E4100000000000000000003E /* Celestial Dynamics/Domain/CelestialEpoch.swift */,
+				E4100000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift */,
+				E41000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift */,
+				E41000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */,
+				E41000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift */,
+				E41000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift */,
+				E41000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift */,
+				E41000000000000000000045 /* Celestial Dynamics/Domain/PlanarVelocity.swift */,
+				E41000000000000000000046 /* Celestial Dynamics/Gravity/PlanarGravityField.swift */,
+				E41000000000000000000047 /* Celestial Dynamics/Gravity/PlanarGravityFieldError.swift */,
+				E41000000000000000000048 /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift */,
+				E41000000000000000000049 /* Celestial Dynamics/Transfer/HohmannTransferError.swift */,
+				E4100000000000000000004A /* Celestial Dynamics/Transfer/HohmannTransferPlan.swift */,
+				E4100000000000000000004B /* Celestial Dynamics/Transfer/HohmannTransferPlanner.swift */,
+				E4100000000000000000004C /* Game Content/Gravity System Generation/GeneratedGravitySystem.swift */,
+				E4100000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift */,
+				E4100000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift */,
+				E4100000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift */,
+				E41000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift */,
+				E41000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift */,
+				E41000000000000000000052 /* Extension/SIMD.swift */,
 			);
 			name = "Star System Explorer Shared Sources";
 			path = Engine2;
@@ -877,6 +943,28 @@
 				E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */,
 				E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */,
 				E4200000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift in Sources */,
+				E4200000000000000000003D /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift in Sources */,
+				E4200000000000000000003E /* Celestial Dynamics/Domain/CelestialEpoch.swift in Sources */,
+				E4200000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift in Sources */,
+				E42000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift in Sources */,
+				E42000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift in Sources */,
+				E42000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift in Sources */,
+				E42000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift in Sources */,
+				E42000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift in Sources */,
+				E42000000000000000000045 /* Celestial Dynamics/Domain/PlanarVelocity.swift in Sources */,
+				E42000000000000000000046 /* Celestial Dynamics/Gravity/PlanarGravityField.swift in Sources */,
+				E42000000000000000000047 /* Celestial Dynamics/Gravity/PlanarGravityFieldError.swift in Sources */,
+				E42000000000000000000048 /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift in Sources */,
+				E42000000000000000000049 /* Celestial Dynamics/Transfer/HohmannTransferError.swift in Sources */,
+				E4200000000000000000004A /* Celestial Dynamics/Transfer/HohmannTransferPlan.swift in Sources */,
+				E4200000000000000000004B /* Celestial Dynamics/Transfer/HohmannTransferPlanner.swift in Sources */,
+				E4200000000000000000004C /* Game Content/Gravity System Generation/GeneratedGravitySystem.swift in Sources */,
+				E4200000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift in Sources */,
+				E4200000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift in Sources */,
+				E4200000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift in Sources */,
+				E42000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift in Sources */,
+				E42000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift in Sources */,
+				E42000000000000000000052 /* Extension/SIMD.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

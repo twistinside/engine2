@@ -1,8 +1,23 @@
 import SwiftUI
 
-/// Presents seed controls and the complete visual dashboard for the latest successful generation.
+/// Presents seed controls and generation or dynamics views for the latest successful system.
 struct StarSystemExplorerView: View {
     @State private var model: StarSystemExplorerModel
+    @State private var workspace = StarSystemExplorerWorkspace.generation
+
+    private var workspacePicker: some View {
+        Picker("Explorer workspace", selection: $workspace) {
+            ForEach(StarSystemExplorerWorkspace.allCases) { option in
+                Label(option.title, systemImage: option.systemImage)
+                    .tag(option)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 360)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+        .accessibilityLabel("Explorer workspace")
+    }
 
     var body: some View {
         ZStack {
@@ -19,10 +34,17 @@ struct StarSystemExplorerView: View {
 
             VStack(spacing: 0) {
                 StarSystemSeedControls(model: model)
+                workspacePicker
 
                 Group {
                     if let system = model.system {
-                        GeneratedStarSystemDashboard(system: system)
+                        switch workspace {
+                        case .generation:
+                            GeneratedStarSystemDashboard(system: system)
+                        case .dynamics:
+                            GravitySystemDashboard(system: system)
+                                .id("\(system.modelVersion.rawValue):\(system.seed.rawValue)")
+                        }
                     } else {
                         ContentUnavailableView {
                             Label("No System Yet", systemImage: "sparkles")
