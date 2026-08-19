@@ -27,7 +27,7 @@ struct GravitySystemDashboard: View {
 
                     ExplorerCard(
                         title: "Dynamics Controls",
-                        subtitle: "Scrub immutable rails and choose one reference transfer",
+                        subtitle: "Play or scrub immutable rails and choose one reference transfer",
                         systemImage: "slider.horizontal.3",
                         tint: .blue
                     ) {

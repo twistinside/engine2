@@ -1,15 +1,31 @@
 import SwiftUI
 
-/// Edits the displayed epoch and circular-reference transfer pair without mutating generated gravity facts.
+/// Plays or edits the displayed epoch and circular-reference transfer pair without mutating generated gravity facts.
 struct GravitySystemControls: View {
     @Bindable var model: GravitySystemExplorerModel
+
+    @State private var playback = GravitySystemPlayback()
 
     private let presentation = GravitySystemPresentation()
 
     private var elapsedTimeBinding: Binding<Double> {
         Binding(
             get: { model.elapsedSeconds },
-            set: { model.setElapsedSeconds($0) }
+            set: { setDisplayedEpoch($0, at: Date()) }
+        )
+    }
+
+    private var playbackRateBinding: Binding<GravitySystemPlaybackRate> {
+        Binding(
+            get: { playback.rate },
+            set: { rate in
+                playback.selectRate(
+                    rate,
+                    from: model.elapsedSeconds,
+                    at: Date(),
+                    upperBound: model.maximumElapsedSeconds
+                )
+            }
         )
     }
 
@@ -36,6 +52,17 @@ struct GravitySystemControls: View {
     }
 
     var body: some View {
+        TimelineView(
+            .animation(minimumInterval: 1.0 / 30.0, paused: !playback.isPlaying)
+        ) { context in
+            controlsContent
+                .onChange(of: context.date) { _, date in
+                    advancePlayback(to: date)
+                }
+        }
+    }
+
+    private var controlsContent: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -49,8 +76,48 @@ struct GravitySystemControls: View {
                 Slider(
                     value: elapsedTimeBinding,
                     in: 0...max(model.maximumElapsedSeconds, 1)
+                ) {
+                    Text("Displayed epoch")
+                }
+                .labelsHidden()
+                .accessibilityValue(
+                    presentation.elapsedTime(seconds: model.elapsedSeconds)
                 )
                 .help("Scrub deterministic rail ephemerides without advancing Simulation")
+
+                HStack(spacing: 10) {
+                    Button(
+                        playback.isPlaying ? "Pause" : "Play",
+                        systemImage: playback.isPlaying ? "pause.fill" : "play.fill"
+                    ) {
+                        togglePlayback(at: Date())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        !playback.isPlaying
+                            && model.elapsedSeconds >= model.maximumElapsedSeconds
+                    )
+                    .help(
+                        playback.isPlaying
+                            ? "Pause displayed epoch playback"
+                            : "Animate the displayed ephemeris without advancing Simulation"
+                    )
+
+                    Picker("Playback rate", selection: playbackRateBinding) {
+                        ForEach(GravitySystemPlaybackRate.allCases) { rate in
+                            Text(rate.title).tag(rate)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .help("Choose displayed elapsed time per wall-clock second")
+
+                    Spacer()
+
+                    Text("Display-only rail playback")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 HStack {
                     Text("Reference epoch")
@@ -96,12 +163,15 @@ struct GravitySystemControls: View {
             if let plan = model.transferPlan {
                 HStack {
                     Button("Reference epoch") {
-                        model.setElapsedSeconds(0)
+                        setDisplayedEpoch(0, at: Date())
                     }
                     .buttonStyle(.bordered)
 
                     Button("Show departure") {
-                        model.setElapsedSeconds(plan.departureEpoch.secondsSinceReferenceEpoch)
+                        setDisplayedEpoch(
+                            plan.departureEpoch.secondsSinceReferenceEpoch,
+                            at: Date()
+                        )
                     }
                     .buttonStyle(.borderedProminent)
 
@@ -116,6 +186,42 @@ struct GravitySystemControls: View {
                 }
             }
         }
+    }
+
+    private func advancePlayback(to date: Date) {
+        guard let elapsedSeconds = playback.advance(
+            to: date,
+            upperBound: model.maximumElapsedSeconds
+        ) else {
+            return
+        }
+        model.setElapsedSeconds(elapsedSeconds)
+    }
+
+    private func togglePlayback(at date: Date) {
+        if playback.isPlaying {
+            model.setElapsedSeconds(
+                playback.pause(
+                    at: date,
+                    upperBound: model.maximumElapsedSeconds
+                )
+            )
+        } else {
+            playback.start(
+                from: model.elapsedSeconds,
+                at: date,
+                upperBound: model.maximumElapsedSeconds
+            )
+        }
+    }
+
+    private func setDisplayedEpoch(_ elapsedSeconds: Double, at date: Date) {
+        model.setElapsedSeconds(elapsedSeconds)
+        playback.synchronize(
+            to: model.elapsedSeconds,
+            at: date,
+            upperBound: model.maximumElapsedSeconds
+        )
     }
 
     private func planetPicker(

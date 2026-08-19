@@ -5,6 +5,8 @@ import SwiftUI
 struct GravitySystemDiagram: View {
     let model: GravitySystemExplorerModel
 
+    @State private var zoomScale = 1.0
+
     private let presentation = GravitySystemPresentation()
     private let canvasPadding: CGFloat = 34
 
@@ -34,8 +36,66 @@ struct GravitySystemDiagram: View {
             + presentation.elapsedTime(seconds: model.elapsedSeconds)
     }
 
+    private var visibleExtentMeters: Double {
+        extentMeters / zoomScale
+    }
+
     private var extentLabel: String {
-        "±\(presentation.distance(AstronomicalDistance(meters: extentMeters)))"
+        "±\(presentation.distance(AstronomicalDistance(meters: visibleExtentMeters)))"
+    }
+
+    private var zoomScaleLabel: String {
+        zoomScale.formatted(.number.precision(.fractionLength(0...2))) + "×"
+    }
+
+    private var zoomControls: some View {
+        HStack(spacing: 10) {
+            Label("System scale", systemImage: "magnifyingglass")
+                .font(.subheadline.weight(.semibold))
+
+            Button("Zoom out", systemImage: "minus.magnifyingglass") {
+                adjustZoom(by: -0.25)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.bordered)
+            .disabled(zoomScale <= GravitySystemViewport.supportedZoomScaleRange.lowerBound)
+
+            Slider(
+                value: $zoomScale,
+                in: GravitySystemViewport.supportedZoomScaleRange,
+                step: 0.25
+            ) {
+                Text("System scale")
+            }
+            .labelsHidden()
+            .accessibilityValue(zoomScaleLabel)
+            .frame(maxWidth: 280)
+            .help("Magnify the physical system view around the generated star")
+
+            Button("Zoom in", systemImage: "plus.magnifyingglass") {
+                adjustZoom(by: 0.25)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.bordered)
+            .disabled(zoomScale >= GravitySystemViewport.supportedZoomScaleRange.upperBound)
+
+            Text(zoomScaleLabel)
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .frame(width: 46, alignment: .trailing)
+                .accessibilityHidden(true)
+
+            Button("Fit") {
+                zoomScale = 1
+            }
+            .buttonStyle(.bordered)
+            .disabled(zoomScale == 1)
+
+            Spacer()
+
+            Text("Visible extent \(extentLabel)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
     }
 
     var body: some View {
@@ -50,18 +110,22 @@ struct GravitySystemDiagram: View {
                     .foregroundStyle(.secondary)
             }
         ) {
+            zoomControls
+
             GeometryReader { proxy in
                 let viewport = GravitySystemViewport(
                     size: proxy.size,
                     padding: canvasPadding,
-                    extentMeters: extentMeters
+                    extentMeters: extentMeters,
+                    zoomScale: zoomScale
                 )
                 ZStack {
                     Canvas { context, size in
                         let viewport = GravitySystemViewport(
                             size: size,
                             padding: canvasPadding,
-                            extentMeters: extentMeters
+                            extentMeters: extentMeters,
+                            zoomScale: zoomScale
                         )
                         var horizontalAxis = Path()
                         horizontalAxis.move(to: CGPoint(x: canvasPadding, y: viewport.center.y))
@@ -130,7 +194,8 @@ struct GravitySystemDiagram: View {
                         .accessibilityLabel("Generated star at the gravity-system origin")
 
                     ForEach(Array(model.sourceSystem.planets.enumerated()), id: \.element.id) { index, planet in
-                        if let state = model.state(for: planet.id) {
+                        if let state = model.state(for: planet.id),
+                           viewport.contains(state.position) {
                             planetMarker(for: planet, ordinal: index + 1)
                                 .position(viewport.point(for: state.position))
                                 .accessibilityElement(children: .ignore)
@@ -141,6 +206,7 @@ struct GravitySystemDiagram: View {
 
                         ForEach(planet.moons, id: \.id) { moon in
                             if let moonState = model.state(for: moon.id),
+                               viewport.contains(moonState.position),
                                moonIsLegible(moon, parent: planet, viewport: viewport) {
                                 PlanetaryBodySymbol(
                                     physicalState: moon.physicalState,
@@ -154,6 +220,23 @@ struct GravitySystemDiagram: View {
                         }
                     }
 
+                    if let vehicleState = model.transferVehicleState,
+                       viewport.contains(vehicleState.position) {
+                        GravityTransferVehicleSymbol(status: vehicleState.status)
+                            .overlay {
+                                Text(vehicleLabel(for: vehicleState.status))
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.black.opacity(0.72), in: Capsule())
+                                    .fixedSize()
+                                    .offset(x: 54, y: -20)
+                                    .accessibilityHidden(true)
+                            }
+                            .position(viewport.point(for: vehicleState.position))
+                    }
+
                     if model.sourceSystem.planets.isEmpty {
                         ContentUnavailableView {
                             Label("Star-Only Resolved System", systemImage: "sun.max.fill")
@@ -163,6 +246,7 @@ struct GravitySystemDiagram: View {
                         .frame(maxWidth: 420)
                     }
                 }
+                .clipped()
             }
             .frame(minHeight: 520)
 
@@ -170,6 +254,8 @@ struct GravitySystemDiagram: View {
                 Label("Generated eccentric rails", systemImage: "circle")
                 Label("Circular-reference transfer", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                     .foregroundStyle(.mint)
+                Label("Reference transfer vehicle", systemImage: "paperplane.fill")
+                    .foregroundStyle(.pink)
                 Label("Current ephemeris positions", systemImage: "circle.fill")
                 Spacer()
                 Text("Body sizes are symbolic")
@@ -257,6 +343,27 @@ struct GravitySystemDiagram: View {
             return .orange
         }
         return nil
+    }
+
+    private func adjustZoom(by increment: Double) {
+        zoomScale = min(
+            max(
+                zoomScale + increment,
+                GravitySystemViewport.supportedZoomScaleRange.lowerBound
+            ),
+            GravitySystemViewport.supportedZoomScaleRange.upperBound
+        )
+    }
+
+    private func vehicleLabel(for status: GravityTransferVehicleStatus) -> String {
+        switch status {
+        case .awaitingDeparture:
+            "departure reference"
+        case .inFlight:
+            "on transfer rail"
+        case .atArrivalReference:
+            "arrival reference"
+        }
     }
 
     private func drawTransferMarker(

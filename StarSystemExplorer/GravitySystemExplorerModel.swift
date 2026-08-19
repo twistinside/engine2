@@ -19,6 +19,7 @@ final class GravitySystemExplorerModel {
     private(set) var selectedGravityAccelerationMetersPerSecondSquared: Double?
 
     private let propagationKernel = PlanarKeplerPropagationKernel()
+    private let transferVehicleProjection = GravityTransferVehicleProjection()
     private var ephemeris: GravitySystemEphemeris?
     private var gravityField: PlanarGravityField?
     private var transferPlanner: HohmannTransferPlanner?
@@ -37,6 +38,16 @@ final class GravitySystemExplorerModel {
         case .ready(let plan): plan
         case .noPlanets, .onePlanet, .selectionIncomplete, .failed: nil
         }
+    }
+
+    var transferVehicleState: GravityTransferVehicleState? {
+        guard let transferPlan else {
+            return nil
+        }
+        return transferVehicleProjection.state(
+            for: transferPlan,
+            at: currentEpoch
+        )
     }
 
     var currentEpoch: CelestialEpoch {

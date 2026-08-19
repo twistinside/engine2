@@ -14,7 +14,9 @@ planar rail system. It gives each resolved planet and moon deterministic orbital
 orientation and phase at a shared epoch, evaluates the hierarchy through one
 Kepler propagation kernel, evaluates the summed Newtonian field at a requested
 point, produces circular-reference Hohmann transfer plans, and presents those
-results in the native star-system explorer.
+results in the native star-system explorer. The explorer adds bounded viewport
+zoom, display-only epoch playback at selectable rates, and a symbolic reference
+vehicle without creating authoritative spacecraft state or Simulation authority.
 
 This slice is construction and inspection tooling. It does not create
 authoritative Simulation state, propagate ships, consume propellant, execute a
@@ -186,10 +188,29 @@ projection of ``GravitySystemEphemeris`` output; SwiftUI does not reproduce the
 Kepler equations. Its transfer presentation projects
 ``HohmannTransferPlan`` rather than inventing UI-only delta-v values.
 
-Future explorer work should add predicted and executed paths, burn and coast
-segments, target ghosts at arrival, relative-velocity vectors, fuel state,
-encounter markers, and stability-audit results only after the corresponding
-production model exists.
+The diagram applies centered zoom from 0.25× through 8× using
+`GravitySystemViewport`. Zoom changes only the mapping from physical planar
+meters to canvas points. It does not change ephemeris state, gravity, or the
+sampled transfer rail.
+
+`GravitySystemPlayback` maps absolute `TimelineView` dates onto the bounded
+displayed epoch. The controls can pause playback or select one displayed day,
+30 displayed days, one displayed year, or ten displayed years per wall-clock
+second. Manual scrubbing reanchors active playback, and playback stops at the
+current epoch bound. This display clock calls the existing explorer epoch API;
+it owns no propagation or Simulation cadence.
+
+At each displayed epoch, `GravityTransferVehicleProjection` places one symbolic
+vehicle on the circular-reference transfer. It remains at the departure endpoint
+before departure, uses ``PlanarKeplerPropagationKernel`` during the reference
+flight, and remains at the arrival endpoint afterward. The marker is not an
+executed spacecraft, an authoritative prediction, or evidence of rendezvous
+with the potentially eccentric generated destination rail.
+
+Future explorer work should add authoritative predicted and executed paths,
+burn and coast segments, target ghosts at arrival, relative-velocity vectors,
+fuel state, encounter markers, and stability-audit results only after the
+corresponding production model exists.
 
 ## Determinism and Persistence
 
@@ -353,8 +374,9 @@ Focused tests currently pin:
 - circular closure, quarter-orbit states, eccentric apsides, and sampling endpoints
 - self-excluded starward acceleration for a circular reference body
 - Earth-to-Mars window, transfer duration, phase, impulses, and kernel endpoints
-- explorer projection, stable transfer selection, zero- and one-planet states,
-  and viewport mapping
+- explorer projection, stable transfer selection, symbolic reference-vehicle
+  endpoints and in-flight propagation, zero- and one-planet states, bounded
+  viewport mapping, and deterministic display playback and reanchoring
 
 Additional first-slice coverage should exercise hostile decoded values, phase
 corruption, inward transfers, planner refusals, gravity contact refusal, and
