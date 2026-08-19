@@ -25,6 +25,37 @@ nonisolated struct GravitySystemPlaybackTests {
         #expect(oneAndAHalfSeconds == 129_700)
     }
 
+    @Test func preferredIntervalRequestsUpToSixtyUpdatesAndDoesNotChangeTheResult() throws {
+        #expect(GravitySystemPlayback.preferredFrameIntervalSeconds == 1.0 / 60.0)
+
+        var thirtyHertzPlayback = GravitySystemPlayback(rate: .dayPerSecond)
+        var sixtyHertzPlayback = GravitySystemPlayback(rate: .dayPerSecond)
+        thirtyHertzPlayback.start(from: 100, at: referenceDate, upperBound: 1_000_000)
+        sixtyHertzPlayback.start(from: 100, at: referenceDate, upperBound: 1_000_000)
+
+        for frame in 1...30 {
+            _ = thirtyHertzPlayback.advance(
+                to: referenceDate.addingTimeInterval(Double(frame) / 30),
+                upperBound: 1_000_000
+            )
+        }
+        var sixtyHertzResult: Double?
+        for frame in 1...60 {
+            sixtyHertzResult = sixtyHertzPlayback.advance(
+                to: referenceDate.addingTimeInterval(Double(frame) / 60),
+                upperBound: 1_000_000
+            )
+        }
+
+        #expect(sixtyHertzResult == 86_500)
+        #expect(
+            thirtyHertzPlayback.pause(
+                at: referenceDate.addingTimeInterval(1),
+                upperBound: 1_000_000
+            ) == sixtyHertzResult
+        )
+    }
+
     @Test func playbackStopsAtTheCurrentEpochBound() throws {
         var playback = GravitySystemPlayback(rate: .dayPerSecond)
         playback.start(from: 900, at: referenceDate, upperBound: 1_000)

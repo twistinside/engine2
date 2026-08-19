@@ -31,26 +31,51 @@ nonisolated struct GravitySystemEphemeris: Sendable {
         for bodyID: GeneratedBodyID,
         at epoch: CelestialEpoch
     ) -> PlanarStateVector? {
-        guard let body = bodiesByID[bodyID] else {
-            return nil
-        }
-        let relativeState = kernel.state(on: body.rail, at: epoch)
-        guard let parentID = body.parentID else {
-            return relativeState
-        }
-        guard let parentState = state(for: parentID, at: epoch) else {
-            return nil
-        }
-        return relativeState.composed(withParent: parentState)
+        var statesByID: [GeneratedBodyID: PlanarStateVector] = [:]
+        return state(for: bodyID, at: epoch, cachingIn: &statesByID)
     }
 
     /// Returns every generated body and absolute state in stable identity order.
     func states(at epoch: CelestialEpoch) -> [GravityBodyState] {
-        system.bodies.compactMap { body in
-            guard let state = state(for: body.id, at: epoch) else {
+        var statesByID: [GeneratedBodyID: PlanarStateVector] = [:]
+        return system.bodies.compactMap { body in
+            guard let state = state(
+                for: body.id,
+                at: epoch,
+                cachingIn: &statesByID
+            ) else {
                 return nil
             }
             return GravityBodyState(body: body, state: state)
         }
+    }
+
+    private func state(
+        for bodyID: GeneratedBodyID,
+        at epoch: CelestialEpoch,
+        cachingIn statesByID: inout [GeneratedBodyID: PlanarStateVector]
+    ) -> PlanarStateVector? {
+        if let state = statesByID[bodyID] {
+            return state
+        }
+        guard let body = bodiesByID[bodyID] else {
+            return nil
+        }
+        let relativeState = kernel.state(on: body.rail, at: epoch)
+        let absoluteState: PlanarStateVector
+        if let parentID = body.parentID {
+            guard let parentState = state(
+                for: parentID,
+                at: epoch,
+                cachingIn: &statesByID
+            ) else {
+                return nil
+            }
+            absoluteState = relativeState.composed(withParent: parentState)
+        } else {
+            absoluteState = relativeState
+        }
+        statesByID[bodyID] = absoluteState
+        return absoluteState
     }
 }

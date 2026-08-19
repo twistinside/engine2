@@ -10,25 +10,8 @@ struct GravitySystemDiagram: View {
     private let presentation = GravitySystemPresentation()
     private let canvasPadding: CGFloat = 34
 
-    private var plottedPositions: [PlanarPosition] {
-        model.planetRailPositions.values.flatMap { $0 }
-            + model.moonRailPositions.values.flatMap { $0 }
-            + model.transferPositions
-            + model.bodyStates.map(\.state.position)
-    }
-
     private var extentMeters: Double {
-        let maximumCoordinate = plottedPositions.reduce(0.0) { currentMaximum, position in
-            max(currentMaximum, abs(position.meters.x), abs(position.meters.y))
-        }
-        let fallback = max(
-            model.sourceSystem.star.radius.meters * 12,
-            model.sourceSystem.protoplanetaryDisk.outerEdge.meters
-        )
-        guard maximumCoordinate > 0 else {
-            return max(fallback, 1)
-        }
-        return max(maximumCoordinate * 1.12, model.sourceSystem.star.radius.meters * 12, 1)
+        model.diagramExtentMeters
     }
 
     private var subtitle: String {
@@ -154,12 +137,17 @@ struct GravitySystemDiagram: View {
 
                         for planet in model.sourceSystem.planets {
                             for moon in planet.moons {
-                                guard let positions = model.moonRailPositions[moon.id],
+                                guard let positions = model.moonRelativeRailPositions[moon.id],
+                                      let parentState = model.state(for: planet.id),
                                       railIsLegible(positions, viewport: viewport) else {
                                     continue
                                 }
                                 context.stroke(
-                                    path(for: positions, viewport: viewport),
+                                    path(
+                                        for: positions,
+                                        translatedBy: parentState.position,
+                                        viewport: viewport
+                                    ),
                                     with: .color(.indigo.opacity(0.7)),
                                     style: StrokeStyle(lineWidth: 1, dash: [3, 3])
                                 )
@@ -267,11 +255,13 @@ struct GravitySystemDiagram: View {
 
     private func path(
         for positions: [PlanarPosition],
+        translatedBy translation: PlanarPosition? = nil,
         viewport: GravitySystemViewport
     ) -> Path {
         var path = Path()
         for (index, position) in positions.enumerated() {
-            let point = viewport.point(for: position)
+            let absolutePosition = translation?.adding(position) ?? position
+            let point = viewport.point(for: absolutePosition)
             if index == 0 {
                 path.move(to: point)
             } else {

@@ -200,6 +200,16 @@ second. Manual scrubbing reanchors active playback, and playback stops at the
 current epoch bound. This display clock calls the existing explorer epoch API;
 it owns no propagation or Simulation cadence.
 
+Playback requests up to 60 presentation updates per second. SwiftUI may
+coalesce updates, but absolute-date projection keeps the displayed epoch
+independent of the delivered cadence. Each requested epoch produces one
+immutable display frame. The frame evaluates the hierarchical
+ephemeris once, reuses those exact states for the selected gravity field, and
+projects the reference vehicle through the same propagation kernel. Complete
+planet rails, parent-relative moon rails, transfer samples, and the diagram's
+physical extent remain stable across frames. This keeps display work bounded
+without changing the analytic dynamics or making the explorer authoritative.
+
 At each displayed epoch, `GravityTransferVehicleProjection` places one symbolic
 vehicle on the circular-reference transfer. It remains at the departure endpoint
 before departure, uses ``PlanarKeplerPropagationKernel`` during the reference
@@ -376,7 +386,9 @@ Focused tests currently pin:
 - Earth-to-Mars window, transfer duration, phase, impulses, and kernel endpoints
 - explorer projection, stable transfer selection, symbolic reference-vehicle
   endpoints and in-flight propagation, zero- and one-planet states, bounded
-  viewport mapping, and deterministic display playback and reanchoring
+  viewport mapping, cadence-independent display playback and reanchoring,
+  exact reuse of precomputed gravity states, and stable diagram geometry across
+  epoch changes
 
 Additional first-slice coverage should exercise hostile decoded values, phase
 corruption, inward transfers, planner refusals, gravity contact refusal, and

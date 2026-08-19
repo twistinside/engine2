@@ -5,6 +5,9 @@ import Foundation
 /// The value owns playback controls and an absolute display-time anchor. It does
 /// not evaluate gravity, advance Simulation, or own celestial state.
 nonisolated struct GravitySystemPlayback: Sendable {
+    /// Minimum animation interval that requests no more than 60 display updates per second.
+    static let preferredFrameIntervalSeconds = 1.0 / 60.0
+
     private(set) var isPlaying = false
     private(set) var rate: GravitySystemPlaybackRate
 

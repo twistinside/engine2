@@ -89,6 +89,16 @@ nonisolated struct GravitySystemGeneratorTests {
                 approximatelyEquals: relativeMoonState.velocity.metersPerSecond
             )
         )
+
+        let allStates = ephemeris.states(at: gravitySystem.epoch)
+        #expect(
+            allStates.first(where: { $0.body.id == planet.id })?.state
+                == planetState
+        )
+        #expect(
+            allStates.first(where: { $0.body.id == moon.id })?.state
+                == moonState
+        )
     }
 
     @Test func validationRejectsPeriapsisContactWithStarOrParentBody() throws {

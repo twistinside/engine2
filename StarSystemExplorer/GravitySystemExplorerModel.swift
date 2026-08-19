@@ -8,23 +8,41 @@ final class GravitySystemExplorerModel {
 
     private(set) var projectionState = GravitySystemProjectionState.failed("The gravity projection is not available.")
     private(set) var transferState = GravityTransferState.selectionIncomplete
-    private(set) var elapsedSeconds = 0.0
     private(set) var maximumElapsedSeconds = AstronomicalDuration.year.seconds
     private(set) var selectedSourceID: GeneratedBodyID?
     private(set) var selectedDestinationID: GeneratedBodyID?
-    private(set) var bodyStates: [GravityBodyState] = []
     private(set) var planetRailPositions: [GeneratedBodyID: [PlanarPosition]] = [:]
-    private(set) var moonRailPositions: [GeneratedBodyID: [PlanarPosition]] = [:]
+    private(set) var moonRelativeRailPositions: [GeneratedBodyID: [PlanarPosition]] = [:]
     private(set) var transferPositions: [PlanarPosition] = []
-    private(set) var selectedGravityAccelerationMetersPerSecondSquared: Double?
+
+    /// Stable physical half-extent used by every displayed epoch.
+    private(set) var diagramExtentMeters = 1.0
+
+    private(set) var displayFrame = GravitySystemDisplayFrame(
+        epoch: .zero,
+        bodyStates: [],
+        selectedGravityAccelerationMetersPerSecondSquared: nil,
+        transferVehicleState: nil
+    )
 
     private let propagationKernel = PlanarKeplerPropagationKernel()
     private let transferVehicleProjection = GravityTransferVehicleProjection()
     private var ephemeris: GravitySystemEphemeris?
     private var gravityField: PlanarGravityField?
     private var transferPlanner: HohmannTransferPlanner?
-    private var moonRelativeRailPositions: [GeneratedBodyID: [PlanarPosition]] = [:]
     private var baseMaximumElapsedSeconds = AstronomicalDuration.year.seconds
+
+    var elapsedSeconds: Double {
+        displayFrame.elapsedSeconds
+    }
+
+    var bodyStates: [GravityBodyState] {
+        displayFrame.bodyStates
+    }
+
+    var selectedGravityAccelerationMetersPerSecondSquared: Double? {
+        displayFrame.selectedGravityAccelerationMetersPerSecondSquared
+    }
 
     var gravitySystem: GeneratedGravitySystem? {
         switch projectionState {
@@ -41,17 +59,11 @@ final class GravitySystemExplorerModel {
     }
 
     var transferVehicleState: GravityTransferVehicleState? {
-        guard let transferPlan else {
-            return nil
-        }
-        return transferVehicleProjection.state(
-            for: transferPlan,
-            at: currentEpoch
-        )
+        displayFrame.transferVehicleState
     }
 
     var currentEpoch: CelestialEpoch {
-        CelestialEpoch(secondsSinceReferenceEpoch: elapsedSeconds)
+        displayFrame.epoch
     }
 
     init(system: GeneratedStarSystem) {
@@ -60,8 +72,10 @@ final class GravitySystemExplorerModel {
     }
 
     func setElapsedSeconds(_ elapsedSeconds: Double) {
-        self.elapsedSeconds = min(max(elapsedSeconds, 0), maximumElapsedSeconds)
-        updateEpochProjection()
+        let clampedElapsedSeconds = min(max(elapsedSeconds, 0), maximumElapsedSeconds)
+        updateEpochProjection(
+            at: CelestialEpoch(secondsSinceReferenceEpoch: clampedElapsedSeconds)
+        )
     }
 
     func selectSource(_ bodyID: GeneratedBodyID) {
@@ -72,7 +86,6 @@ final class GravitySystemExplorerModel {
         if selectedDestinationID == bodyID {
             selectedDestinationID = sourceSystem.planets.first { $0.id != bodyID }?.id
         }
-        updateSelectedGravityAcceleration()
         updateTransferPlan()
     }
 
@@ -91,7 +104,6 @@ final class GravitySystemExplorerModel {
         }
         self.selectedSourceID = selectedDestinationID
         self.selectedDestinationID = selectedSourceID
-        updateSelectedGravityAcceleration()
         updateTransferPlan()
     }
 
@@ -112,7 +124,7 @@ final class GravitySystemExplorerModel {
     }
 
     func state(for bodyID: GeneratedBodyID) -> PlanarStateVector? {
-        bodyStates.first { $0.body.id == bodyID }?.state
+        displayFrame.state(for: bodyID)
     }
 
     private func configureGravityProjection() {
@@ -127,7 +139,7 @@ final class GravitySystemExplorerModel {
             configureEpochRange(for: gravitySystem)
             configureDefaultPlanetPair()
             sampleCompleteRails(in: gravitySystem)
-            updateEpochProjection()
+            configureDiagramExtent(in: gravitySystem)
             updateTransferPlan()
         } catch {
             let message = "The generated system could not be projected into gravity rails. \(error)"
@@ -169,27 +181,65 @@ final class GravitySystemExplorerModel {
         }
     }
 
-    private func updateEpochProjection() {
-        guard let ephemeris else {
-            bodyStates = []
-            moonRailPositions = [:]
+    private func configureDiagramExtent(in gravitySystem: GeneratedGravitySystem) {
+        let maximumPlanetCoordinateByID = planetRailPositions.mapValues { positions in
+            positions.reduce(0.0) { currentMaximum, position in
+                max(currentMaximum, abs(position.meters.x), abs(position.meters.y))
+            }
+        }
+        var maximumCoordinate = maximumPlanetCoordinateByID.values.max() ?? 0
+        for body in gravitySystem.bodies {
+            guard let parentID = body.parentID,
+                  let parentMaximum = maximumPlanetCoordinateByID[parentID] else {
+                continue
+            }
+            let moonApoapsis = body.rail.semiMajorAxis.meters
+                * (1 + body.rail.eccentricity.rawValue)
+            maximumCoordinate = max(maximumCoordinate, parentMaximum + moonApoapsis)
+        }
+
+        let fallback = max(
+            sourceSystem.star.radius.meters * 12,
+            sourceSystem.protoplanetaryDisk.outerEdge.meters
+        )
+        guard maximumCoordinate > 0 else {
+            diagramExtentMeters = max(fallback, 1)
             return
         }
-        bodyStates = ephemeris.states(at: currentEpoch)
-        moonRailPositions = moonRelativeRailPositions.reduce(into: [:]) { absoluteRails, entry in
-            guard let moon = ephemeris.body(for: entry.key),
-                  let parentID = moon.parentID,
-                  let parentState = ephemeris.state(for: parentID, at: currentEpoch) else {
-                return
-            }
-            absoluteRails[entry.key] = entry.value.map { relativePosition in
-                parentState.position.adding(relativePosition)
-            }
+        diagramExtentMeters = max(
+            maximumCoordinate * 1.12,
+            sourceSystem.star.radius.meters * 12,
+            1
+        )
+    }
+
+    private func updateEpochProjection(at epoch: CelestialEpoch? = nil) {
+        let epoch = epoch ?? currentEpoch
+        guard let ephemeris else {
+            displayFrame = GravitySystemDisplayFrame(
+                epoch: epoch,
+                bodyStates: [],
+                selectedGravityAccelerationMetersPerSecondSquared: nil,
+                transferVehicleState: nil
+            )
+            return
         }
-        updateSelectedGravityAcceleration()
+        let bodyStates = ephemeris.states(at: epoch)
+        displayFrame = GravitySystemDisplayFrame(
+            epoch: epoch,
+            bodyStates: bodyStates,
+            selectedGravityAccelerationMetersPerSecondSquared:
+                selectedGravityAcceleration(in: bodyStates),
+            transferVehicleState: transferPlan.map {
+                transferVehicleProjection.state(for: $0, at: epoch)
+            }
+        )
     }
 
     private func updateTransferPlan() {
+        defer {
+            updateEpochProjection()
+        }
         transferPositions = []
         maximumElapsedSeconds = max(baseMaximumElapsedSeconds, elapsedSeconds)
 
@@ -236,19 +286,20 @@ final class GravitySystemExplorerModel {
         }
     }
 
-    private func updateSelectedGravityAcceleration() {
+    private func selectedGravityAcceleration(
+        in bodyStates: [GravityBodyState]
+    ) -> Double? {
         guard let selectedSourceID,
-              let sourceState = state(for: selectedSourceID),
+              let sourceState = bodyStates.first(where: { $0.body.id == selectedSourceID })?.state,
               let gravityField,
               let acceleration = try? gravityField.acceleration(
                   at: sourceState.position,
-                  epoch: currentEpoch,
+                  fromExactStates: bodyStates,
                   excluding: selectedSourceID
               ) else {
-            selectedGravityAccelerationMetersPerSecondSquared = nil
-            return
+            return nil
         }
-        selectedGravityAccelerationMetersPerSecondSquared = simd_length(
+        return simd_length(
             acceleration.metersPerSecondSquared
         )
     }

@@ -53,7 +53,10 @@ struct GravitySystemControls: View {
 
     var body: some View {
         TimelineView(
-            .animation(minimumInterval: 1.0 / 30.0, paused: !playback.isPlaying)
+            .animation(
+                minimumInterval: GravitySystemPlayback.preferredFrameIntervalSeconds,
+                paused: !playback.isPlaying
+            )
         ) { context in
             controlsContent
                 .onChange(of: context.date) { _, date in

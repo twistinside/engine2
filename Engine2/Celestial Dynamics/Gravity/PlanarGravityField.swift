@@ -15,6 +15,22 @@ nonisolated struct PlanarGravityField: Sendable {
         epoch: CelestialEpoch,
         excluding excludedBodyID: GeneratedBodyID? = nil
     ) throws(PlanarGravityFieldError) -> PlanarAcceleration {
+        try acceleration(
+            at: position,
+            fromExactStates: ephemeris.states(at: epoch),
+            excluding: excludedBodyID
+        )
+    }
+
+    /// Returns total acceleration from one complete, stable-order ephemeris evaluation.
+    ///
+    /// Callers use this overload when they already own the exact states produced
+    /// by this field's ephemeris for the requested epoch.
+    func acceleration(
+        at position: PlanarPosition,
+        fromExactStates bodyStates: [GravityBodyState],
+        excluding excludedBodyID: GeneratedBodyID? = nil
+    ) throws(PlanarGravityFieldError) -> PlanarAcceleration {
         var acceleration = SIMD2<Double>.zero
 
         let starOffset = -position.meters
@@ -30,7 +46,7 @@ nonisolated struct PlanarGravityField: Sendable {
         acceleration += starOffset * starParameter
             / (starDistanceSquared * starDistanceSquared.squareRoot())
 
-        for bodyState in ephemeris.states(at: epoch) {
+        for bodyState in bodyStates {
             let body = bodyState.body
             guard body.id != excludedBodyID else {
                 continue

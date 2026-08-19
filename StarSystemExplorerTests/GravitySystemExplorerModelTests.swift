@@ -1,4 +1,5 @@
 import Testing
+import simd
 
 @testable import StarSystemExplorer
 
@@ -110,5 +111,40 @@ struct GravitySystemExplorerModelTests {
         #expect(emptyModel.transferVehicleState == nil)
         #expect(bodyID == singleSystem.planets.first?.id)
         #expect(singleModel.transferVehicleState == nil)
+    }
+
+    @Test func epochFramesMatchDynamicsAndKeepStaticGeometryUnchanged() throws {
+        let sourceSystem = try generator.generate(seed: StarSystemSeed(rawValue: 67))
+        let model = GravitySystemExplorerModel(system: sourceSystem)
+        let gravitySystem = try #require(model.gravitySystem)
+        let ephemeris = try GravitySystemEphemeris(system: gravitySystem)
+        let gravityField = PlanarGravityField(ephemeris: ephemeris)
+        let planetRails = model.planetRailPositions
+        let moonRails = model.moonRelativeRailPositions
+        let extentMeters = model.diagramExtentMeters
+        let selectedSourceID = try #require(model.selectedSourceID)
+
+        for elapsedSeconds in [0.0, 123_456, model.maximumElapsedSeconds] {
+            model.setElapsedSeconds(elapsedSeconds)
+
+            let expectedStates = ephemeris.states(at: model.currentEpoch)
+            let sourceState = try #require(
+                expectedStates.first(where: { $0.body.id == selectedSourceID })
+            )
+            let expectedAcceleration = try gravityField.acceleration(
+                at: sourceState.state.position,
+                fromExactStates: expectedStates,
+                excluding: selectedSourceID
+            )
+
+            #expect(model.bodyStates == expectedStates)
+            #expect(
+                model.selectedGravityAccelerationMetersPerSecondSquared
+                    == simd_length(expectedAcceleration.metersPerSecondSquared)
+            )
+            #expect(model.planetRailPositions == planetRails)
+            #expect(model.moonRelativeRailPositions == moonRails)
+            #expect(model.diagramExtentMeters == extentMeters)
+        }
     }
 }

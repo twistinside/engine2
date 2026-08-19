@@ -39,6 +39,33 @@ nonisolated struct PlanarGravityFieldTests {
         )
     }
 
+    @Test func precomputedEphemerisStatesProduceExactlyEqualAcceleration() throws {
+        let sourceSystem = try StarSystemGenerator(policy: .coreAccretionLiteV1).generate(
+            seed: StarSystemSeed(rawValue: 67)
+        )
+        let system = try GravitySystemGenerator(modelVersion: .planarKeplerV1).generate(
+            from: sourceSystem
+        )
+        let ephemeris = try GravitySystemEphemeris(system: system)
+        let field = PlanarGravityField(ephemeris: ephemeris)
+        let epoch = system.epoch.advanced(by: AstronomicalDuration(seconds: 123_456))
+        let bodyStates = ephemeris.states(at: epoch)
+        let sourceState = try #require(bodyStates.first)
+
+        let epochAcceleration = try field.acceleration(
+            at: sourceState.state.position,
+            epoch: epoch,
+            excluding: sourceState.body.id
+        )
+        let precomputedAcceleration = try field.acceleration(
+            at: sourceState.state.position,
+            fromExactStates: bodyStates,
+            excluding: sourceState.body.id
+        )
+
+        #expect(precomputedAcceleration == epochAcceleration)
+    }
+
     private func onePlanetSystem() -> GeneratedGravitySystem {
         let seed = StarSystemSeed(rawValue: 0)
         let bodyID = GeneratedBodyID.planet(formationIndex: 0)
