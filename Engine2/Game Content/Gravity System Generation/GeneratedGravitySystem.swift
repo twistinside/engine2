@@ -17,14 +17,7 @@ nonisolated struct GeneratedGravitySystem: Codable, Equatable, Sendable {
         guard modelVersion == .planarKeplerV1 else {
             throw .unsupportedDynamicsModel(modelVersion)
         }
-        guard epoch.secondsSinceReferenceEpoch.isFinite,
-              epoch.secondsSinceReferenceEpoch >= 0,
-              starMass.kilograms.isFinite,
-              starMass.kilograms > 0,
-              starRadius.meters.isFinite,
-              starRadius.meters > 0 else {
-            throw .invalidStar
-        }
+        try validateSystemRoot()
         guard bodies == bodies.sorted(by: { $0.id < $1.id }) else {
             throw .bodiesNotOrdered
         }
@@ -37,11 +30,27 @@ nonisolated struct GeneratedGravitySystem: Codable, Equatable, Sendable {
             guard isValid(body) else {
                 throw .invalidBody(body.id)
             }
-            guard hasCanonicalDerivedPhase(body) else {
+            guard hasExpectedDerivedPhase(body) else {
                 throw .inconsistentPhase(body.id)
             }
         }
         try validateHierarchyClearanceAndGravitationalParameters()
+    }
+
+    private func validateSystemRoot() throws(GravitySystemGenerationError) {
+        let starParameter = GravitationalParameter
+            .newtonianGravitationalConstantCubicMetersPerKilogramSecondSquared
+            * starMass.kilograms
+        guard epoch.secondsSinceReferenceEpoch.isFinite,
+              epoch.secondsSinceReferenceEpoch >= 0,
+              starMass.kilograms.isFinite,
+              starMass.kilograms > 0,
+              starRadius.meters.isFinite,
+              starRadius.meters > 0,
+              starParameter.isFinite,
+              starParameter > 0 else {
+            throw .invalidStar
+        }
     }
 
     private func validateHierarchyClearanceAndGravitationalParameters() throws(GravitySystemGenerationError) {
@@ -98,26 +107,17 @@ nonisolated struct GeneratedGravitySystem: Codable, Equatable, Sendable {
 
     private func isValid(_ body: GravityRailBody) -> Bool {
         let rail = body.rail
+        let standaloneParameter = GravitationalParameter
+            .newtonianGravitationalConstantCubicMetersPerKilogramSecondSquared
+            * body.mass.kilograms
         guard body.mass.kilograms.isFinite,
               body.mass.kilograms > 0,
+              standaloneParameter.isFinite,
+              standaloneParameter > 0,
               body.radius.meters.isFinite,
               body.radius.meters > 0,
-              rail.semiMajorAxis.meters.isFinite,
-              rail.semiMajorAxis.meters > 0,
-              (0..<1).contains(rail.eccentricity.rawValue),
-              rail.longitudeOfPeriapsisRadians.isFinite,
-              rail.meanAnomalyAtEpochRadians.isFinite,
               rail.epoch == epoch,
-              rail.gravitationalParameter.cubicMetersPerSecondSquared.isFinite,
-              rail.gravitationalParameter.cubicMetersPerSecondSquared > 0 else {
-            return false
-        }
-        let meanMotion = rail.meanMotionRadiansPerSecond
-        let orbitalPeriodSeconds = 2 * Double.pi / meanMotion
-        guard meanMotion.isFinite,
-              meanMotion > 0,
-              orbitalPeriodSeconds.isFinite,
-              orbitalPeriodSeconds > 0 else {
+              rail.isValidForPropagation else {
             return false
         }
         return rail.longitudeOfPeriapsisRadians
@@ -126,23 +126,23 @@ nonisolated struct GeneratedGravitySystem: Codable, Equatable, Sendable {
                 == PlanarKeplerianRail.canonicalAngle(rail.meanAnomalyAtEpochRadians)
     }
 
-    private func hasCanonicalDerivedPhase(_ body: GravityRailBody) -> Bool {
+    private func hasExpectedDerivedPhase(_ body: GravityRailBody) -> Bool {
         body.rail.longitudeOfPeriapsisRadians == GravitySystemGenerator.phase(
             seed: seed,
             modelVersion: modelVersion,
             bodyID: body.id,
-            domain: GravitySystemGenerator.periapsisDomain
+            domain: .longitudeOfPeriapsis
         )
             && body.rail.meanAnomalyAtEpochRadians == GravitySystemGenerator.phase(
                 seed: seed,
                 modelVersion: modelVersion,
                 bodyID: body.id,
-                domain: GravitySystemGenerator.meanAnomalyDomain
+                domain: .meanAnomalyAtEpoch
             )
     }
 
     private func approximatelyEqual(_ first: Double, _ second: Double) -> Bool {
-        let scale = max(abs(first), abs(second), 1)
+        let scale = max(abs(first), abs(second))
         return abs(first - second) <= scale * 1e-12
     }
 }

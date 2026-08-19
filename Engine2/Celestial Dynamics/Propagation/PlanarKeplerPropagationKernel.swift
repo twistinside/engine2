@@ -3,9 +3,10 @@ import simd
 
 /// Evaluates and samples bound prograde planar Keplerian rails.
 ///
-/// The kernel uses one fixed-count bisection solve for Kepler's equation. Both
-/// gameplay execution and trajectory presentation must request states through
-/// this type so they cannot acquire separate orbital approximations.
+/// The kernel uses one fixed-count bisection solve for Kepler's equation.
+/// Current rail consumers request states through this type. Future gameplay
+/// execution must use the same implementation so prediction and presentation
+/// cannot diverge.
 nonisolated struct PlanarKeplerPropagationKernel: Sendable {
     static let eccentricAnomalyIterationCount = 64
     static let maximumTrajectorySampleCount = 4_097

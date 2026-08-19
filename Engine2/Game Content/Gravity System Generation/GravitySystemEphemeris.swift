@@ -2,7 +2,8 @@
 ///
 /// Planet states are relative to the star at the origin. Moon states compose
 /// their parent planet's absolute state with the moon's parent-relative rail.
-/// Returned arrays preserve the system's stable body-identity order.
+/// Snapshots preserve the system's stable body-identity order and retain the
+/// system and epoch that produced their states.
 nonisolated struct GravitySystemEphemeris: Sendable {
     let system: GeneratedGravitySystem
 
@@ -31,51 +32,65 @@ nonisolated struct GravitySystemEphemeris: Sendable {
         for bodyID: GeneratedBodyID,
         at epoch: CelestialEpoch
     ) -> PlanarStateVector? {
+        guard let body = bodiesByID[bodyID] else {
+            return nil
+        }
         var statesByID: [GeneratedBodyID: PlanarStateVector] = [:]
-        return state(for: bodyID, at: epoch, cachingIn: &statesByID)
+        return state(for: body, at: epoch, cachingIn: &statesByID)
     }
 
-    /// Returns every generated body and absolute state in stable identity order.
-    func states(at epoch: CelestialEpoch) -> [GravityBodyState] {
+    /// Evaluates one complete, provenance-preserving system snapshot.
+    func snapshot(at epoch: CelestialEpoch) -> GravitySystemEphemerisSnapshot {
+        GravitySystemEphemerisSnapshot(evaluating: self, at: epoch)
+    }
+
+    /// Evaluates every generated body in stable identity order.
+    ///
+    /// ``GravitySystemEphemerisSnapshot`` owns this array at the public
+    /// consumption boundary so callers retain its source-system provenance.
+    func evaluatedBodyStates(at epoch: CelestialEpoch) -> [GravityBodyState] {
         var statesByID: [GeneratedBodyID: PlanarStateVector] = [:]
-        return system.bodies.compactMap { body in
-            guard let state = state(
-                for: body.id,
+        return system.bodies.map { body in
+            let state = state(
+                for: body,
                 at: epoch,
                 cachingIn: &statesByID
-            ) else {
-                return nil
-            }
+            )
             return GravityBodyState(body: body, state: state)
         }
     }
 
     private func state(
-        for bodyID: GeneratedBodyID,
+        for body: GravityRailBody,
         at epoch: CelestialEpoch,
         cachingIn statesByID: inout [GeneratedBodyID: PlanarStateVector]
-    ) -> PlanarStateVector? {
-        if let state = statesByID[bodyID] {
+    ) -> PlanarStateVector {
+        if let state = statesByID[body.id] {
             return state
-        }
-        guard let body = bodiesByID[bodyID] else {
-            return nil
         }
         let relativeState = kernel.state(on: body.rail, at: epoch)
         let absoluteState: PlanarStateVector
         if let parentID = body.parentID {
-            guard let parentState = state(
-                for: parentID,
+            let parent = validatedBody(for: parentID)
+            let parentState = state(
+                for: parent,
                 at: epoch,
                 cachingIn: &statesByID
-            ) else {
-                return nil
-            }
+            )
             absoluteState = relativeState.composed(withParent: parentState)
         } else {
             absoluteState = relativeState
         }
-        statesByID[bodyID] = absoluteState
+        statesByID[body.id] = absoluteState
         return absoluteState
+    }
+
+    private func validatedBody(for bodyID: GeneratedBodyID) -> GravityRailBody {
+        guard let body = bodiesByID[bodyID] else {
+            preconditionFailure(
+                "A validated gravity system must contain every referenced parent body."
+            )
+        }
+        return body
     }
 }

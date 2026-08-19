@@ -62,6 +62,8 @@ The implemented ownership is:
   mutable body state.
 - ``GravitySystemEphemeris`` evaluates the generated hierarchy at a requested
   epoch.
+- ``GravitySystemEphemerisSnapshot`` retains one complete, stable-order
+  evaluation with its system and epoch provenance.
 - ``PlanarGravityField`` evaluates star, planet, and moon acceleration without
   integrating a moving body.
 - ``HohmannTransferPlanner`` derives a circular two-impulse reference plan from
@@ -139,7 +141,10 @@ while leaving major perturbations and mutual gravity for a later model.
 ``PlanarGravityField`` sums inverse-square Newtonian acceleration from the star
 and every generated rail body at one position and epoch. It evaluates moving
 sources through ``GravitySystemEphemeris`` in stable body-identity order and may
-exclude one generated identity from its own query.
+exclude one generated identity from its own query. A caller that reuses an
+existing evaluation supplies a ``GravitySystemEphemerisSnapshot``. The field
+rejects a snapshot from another generated system instead of summing unqualified
+body-state arrays.
 
 The field uses each source's resolved mass and physical radius. A query at or
 inside a source radius returns typed contact instead of applying arbitrary
@@ -157,6 +162,17 @@ the departure and destination semimajor axes as circular, coplanar orbits around
 the generated star. It derives the next prograde opportunity at or after a
 requested epoch, the wait and transfer durations, both ideal impulses, the
 required reference phase, and a sampleable transfer rail.
+
+``HohmannTransferPlan`` retains the planning, departure, and arrival epochs.
+Its wait, flight duration, and total ideal delta-v are derived from those
+primary facts instead of stored as independently mutable values.
+
+The planner returns a typed refusal when two reference orbits are numerically
+indistinguishable or another derived rate, duration, or epoch cannot be
+represented. Absolute-epoch rounding may introduce at most `1e-10` radians of
+launch-window or transfer-phase error. Reconstructed transfer apses may differ
+from their requested radii by at most `1e-10` relative error. A validated system
+must not turn a planning request into a precondition failure.
 
 That result is useful for explaining an economical transfer and comparing the
 scale of routes. It is not an executable transfer for arbitrary generated
@@ -203,12 +219,12 @@ it owns no propagation or Simulation cadence.
 Playback requests up to 60 presentation updates per second. SwiftUI may
 coalesce updates, but absolute-date projection keeps the displayed epoch
 independent of the delivered cadence. Each requested epoch produces one
-immutable display frame. The frame evaluates the hierarchical
-ephemeris once, reuses those exact states for the selected gravity field, and
-projects the reference vehicle through the same propagation kernel. Complete
-planet rails, parent-relative moon rails, transfer samples, and the diagram's
-physical extent remain stable across frames. This keeps display work bounded
-without changing the analytic dynamics or making the explorer authoritative.
+immutable display snapshot. The snapshot evaluates the hierarchical ephemeris
+once, reuses those exact states for the selected gravity field, and projects the
+reference vehicle through the same propagation kernel. Complete planet rails,
+parent-relative moon rails, transfer samples, and the diagram's fitted physical
+extent remain stable across snapshots. This keeps display work bounded without
+changing the analytic dynamics or making the explorer authoritative.
 
 At each displayed epoch, `GravityTransferVehicleProjection` places one symbolic
 vehicle on the circular-reference transfer. It remains at the departure endpoint
@@ -235,9 +251,10 @@ A persistence boundary must call ``GeneratedGravitySystem/validate()`` before
 constructing an ephemeris, gravity field, or transfer planner.
 Validation checks model admission, finite star and body facts, stable identity
 order, hierarchy, periapsis clearance from each primary, canonical angles,
-common epoch, exact seed-derived phase, and rederived two-body gravitational
-parameters. It does not authenticate bytes, replay star-system formation, or
-rederive retained source mass, radius, semimajor axis, or eccentricity.
+common epoch, exact seed-derived phase, standalone source gravitational
+parameters, and rederived two-body gravitational parameters. It does not
+authenticate bytes, replay star-system formation, or rederive retained source
+mass, radius, semimajor axis, or eccentricity.
 
 Persisted gameplay state will need more than the original generation seed. A
 future save should retain:
@@ -377,22 +394,30 @@ object.
 Focused tests currently pin:
 
 - exact same-source gravity-system equality and stable body order
-- pinned V1 phase and orientation values
+- pinned V1 phase and orientation values plus complete multi-seed projection
+  fingerprints
 - complete projected body count and selected retained planet and moon orbit facts
 - parent-plus-child hierarchical position and velocity composition
-- stellar and parent-body periapsis-contact rejection
-- circular closure, quarter-orbit states, eccentric apsides, and sampling endpoints
-- self-excluded starward acceleration for a circular reference body
-- Earth-to-Mars window, transfer duration, phase, impulses, and kernel endpoints
-- explorer projection, stable transfer selection, symbolic reference-vehicle
-  endpoints and in-flight propagation, zero- and one-planet states, bounded
-  viewport mapping, cadence-independent display playback and reanchoring,
-  exact reuse of precomputed gravity states, and stable diagram geometry across
-  epoch changes
+- hostile system validation for body order, duplicate identity, missing parents,
+  corrupted phase, standalone gravitational parameters, and periapsis contact
+- validated persistence boundaries for rails, epochs, positions, velocities,
+  accelerations, and derived orbital cadence
+- circular closure, quarter-orbit states, eccentric apsides, conserved energy
+  and angular momentum, and sampling endpoints
+- self-excluded starward acceleration for a circular reference body plus typed
+  star contact, body contact, and nonfinite-sum rejection
+- complete, stable-order ephemeris snapshot provenance and rejection of a
+  snapshot from another generated system
+- outward and inward Earth–Mars windows, transfer durations, phases, impulses,
+  planning-epoch provenance, kernel endpoints, and typed numerical refusals
+- explorer projection, typed zero- and one-planet unavailable states, stable
+  transfer selection, symbolic reference-vehicle endpoints and in-flight
+  propagation, bounded viewport mapping, cadence-independent display playback
+  and reanchoring, exact reuse of precomputed gravity states, and stable diagram
+  geometry across epoch changes
 
-Additional first-slice coverage should exercise hostile decoded values, phase
-corruption, inward transfers, planner refusals, gravity contact refusal, and
-rendered SwiftUI control interaction.
+Additional first-slice coverage should exercise rendered SwiftUI control
+interaction.
 
 Future authoritative work additionally requires predictor-executor agreement,
 planarity, stable force accumulation, fuel exhaustion, collision and escape

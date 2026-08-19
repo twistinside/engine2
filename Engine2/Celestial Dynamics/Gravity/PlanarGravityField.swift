@@ -17,56 +17,89 @@ nonisolated struct PlanarGravityField: Sendable {
     ) throws(PlanarGravityFieldError) -> PlanarAcceleration {
         try acceleration(
             at: position,
-            fromExactStates: ephemeris.states(at: epoch),
+            from: ephemeris.snapshot(at: epoch),
             excluding: excludedBodyID
         )
     }
 
-    /// Returns total acceleration from one complete, stable-order ephemeris evaluation.
+    /// Returns total acceleration from one complete ephemeris snapshot.
     ///
-    /// Callers use this overload when they already own the exact states produced
-    /// by this field's ephemeris for the requested epoch.
+    /// Callers use this overload when they already own the exact snapshot
+    /// produced by this field's ephemeris. A snapshot from another generated
+    /// system is rejected before any source contributes acceleration.
     func acceleration(
         at position: PlanarPosition,
-        fromExactStates bodyStates: [GravityBodyState],
+        from snapshot: GravitySystemEphemerisSnapshot,
         excluding excludedBodyID: GeneratedBodyID? = nil
     ) throws(PlanarGravityFieldError) -> PlanarAcceleration {
-        var acceleration = SIMD2<Double>.zero
-
-        let starOffset = -position.meters
-        let starDistanceSquared = simd_length_squared(starOffset)
-        guard starDistanceSquared > ephemeris.system.starRadius.meters
-            * ephemeris.system.starRadius.meters else {
-            throw .contactWithStar
+        guard snapshot.system == ephemeris.system else {
+            throw .snapshotSystemMismatch
         }
-        let starParameter = GravitationalParameter(
-            primaryMass: ephemeris.system.starMass,
-            orbitingMass: .zero
-        ).cubicMetersPerSecondSquared
-        acceleration += starOffset * starParameter
-            / (starDistanceSquared * starDistanceSquared.squareRoot())
 
-        for bodyState in bodyStates {
-            let body = bodyState.body
-            guard body.id != excludedBodyID else {
+        var acceleration = try stellarAcceleration(at: position)
+
+        for bodyState in snapshot.bodyStates {
+            guard bodyState.body.id != excludedBodyID else {
                 continue
             }
-            let offset = bodyState.state.position.meters - position.meters
-            let distanceSquared = simd_length_squared(offset)
-            guard distanceSquared > body.radius.meters * body.radius.meters else {
-                throw .contactWithBody(body.id)
-            }
-            let bodyParameter = GravitationalParameter(
-                primaryMass: body.mass,
-                orbitingMass: .zero
-            ).cubicMetersPerSecondSquared
-            acceleration += offset * bodyParameter
-                / (distanceSquared * distanceSquared.squareRoot())
+            acceleration += try bodyAcceleration(
+                at: position,
+                from: bodyState
+            )
         }
 
         guard acceleration.isFinite else {
             throw .nonfiniteAcceleration
         }
         return PlanarAcceleration(metersPerSecondSquared: acceleration)
+    }
+
+    private func stellarAcceleration(
+        at position: PlanarPosition
+    ) throws(PlanarGravityFieldError) -> SIMD2<Double> {
+        let offset = -position.meters
+        let distanceSquared = simd_length_squared(offset)
+        guard distanceSquared > ephemeris.system.starRadius.meters
+            * ephemeris.system.starRadius.meters else {
+            throw .contactWithStar
+        }
+        let parameter = GravitationalParameter(
+            primaryMass: ephemeris.system.starMass,
+            orbitingMass: .zero
+        ).cubicMetersPerSecondSquared
+        return inverseSquareAcceleration(
+            offset: offset,
+            distanceSquared: distanceSquared,
+            parameter: parameter
+        )
+    }
+
+    private func bodyAcceleration(
+        at position: PlanarPosition,
+        from bodyState: GravityBodyState
+    ) throws(PlanarGravityFieldError) -> SIMD2<Double> {
+        let body = bodyState.body
+        let offset = bodyState.state.position.meters - position.meters
+        let distanceSquared = simd_length_squared(offset)
+        guard distanceSquared > body.radius.meters * body.radius.meters else {
+            throw .contactWithBody(body.id)
+        }
+        let parameter = GravitationalParameter(
+            primaryMass: body.mass,
+            orbitingMass: .zero
+        ).cubicMetersPerSecondSquared
+        return inverseSquareAcceleration(
+            offset: offset,
+            distanceSquared: distanceSquared,
+            parameter: parameter
+        )
+    }
+
+    private func inverseSquareAcceleration(
+        offset: SIMD2<Double>,
+        distanceSquared: Double,
+        parameter: Double
+    ) -> SIMD2<Double> {
+        offset * parameter / (distanceSquared * distanceSquared.squareRoot())
     }
 }

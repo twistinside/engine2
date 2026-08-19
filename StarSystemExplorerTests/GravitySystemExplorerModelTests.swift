@@ -109,11 +109,16 @@ struct GravitySystemExplorerModelTests {
         }
         #expect(emptyModel.gravitySystem?.bodies.isEmpty == true)
         #expect(emptyModel.transferVehicleState == nil)
+        #expect(emptyModel.selectedGravityState == .unavailable)
         #expect(bodyID == singleSystem.planets.first?.id)
         #expect(singleModel.transferVehicleState == nil)
+        guard case .available = singleModel.selectedGravityState else {
+            Issue.record("A selected planet should expose a typed gravity metric.")
+            return
+        }
     }
 
-    @Test func epochFramesMatchDynamicsAndKeepStaticGeometryUnchanged() throws {
+    @Test func epochSnapshotsMatchDynamicsAndKeepStaticGeometryUnchanged() throws {
         let sourceSystem = try generator.generate(seed: StarSystemSeed(rawValue: 67))
         let model = GravitySystemExplorerModel(system: sourceSystem)
         let gravitySystem = try #require(model.gravitySystem)
@@ -127,20 +132,28 @@ struct GravitySystemExplorerModelTests {
         for elapsedSeconds in [0.0, 123_456, model.maximumElapsedSeconds] {
             model.setElapsedSeconds(elapsedSeconds)
 
-            let expectedStates = ephemeris.states(at: model.currentEpoch)
+            let expectedSnapshot = ephemeris.snapshot(at: model.currentEpoch)
             let sourceState = try #require(
-                expectedStates.first(where: { $0.body.id == selectedSourceID })
+                expectedSnapshot.bodyStates.first {
+                    $0.body.id == selectedSourceID
+                }
             )
             let expectedAcceleration = try gravityField.acceleration(
                 at: sourceState.state.position,
-                fromExactStates: expectedStates,
+                from: expectedSnapshot,
                 excluding: selectedSourceID
             )
+            guard case .available(let actualAcceleration) = model.selectedGravityState else {
+                Issue.record("The selected planet should have a finite external gravity metric.")
+                continue
+            }
 
-            #expect(model.bodyStates == expectedStates)
+            #expect(model.displaySnapshot.ephemerisSnapshot == expectedSnapshot)
+            #expect(model.bodyStates == expectedSnapshot.bodyStates)
             #expect(
-                model.selectedGravityAccelerationMetersPerSecondSquared
-                    == simd_length(expectedAcceleration.metersPerSecondSquared)
+                actualAcceleration == simd_length(
+                    expectedAcceleration.metersPerSecondSquared
+                )
             )
             #expect(model.planetRailPositions == planetRails)
             #expect(model.moonRelativeRailPositions == moonRails)

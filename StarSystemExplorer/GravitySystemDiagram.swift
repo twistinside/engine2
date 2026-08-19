@@ -10,25 +10,19 @@ struct GravitySystemDiagram: View {
     private let presentation = GravitySystemPresentation()
     private let canvasPadding: CGFloat = 34
 
-    private var extentMeters: Double {
-        model.diagramExtentMeters
-    }
-
     private var subtitle: String {
-        "Top-down physical linear scale · exact rail ephemeris at "
+        "Top-down physical linear scale · body positions at "
             + presentation.elapsedTime(seconds: model.elapsedSeconds)
-    }
-
-    private var visibleExtentMeters: Double {
-        extentMeters / zoomScale
-    }
-
-    private var extentLabel: String {
-        "±\(presentation.distance(AstronomicalDistance(meters: visibleExtentMeters)))"
     }
 
     private var zoomScaleLabel: String {
         zoomScale.formatted(.number.precision(.fractionLength(0...2))) + "×"
+    }
+
+    private var planetRails: [[PlanarPosition]] {
+        model.sourceSystem.planets.compactMap { planet in
+            model.planetRailPositions[planet.id]
+        }
     }
 
     private var zoomControls: some View {
@@ -74,11 +68,38 @@ struct GravitySystemDiagram: View {
             .disabled(zoomScale == 1)
 
             Spacer()
-
-            Text("Visible extent \(extentLabel)")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
         }
+    }
+
+    private var diagramPlot: some View {
+        GeometryReader { proxy in
+            diagramContent(
+                in: GravitySystemViewport(
+                    size: proxy.size,
+                    padding: canvasPadding,
+                    extentMeters: model.diagramExtentMeters,
+                    zoomScale: zoomScale
+                )
+            )
+        }
+        .frame(minHeight: 520)
+    }
+
+    private var diagramLegend: some View {
+        HStack(spacing: 16) {
+            Label("Generated eccentric rails", systemImage: "circle")
+            Label("Circular-reference transfer", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                .foregroundStyle(.mint)
+            Label("Reference transfer vehicle", systemImage: "paperplane.fill")
+                .foregroundStyle(.pink)
+            Label("Current ephemeris positions", systemImage: "circle.fill")
+            Text("D departure · A destination")
+                .font(.caption.monospaced())
+            Spacer()
+            Text("Body sizes are symbolic")
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
     var body: some View {
@@ -88,180 +109,141 @@ struct GravitySystemDiagram: View {
             systemImage: "circle.grid.cross.fill",
             tint: .cyan,
             accessory: {
-                Text(extentLabel)
+                Text(zoomScaleLabel)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         ) {
             zoomControls
+            diagramPlot
+            diagramLegend
+        }
+    }
 
-            GeometryReader { proxy in
-                let viewport = GravitySystemViewport(
-                    size: proxy.size,
-                    padding: canvasPadding,
-                    extentMeters: extentMeters,
-                    zoomScale: zoomScale
-                )
-                ZStack {
-                    Canvas { context, size in
-                        let viewport = GravitySystemViewport(
-                            size: size,
-                            padding: canvasPadding,
-                            extentMeters: extentMeters,
-                            zoomScale: zoomScale
-                        )
-                        var horizontalAxis = Path()
-                        horizontalAxis.move(to: CGPoint(x: canvasPadding, y: viewport.center.y))
-                        horizontalAxis.addLine(
-                            to: CGPoint(x: size.width - canvasPadding, y: viewport.center.y)
-                        )
-                        context.stroke(horizontalAxis, with: .color(.white.opacity(0.08)), lineWidth: 1)
+    private func diagramContent(in viewport: GravitySystemViewport) -> some View {
+        ZStack(alignment: .topTrailing) {
+            GravitySystemStaticRailLayer(
+                viewport: viewport,
+                planetRails: planetRails,
+                transferPositions: model.transferPositions
+            )
+            .equatable()
 
-                        var verticalAxis = Path()
-                        verticalAxis.move(to: CGPoint(x: viewport.center.x, y: canvasPadding))
-                        verticalAxis.addLine(
-                            to: CGPoint(x: viewport.center.x, y: size.height - canvasPadding)
-                        )
-                        context.stroke(verticalAxis, with: .color(.white.opacity(0.08)), lineWidth: 1)
+            moonRailLayer(in: viewport)
 
-                        for planet in model.sourceSystem.planets {
-                            guard let positions = model.planetRailPositions[planet.id] else {
-                                continue
-                            }
-                            context.stroke(
-                                path(for: positions, viewport: viewport),
-                                with: .color(.white.opacity(0.24)),
-                                style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round)
-                            )
-                        }
+            StellarBodySymbol(diameter: 24)
+                .position(viewport.center)
+                .accessibilityLabel("Generated star at the gravity-system origin")
 
-                        for planet in model.sourceSystem.planets {
-                            for moon in planet.moons {
-                                guard let positions = model.moonRelativeRailPositions[moon.id],
-                                      let parentState = model.state(for: planet.id),
-                                      railIsLegible(positions, viewport: viewport) else {
-                                    continue
-                                }
-                                context.stroke(
-                                    path(
-                                        for: positions,
-                                        translatedBy: parentState.position,
-                                        viewport: viewport
-                                    ),
-                                    with: .color(.indigo.opacity(0.7)),
-                                    style: StrokeStyle(lineWidth: 1, dash: [3, 3])
-                                )
-                            }
-                        }
+            bodySymbols(in: viewport)
+            transferVehicle(in: viewport)
+            emptySystemPlaceholder()
 
-                        if !model.transferPositions.isEmpty {
-                            context.stroke(
-                                path(for: model.transferPositions, viewport: viewport),
-                                with: .color(.mint),
-                                style: StrokeStyle(lineWidth: 2.4, lineCap: .round, dash: [9, 5])
-                            )
-                            drawTransferMarker(
-                                model.transferPositions.first,
-                                label: "departure",
-                                color: .cyan,
-                                viewport: viewport,
-                                context: &context
-                            )
-                            drawTransferMarker(
-                                model.transferPositions.last,
-                                label: "arrival",
-                                color: .orange,
-                                viewport: viewport,
-                                context: &context
-                            )
-                        }
-                    }
+            Text(visibleSpanLabel(for: viewport))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(.black.opacity(0.48), in: Capsule())
+                .padding(10)
+        }
+        .clipped()
+    }
 
-                    StellarBodySymbol(diameter: 24)
-                        .position(viewport.center)
-                        .accessibilityLabel("Generated star at the gravity-system origin")
-
-                    ForEach(Array(model.sourceSystem.planets.enumerated()), id: \.element.id) { index, planet in
-                        if let state = model.state(for: planet.id),
-                           viewport.contains(state.position) {
-                            planetMarker(for: planet, ordinal: index + 1)
-                                .position(viewport.point(for: state.position))
-                                .accessibilityElement(children: .ignore)
-                                .accessibilityLabel(
-                                    "Planet \(index + 1) at \(presentation.distance(planet.orbit.semiMajorAxis))"
-                                )
-                        }
-
-                        ForEach(planet.moons, id: \.id) { moon in
-                            if let moonState = model.state(for: moon.id),
-                               viewport.contains(moonState.position),
-                               moonIsLegible(moon, parent: planet, viewport: viewport) {
-                                PlanetaryBodySymbol(
-                                    physicalState: moon.physicalState,
-                                    liquidWaterCoverage: moon.environment.liquidWaterCoverage,
-                                    waterIceCoverage: moon.environment.waterIceCoverage,
-                                    diameter: 7
-                                )
-                                .position(viewport.point(for: moonState.position))
-                                .accessibilityLabel(model.moonLabel(for: moon.id))
-                            }
-                        }
-                    }
-
-                    if let vehicleState = model.transferVehicleState,
-                       viewport.contains(vehicleState.position) {
-                        GravityTransferVehicleSymbol(status: vehicleState.status)
-                            .overlay {
-                                Text(vehicleLabel(for: vehicleState.status))
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.black.opacity(0.72), in: Capsule())
-                                    .fixedSize()
-                                    .offset(x: 54, y: -20)
-                                    .accessibilityHidden(true)
-                            }
-                            .position(viewport.point(for: vehicleState.position))
-                    }
-
-                    if model.sourceSystem.planets.isEmpty {
-                        ContentUnavailableView {
-                            Label("Star-Only Resolved System", systemImage: "sun.max.fill")
-                        } description: {
-                            Text("The gravity projection is valid, but this seed exposes no resolved planet rails.")
-                        }
-                        .frame(maxWidth: 420)
-                    }
+    private func moonRailLayer(in viewport: GravitySystemViewport) -> some View {
+        Canvas { context, _ in
+            for planet in model.sourceSystem.planets {
+                guard let parentState = model.state(for: planet.id) else {
+                    continue
                 }
-                .clipped()
+                for moon in planet.moons {
+                    guard let positions = model.moonRelativeRailPositions[moon.id],
+                          railIsLegible(positions, in: viewport) else {
+                        continue
+                    }
+                    context.stroke(
+                        path(
+                            for: positions,
+                            translatedBy: parentState.position,
+                            in: viewport
+                        ),
+                        with: .color(.indigo.opacity(0.7)),
+                        style: StrokeStyle(lineWidth: 1, dash: [3, 3])
+                    )
+                }
             }
-            .frame(minHeight: 520)
+        }
+        .accessibilityHidden(true)
+    }
 
-            HStack(spacing: 16) {
-                Label("Generated eccentric rails", systemImage: "circle")
-                Label("Circular-reference transfer", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
-                    .foregroundStyle(.mint)
-                Label("Reference transfer vehicle", systemImage: "paperplane.fill")
-                    .foregroundStyle(.pink)
-                Label("Current ephemeris positions", systemImage: "circle.fill")
-                Spacer()
-                Text("Body sizes are symbolic")
+    @ViewBuilder private func bodySymbols(in viewport: GravitySystemViewport) -> some View {
+        ForEach(model.sourceSystem.planets.indices, id: \.self) { index in
+            let planet = model.sourceSystem.planets[index]
+            if let state = model.state(for: planet.id),
+               viewport.contains(state.position) {
+                planetMarker(for: planet, ordinal: index + 1)
+                    .position(viewport.point(for: state.position))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(planetAccessibilityLabel(for: planet, ordinal: index + 1))
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+
+            ForEach(planet.moons, id: \.id) { moon in
+                if let moonState = model.state(for: moon.id),
+                   viewport.contains(moonState.position),
+                   moonIsLegible(moon, parent: planet, in: viewport) {
+                    PlanetaryBodySymbol(
+                        physicalState: moon.physicalState,
+                        liquidWaterCoverage: moon.environment.liquidWaterCoverage,
+                        waterIceCoverage: moon.environment.waterIceCoverage,
+                        diameter: 7
+                    )
+                    .position(viewport.point(for: moonState.position))
+                    .accessibilityLabel(model.moonLabel(for: moon.id))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func transferVehicle(in viewport: GravitySystemViewport) -> some View {
+        if let vehicleState = model.transferVehicleState,
+           viewport.contains(vehicleState.position) {
+            GravityTransferVehicleSymbol(status: vehicleState.status)
+                .overlay {
+                    Text(vehicleLabel(for: vehicleState.status))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.black.opacity(0.72), in: Capsule())
+                        .fixedSize()
+                        .offset(x: 54, y: -20)
+                        .accessibilityHidden(true)
+                }
+                .position(viewport.point(for: vehicleState.position))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Reference transfer vehicle, \(vehicleLabel(for: vehicleState.status))")
+        }
+    }
+
+    @ViewBuilder private func emptySystemPlaceholder() -> some View {
+        if model.sourceSystem.planets.isEmpty {
+            ContentUnavailableView {
+                Label("Star-Only Resolved System", systemImage: "sun.max.fill")
+            } description: {
+                Text("The gravity projection is valid, but this seed exposes no resolved planet rails.")
+            }
+            .frame(maxWidth: 420)
         }
     }
 
     private func path(
         for positions: [PlanarPosition],
-        translatedBy translation: PlanarPosition? = nil,
-        viewport: GravitySystemViewport
+        translatedBy translation: PlanarPosition,
+        in viewport: GravitySystemViewport
     ) -> Path {
         var path = Path()
         for (index, position) in positions.enumerated() {
-            let absolutePosition = translation?.adding(position) ?? position
-            let point = viewport.point(for: absolutePosition)
+            let point = viewport.point(for: translation.adding(position))
             if index == 0 {
                 path.move(to: point)
             } else {
@@ -273,7 +255,7 @@ struct GravitySystemDiagram: View {
 
     private func railIsLegible(
         _ positions: [PlanarPosition],
-        viewport: GravitySystemViewport
+        in viewport: GravitySystemViewport
     ) -> Bool {
         let points = positions.map(viewport.point(for:))
         guard let first = points.first else {
@@ -290,7 +272,7 @@ struct GravitySystemDiagram: View {
     private func moonIsLegible(
         _ moon: GeneratedMoon,
         parent: GeneratedPlanet,
-        viewport: GravitySystemViewport
+        in viewport: GravitySystemViewport
     ) -> Bool {
         guard let moonState = model.state(for: moon.id),
               let parentState = model.state(for: parent.id) else {
@@ -323,6 +305,28 @@ struct GravitySystemDiagram: View {
                 .fixedSize()
                 .offset(y: -diameter / 2 - 14)
         }
+        .overlay(alignment: .bottomTrailing) {
+            selectionBadge(for: planet.id)
+                .offset(x: 8, y: 8)
+        }
+    }
+
+    @ViewBuilder private func selectionBadge(for bodyID: GeneratedBodyID) -> some View {
+        if bodyID == model.selectedSourceID {
+            Text("D")
+                .font(.caption2.monospaced().weight(.heavy))
+                .foregroundStyle(.black)
+                .frame(width: 17, height: 17)
+                .background(.cyan, in: Circle())
+                .accessibilityHidden(true)
+        } else if bodyID == model.selectedDestinationID {
+            Text("A")
+                .font(.caption2.monospaced().weight(.heavy))
+                .foregroundStyle(.black)
+                .frame(width: 17, height: 17)
+                .background(.orange, in: Circle())
+                .accessibilityHidden(true)
+        }
     }
 
     private func selectionTint(for bodyID: GeneratedBodyID) -> Color? {
@@ -333,6 +337,26 @@ struct GravitySystemDiagram: View {
             return .orange
         }
         return nil
+    }
+
+    private func planetAccessibilityLabel(for planet: GeneratedPlanet, ordinal: Int) -> String {
+        var label = "Planet \(ordinal) at \(presentation.distance(planet.orbit.semiMajorAxis))"
+        if planet.id == model.selectedSourceID {
+            label += ", selected departure planet"
+        } else if planet.id == model.selectedDestinationID {
+            label += ", selected destination planet"
+        }
+        return label
+    }
+
+    private func visibleSpanLabel(for viewport: GravitySystemViewport) -> String {
+        let horizontalSpan = presentation.distance(
+            AstronomicalDistance(meters: viewport.visibleHorizontalHalfSpanMeters)
+        )
+        let verticalSpan = presentation.distance(
+            AstronomicalDistance(meters: viewport.visibleVerticalHalfSpanMeters)
+        )
+        return "Visible from origin · X ±\(horizontalSpan) · Y ±\(verticalSpan)"
     }
 
     private func adjustZoom(by increment: Double) {
@@ -348,35 +372,11 @@ struct GravitySystemDiagram: View {
     private func vehicleLabel(for status: GravityTransferVehicleStatus) -> String {
         switch status {
         case .awaitingDeparture:
-            "departure reference"
+            "awaiting departure"
         case .inFlight:
-            "on transfer rail"
+            "in flight"
         case .atArrivalReference:
-            "arrival reference"
+            "at the arrival reference"
         }
-    }
-
-    private func drawTransferMarker(
-        _ position: PlanarPosition?,
-        label: String,
-        color: Color,
-        viewport: GravitySystemViewport,
-        context: inout GraphicsContext
-    ) {
-        guard let position else {
-            return
-        }
-        let point = viewport.point(for: position)
-        context.fill(
-            Path(ellipseIn: CGRect(x: point.x - 4, y: point.y - 4, width: 8, height: 8)),
-            with: .color(color)
-        )
-        context.draw(
-            Text(label)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(color),
-            at: CGPoint(x: point.x + 7, y: point.y - 7),
-            anchor: .bottomLeading
-        )
     }
 }

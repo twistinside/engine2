@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Presents gravity-system identity and the two metrics that change with the displayed epoch.
+/// Presents stable gravity-system identity separately from metrics that change with the displayed snapshot.
 struct GravitySystemDynamicsOverview: View {
     let model: GravitySystemExplorerModel
     let gravitySystem: GeneratedGravitySystem
@@ -10,13 +10,6 @@ struct GravitySystemDynamicsOverview: View {
 
     private var moonCount: Int {
         model.sourceSystem.planets.reduce(0) { $0 + $1.moons.count }
-    }
-
-    private var gravityAtSourceLabel: String {
-        guard let acceleration = model.selectedGravityAccelerationMetersPerSecondSquared else {
-            return "—"
-        }
-        return gravityPresentation.acceleration(metersPerSecondSquared: acceleration)
     }
 
     var body: some View {
@@ -42,13 +35,6 @@ struct GravitySystemDynamicsOverview: View {
                     tint: .teal
                 )
                 MetricTile(
-                    "Displayed epoch",
-                    value: gravityPresentation.epoch(model.currentEpoch),
-                    detail: "Reference-relative elapsed time",
-                    systemImage: "clock.fill",
-                    tint: .blue
-                )
-                MetricTile(
                     "Massive rails",
                     value: "\(gravitySystem.bodies.count)",
                     detail: "\(model.sourceSystem.planets.count) planets · \(moonCount) moons",
@@ -62,16 +48,9 @@ struct GravitySystemDynamicsOverview: View {
                     systemImage: "square.grid.2x2",
                     tint: .mint
                 )
-                MetricTile(
-                    "External gravity",
-                    value: gravityAtSourceLabel,
-                    detail: model.selectedSourceID.map {
-                        "At \(model.planetLabel(for: $0)); source excluded"
-                    } ?? "No selected source planet",
-                    systemImage: "arrow.down.to.line.compact",
-                    tint: .orange
-                )
             }
+
+            GravitySystemLiveMetrics(model: model)
         }
     }
 }

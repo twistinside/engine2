@@ -5,4 +5,5 @@ nonisolated enum HohmannTransferError: Error, Equatable, Sendable {
     case requiresPlanet(GeneratedBodyID)
     case departureBeforeReferenceEpoch
     case coincidentReferenceOrbits
+    case unrepresentableTransfer
 }

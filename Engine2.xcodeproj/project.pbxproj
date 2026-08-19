@@ -160,6 +160,9 @@
 		E42000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift */; };
 		E42000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift */; };
 		E42000000000000000000052 /* Extension/SIMD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000052 /* Extension/SIMD.swift */; };
+		E42000000000000000000053 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000053 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift */; };
+		E42000000000000000000054 /* Game Content/Gravity System Generation/GravitySystemEphemerisSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000054 /* Game Content/Gravity System Generation/GravitySystemEphemerisSnapshot.swift */; };
+		E42000000000000000000055 /* Game Content/Gravity System Generation/GravitySystemPhaseDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000055 /* Game Content/Gravity System Generation/GravitySystemPhaseDomain.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -349,6 +352,9 @@
 		E41000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemGenerationError.swift"; sourceTree = "<group>"; };
 		E41000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemGenerator.swift"; sourceTree = "<group>"; };
 		E41000000000000000000052 /* Extension/SIMD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extension/SIMD.swift; sourceTree = "<group>"; };
+		E41000000000000000000053 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift"; sourceTree = "<group>"; };
+		E41000000000000000000054 /* Game Content/Gravity System Generation/GravitySystemEphemerisSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemEphemerisSnapshot.swift"; sourceTree = "<group>"; };
+		E41000000000000000000055 /* Game Content/Gravity System Generation/GravitySystemPhaseDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Gravity System Generation/GravitySystemPhaseDomain.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -608,6 +614,7 @@
 				E4100000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift */,
 				E41000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift */,
 				E41000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */,
+				E41000000000000000000053 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift */,
 				E41000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift */,
 				E41000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift */,
 				E41000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift */,
@@ -622,8 +629,10 @@
 				E4100000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift */,
 				E4100000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift */,
 				E4100000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift */,
+				E41000000000000000000054 /* Game Content/Gravity System Generation/GravitySystemEphemerisSnapshot.swift */,
 				E41000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift */,
 				E41000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift */,
+				E41000000000000000000055 /* Game Content/Gravity System Generation/GravitySystemPhaseDomain.swift */,
 				E41000000000000000000052 /* Extension/SIMD.swift */,
 			);
 			name = "Star System Explorer Shared Sources";
@@ -948,6 +957,7 @@
 				E4200000000000000000003F /* Celestial Dynamics/Domain/GravitationalParameter.swift in Sources */,
 				E42000000000000000000040 /* Celestial Dynamics/Domain/PlanarAcceleration.swift in Sources */,
 				E42000000000000000000041 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift in Sources */,
+				E42000000000000000000053 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift in Sources */,
 				E42000000000000000000042 /* Celestial Dynamics/Domain/PlanarPosition.swift in Sources */,
 				E42000000000000000000043 /* Celestial Dynamics/Domain/PlanarStateVector.swift in Sources */,
 				E42000000000000000000044 /* Celestial Dynamics/Domain/PlanarTrajectorySample.swift in Sources */,
@@ -962,8 +972,10 @@
 				E4200000000000000000004D /* Game Content/Gravity System Generation/GravityBodyState.swift in Sources */,
 				E4200000000000000000004E /* Game Content/Gravity System Generation/GravityRailBody.swift in Sources */,
 				E4200000000000000000004F /* Game Content/Gravity System Generation/GravitySystemEphemeris.swift in Sources */,
+				E42000000000000000000054 /* Game Content/Gravity System Generation/GravitySystemEphemerisSnapshot.swift in Sources */,
 				E42000000000000000000050 /* Game Content/Gravity System Generation/GravitySystemGenerationError.swift in Sources */,
 				E42000000000000000000051 /* Game Content/Gravity System Generation/GravitySystemGenerator.swift in Sources */,
+				E42000000000000000000055 /* Game Content/Gravity System Generation/GravitySystemPhaseDomain.swift in Sources */,
 				E42000000000000000000052 /* Extension/SIMD.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

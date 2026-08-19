@@ -33,8 +33,9 @@ nonisolated struct GravitySystemPlaybackTests {
         thirtyHertzPlayback.start(from: 100, at: referenceDate, upperBound: 1_000_000)
         sixtyHertzPlayback.start(from: 100, at: referenceDate, upperBound: 1_000_000)
 
+        var thirtyHertzResult: Double?
         for frame in 1...30 {
-            _ = thirtyHertzPlayback.advance(
+            thirtyHertzResult = thirtyHertzPlayback.advance(
                 to: referenceDate.addingTimeInterval(Double(frame) / 30),
                 upperBound: 1_000_000
             )
@@ -47,13 +48,9 @@ nonisolated struct GravitySystemPlaybackTests {
             )
         }
 
+        #expect(thirtyHertzResult == 86_500)
         #expect(sixtyHertzResult == 86_500)
-        #expect(
-            thirtyHertzPlayback.pause(
-                at: referenceDate.addingTimeInterval(1),
-                upperBound: 1_000_000
-            ) == sixtyHertzResult
-        )
+        #expect(thirtyHertzResult == sixtyHertzResult)
     }
 
     @Test func playbackStopsAtTheCurrentEpochBound() throws {

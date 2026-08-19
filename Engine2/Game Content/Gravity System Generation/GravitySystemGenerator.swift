@@ -5,9 +5,6 @@
 /// physical plane, then derives orientation and phase from separately addressed
 /// random streams keyed by seed, dynamics version, and stable body identity.
 nonisolated struct GravitySystemGenerator: Sendable {
-    static let periapsisDomain: UInt64 = 0x4752_4156_4954_5901
-    static let meanAnomalyDomain: UInt64 = 0x4752_4156_4954_5902
-
     let modelVersion: CelestialDynamicsModelVersion
 
     /// Produces and validates one complete planar rail projection.
@@ -24,6 +21,26 @@ nonisolated struct GravitySystemGenerator: Sendable {
         }
 
         let epoch = CelestialEpoch.zero
+        let bodies = makeBodies(
+            from: sourceSystem,
+            at: epoch
+        )
+        let gravitySystem = GeneratedGravitySystem(
+            seed: sourceSystem.seed,
+            modelVersion: modelVersion,
+            epoch: epoch,
+            starMass: sourceSystem.star.mass,
+            starRadius: sourceSystem.star.radius,
+            bodies: bodies
+        )
+        try gravitySystem.validate()
+        return gravitySystem
+    }
+
+    private func makeBodies(
+        from sourceSystem: GeneratedStarSystem,
+        at epoch: CelestialEpoch
+    ) -> [GravityRailBody] {
         var bodies: [GravityRailBody] = []
         for planet in sourceSystem.planets {
             bodies.append(
@@ -54,17 +71,7 @@ nonisolated struct GravitySystemGenerator: Sendable {
             }
         }
         bodies.sort { $0.id < $1.id }
-
-        let gravitySystem = GeneratedGravitySystem(
-            seed: sourceSystem.seed,
-            modelVersion: modelVersion,
-            epoch: epoch,
-            starMass: sourceSystem.star.mass,
-            starRadius: sourceSystem.star.radius,
-            bodies: bodies
-        )
-        try gravitySystem.validate()
-        return gravitySystem
+        return bodies
     }
 
     private func makeBody(
@@ -89,13 +96,13 @@ nonisolated struct GravitySystemGenerator: Sendable {
                     seed: seed,
                     modelVersion: modelVersion,
                     bodyID: id,
-                    domain: Self.periapsisDomain
+                    domain: .longitudeOfPeriapsis
                 ),
                 meanAnomalyAtEpochRadians: Self.phase(
                     seed: seed,
                     modelVersion: modelVersion,
                     bodyID: id,
-                    domain: Self.meanAnomalyDomain
+                    domain: .meanAnomalyAtEpoch
                 ),
                 epoch: epoch,
                 gravitationalParameter: GravitationalParameter(
@@ -110,9 +117,9 @@ nonisolated struct GravitySystemGenerator: Sendable {
         seed: StarSystemSeed,
         modelVersion: CelestialDynamicsModelVersion,
         bodyID: GeneratedBodyID,
-        domain: UInt64
+        domain: GravitySystemPhaseDomain
     ) -> Double {
-        var key = seed.rawValue ^ domain
+        var key = seed.rawValue ^ domain.rawValue
         key &+= UInt64(modelVersion.rawValue) &* 0xD6E8_FEB8_6659_FD93
         key ^= bodyID.rawValue &* 0xA076_1D64_78BD_642F
         var generator = SplitMix64RandomNumberGenerator(seed: key)

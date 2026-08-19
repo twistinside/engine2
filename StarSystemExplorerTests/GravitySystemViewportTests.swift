@@ -15,6 +15,8 @@ struct GravitySystemViewportTests {
         #expect(viewport.center == CGPoint(x: 100, y: 50))
         #expect(viewport.zoomScale == 1)
         #expect(viewport.pointsPerMeter == 0.4)
+        #expect(viewport.visibleHorizontalHalfSpanMeters == 250)
+        #expect(viewport.visibleVerticalHalfSpanMeters == 125)
         #expect(
             viewport.point(for: PlanarPosition(meters: SIMD2<Double>(100, 0)))
                 == CGPoint(x: 140, y: 50)
@@ -36,6 +38,8 @@ struct GravitySystemViewportTests {
         #expect(viewport.center == CGPoint(x: 100, y: 50))
         #expect(viewport.zoomScale == 2)
         #expect(viewport.pointsPerMeter == 0.8)
+        #expect(viewport.visibleHorizontalHalfSpanMeters == 125)
+        #expect(viewport.visibleVerticalHalfSpanMeters == 62.5)
         #expect(
             viewport.point(for: PlanarPosition(meters: SIMD2<Double>(0, 0)))
                 == CGPoint(x: 100, y: 50)

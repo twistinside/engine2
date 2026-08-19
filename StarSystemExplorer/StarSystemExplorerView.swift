@@ -43,7 +43,7 @@ struct StarSystemExplorerView: View {
                             GeneratedStarSystemDashboard(system: system)
                         case .dynamics:
                             GravitySystemDashboard(system: system)
-                                .id("\(system.modelVersion.rawValue):\(system.seed.rawValue)")
+                                .id(StarSystemExplorerSystemIdentity(system: system))
                         }
                     } else {
                         ContentUnavailableView {

@@ -6,7 +6,7 @@ import CoreGraphics
 /// Y points toward the top of the canvas, matching the explorer's top-down view.
 /// A zoom scale of one fits the configured extent, larger values magnify around
 /// the canvas center, and smaller values reveal more of the system.
-nonisolated struct GravitySystemViewport: Sendable {
+nonisolated struct GravitySystemViewport: Equatable, Sendable {
     /// The inclusive magnification limits applied to each finite requested zoom scale.
     static let supportedZoomScaleRange: ClosedRange<Double> = 0.25...8
 
@@ -26,6 +26,16 @@ nonisolated struct GravitySystemViewport: Sendable {
         let drawableHeight = max(1, size.height - padding * 2)
         let fittedPointsPerMeter = min(drawableWidth, drawableHeight) / CGFloat(2 * extentMeters)
         return fittedPointsPerMeter * CGFloat(zoomScale)
+    }
+
+    /// The physical half-span visible from the center to either horizontal canvas edge.
+    var visibleHorizontalHalfSpanMeters: Double {
+        Double(size.width / 2 / pointsPerMeter)
+    }
+
+    /// The physical half-span visible from the center to either vertical canvas edge.
+    var visibleVerticalHalfSpanMeters: Double {
+        Double(size.height / 2 / pointsPerMeter)
     }
 
     init(

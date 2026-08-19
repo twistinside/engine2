@@ -4,20 +4,30 @@
 /// transfer uses their semimajor axes as explicit circular reference radii; it
 /// does not claim rendezvous with either body's eccentric generated rail.
 /// Presentation samples `transferRail` through
-/// ``PlanarKeplerPropagationKernel``.
-nonisolated struct HohmannTransferPlan: Codable, Equatable, Sendable {
+/// ``PlanarKeplerPropagationKernel``. The plan retains its planning, departure,
+/// and arrival epochs so its wait and travel durations cannot diverge.
+nonisolated struct HohmannTransferPlan: Equatable, Sendable {
     let sourceBodyID: GeneratedBodyID
     let destinationBodyID: GeneratedBodyID
-    let primaryBodyID: GeneratedBodyID?
     let sourceReferenceRadius: AstronomicalDistance
     let destinationReferenceRadius: AstronomicalDistance
-    let nextWindowWait: AstronomicalDuration
+    let planningEpoch: CelestialEpoch
     let departureEpoch: CelestialEpoch
     let arrivalEpoch: CelestialEpoch
-    let transferDuration: AstronomicalDuration
     let requiredPhaseAngleRadians: Double
     let departureDeltaVMetersPerSecond: Double
     let arrivalDeltaVMetersPerSecond: Double
-    let totalDeltaVMetersPerSecond: Double
     let transferRail: PlanarKeplerianRail
+
+    var nextWindowWait: AstronomicalDuration {
+        departureEpoch.duration(since: planningEpoch)
+    }
+
+    var transferDuration: AstronomicalDuration {
+        arrivalEpoch.duration(since: departureEpoch)
+    }
+
+    var totalDeltaVMetersPerSecond: Double {
+        departureDeltaVMetersPerSecond + arrivalDeltaVMetersPerSecond
+    }
 }

@@ -1,12 +1,12 @@
 import Observation
 import simd
 
-/// Projects one generated system into gravity rails and owns the explorer's deterministic time and transfer state.
+/// Projects one generated system into gravity rails and owns its displayed epoch and transfer selection.
 @Observable
 final class GravitySystemExplorerModel {
     let sourceSystem: GeneratedStarSystem
 
-    private(set) var projectionState = GravitySystemProjectionState.failed("The gravity projection is not available.")
+    private(set) var projectionState = GravitySystemProjectionState.unavailable
     private(set) var transferState = GravityTransferState.selectionIncomplete
     private(set) var maximumElapsedSeconds = AstronomicalDuration.year.seconds
     private(set) var selectedSourceID: GeneratedBodyID?
@@ -18,11 +18,8 @@ final class GravitySystemExplorerModel {
     /// Stable physical half-extent used by every displayed epoch.
     private(set) var diagramExtentMeters = 1.0
 
-    private(set) var displayFrame = GravitySystemDisplayFrame(
-        epoch: .zero,
-        bodyStates: [],
-        selectedGravityAccelerationMetersPerSecondSquared: nil,
-        transferVehicleState: nil
+    private(set) var displaySnapshot = GravitySystemDisplaySnapshot.unavailable(
+        at: .zero
     )
 
     private let propagationKernel = PlanarKeplerPropagationKernel()
@@ -33,37 +30,42 @@ final class GravitySystemExplorerModel {
     private var baseMaximumElapsedSeconds = AstronomicalDuration.year.seconds
 
     var elapsedSeconds: Double {
-        displayFrame.elapsedSeconds
+        displaySnapshot.elapsedSeconds
     }
 
     var bodyStates: [GravityBodyState] {
-        displayFrame.bodyStates
+        displaySnapshot.bodyStates
     }
 
-    var selectedGravityAccelerationMetersPerSecondSquared: Double? {
-        displayFrame.selectedGravityAccelerationMetersPerSecondSquared
+    var selectedGravityState: GravitySystemSelectedGravityState {
+        displaySnapshot.selectedGravityState
     }
 
     var gravitySystem: GeneratedGravitySystem? {
         switch projectionState {
         case .ready(let system): system
-        case .failed: nil
+        case .unavailable, .failed: nil
         }
     }
 
     var transferPlan: HohmannTransferPlan? {
         switch transferState {
         case .ready(let plan): plan
-        case .noPlanets, .onePlanet, .selectionIncomplete, .failed: nil
+        case .noPlanets,
+             .onePlanet,
+             .selectionIncomplete,
+             .projectionUnavailable,
+             .failed:
+            nil
         }
     }
 
     var transferVehicleState: GravityTransferVehicleState? {
-        displayFrame.transferVehicleState
+        displaySnapshot.transferVehicleState
     }
 
     var currentEpoch: CelestialEpoch {
-        displayFrame.epoch
+        displaySnapshot.epoch
     }
 
     init(system: GeneratedStarSystem) {
@@ -124,7 +126,7 @@ final class GravitySystemExplorerModel {
     }
 
     func state(for bodyID: GeneratedBodyID) -> PlanarStateVector? {
-        displayFrame.state(for: bodyID)
+        displaySnapshot.state(for: bodyID)
     }
 
     private func configureGravityProjection() {
@@ -142,9 +144,8 @@ final class GravitySystemExplorerModel {
             configureDiagramExtent(in: gravitySystem)
             updateTransferPlan()
         } catch {
-            let message = "The generated system could not be projected into gravity rails. \(error)"
-            projectionState = .failed(message)
-            transferState = .failed(message)
+            projectionState = .failed(error)
+            transferState = .projectionUnavailable(error)
         }
     }
 
@@ -215,21 +216,18 @@ final class GravitySystemExplorerModel {
 
     private func updateEpochProjection(at epoch: CelestialEpoch? = nil) {
         let epoch = epoch ?? currentEpoch
-        guard let ephemeris else {
-            displayFrame = GravitySystemDisplayFrame(
-                epoch: epoch,
-                bodyStates: [],
-                selectedGravityAccelerationMetersPerSecondSquared: nil,
-                transferVehicleState: nil
-            )
+        guard let ephemeris, let gravityField else {
+            displaySnapshot = .unavailable(at: epoch)
             return
         }
-        let bodyStates = ephemeris.states(at: epoch)
-        displayFrame = GravitySystemDisplayFrame(
-            epoch: epoch,
-            bodyStates: bodyStates,
-            selectedGravityAccelerationMetersPerSecondSquared:
-                selectedGravityAcceleration(in: bodyStates),
+
+        let ephemerisSnapshot = ephemeris.snapshot(at: epoch)
+        displaySnapshot = GravitySystemDisplaySnapshot(
+            ephemerisSnapshot: ephemerisSnapshot,
+            selectedGravityState: selectedGravityState(
+                in: ephemerisSnapshot,
+                field: gravityField
+            ),
             transferVehicleState: transferPlan.map {
                 transferVehicleProjection.state(for: $0, at: epoch)
             }
@@ -282,25 +280,32 @@ final class GravitySystemExplorerModel {
                 plan.arrivalEpoch.secondsSinceReferenceEpoch
             )
         } catch {
-            transferState = .failed("The selected circular-reference transfer could not be planned. \(error)")
+            transferState = .failed(error)
         }
     }
 
-    private func selectedGravityAcceleration(
-        in bodyStates: [GravityBodyState]
-    ) -> Double? {
+    private func selectedGravityState(
+        in snapshot: GravitySystemEphemerisSnapshot,
+        field: PlanarGravityField
+    ) -> GravitySystemSelectedGravityState {
         guard let selectedSourceID,
-              let sourceState = bodyStates.first(where: { $0.body.id == selectedSourceID })?.state,
-              let gravityField,
-              let acceleration = try? gravityField.acceleration(
-                  at: sourceState.position,
-                  fromExactStates: bodyStates,
-                  excluding: selectedSourceID
-              ) else {
-            return nil
+              let sourceState = snapshot.state(for: selectedSourceID) else {
+            return .unavailable
         }
-        return simd_length(
-            acceleration.metersPerSecondSquared
-        )
+
+        do {
+            let acceleration = try field.acceleration(
+                at: sourceState.position,
+                from: snapshot,
+                excluding: selectedSourceID
+            )
+            return .available(
+                metersPerSecondSquared: simd_length(
+                    acceleration.metersPerSecondSquared
+                )
+            )
+        } catch {
+            return .failed(error)
+        }
     }
 }

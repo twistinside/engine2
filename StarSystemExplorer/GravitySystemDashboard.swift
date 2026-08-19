@@ -10,6 +10,11 @@ struct GravitySystemDashboard: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 switch model.projectionState {
+                case .unavailable:
+                    projectionUnavailable(
+                        title: "Gravity Projection Unavailable",
+                        description: "The explorer has not produced a gravity projection for this generated system."
+                    )
                 case .ready(let gravitySystem):
                     GravitySystemDynamicsOverview(
                         model: model,
@@ -33,22 +38,19 @@ struct GravitySystemDashboard: View {
                             .foregroundStyle(.green)
                         Text(
                             "Gravity projection validation passed for seed \(gravitySystem.seed.rawValue). "
-                                + "Every displayed body position comes from the shared deterministic ephemeris."
+                                + "Every displayed planet and moon position comes from the shared "
+                                + "deterministic ephemeris."
                         )
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                case .failed(let message):
-                    ContentUnavailableView {
-                        Label("Gravity Projection Failed", systemImage: "exclamationmark.triangle.fill")
-                    } description: {
-                        Text(message)
-                    }
-                    .padding(48)
-                    .frame(maxWidth: .infinity, minHeight: 440)
-                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                case .failed(let error):
+                    projectionUnavailable(
+                        title: "Gravity Projection Failed",
+                        description: gravityPresentation.gravityProjectionFailureMessage(error)
+                    )
                 }
             }
             .padding(22)
@@ -86,9 +88,9 @@ struct GravitySystemDashboard: View {
             case .ready(let plan):
                 EagerAdaptiveGrid(minimumColumnWidth: 190, horizontalSpacing: 10, verticalSpacing: 10) {
                     MetricTile(
-                        "Departure window",
+                        "Wait to departure",
                         value: gravityPresentation.elapsedTime(seconds: plan.nextWindowWait.seconds),
-                        detail: "Departure at \(gravityPresentation.epoch(plan.departureEpoch))",
+                        detail: "Measured from the gravity-system reference epoch",
                         systemImage: "calendar.badge.clock",
                         tint: .cyan
                     )
@@ -143,8 +145,16 @@ struct GravitySystemDashboard: View {
                     title: "Select Two Planets",
                     description: "Choose distinct departure and destination planets to form a reference plan."
                 )
-            case .failed(let message):
-                transferUnavailable(title: "Transfer Unavailable", description: message)
+            case .projectionUnavailable(let error):
+                transferUnavailable(
+                    title: "Gravity Projection Unavailable",
+                    description: gravityPresentation.gravityProjectionFailureMessage(error)
+                )
+            case .failed(let error):
+                transferUnavailable(
+                    title: "Transfer Unavailable",
+                    description: gravityPresentation.transferFailureMessage(error)
+                )
             }
         }
     }
@@ -159,6 +169,17 @@ struct GravitySystemDashboard: View {
 
     init(system: GeneratedStarSystem) {
         _model = State(initialValue: GravitySystemExplorerModel(system: system))
+    }
+
+    private func projectionUnavailable(title: String, description: String) -> some View {
+        ContentUnavailableView {
+            Label(title, systemImage: "exclamationmark.triangle.fill")
+        } description: {
+            Text(description)
+        }
+        .padding(48)
+        .frame(maxWidth: .infinity, minHeight: 440)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func transferUnavailable(title: String, description: String) -> some View {
