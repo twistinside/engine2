@@ -43,10 +43,11 @@ class Entity {
         var selectionState: CSelectable.SelectionState? = nil
     }
 
-    /// Creates a live entity handle without registering it in the world.
+    /// Creates a live entity handle without registering common component rows.
     ///
-    /// This entry point is for test fixtures and future reconstruction paths
-    /// that need an entity wrapper before world registration occurs.
+    /// Focused entity facades use this entry point when another validated World
+    /// boundary registers their component aggregate. Test fixtures and future
+    /// reconstruction paths can use the same seam.
     init(unregisteredID id: EntityID, in world: World) {
         self.id = id
         self.world = world

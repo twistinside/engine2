@@ -1,4 +1,4 @@
-/// Nonnegative thermodynamic temperature stored in kelvin.
+/// Nonnegative celestial thermodynamic temperature stored in kelvin.
 nonisolated struct ThermodynamicTemperature: Codable, Equatable, Hashable, Sendable {
     static let absoluteZero = ThermodynamicTemperature(kelvin: 0)
 

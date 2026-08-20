@@ -2,13 +2,15 @@ import simd
 
 /// Immutable behavior policy required to construct the foundational Simulation schedule.
 ///
-/// The value keeps camera-control sensitivities and orbit constraints consistent across
-/// every system in one Simulation Runtime. Its initializer validates the complete policy;
-/// Game Content or the Runtime Assembly must deliberately select a named production
+/// The value selects the orbital-mechanics contract and keeps camera-control
+/// sensitivities and orbit constraints consistent across every system in one
+/// Simulation Runtime. Its initializer validates the complete policy; Game
+/// Content or the Runtime Assembly must deliberately select a named production
 /// value instead of letting individual systems choose local defaults.
 nonisolated struct SimulationConfiguration: Equatable, Sendable {
     /// Complete Simulation behavior policy selected by Basic Game Content.
     static let basicGame = Self(
+        orbitalDynamicsModelVersion: .velocityVerletV1,
         pointerOrbitSensitivity: 0.01,
         scrollZoomSensitivity: 0.04,
         cameraOrbitTarget: .zero,
@@ -16,6 +18,7 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
         maximumCameraOrbitRadius: 30
     )
 
+    let orbitalDynamicsModelVersion: PlanarOrbitalDynamicsModelVersion
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
     let cameraOrbitTarget: SIMD3<Float>
@@ -23,6 +26,7 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
     let maximumCameraOrbitRadius: Float
 
     init(
+        orbitalDynamicsModelVersion: PlanarOrbitalDynamicsModelVersion,
         pointerOrbitSensitivity: Float,
         scrollZoomSensitivity: Float,
         cameraOrbitTarget: SIMD3<Float>,
@@ -44,6 +48,7 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
             "Camera orbit maximum radius must be finite and no smaller than its minimum."
         )
 
+        self.orbitalDynamicsModelVersion = orbitalDynamicsModelVersion
         self.pointerOrbitSensitivity = pointerOrbitSensitivity
         self.scrollZoomSensitivity = scrollZoomSensitivity
         self.cameraOrbitTarget = cameraOrbitTarget

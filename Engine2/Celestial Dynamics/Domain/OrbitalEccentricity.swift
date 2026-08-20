@@ -1,4 +1,4 @@
-/// Dimensionless eccentricity of one bound Keplerian orbit.
+/// Dimensionless eccentricity of one bound celestial orbit.
 nonisolated struct OrbitalEccentricity: Codable, Equatable, Hashable, RawRepresentable, Sendable {
     static let circular = OrbitalEccentricity(rawValue: 0)
 

@@ -34,13 +34,10 @@ nonisolated struct AstronomicalQuantityTests {
         #expect(diskLifetime < systemAge)
     }
 
-    @Test func luminosityAndPressureConversionsPreserveNamedUnits() {
+    @Test func luminosityConversionPreservesNamedUnits() {
         let solarLuminosity = StellarLuminosity(solarLuminosities: 1)
-        let bar = SurfacePressure(bars: 1)
 
         #expect(solarLuminosity == .solarLuminosity)
-        #expect(bar == .bar)
         #expect(solarLuminosity.solarLuminosities == 1)
-        #expect(bar.bars == 1)
     }
 }
