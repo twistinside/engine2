@@ -107,14 +107,15 @@ Current example ownership:
 ## Current Structure
 - `Engine2/Simulation Runtime/Engine/ECS/World.swift`
   - Central world object.
-  - Owns component stores.
+  - Owns component stores and simulation-scoped resources.
   - `add(_:from:renderable:)` translates advertised entity capabilities into component rows and validates that seed values match those capabilities.
+  - `addCelestialBody(_:from:)` registers stable celestial identity and inserts the four mandatory celestial rows plus optional stellar emission.
   - `reserveEntityID()` currently allocates monotonically increasing indices with generation `0`; generation reuse/destruction is still future work.
 - `Engine2/Simulation Runtime/Engine/ECS/Entity.swift`
   - Base `Entity` superclass.
   - Holds `id` and `world`.
   - `InitialState` carries common spawn-time transform and motion seed values.
-  - `init(unregisteredID:in:)` is for tests and future reconstruction paths.
+  - `init(unregisteredID:in:)` supports tests, reconstruction, and focused entity facades that register a different component aggregate.
   - `init(in:from:)` reserves an ID and registers the entity with `World`.
 - `Engine2/Simulation Runtime/Engine/ECS/EntityID.swift`
   - Entity handle with `index` and `generation`.
@@ -169,13 +170,25 @@ Current example ownership:
   - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-tick accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
+- `Engine2/Celestial Dynamics/**/*.swift`
+  - Content-neutral double-precision physical quantities, planar state values, analytic Kepler rails, hierarchical ephemeris evaluation, and versioned orbital stepping.
+  - `PlanarOrbitalDynamicsStepper` performs deterministic velocity-Verlet propagation over detached prescribed and integrated bodies. It has no ECS or Game Content dependency.
+- `Engine2/Simulation Runtime/Engine/System/Celestial Dynamics/**/*.swift`
+  - `CCelestialIdentity`, `CMassiveBody`, `COrbitalMotion`, and `CGravityParticipation` are mandatory celestial rows; stellar entities also have `CStellarEmission`.
+  - `CelestialBodyIndex`, `CelestialEphemerisConfiguration`, and `CelestialTimeline` are World-owned resources shared by scheduled celestial work.
+  - `SOrbitalDynamics` validates and projects World state into the shared mechanics, then commits every orbital row and the common timeline as one logical fixed-tick transaction.
+- `Engine2/Game Content/Entity/Celestial/*.swift`
+  - `Star`, `Planet`, `Moon`, `Asteroid`, and `Comet` are final typed facades over celestial ECS state. They do not retain a second authoritative copy.
+- `Engine2/Game Content/Gravity System Generation/**/*.swift`
+  - Generated-system rail projection and ephemeris evaluation are Game Content adapters over the reusable celestial-dynamics primitives.
+  - These adapters may depend on generated-system identities and facts; the content-neutral `Celestial Dynamics` layer must not depend on them.
 - `Engine2/Simulation Runtime/Engine/*.swift`
   - `Engine` owns exact fixed-step execution and one complete ordered system schedule. Production construction derives that invariant schedule from an explicit `SimulationConfiguration`; the full initializer requires an explicit `World`, fixed step, and complete injected system list for focused integration tests.
-  - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, movement, and rotation are invariant members of every completed tick. The real-time screen camera can change only through a completed Simulation publication; deliberate exact output requests may still carry a separate viewpoint.
+  - Input mapping, Simulation camera control, input history, cleanup, orbital dynamics, acceleration intent, movement, and rotation are invariant members of every completed tick. The real-time screen camera can change only through a completed Simulation publication; deliberate exact output requests may still carry a separate viewpoint.
 - `Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
-  - Validated immutable policy for pointer-orbit sensitivity, scroll-zoom sensitivity, orbit target, and minimum/maximum orbit radius.
+  - Validated immutable policy for the orbital-dynamics model, pointer-orbit sensitivity, scroll-zoom sensitivity, orbit target, and minimum/maximum orbit radius.
 - `Engine2/Runtime Configuration/PRuntimeAssembly.swift`
   - Common SwiftUI hosting and Game Content injection boundary shared by every concrete assembly.
 - `Engine2/Runtime Configuration/PGameContent.swift`
@@ -215,7 +228,7 @@ Current example ownership:
   - Gas-disk collisions return stripped solids to the nearest annulus and add stripped hydrogen-helium to dispersed gas. Post-disk scattering, collisions, ejections, and stellar accretion retain explicit ancestry, event counts, and composition destinations in `StarSystemDynamicalLossLedger`.
   - Atmosphere evolution subtracts finite boil-off, core-powered, and energy-limited primordial-loss budgets. Secondary atmospheres use a finite volatile supply and a hard cosmic-shoreline survival boundary. Preserve exact-zero mass for complete loss; `.airless` means exactly zero resolved atmosphere mass, while every positive sub-`0.05`-bar atmosphere is `.tenuous`.
   - V1 samples and persists a `0...maximumResolvedPlanetCount` output capacity through the named `resolvedPlanetMultiplicity` stream. It selects at most that many survivors whose pre-moon solid mass meets `minimumResolvedPlanetSolidMassEarth`, ranked by descending pre-moon solid mass and then stable identity. Zero is a valid capacity; do not force a fallback planet. Validation replays the capacity and checks every resolved parent-plus-moons solid total against the eligibility floor because moon extraction preserves that total. The generator aggregates every omitted survivor into residual composition, body-count, and progenitor-count ledger fields, including eligible survivors beyond the sampled capacity. Do not invent individual residual orbits, environments, moons, or classifications. This output/population calibration does not constrain formation to nine survivors and is distinct from unaccreted annulus solids, which do not represent a generated planetesimal, embryo, belt, or debris population.
-  - Generation deliberately does not extend `PGameContent`, run inside `PWorldBuilder`, or project into `World` yet. A future celestial world builder should accept an already resolved value after Simulation's authoritative celestial state is designed.
+  - Generation deliberately does not extend `PGameContent` or run inside `PWorldBuilder`. `GeneratedStarSystemWorldBuilder` accepts an already resolved value, projects its gravity system once, and materializes source-only rail bodies plus analytic-model provenance at the existing World-construction boundary.
   - Gameplay categories and Render appearance are downstream projections. Do not add scenario value, habitability, resources, civilizations, mesh identities, textures, or backend objects to the physical generator.
   - The canonical model and calibration documentation lives in `Star-System-Generation.md` and `Star-System-Generation-Calibration.md`. Keep deterministic regression fixtures, invariant tests, bounded diversity smoke coverage, and external large-seed population audits distinct. After the V1 compatibility baseline is frozen, a formula, calibration, phase ordering, deterministic draw, or fallback change requires a new `StarSystemGenerationModelVersion`.
 - `Engine2/Random Number Generation/SplitMix64RandomNumberGenerator.swift`

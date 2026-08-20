@@ -11,15 +11,26 @@ class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<CAngularMotionAccumulator>()
     var angularVelocityComponents = ComponentStore<CAngularVelocity>()
+    var celestialIdentityComponents = ComponentStore<CCelestialIdentity>()
+    var gravityParticipationComponents = ComponentStore<CGravityParticipation>()
+    var massiveBodyComponents = ComponentStore<CMassiveBody>()
     var motionComponents = ComponentStore<CMotion>()
+    var orbitalMotionComponents = ComponentStore<COrbitalMotion>()
     var positionComponents = ComponentStore<CPosition>()
     var renderableComponents = ComponentStore<CRenderable>()
     var rotationComponents = ComponentStore<CRotation>()
     var scaleComponents = ComponentStore<CScale>()
     var selectableComponents = ComponentStore<CSelectable>()
+    var stellarEmissionComponents = ComponentStore<CStellarEmission>()
 
     // MARK: Resources
     var camera = Camera.standard
+    var celestialBodyIndex = CelestialBodyIndex()
+    var celestialEphemerisConfiguration: CelestialEphemerisConfiguration?
+    var celestialTimeline = CelestialTimeline(
+        epoch: .zero,
+        predictionBasisRevision: .zero
+    )
     var input = InputState()
     var inputHistory = InputHistory(maximumEntryCount: 60)
 
@@ -79,6 +90,48 @@ class World {
         addScaleComponent(for: entity, from: state)
         addRenderableComponent(for: entity, from: renderableState)
         addSelectionComponent(for: entity, from: state)
+        return entity.id
+    }
+
+    /// Creates the authoritative celestial rows for one typed entity facade.
+    ///
+    /// Celestial construction uses a focused aggregate because double-precision
+    /// orbital state, physical mass, and stellar emission are not extensions of
+    /// the render-scale transform seed. Stable celestial identity is registered
+    /// once before systems begin iterating the World-owned index.
+    @discardableResult
+    func addCelestialBody(
+        _ entity: Entity,
+        from state: CelestialBodyInitialState
+    ) -> EntityID {
+        precondition(
+            entity is PCelestialBody,
+            "Celestial body initial state requires PCelestialBody conformance."
+        )
+        precondition(
+            (entity is PStellarEmitter) == (state.stellarEmission != nil),
+            "PStellarEmitter conformance and stellar emission must occur together."
+        )
+
+        do {
+            try celestialBodyIndex.register(
+                state.identity.bodyID,
+                for: entity.id
+            )
+        } catch {
+            preconditionFailure(error.message)
+        }
+
+        celestialIdentityComponents.insert(state.identity, for: entity.id)
+        massiveBodyComponents.insert(state.massiveBody, for: entity.id)
+        orbitalMotionComponents.insert(state.orbitalMotion, for: entity.id)
+        gravityParticipationComponents.insert(
+            state.gravityParticipation,
+            for: entity.id
+        )
+        if let stellarEmission = state.stellarEmission {
+            stellarEmissionComponents.insert(stellarEmission, for: entity.id)
+        }
         return entity.id
     }
 

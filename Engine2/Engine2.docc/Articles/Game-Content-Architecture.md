@@ -4,7 +4,7 @@ This article defines the proposed boundary between reusable Engine2 machinery an
 
 ## Status
 
-Proposed direction.
+Partially implemented direction.
 
 The current project still compiles engine code, example entities, world construction, rendering assets, and the application into one target. The types and construction examples in this article describe the boundary Engine2 should grow toward; they are not all implemented APIs.
 
@@ -82,6 +82,13 @@ or `Int` values.
 ## Entities Carry Abstract Presentation Intent
 
 Consumer-defined entities should remain ergonomic typed facades over authoritative ECS state. Their presentation components contain stable asset identities and abstract presentation state, not loaded backend objects.
+
+The implemented celestial entities follow this boundary. ``Star``, ``Planet``,
+``Moon``, ``Asteroid``, and ``Comet`` are final typed facades over World-owned
+identity, mass, orbital motion, and gravity-participation rows. ``Star`` also
+exposes World-owned stellar emission. These objects provide a convenient
+Game Content and tooling surface without retaining a second authoritative copy
+of their physical state.
 
 The current render component and a possible continuous-audio component
 illustrate that split:
@@ -245,16 +252,25 @@ construction utility. It uses one ``StarSystemSeed`` and one complete versioned
 ``GeneratedStarSystem``. It owns no cadence, lifecycle, task, Runtime resource,
 or ECS state, so procedural generation does not create a new Runtime boundary.
 
-Generation deliberately remains outside ``PGameContent`` for this first
-physical-model step. The common assembly seam still exposes exactly the three
-values its current runtime topologies consume. Adding a generated system before
-Simulation has a coherent celestial-state contract would turn unresolved future
-integration into a placeholder common dependency.
+Generation remains outside ``PGameContent``. The common assembly seam exposes
+the three values its runtime topologies consume, and a specialized Game Content
+value can supply a prepared ``GeneratedStarSystemWorldBuilder`` through the
+existing ``PWorldBuilder`` property. ``BasicGameContent`` continues to select
+``BasicWorldBuilder``; the default App does not yet launch a generated celestial
+world.
 
-Generation also remains outside ``PWorldBuilder/buildWorld()``. That operation
-is a nonthrowing one-shot Simulation construction interface. Running the
-generator there would hide a generation failure and could repeat expensive
-formation when an assembly rebuilds its world. The intended future path is:
+The generator also remains outside ``PWorldBuilder/buildWorld()``. That method
+is a nonthrowing one-shot Simulation construction interface. Running formation
+there would hide a generation failure and could repeat expensive work whenever
+an assembly rebuilds its world. Instead, the throwing
+``GeneratedStarSystemWorldBuilder`` initializer accepts one resolved
+``GeneratedStarSystem``, projects its versioned gravity system, and captures the
+initial ephemeris state once. `buildWorld()` then materializes ordinary
+celestial entities, component rows, the stable body index, the selected
+``CelestialEphemerisConfiguration``, and the initial ``CelestialTimeline``
+without rerunning formation or projection.
+
+The implemented construction path is:
 
 ```text
 seed + versioned policy
@@ -263,14 +279,25 @@ seed + versioned policy
 StarSystemGenerator.generate(seed:)
         |
         v
-validated and persisted GeneratedStarSystem
+validated and optionally persisted GeneratedStarSystem
         |
         v
-future GeneratedStarSystemWorldBuilder
+GeneratedStarSystemWorldBuilder.init(sourceSystem:gravitySystemModelVersion:)
         |
         v
-authoritative celestial ECS state
+GeneratedStarSystemWorldBuilder.buildWorld()
+        |
+        v
+authoritative celestial ECS state on source-only rails
 ```
+
+The builder currently materializes the primary star, planets, and moons. It
+does not create generated belts, asteroids, or comets. Schedule construction
+remains Simulation policy: production ``Engine`` installs
+``SOrbitalDynamics`` from the fixed-step duration and the mechanics version in
+``SimulationConfiguration``. Generated bodies begin as source-only ephemeris
+roots or Keplerian rails; authority transitions and integrated gameplay bodies
+remain Simulation concerns rather than construction policy.
 
 The resolved system retains star, disk, planet, moon, orbit, composition,
 environment, physical-state, determinism, and mass-ledger facts. A later
@@ -322,7 +349,14 @@ Do not respond by making every current type public. The package should expose th
 
 The Simulation Runtime owns and schedules invariant systems required for valid position, orientation, input, and other core mechanics. A future behavior extension must compose with that schedule; it must not move the simulation foundation into Game Content.
 
-The current ``World`` has a fixed list of component stores, and ``World/add(_:from:renderable:)`` translates a fixed list of capability protocols. That is appropriate for the current experiment but is the largest structural limitation on external Game Content. Before claiming general consumer-defined components, Engine2 needs a strongly typed extension path for externally defined component storage, spawning, and system access without returning to a closed component enum or a global registry.
+The current ``World`` has a fixed list of component stores.
+``World/add(_:from:renderable:)`` translates the general entity capability list,
+and ``World/addCelestialBody(_:from:)`` registers the closed celestial component
+set and stable identity mapping. That is appropriate for the current experiment
+but is the largest structural limitation on external Game Content. Before
+claiming general consumer-defined components, Engine2 needs a strongly typed
+extension path for externally defined component storage, spawning, and system
+access without returning to a closed component enum or a global registry.
 
 ## Current-to-Proposed Mapping
 
@@ -332,6 +366,8 @@ Current project elements map onto Game Content as follows:
 | --- | --- |
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
+| ``Star``, ``Planet``, ``Moon``, ``Asteroid``, and ``Comet`` | Typed celestial Game Content facades over authoritative ECS rows |
+| ``GeneratedStarSystemWorldBuilder`` | Projection of resolved generated Game Content into one authoritative celestial World |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
 | `BasicGameContent` | Example assembly-selected composition of world construction, Simulation behavior configuration, and render asset mappings |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |

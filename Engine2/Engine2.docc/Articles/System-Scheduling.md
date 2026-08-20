@@ -3,6 +3,10 @@ This article captures the intended scheduling direction for Engine2.
 ## Status
 Partially implemented. Parts of this model are not implemented yet.
 The current engine stores one foundational ordered system list. Production real-time, manual, offline, and agent advancement all reach the same exact ``Engine/step(inputSnapshot:)`` operation, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. The obsolete partial-schedule and independent real-time screen-camera paths have been removed. ``SInputMapping`` and ``SCameraInput`` instead run inside the complete schedule before transient cleanup, so the live screen's exact `SimulationPresentationSnapshot.camera` can change only through completed Simulation work. Deliberate exact offscreen, offline, and agent requests may still carry a separate ``RenderViewpoint`` as output policy.
+
+``SOrbitalDynamics`` now provides the fixed-tick celestial ECS adapter in the
+production schedule. ``SimulationConfiguration`` selects its mechanics version,
+and ``Engine`` supplies the exact Simulation fixed-step duration.
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
@@ -10,6 +14,43 @@ ECS systems and this scheduler live inside the authoritative Simulation Runtime.
 An assembly-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Assemblies-and-Advancement>.
 
 Platform collection is not a scheduled ECS system. `InputMetalView` submits host events directly to ``InputRuntime``, which publishes a latest immutable `InputSnapshot`; ``Engine`` imports an assigned value into World-owned ``InputState`` only at the beginning of an actual fixed step. The current default maps raw pointer/scroll transients into semantic camera commands, applies them to the authoritative camera, projects a diagnostic row into the separate World-owned ``InputHistory``, clears raw and mapped transients, and performs the remaining authoritative work as one complete tick. Selecting an explicit viewpoint for a deliberate exact output request is separate output policy, not a scheduler phase.
+
+## Current Celestial Step
+
+``SOrbitalDynamics`` is deliberately thin. It reads the stable
+``CelestialBodyIndex`` order and World-owned celestial rows. When prescribed
+bodies exist, it requires ``CelestialEphemerisConfiguration`` and evaluates
+their roots and parent-relative rails through the selected content-neutral
+``PlanarEphemerisEvaluator``. It sends detached bodies to the selected versioned
+``PlanarOrbitalDynamicsStepper``. Source-only rails move to their exact
+next-epoch ephemeris state without numerical recoil. Integrated receivers
+advance through velocity-Verlet and may also source gravity when their role
+requires it.
+
+One successful update follows a fixed sequence:
+
+1. Validate the indexed component topology and derive the next exact epoch.
+2. Validate and dispatch the retained analytic model when prescribed bodies
+   exist.
+3. Evaluate prescribed state at the current and next epochs.
+4. Build mechanics input in ascending persistent body-identity order.
+5. Run the selected versioned numerical step and validate its output identity
+   and model version.
+6. Update every orbital row, then commit ``CelestialTimeline``.
+
+Topology, ephemeris, contact, and numerical failures occur before World
+mutation. The final row and timeline writes therefore form one logical atomic
+commit under serialized Simulation execution. The typed `advance(world:)`
+operation exposes refusal to focused callers. The ordinary ``PSystem`` update
+currently treats refusal as a precondition failure because the schedule has no
+collision-resolution or event-publication lane.
+
+The adapter owns one `Double` duration and ignores the legacy `Float` delta
+argument. Production Engine construction derives that value from
+``SimulationRuntime/fixedTimeStep`` so one orbital update means the same exact
+interval as every other fixed-tick system. The complete injected-schedule
+initializer leaves system selection and duration explicit for focused tests.
+
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
 When the clock produces new elapsed time, the engine should treat that as additional backlog, not permission to begin another overlapping world update. If the engine is already stepping systems, newly arrived time should be accumulated and drained later.
@@ -80,3 +121,6 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 - ``SInputMapping``
 - ``SCameraInput``
 - ``SMovement``
+- ``SOrbitalDynamics``
+- ``CelestialTimeline``
+- ``PlanarOrbitalDynamicsStepper``

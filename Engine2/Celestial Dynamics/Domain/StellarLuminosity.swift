@@ -1,4 +1,4 @@
-/// Nonnegative bolometric luminosity stored in watts.
+/// Nonnegative stellar bolometric luminosity stored in watts.
 nonisolated struct StellarLuminosity: Codable, Equatable, Hashable, Sendable {
     static let zero = StellarLuminosity(watts: 0)
     static let solarLuminosity = StellarLuminosity(watts: 3.828e26)

@@ -88,7 +88,7 @@
 		E42000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift */; };
 		E42000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift */; };
 		E4200000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift */; };
-		E4200000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift */; };
+		E4200000000000000000000B /* Celestial Dynamics/Domain/OrbitalEccentricity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000B /* Celestial Dynamics/Domain/OrbitalEccentricity.swift */; };
 		E4200000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift */; };
 		E4200000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift */; };
 		E4200000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift */; };
@@ -131,13 +131,56 @@
 		E42000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */; };
 		E42000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */; };
 		E42000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */; };
-		E42000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */; };
-		E42000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */; };
-		E42000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */; };
-		E42000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */; };
+		E42000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */; };
+		E42000000000000000000037 /* Celestial Dynamics/Domain/AstronomicalDuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000037 /* Celestial Dynamics/Domain/AstronomicalDuration.swift */; };
+		E42000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift */; };
+		E42000000000000000000039 /* Celestial Dynamics/Domain/StellarLuminosity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000039 /* Celestial Dynamics/Domain/StellarLuminosity.swift */; };
 		E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */; };
-		E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */; };
+		E4200000000000000000003B /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003B /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift */; };
 		E4200000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */; };
+		E52000000000000000000001 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000001 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */; };
+		E52000000000000000000002 /* Celestial Dynamics/Domain/AstronomicalDuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000002 /* Celestial Dynamics/Domain/AstronomicalDuration.swift */; };
+		E52000000000000000000003 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000003 /* Celestial Dynamics/Domain/AstronomicalMass.swift */; };
+		E52000000000000000000004 /* Celestial Dynamics/Domain/CelestialBodyID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000004 /* Celestial Dynamics/Domain/CelestialBodyID.swift */; };
+		E52000000000000000000005 /* Celestial Dynamics/Domain/CelestialEpoch.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000005 /* Celestial Dynamics/Domain/CelestialEpoch.swift */; };
+		E52000000000000000000006 /* Celestial Dynamics/Domain/GravitationalParameter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000006 /* Celestial Dynamics/Domain/GravitationalParameter.swift */; };
+		E52000000000000000000007 /* Celestial Dynamics/Domain/OrbitalEccentricity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000007 /* Celestial Dynamics/Domain/OrbitalEccentricity.swift */; };
+		E52000000000000000000008 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000008 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */; };
+		E52000000000000000000009 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000009 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift */; };
+		E5200000000000000000000A /* Celestial Dynamics/Domain/PlanarOrbitalBodyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000000A /* Celestial Dynamics/Domain/PlanarOrbitalBodyState.swift */; };
+		E5200000000000000000000B /* Celestial Dynamics/Domain/PlanarPosition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000000B /* Celestial Dynamics/Domain/PlanarPosition.swift */; };
+		E5200000000000000000000C /* Celestial Dynamics/Domain/PlanarStateVector.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000000C /* Celestial Dynamics/Domain/PlanarStateVector.swift */; };
+		E5200000000000000000000E /* Celestial Dynamics/Domain/PlanarVelocity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000000E /* Celestial Dynamics/Domain/PlanarVelocity.swift */; };
+		E5200000000000000000000F /* Celestial Dynamics/Domain/StellarLuminosity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000000F /* Celestial Dynamics/Domain/StellarLuminosity.swift */; };
+		E52000000000000000000010 /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000010 /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift */; };
+		E52000000000000000000011 /* Celestial Dynamics/Dynamics/PlanarOrbitalBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000011 /* Celestial Dynamics/Dynamics/PlanarOrbitalBody.swift */; };
+		E52000000000000000000012 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000012 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsError.swift */; };
+		E52000000000000000000013 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsModelVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000013 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsModelVersion.swift */; };
+		E52000000000000000000014 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000014 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepResult.swift */; };
+		E52000000000000000000015 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepper.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000015 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepper.swift */; };
+		E52000000000000000000016 /* Celestial Dynamics/Dynamics/PlanarOrbitalPropagation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000016 /* Celestial Dynamics/Dynamics/PlanarOrbitalPropagation.swift */; };
+		E52000000000000000000017 /* Celestial Dynamics/Ephemeris/PlanarEphemerisBodyDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000017 /* Celestial Dynamics/Ephemeris/PlanarEphemerisBodyDefinition.swift */; };
+		E52000000000000000000018 /* Celestial Dynamics/Ephemeris/PlanarEphemerisDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000018 /* Celestial Dynamics/Ephemeris/PlanarEphemerisDefinition.swift */; };
+		E52000000000000000000019 /* Celestial Dynamics/Ephemeris/PlanarEphemerisError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000019 /* Celestial Dynamics/Ephemeris/PlanarEphemerisError.swift */; };
+		E5200000000000000000001A /* Celestial Dynamics/Ephemeris/PlanarEphemerisEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000001A /* Celestial Dynamics/Ephemeris/PlanarEphemerisEvaluator.swift */; };
+		E5200000000000000000001B /* Celestial Dynamics/Gravity/GravityParticipation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000001B /* Celestial Dynamics/Gravity/GravityParticipation.swift */; };
+		E5200000000000000000001C /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000001C /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift */; };
+		E5200000000000000000001D /* Simulation Runtime/Engine/System/Celestial Dynamics/CelestialBodyInitialState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000001D /* Simulation Runtime/Engine/System/Celestial Dynamics/CelestialBodyInitialState.swift */; };
+		E5200000000000000000001E /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CCelestialIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000001E /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CCelestialIdentity.swift */; };
+		E5200000000000000000001F /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CGravityParticipation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000001F /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CGravityParticipation.swift */; };
+		E52000000000000000000020 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CMassiveBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000020 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CMassiveBody.swift */; };
+		E52000000000000000000021 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/COrbitalMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000021 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/COrbitalMotion.swift */; };
+		E52000000000000000000022 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CStellarEmission.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000022 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CStellarEmission.swift */; };
+		E52000000000000000000023 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialBodyKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000023 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialBodyKind.swift */; };
+		E52000000000000000000024 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialPredictionBasisRevision.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000024 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialPredictionBasisRevision.swift */; };
+		E52000000000000000000025 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PCelestialBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000025 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PCelestialBody.swift */; };
+		E52000000000000000000026 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PStellarEmitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000026 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PStellarEmitter.swift */; };
+		E52000000000000000000027 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialBodyIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000027 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialBodyIndex.swift */; };
+		E52000000000000000000028 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000028 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialTimeline.swift */; };
+		E52000000000000000000029 /* Simulation Runtime/Engine/System/Celestial Dynamics/System/OrbitalDynamicsSystemError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E51000000000000000000029 /* Simulation Runtime/Engine/System/Celestial Dynamics/System/OrbitalDynamicsSystemError.swift */; };
+		E5200000000000000000002A /* Simulation Runtime/Engine/System/Celestial Dynamics/System/SOrbitalDynamics.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000002A /* Simulation Runtime/Engine/System/Celestial Dynamics/System/SOrbitalDynamics.swift */; };
+		E5200000000000000000002B /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialEphemerisConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000002B /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialEphemerisConfiguration.swift */; };
+		E5200000000000000000002C /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5100000000000000000002C /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -255,7 +298,7 @@
 		E41000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift"; sourceTree = "<group>"; };
 		E41000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/KeplerianOrbit.swift"; sourceTree = "<group>"; };
 		E4100000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/MoonFormationOrigin.swift"; sourceTree = "<group>"; };
-		E4100000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/OrbitalEccentricity.swift"; sourceTree = "<group>"; };
+		E4100000000000000000000B /* Celestial Dynamics/Domain/OrbitalEccentricity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/OrbitalEccentricity.swift"; sourceTree = "<group>"; };
 		E4100000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift"; sourceTree = "<group>"; };
 		E4100000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift"; sourceTree = "<group>"; };
 		E4100000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift"; sourceTree = "<group>"; };
@@ -298,13 +341,56 @@
 		E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift"; sourceTree = "<group>"; };
 		E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift"; sourceTree = "<group>"; };
 		E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/StarSystemRandomStream.swift"; sourceTree = "<group>"; };
-		E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift"; sourceTree = "<group>"; };
-		E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift"; sourceTree = "<group>"; };
-		E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift"; sourceTree = "<group>"; };
-		E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift"; sourceTree = "<group>"; };
+		E41000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDistance.swift"; sourceTree = "<group>"; };
+		E41000000000000000000037 /* Celestial Dynamics/Domain/AstronomicalDuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDuration.swift"; sourceTree = "<group>"; };
+		E41000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalMass.swift"; sourceTree = "<group>"; };
+		E41000000000000000000039 /* Celestial Dynamics/Domain/StellarLuminosity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/StellarLuminosity.swift"; sourceTree = "<group>"; };
 		E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift"; sourceTree = "<group>"; };
-		E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift"; sourceTree = "<group>"; };
+		E4100000000000000000003B /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/ThermodynamicTemperature.swift"; sourceTree = "<group>"; };
 		E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Random Number Generation/SplitMix64RandomNumberGenerator.swift"; sourceTree = "<group>"; };
+		E51000000000000000000001 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDistance.swift"; sourceTree = "<group>"; };
+		E51000000000000000000002 /* Celestial Dynamics/Domain/AstronomicalDuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDuration.swift"; sourceTree = "<group>"; };
+		E51000000000000000000003 /* Celestial Dynamics/Domain/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalMass.swift"; sourceTree = "<group>"; };
+		E51000000000000000000004 /* Celestial Dynamics/Domain/CelestialBodyID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/CelestialBodyID.swift"; sourceTree = "<group>"; };
+		E51000000000000000000005 /* Celestial Dynamics/Domain/CelestialEpoch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/CelestialEpoch.swift"; sourceTree = "<group>"; };
+		E51000000000000000000006 /* Celestial Dynamics/Domain/GravitationalParameter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/GravitationalParameter.swift"; sourceTree = "<group>"; };
+		E51000000000000000000007 /* Celestial Dynamics/Domain/OrbitalEccentricity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/OrbitalEccentricity.swift"; sourceTree = "<group>"; };
+		E51000000000000000000008 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarKeplerianRail.swift"; sourceTree = "<group>"; };
+		E51000000000000000000009 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift"; sourceTree = "<group>"; };
+		E5100000000000000000000A /* Celestial Dynamics/Domain/PlanarOrbitalBodyState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarOrbitalBodyState.swift"; sourceTree = "<group>"; };
+		E5100000000000000000000B /* Celestial Dynamics/Domain/PlanarPosition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarPosition.swift"; sourceTree = "<group>"; };
+		E5100000000000000000000C /* Celestial Dynamics/Domain/PlanarStateVector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarStateVector.swift"; sourceTree = "<group>"; };
+		E5100000000000000000000E /* Celestial Dynamics/Domain/PlanarVelocity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/PlanarVelocity.swift"; sourceTree = "<group>"; };
+		E5100000000000000000000F /* Celestial Dynamics/Domain/StellarLuminosity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/StellarLuminosity.swift"; sourceTree = "<group>"; };
+		E51000000000000000000010 /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/ThermodynamicTemperature.swift"; sourceTree = "<group>"; };
+		E51000000000000000000011 /* Celestial Dynamics/Dynamics/PlanarOrbitalBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Dynamics/PlanarOrbitalBody.swift"; sourceTree = "<group>"; };
+		E51000000000000000000012 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsError.swift"; sourceTree = "<group>"; };
+		E51000000000000000000013 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsModelVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsModelVersion.swift"; sourceTree = "<group>"; };
+		E51000000000000000000014 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepResult.swift"; sourceTree = "<group>"; };
+		E51000000000000000000015 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepper.swift"; sourceTree = "<group>"; };
+		E51000000000000000000016 /* Celestial Dynamics/Dynamics/PlanarOrbitalPropagation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Dynamics/PlanarOrbitalPropagation.swift"; sourceTree = "<group>"; };
+		E51000000000000000000017 /* Celestial Dynamics/Ephemeris/PlanarEphemerisBodyDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Ephemeris/PlanarEphemerisBodyDefinition.swift"; sourceTree = "<group>"; };
+		E51000000000000000000018 /* Celestial Dynamics/Ephemeris/PlanarEphemerisDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Ephemeris/PlanarEphemerisDefinition.swift"; sourceTree = "<group>"; };
+		E51000000000000000000019 /* Celestial Dynamics/Ephemeris/PlanarEphemerisError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Ephemeris/PlanarEphemerisError.swift"; sourceTree = "<group>"; };
+		E5100000000000000000001A /* Celestial Dynamics/Ephemeris/PlanarEphemerisEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Ephemeris/PlanarEphemerisEvaluator.swift"; sourceTree = "<group>"; };
+		E5100000000000000000001B /* Celestial Dynamics/Gravity/GravityParticipation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Gravity/GravityParticipation.swift"; sourceTree = "<group>"; };
+		E5100000000000000000001C /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift"; sourceTree = "<group>"; };
+		E5100000000000000000001D /* Simulation Runtime/Engine/System/Celestial Dynamics/CelestialBodyInitialState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/CelestialBodyInitialState.swift"; sourceTree = "<group>"; };
+		E5100000000000000000001E /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CCelestialIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Component/CCelestialIdentity.swift"; sourceTree = "<group>"; };
+		E5100000000000000000001F /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CGravityParticipation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Component/CGravityParticipation.swift"; sourceTree = "<group>"; };
+		E51000000000000000000020 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CMassiveBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Component/CMassiveBody.swift"; sourceTree = "<group>"; };
+		E51000000000000000000021 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/COrbitalMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Component/COrbitalMotion.swift"; sourceTree = "<group>"; };
+		E51000000000000000000022 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CStellarEmission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Component/CStellarEmission.swift"; sourceTree = "<group>"; };
+		E51000000000000000000023 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialBodyKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialBodyKind.swift"; sourceTree = "<group>"; };
+		E51000000000000000000024 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialPredictionBasisRevision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialPredictionBasisRevision.swift"; sourceTree = "<group>"; };
+		E51000000000000000000025 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PCelestialBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PCelestialBody.swift"; sourceTree = "<group>"; };
+		E51000000000000000000026 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PStellarEmitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PStellarEmitter.swift"; sourceTree = "<group>"; };
+		E51000000000000000000027 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialBodyIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialBodyIndex.swift"; sourceTree = "<group>"; };
+		E51000000000000000000028 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialTimeline.swift"; sourceTree = "<group>"; };
+		E51000000000000000000029 /* Simulation Runtime/Engine/System/Celestial Dynamics/System/OrbitalDynamicsSystemError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/System/OrbitalDynamicsSystemError.swift"; sourceTree = "<group>"; };
+		E5100000000000000000002A /* Simulation Runtime/Engine/System/Celestial Dynamics/System/SOrbitalDynamics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/System/SOrbitalDynamics.swift"; sourceTree = "<group>"; };
+		E5100000000000000000002B /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialEphemerisConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialEphemerisConfiguration.swift"; sourceTree = "<group>"; };
+		E5100000000000000000002C /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -491,6 +577,49 @@
 				E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */,
 				E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */,
 				E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */,
+				E51000000000000000000001 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */,
+				E51000000000000000000002 /* Celestial Dynamics/Domain/AstronomicalDuration.swift */,
+				E51000000000000000000003 /* Celestial Dynamics/Domain/AstronomicalMass.swift */,
+				E51000000000000000000004 /* Celestial Dynamics/Domain/CelestialBodyID.swift */,
+				E5100000000000000000002C /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift */,
+				E51000000000000000000005 /* Celestial Dynamics/Domain/CelestialEpoch.swift */,
+				E51000000000000000000006 /* Celestial Dynamics/Domain/GravitationalParameter.swift */,
+				E51000000000000000000007 /* Celestial Dynamics/Domain/OrbitalEccentricity.swift */,
+				E51000000000000000000008 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift */,
+				E51000000000000000000009 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift */,
+				E5100000000000000000000A /* Celestial Dynamics/Domain/PlanarOrbitalBodyState.swift */,
+				E5100000000000000000000B /* Celestial Dynamics/Domain/PlanarPosition.swift */,
+				E5100000000000000000000C /* Celestial Dynamics/Domain/PlanarStateVector.swift */,
+				E5100000000000000000000E /* Celestial Dynamics/Domain/PlanarVelocity.swift */,
+				E5100000000000000000000F /* Celestial Dynamics/Domain/StellarLuminosity.swift */,
+				E51000000000000000000010 /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift */,
+				E51000000000000000000011 /* Celestial Dynamics/Dynamics/PlanarOrbitalBody.swift */,
+				E51000000000000000000012 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsError.swift */,
+				E51000000000000000000013 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsModelVersion.swift */,
+				E51000000000000000000014 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepResult.swift */,
+				E51000000000000000000015 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepper.swift */,
+				E51000000000000000000016 /* Celestial Dynamics/Dynamics/PlanarOrbitalPropagation.swift */,
+				E51000000000000000000017 /* Celestial Dynamics/Ephemeris/PlanarEphemerisBodyDefinition.swift */,
+				E51000000000000000000018 /* Celestial Dynamics/Ephemeris/PlanarEphemerisDefinition.swift */,
+				E51000000000000000000019 /* Celestial Dynamics/Ephemeris/PlanarEphemerisError.swift */,
+				E5100000000000000000001A /* Celestial Dynamics/Ephemeris/PlanarEphemerisEvaluator.swift */,
+				E5100000000000000000001B /* Celestial Dynamics/Gravity/GravityParticipation.swift */,
+				E5100000000000000000001C /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift */,
+				E5100000000000000000001D /* Simulation Runtime/Engine/System/Celestial Dynamics/CelestialBodyInitialState.swift */,
+				E5100000000000000000001E /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CCelestialIdentity.swift */,
+				E5100000000000000000001F /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CGravityParticipation.swift */,
+				E51000000000000000000020 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CMassiveBody.swift */,
+				E51000000000000000000021 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/COrbitalMotion.swift */,
+				E51000000000000000000022 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CStellarEmission.swift */,
+				E51000000000000000000023 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialBodyKind.swift */,
+				E51000000000000000000024 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialPredictionBasisRevision.swift */,
+				E51000000000000000000025 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PCelestialBody.swift */,
+				E51000000000000000000026 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PStellarEmitter.swift */,
+				E51000000000000000000027 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialBodyIndex.swift */,
+				E5100000000000000000002B /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialEphemerisConfiguration.swift */,
+				E51000000000000000000028 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialTimeline.swift */,
+				E51000000000000000000029 /* Simulation Runtime/Engine/System/Celestial Dynamics/System/OrbitalDynamicsSystemError.swift */,
+				E5100000000000000000002A /* Simulation Runtime/Engine/System/Celestial Dynamics/System/SOrbitalDynamics.swift */,
 			);
 			name = "Headless Simulation Shared Sources";
 			path = Engine2;
@@ -509,7 +638,7 @@
 				E41000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift */,
 				E41000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift */,
 				E4100000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift */,
-				E4100000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift */,
+				E4100000000000000000000B /* Celestial Dynamics/Domain/OrbitalEccentricity.swift */,
 				E4100000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift */,
 				E4100000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift */,
 				E4100000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift */,
@@ -552,12 +681,12 @@
 				E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */,
 				E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */,
 				E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */,
-				E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */,
-				E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */,
-				E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */,
-				E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */,
+				E41000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */,
+				E41000000000000000000037 /* Celestial Dynamics/Domain/AstronomicalDuration.swift */,
+				E41000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift */,
+				E41000000000000000000039 /* Celestial Dynamics/Domain/StellarLuminosity.swift */,
 				E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */,
-				E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */,
+				E4100000000000000000003B /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift */,
 				E4100000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift */,
 			);
 			name = "Star System Explorer Shared Sources";
@@ -827,7 +956,7 @@
 				E42000000000000000000008 /* Game Content/Star System Generation/Domain/GeneratedStarSystemValidator.swift in Sources */,
 				E42000000000000000000009 /* Game Content/Star System Generation/Domain/KeplerianOrbit.swift in Sources */,
 				E4200000000000000000000A /* Game Content/Star System Generation/Domain/MoonFormationOrigin.swift in Sources */,
-				E4200000000000000000000B /* Game Content/Star System Generation/Domain/OrbitalEccentricity.swift in Sources */,
+				E4200000000000000000000B /* Celestial Dynamics/Domain/OrbitalEccentricity.swift in Sources */,
 				E4200000000000000000000C /* Game Content/Star System Generation/Domain/PlanetaryAtmosphereRegime.swift in Sources */,
 				E4200000000000000000000D /* Game Content/Star System Generation/Domain/PlanetaryBulkRegime.swift in Sources */,
 				E4200000000000000000000E /* Game Content/Star System Generation/Domain/PlanetaryEnvironment.swift in Sources */,
@@ -870,12 +999,12 @@
 				E42000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift in Sources */,
 				E42000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift in Sources */,
 				E42000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift in Sources */,
-				E42000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift in Sources */,
-				E42000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift in Sources */,
-				E42000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift in Sources */,
-				E42000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift in Sources */,
+				E42000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */,
+				E42000000000000000000037 /* Celestial Dynamics/Domain/AstronomicalDuration.swift in Sources */,
+				E42000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */,
+				E42000000000000000000039 /* Celestial Dynamics/Domain/StellarLuminosity.swift in Sources */,
 				E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */,
-				E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */,
+				E4200000000000000000003B /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift in Sources */,
 				E4200000000000000000003C /* Random Number Generation/SplitMix64RandomNumberGenerator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -969,6 +1098,49 @@
 				E32000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift in Sources */,
 				E32000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift in Sources */,
 				E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */,
+				E52000000000000000000001 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */,
+				E52000000000000000000002 /* Celestial Dynamics/Domain/AstronomicalDuration.swift in Sources */,
+				E52000000000000000000003 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */,
+				E52000000000000000000004 /* Celestial Dynamics/Domain/CelestialBodyID.swift in Sources */,
+				E5200000000000000000002C /* Celestial Dynamics/Domain/CelestialDynamicsModelVersion.swift in Sources */,
+				E52000000000000000000005 /* Celestial Dynamics/Domain/CelestialEpoch.swift in Sources */,
+				E52000000000000000000006 /* Celestial Dynamics/Domain/GravitationalParameter.swift in Sources */,
+				E52000000000000000000007 /* Celestial Dynamics/Domain/OrbitalEccentricity.swift in Sources */,
+				E52000000000000000000008 /* Celestial Dynamics/Domain/PlanarKeplerianRail.swift in Sources */,
+				E52000000000000000000009 /* Celestial Dynamics/Domain/PlanarKeplerianRailValidationError.swift in Sources */,
+				E5200000000000000000000A /* Celestial Dynamics/Domain/PlanarOrbitalBodyState.swift in Sources */,
+				E5200000000000000000000B /* Celestial Dynamics/Domain/PlanarPosition.swift in Sources */,
+				E5200000000000000000000C /* Celestial Dynamics/Domain/PlanarStateVector.swift in Sources */,
+				E5200000000000000000000E /* Celestial Dynamics/Domain/PlanarVelocity.swift in Sources */,
+				E5200000000000000000000F /* Celestial Dynamics/Domain/StellarLuminosity.swift in Sources */,
+				E52000000000000000000010 /* Celestial Dynamics/Domain/ThermodynamicTemperature.swift in Sources */,
+				E52000000000000000000011 /* Celestial Dynamics/Dynamics/PlanarOrbitalBody.swift in Sources */,
+				E52000000000000000000012 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsError.swift in Sources */,
+				E52000000000000000000013 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsModelVersion.swift in Sources */,
+				E52000000000000000000014 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepResult.swift in Sources */,
+				E52000000000000000000015 /* Celestial Dynamics/Dynamics/PlanarOrbitalDynamicsStepper.swift in Sources */,
+				E52000000000000000000016 /* Celestial Dynamics/Dynamics/PlanarOrbitalPropagation.swift in Sources */,
+				E52000000000000000000017 /* Celestial Dynamics/Ephemeris/PlanarEphemerisBodyDefinition.swift in Sources */,
+				E52000000000000000000018 /* Celestial Dynamics/Ephemeris/PlanarEphemerisDefinition.swift in Sources */,
+				E52000000000000000000019 /* Celestial Dynamics/Ephemeris/PlanarEphemerisError.swift in Sources */,
+				E5200000000000000000001A /* Celestial Dynamics/Ephemeris/PlanarEphemerisEvaluator.swift in Sources */,
+				E5200000000000000000001B /* Celestial Dynamics/Gravity/GravityParticipation.swift in Sources */,
+				E5200000000000000000001C /* Celestial Dynamics/Propagation/PlanarKeplerPropagationKernel.swift in Sources */,
+				E5200000000000000000001D /* Simulation Runtime/Engine/System/Celestial Dynamics/CelestialBodyInitialState.swift in Sources */,
+				E5200000000000000000001E /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CCelestialIdentity.swift in Sources */,
+				E5200000000000000000001F /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CGravityParticipation.swift in Sources */,
+				E52000000000000000000020 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CMassiveBody.swift in Sources */,
+				E52000000000000000000021 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/COrbitalMotion.swift in Sources */,
+				E52000000000000000000022 /* Simulation Runtime/Engine/System/Celestial Dynamics/Component/CStellarEmission.swift in Sources */,
+				E52000000000000000000023 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialBodyKind.swift in Sources */,
+				E52000000000000000000024 /* Simulation Runtime/Engine/System/Celestial Dynamics/Domain/CelestialPredictionBasisRevision.swift in Sources */,
+				E52000000000000000000025 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PCelestialBody.swift in Sources */,
+				E52000000000000000000026 /* Simulation Runtime/Engine/System/Celestial Dynamics/Protocol/PStellarEmitter.swift in Sources */,
+				E52000000000000000000027 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialBodyIndex.swift in Sources */,
+				E5200000000000000000002B /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialEphemerisConfiguration.swift in Sources */,
+				E52000000000000000000028 /* Simulation Runtime/Engine/System/Celestial Dynamics/Resource/CelestialTimeline.swift in Sources */,
+				E52000000000000000000029 /* Simulation Runtime/Engine/System/Celestial Dynamics/System/OrbitalDynamicsSystemError.swift in Sources */,
+				E5200000000000000000002A /* Simulation Runtime/Engine/System/Celestial Dynamics/System/SOrbitalDynamics.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

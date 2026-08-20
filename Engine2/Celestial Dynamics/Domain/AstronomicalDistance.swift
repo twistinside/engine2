@@ -1,8 +1,8 @@
-/// Nonnegative astronomical distance stored in meters.
+/// Nonnegative celestial distance stored in meters.
 ///
-/// Generation uses this value for stellar radii, planetary radii, stellar
-/// orbits, and satellite orbits. Named projections make the unit explicit at
-/// every calculation boundary.
+/// Generation and dynamics use this value for physical radii and orbital
+/// scales. Named projections make the unit explicit at every calculation
+/// boundary.
 nonisolated struct AstronomicalDistance: Codable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalDistance(meters: 0)
     static let astronomicalUnit = AstronomicalDistance(meters: 149_597_870_700.0)

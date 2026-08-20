@@ -1,4 +1,4 @@
-/// Nonnegative duration used by the formation and stellar-evolution model.
+/// Nonnegative duration used by celestial generation and dynamics.
 ///
 /// Seconds are the serialized base unit. Megayear and gigayear projections
 /// keep short disk evolution distinct from long present-day evolution.

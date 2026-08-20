@@ -31,6 +31,10 @@ final class Engine {
                 ),
                 SInputHistory(),
                 SInputCleanup(),
+                SOrbitalDynamics(
+                    modelVersion: configuration.orbitalDynamicsModelVersion,
+                    durationSeconds: fixedTimeStep.doublePrecisionSeconds
+                ),
                 SAccelerationIntent(),
                 SMovement(),
                 SRotation()

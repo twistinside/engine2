@@ -10,6 +10,7 @@ The project is exploring a hybrid architecture:
 - Input, simulation, and rendering live in independently owned runtimes connected through explicit snapshots and events.
 - Consumer-defined Game Content supplies entities, world construction, presentation descriptions, and assets without owning runtime infrastructure.
 - Versioned procedural star-system generation resolves physical Game Content before ECS, gameplay, or rendering consumes it.
+- World-owned celestial components, a stable body index and timeline, analytic rails, and versioned velocity-Verlet mechanics provide the first authoritative orbital-dynamics slice.
 - The App injects selected Game Content into one `PRuntimeAssembly` and presents the assembly as its SwiftUI root. Each assembly body owns any topology-specific presentation lifecycle.
 
 Engine2 is early and intentionally small, but its architectural direction is documented as it develops.
@@ -24,6 +25,7 @@ Start with the [Engine2 DocC catalog](Engine2/Engine2.docc/Engine2.md), or jump 
 - [Game Content Architecture](Engine2/Engine2.docc/Articles/Game-Content-Architecture.md) — the consumer-content boundary
 - [Star System Generation](Engine2/Engine2.docc/Articles/Star-System-Generation.md) — deterministic disk, planet, residual-body, encounter, atmosphere, and moon generation with explicit conservation destinations
 - [Star System Generation Calibration](Engine2/Engine2.docc/Articles/Star-System-Generation-Calibration.md) — exact V1 distributions, equations, bounded fallbacks, audit policy, and limitations
+- [Celestial Dynamics](Engine2/Engine2.docc/Articles/Celestial-Dynamics-and-Navigation.md) — planar rails, generated-system materialization, authoritative celestial ECS state, and versioned orbital integration
 - [Engine Architecture](Engine2/Engine2.docc/Articles/Engine-Architecture.md) — the ECS core and fixed-step simulation
 - [System Scheduling](Engine2/Engine2.docc/Articles/System-Scheduling.md) — current scheduling and proposed future direction
 - [Rendering Architecture](Engine2/Engine2.docc/Articles/Rendering-Architecture.md) — presentation snapshots and Metal rendering
@@ -40,6 +42,23 @@ Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`En
 Select the shared `StarSystemExplorer` scheme and run the macOS app. Enter a decimal `UInt64` seed or a hexadecimal value with a `0x` prefix, then choose **Generate**. The explorer presents the host star, protoplanetary disk, selectable linear or zero-safe logarithmic orbital architecture, conserved formation ledger, resolved planets, nested moons, environments, compositions, classifications, and stored model policy.
 
 The explorer compiles the star-system generator's closed source set directly into its own target. It does not construct a Runtime Assembly, ECS world, renderer, or Metal resources. Its focused `StarSystemExplorerTests` target covers seed parsing, logarithmic orbit placement, generator integration, and valid zero-planet output.
+
+## Materialize generated celestial systems
+
+`GeneratedStarSystemWorldBuilder` can materialize one resolved system as
+indexed, authoritative celestial ECS state. The production Engine
+schedule advances that state through `SOrbitalDynamics` using the exact
+Simulation fixed step, the World-retained analytic rail version,
+content-neutral ephemeris evaluation, and the numerical mechanics version
+selected by `SimulationConfiguration`. The default `BasicGameContent` still
+constructs its sphere grid rather than a generated system. Celestial snapshot
+publication, rail-to-integrated transitions, and collision resolution are not
+implemented yet.
+
+`Engine2UnitTests` pins generated rail projection and persistence, Kepler
+behavior, content-neutral ephemeris composition, versioned velocity-Verlet
+behavior, generated-system materialization, and atomic orbital-system commit
+and refusal.
 
 ## Measure headless Simulation performance
 

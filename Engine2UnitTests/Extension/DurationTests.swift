@@ -2,6 +2,12 @@ import Testing
 @testable import Engine2
 
 struct DurationTests {
+    @Test func doublePrecisionSecondsPreserveSubFloatSimulationInput() {
+        let duration = Duration.nanoseconds(1)
+
+        #expect(duration.doublePrecisionSeconds == 0.000_000_001)
+    }
+
     @Test func secondsIncludesWholeAndFractionalComponents() {
         #expect(Duration.milliseconds(1_500).seconds.isApproximately(1.5))
         #expect(Duration.microseconds(125_000).seconds.isApproximately(0.125))
