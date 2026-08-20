@@ -80,11 +80,14 @@ immutable ``StarSystemGenerationPolicy``. It owns no task, actor, cache, file,
 GPU object, global registry, or random singleton.
 
 The current ``PGameContent`` contract remains unchanged. It deliberately
-contains a world builder, Simulation configuration, and Render catalog. A future
-`GeneratedStarSystemWorldBuilder` can accept an already resolved and validated
-system and project it into ECS state. Generation should not run inside
+contains a world builder, Simulation configuration, and Render catalog.
+``GeneratedStarSystemWorldBuilder`` accepts an already resolved system through
+its throwing initializer, projects the versioned gravity system once, and
+retains the initial ephemeris state needed for World construction. The built
+World also retains the selected analytic model in
+``CelestialEphemerisConfiguration``. Generation does not run inside
 `PWorldBuilder.buildWorld()` because that nonthrowing operation could hide a
-generation failure or rerun generation during world reconstruction.
+generation failure or rerun expensive formation during world reconstruction.
 
 ```text
 Game Content seed + policy
@@ -97,15 +100,18 @@ validated GeneratedStarSystem
           |
           +----> persistence or inspection
           |
-          `----> future GeneratedStarSystemWorldBuilder
+          `----> GeneratedStarSystemWorldBuilder
                           |
                           v
-                  authoritative Simulation state
+                  indexed celestial ECS state
 ```
 
 This boundary follows <doc:Game-Content-Architecture>: construction input and
-resolved descriptions remain Game Content, while future Runtime-owned state is
-created only at the Runtime's existing construction boundary.
+resolved descriptions remain Game Content, while World-owned state is created
+only at the Runtime's existing construction boundary. The builder currently
+materializes the star, planets, and moons as source-only ephemeris bodies. It
+does not generate belts, resolved asteroids, active comets, integrated bodies,
+or authority transitions.
 
 ## Supported Model
 
@@ -152,7 +158,7 @@ V1 does not support:
 - spatial climate, seasons, obliquity, rotation, tides, or radiogenic heating
 - captured irregular moons, rings, or spatial debris belts
 - biospheres, civilizations, resources, economy, or gameplay value
-- ECS, Runtime, camera, or Render integration
+- direct ECS mutation, Runtime lifecycle, camera behavior, or Render behavior
 
 Unimplemented effects are not hidden random corrections. The V1 result remains
 an inspectable product of the implemented phases.
@@ -825,8 +831,8 @@ from a small passing seed set.
 
 ## Future Integration
 
-The next physical-model steps should be versioned additions or replacements,
-not silent mutation of V1:
+The remaining physical-model and gameplay-integration steps should be versioned
+additions or replacements, not silent mutation of V1:
 
 1. Replace analytic stellar proxies with bundled stellar and XUV tracks.
 2. Calibrate ensemble distributions against observational datasets.
@@ -835,11 +841,18 @@ not silent mutation of V1:
 4. Replace analytic encounters with richer impact, debris, tide, and optional
    N-body audit models.
 5. Add richer interior, envelope, atmospheric chemistry, and climate tables.
-6. Design authoritative celestial ECS state and a world builder that consumes
-   an already resolved system.
+6. Build on the implemented celestial ECS and generated-system world builder
+   with Simulation-owned authority transitions, collision outcomes, and
+   celestial publication.
 7. Add gameplay projections over physical facts.
 8. Add Render appearance descriptions and procedural surface inputs without
    making Render authoritative for physical generation.
+
+See <doc:Celestial-Dynamics-and-Navigation> for the implemented planar rail
+projection, authoritative celestial ECS state, generated-system world builder,
+and fixed-tick orbital propagation. That article separately identifies the
+remaining work for authority transitions, collisions, publication, and
+generated-system stability qualification.
 
 ## Scientific Context
 
@@ -861,6 +874,7 @@ identifies them as direct definitions.
 ## Related Architecture
 
 - <doc:Game-Content-Architecture>
+- <doc:Celestial-Dynamics-and-Navigation>
 - <doc:Engine-Architecture>
 - <doc:Runtime-Architecture>
 - <doc:Rendering-Architecture>
