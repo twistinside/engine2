@@ -23,7 +23,7 @@ struct SimulationRuntimeTests {
     }
 
     @Test func initBuildsEngineWorldFromBuilder() async throws {
-        let expectedPosition = SIMD3<Float>(3, 4, 5)
+        let expectedPosition = SIMD3<Double>(3, 4, 5)
         let builder = TestWorldBuilder(position: expectedPosition)
 
         let simulation = SimulationRuntime(
@@ -39,7 +39,7 @@ struct SimulationRuntimeTests {
         #expect(presentationSource.latestPresentationSnapshot.tick == .zero)
         #expect(
             presentationSource.latestPresentationSnapshot.entityPresentations.first?.position ==
-                expectedPosition
+                expectedPosition.singlePrecision
         )
     }
 
@@ -54,13 +54,13 @@ struct SimulationRuntimeTests {
         let firstWorld = simulation.world
         let firstEntity = try #require(firstWorld.positionComponents.entities.first)
 
-        #expect(firstWorld.positionComponents[firstEntity]?.position == SIMD3<Float>(1, 0, 0))
+        #expect(firstWorld.positionComponents[firstEntity]?.position == SIMD3<Double>(1, 0, 0))
         #expect(builder.buildCount == 1)
 
         simulation.rebuildWorld(inputBaseline: nil)
 
         let secondEntity = try #require(simulation.world.positionComponents.entities.first)
-        let secondExpectedPosition = SIMD3<Float>(2, 0, 0)
+        let secondExpectedPosition = SIMD3<Double>(2, 0, 0)
 
         #expect(builder.buildCount == 2)
         #expect(simulation.world !== firstWorld)
@@ -68,12 +68,12 @@ struct SimulationRuntimeTests {
         #expect(simulation.latestPresentationSnapshot.tick == .zero)
         #expect(
             simulation.latestPresentationSnapshot.entityPresentations.first?.position ==
-                secondExpectedPosition
+                secondExpectedPosition.singlePrecision
         )
     }
 
     @Test func replacingBuilderCanDeferWorldReconstruction() throws {
-        let initialBuilder = TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+        let initialBuilder = TestWorldBuilder(position: SIMD3<Double>(1, 0, 0))
         let simulation = SimulationRuntime(
             worldBuilder: initialBuilder,
             configuration: .basicGame,
@@ -81,7 +81,7 @@ struct SimulationRuntimeTests {
         )
         let originalWorld = simulation.world
 
-        let replacementPosition = SIMD3<Float>(9, 0, 0)
+        let replacementPosition = SIMD3<Double>(9, 0, 0)
         let replacementBuilder = TestWorldBuilder(position: replacementPosition)
         simulation.replaceWorldBuilder(replacementBuilder)
 
@@ -100,7 +100,7 @@ struct SimulationRuntimeTests {
     }
 
     @Test func namedBuilderReplacementAndRebuildStartsANewWorldImmediately() throws {
-        let initialBuilder = TestWorldBuilder(position: SIMD3<Float>(1, 0, 0))
+        let initialBuilder = TestWorldBuilder(position: SIMD3<Double>(1, 0, 0))
         let simulation = SimulationRuntime(
             worldBuilder: initialBuilder,
             configuration: .basicGame,
@@ -108,7 +108,7 @@ struct SimulationRuntimeTests {
         )
         let originalWorld = simulation.world
 
-        let replacementPosition = SIMD3<Float>(5, 0, 0)
+        let replacementPosition = SIMD3<Double>(5, 0, 0)
         let replacementBuilder = TestWorldBuilder(position: replacementPosition)
         simulation.replaceWorldBuilderAndRebuild(
             replacementBuilder,
@@ -163,7 +163,7 @@ struct SimulationRuntimeTests {
 
 private extension SimulationRuntimeTests {
     private struct TestWorldBuilder: PWorldBuilder {
-        let position: SIMD3<Float>
+        let position: SIMD3<Double>
 
         func buildWorld() -> World {
             let world = World()
@@ -179,7 +179,7 @@ private extension SimulationRuntimeTests {
             buildCount += 1
 
             let world = World()
-            let position = SIMD3<Float>(Float(buildCount), 0, 0)
+            let position = SIMD3<Double>(Double(buildCount), 0, 0)
             _ = Ball(
                 in: world,
                 materialID: .warmDielectric,

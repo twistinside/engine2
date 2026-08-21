@@ -10,10 +10,16 @@ struct RenderFrameTests {
         let first = EntityID(index: 0, generation: 0)
         let second = EntityID(index: 1, generation: 0)
 
-        let firstPosition = SIMD3<Float>(2, -4, 0)
-        world.positionComponents.insert(CPosition(position: firstPosition), for: first)
-        let secondPosition = SIMD3<Float>(-1, 3, 0)
-        world.positionComponents.insert(CPosition(position: secondPosition), for: second)
+        let firstPosition = SIMD3<Double>(2, -4, 0)
+        world.positionComponents.insert(
+            CPosition(position: firstPosition),
+            for: first
+        )
+        let secondPosition = SIMD3<Double>(-1, 3, 0)
+        world.positionComponents.insert(
+            CPosition(position: secondPosition),
+            for: second
+        )
         world.renderableComponents.insert(
             CRenderable(meshID: .ball, materialID: .warmDielectric),
             for: first
@@ -35,12 +41,12 @@ struct RenderFrameTests {
         #expect(frame.instances.map(\.materialID) == [.warmDielectric, .goldMetal])
         let expectedTransforms = [
             Transform(
-                position: firstPosition,
+                position: firstPosition.singlePrecision,
                 rotation: .identity,
                 scale: RenderInstance.defaultScale
             ),
             Transform(
-                position: secondPosition,
+                position: secondPosition.singlePrecision,
                 rotation: .identity,
                 scale: RenderInstance.defaultScale
             )
@@ -93,7 +99,10 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
 
-        world.positionComponents.insert(CPosition(position: SIMD3<Float>(2, -4, 0)), for: entity)
+        world.positionComponents.insert(
+            CPosition(position: SIMD3<Double>(2, -4, 0)),
+            for: entity
+        )
 
         let snapshot = world.presentationSnapshot(at: cursor())
 
@@ -130,7 +139,7 @@ struct RenderFrameTests {
                 far: 100
             )
         )
-        let position = SIMD3<Float>(3, 4, 5)
+        let position = SIMD3<Double>(3, 4, 5)
         world.positionComponents.insert(CPosition(position: position), for: entity)
         world.renderableComponents.insert(
             CRenderable(meshID: .ball, materialID: .warmDielectric),
@@ -150,7 +159,7 @@ struct RenderFrameTests {
         #expect(instance.meshID == .ball)
         #expect(instance.materialID == .warmDielectric)
         let expectedTransform = Transform(
-            position: position,
+            position: position.singlePrecision,
             rotation: rotation,
             scale: scale
         )
@@ -166,7 +175,7 @@ struct RenderFrameTests {
         let cursor = cursor(at: SimulationTick(rawValue: 11))
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(2, 3, 4)),
+            CPosition(position: SIMD3<Double>(2, 3, 4)),
             for: entity
         )
         world.renderableComponents.insert(
@@ -258,7 +267,7 @@ struct RenderFrameTests {
             for: zeroScaleEntity
         )
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(.nan, 0, 0)),
+            CPosition(position: SIMD3<Double>(.nan, 0, 0)),
             for: nonfinitePositionEntity
         )
 
@@ -312,7 +321,7 @@ struct RenderFrameTests {
         let world = World()
         let cursor = cursor(at: SimulationTick(rawValue: 13))
         let entity = EntityID(index: 5, generation: 1)
-        let position = SIMD3<Float>(1, 2, 3)
+        let position = SIMD3<Double>(1, 2, 3)
         world.positionComponents.insert(
             CPosition(position: position),
             for: entity
@@ -346,7 +355,7 @@ struct RenderFrameTests {
         #expect(instance.meshID == .ball)
         #expect(instance.materialID == .goldMetal)
         let expectedTransform = Transform(
-            position: position,
+            position: position.singlePrecision,
             rotation: .identity,
             scale: RenderInstance.defaultScale
         )
@@ -434,7 +443,9 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 29, generation: 5)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)),
+            CPosition(
+                position: SIMD3<Double>(Double(Float.greatestFiniteMagnitude), 0, 0)
+            ),
             for: entity
         )
         world.renderableComponents.insert(
@@ -466,7 +477,9 @@ struct RenderFrameTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
         world.positionComponents.insert(
-            CPosition(position: SIMD3<Float>(.greatestFiniteMagnitude, 0, 0)),
+            CPosition(
+                position: SIMD3<Double>(Double(Float.greatestFiniteMagnitude), 0, 0)
+            ),
             for: entity
         )
         world.renderableComponents.insert(

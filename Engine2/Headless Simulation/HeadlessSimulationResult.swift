@@ -17,8 +17,8 @@ struct HeadlessSimulationResult {
     let maximumTickMilliseconds: Double
     let initialMeasuredCursor: SimulationCursor
     let finalCursor: SimulationCursor
-    let firstEntityPosition: SIMD3<Float>
-    let lastEntityPosition: SIMD3<Float>
+    let firstEntityPosition: SIMD3<Double>
+    let lastEntityPosition: SIMD3<Double>
     let firstEntityRotation: simd_quatf
 
     var ticksPerSecond: Double {
@@ -43,8 +43,8 @@ struct HeadlessSimulationResult {
         tickDurations: [Duration],
         initialMeasuredCursor: SimulationCursor,
         finalCursor: SimulationCursor,
-        firstEntityPosition: SIMD3<Float>,
-        lastEntityPosition: SIMD3<Float>,
+        firstEntityPosition: SIMD3<Double>,
+        lastEntityPosition: SIMD3<Double>,
         firstEntityRotation: simd_quatf
     ) {
         precondition(!tickDurations.isEmpty, "A headless result requires at least one measured tick.")
@@ -135,8 +135,8 @@ extension HeadlessSimulationResult: CustomStringConvertible {
         String(format: "%.\(digits)f", value)
     }
 
-    private func vector(_ value: SIMD3<Float>) -> String {
-        "(\(decimal(Double(value.x))), \(decimal(Double(value.y))), \(decimal(Double(value.z))))"
+    private func vector(_ value: SIMD3<Double>) -> String {
+        "(\(decimal(value.x)), \(decimal(value.y)), \(decimal(value.z)))"
     }
 
     private func vector(_ value: SIMD4<Float>) -> String {

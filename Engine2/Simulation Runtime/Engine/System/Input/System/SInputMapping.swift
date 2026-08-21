@@ -15,7 +15,7 @@ struct SInputMapping: PSystem {
         self.scrollZoomSensitivity = scrollZoomSensitivity
     }
 
-    mutating func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Double) {
         let cameraOrbitYawDelta = world.input.mouse.delta.x * pointerOrbitSensitivity
         world.input.actions.cameraOrbitYawDelta = cameraOrbitYawDelta.isFinite ? cameraOrbitYawDelta : 0
 

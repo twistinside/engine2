@@ -9,7 +9,7 @@ struct SAccelerationIntentTests {
         let position = CPosition(position: .zero)
         world.positionComponents.insert(position, for: entity)
         let accelerationIntent = CMotion.AccelerationIntent.accelerating(
-            SIMD3<Float>(2, 0, 0)
+            SIMD3<Double>(2, 0, 0)
         )
         let motion = CMotion(
             velocity: .zero,
@@ -26,16 +26,16 @@ struct SAccelerationIntentTests {
         intentSystem.update(world: &world, deltaTime: 0.5)
         movementSystem.update(world: &world, deltaTime: 0.5)
 
-        #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(1, 0, 0))
-        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(0.5, 0, 0))
+        #expect(world.motionComponents[entity]?.velocity == SIMD3<Double>(1, 0, 0))
+        #expect(world.positionComponents[entity]?.position == SIMD3<Double>(0.5, 0, 0))
         #expect(world.motionComponents[entity]?.acceleration == .zero)
         #expect(world.motionComponents[entity]?.accelerationIntent == accelerationIntent)
 
         intentSystem.update(world: &world, deltaTime: 0.5)
         movementSystem.update(world: &world, deltaTime: 0.5)
 
-        #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(2, 0, 0))
-        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(1.5, 0, 0))
+        #expect(world.motionComponents[entity]?.velocity == SIMD3<Double>(2, 0, 0))
+        #expect(world.positionComponents[entity]?.position == SIMD3<Double>(1.5, 0, 0))
         #expect(world.motionComponents[entity]?.acceleration == .zero)
     }
 

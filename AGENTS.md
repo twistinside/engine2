@@ -149,8 +149,8 @@ Current example ownership:
 - `Engine2/Simulation Runtime/Engine/System/Selection/PSelectable.swift`
   - Convenience protocol for entity objects that expose live selection state.
 - `Engine2/Simulation Runtime/Engine/System/Position/Component/*.swift`
-  - `CPosition`
-  - `CMotion`
+  - `CPosition` stores authoritative translation in double-precision meters.
+  - `CMotion` stores double-precision velocity, acceleration, and impulse values.
   - `CRotation`
   - `CAngularVelocity`
   - `CAngularMotionAccumulator`
@@ -166,7 +166,7 @@ Current example ownership:
   - `SInputHistory` projects the current authoritative input into `InputHistory` before cleanup.
   - `SInputCleanup` clears raw and mapped per-tick transient input after input systems have consumed it.
 - `Engine2/Simulation Runtime/Engine/System/Position/System/*.swift`
-  - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s per-tick accumulator.
+  - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s interval-local accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
 - `Engine2/Simulation Runtime/Engine/*.swift`
@@ -376,10 +376,10 @@ Current note: `Entity.InitialState` is a practical common seed bag for transform
 ### 6. Motion Model: Use Contribution Accumulation
 The project has moved toward a motion contribution model.
 Use `CMotion` for translational motion state:
-- `velocity`: integrated world-space velocity
+- `velocity`: integrated world-space velocity in double-precision meters per second
 - `accelerationIntent`: persistent drive state such as idle or accelerating
-- `accumulator.acceleration`: per-tick continuous influences that scale with `dt`
-- `accumulator.impulse`: per-tick instantaneous velocity changes that do not scale with `dt`
+- `accumulator.acceleration`: interval-local continuous influences in double-precision meters per second squared
+- `accumulator.impulse`: interval-local instantaneous velocity changes in double-precision meters per second
 Design intent:
 - gameplay systems emit motion contributions
 - persistent drive state is converted into accumulator input before movement

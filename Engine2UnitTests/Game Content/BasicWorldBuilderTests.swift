@@ -8,12 +8,12 @@ struct BasicWorldBuilderTests {
     }
 
     private static let expectedPositions = [
-        SIMD3<Float>(-1.75, 1.10, 0),
-        SIMD3<Float>(0, 1.10, 0),
-        SIMD3<Float>(1.75, 1.10, 0),
-        SIMD3<Float>(-1.75, -1.10, 0),
-        SIMD3<Float>(0, -1.10, 0),
-        SIMD3<Float>(1.75, -1.10, 0)
+        SIMD3<Double>(-1.75, 1.10, 0),
+        SIMD3<Double>(0, 1.10, 0),
+        SIMD3<Double>(1.75, 1.10, 0),
+        SIMD3<Double>(-1.75, -1.10, 0),
+        SIMD3<Double>(0, -1.10, 0),
+        SIMD3<Double>(1.75, -1.10, 0)
     ]
 
     private static let expectedMaterialIDs: [MaterialID] = [

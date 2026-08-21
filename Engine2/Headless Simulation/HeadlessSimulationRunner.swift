@@ -161,9 +161,9 @@ struct HeadlessSimulationRunner {
         in world: World
     ) throws(HeadlessSimulationError) -> (
         entity: EntityID,
-        initialPosition: SIMD3<Float>,
-        initialVelocity: SIMD3<Float>,
-        acceleration: SIMD3<Float>,
+        initialPosition: SIMD3<Double>,
+        initialVelocity: SIMD3<Double>,
+        acceleration: SIMD3<Double>,
         initialRotation: simd_quatf,
         angularVelocity: SIMD3<Float>
     ) {
@@ -193,9 +193,9 @@ struct HeadlessSimulationRunner {
         in world: World,
         from initialState: (
             entity: EntityID,
-            initialPosition: SIMD3<Float>,
-            initialVelocity: SIMD3<Float>,
-            acceleration: SIMD3<Float>,
+            initialPosition: SIMD3<Double>,
+            initialVelocity: SIMD3<Double>,
+            acceleration: SIMD3<Double>,
             initialRotation: simd_quatf,
             angularVelocity: SIMD3<Float>
         )
@@ -222,17 +222,17 @@ struct HeadlessSimulationRunner {
         latestPresentation: SimulationPresentationSnapshot,
         initialReferenceState: (
             entity: EntityID,
-            initialPosition: SIMD3<Float>,
-            initialVelocity: SIMD3<Float>,
-            acceleration: SIMD3<Float>,
+            initialPosition: SIMD3<Double>,
+            initialVelocity: SIMD3<Double>,
+            acceleration: SIMD3<Double>,
             initialRotation: simd_quatf,
             angularVelocity: SIMD3<Float>
         ),
         worldBuilder: HeadlessSimulationWorldBuilder,
         finalCursor: SimulationCursor
     ) throws(HeadlessSimulationError) -> (
-        firstPosition: SIMD3<Float>,
-        lastPosition: SIMD3<Float>,
+        firstPosition: SIMD3<Double>,
+        lastPosition: SIMD3<Double>,
         firstRotation: simd_quatf
     ) {
         try verifyEntityCounts(in: world)
@@ -324,7 +324,7 @@ struct HeadlessSimulationRunner {
                     "Entity \(presentation.id) did not receive the complete headless rotation."
                 )
             }
-            guard presentation.position == position,
+            guard presentation.position == position.singlePrecision,
                   presentation.rotation?.vector == rotation.vector,
                   presentation.meshID == .ball,
                   presentation.materialID == .warmDielectric
@@ -348,20 +348,20 @@ struct HeadlessSimulationRunner {
     private func expectedReferenceState(
         from initialState: (
             entity: EntityID,
-            initialPosition: SIMD3<Float>,
-            initialVelocity: SIMD3<Float>,
-            acceleration: SIMD3<Float>,
+            initialPosition: SIMD3<Double>,
+            initialVelocity: SIMD3<Double>,
+            acceleration: SIMD3<Double>,
             initialRotation: simd_quatf,
             angularVelocity: SIMD3<Float>
         ),
         completedTickCount: UInt64
     ) -> (
-        position: SIMD3<Float>,
-        velocity: SIMD3<Float>,
+        position: SIMD3<Double>,
+        velocity: SIMD3<Double>,
         rotation: simd_quatf
     ) {
         let fixedTimeStep = SimulationRuntime.fixedTimeStep.seconds
-        let angularStep = initialState.angularVelocity * fixedTimeStep
+        let angularStep = initialState.angularVelocity * Float(fixedTimeStep)
         let angularStepMagnitude = simd_length(angularStep)
         let rotationDelta: simd_quatf
         if angularStepMagnitude > 0 {
@@ -396,11 +396,11 @@ struct HeadlessSimulationRunner {
     }
 
     private func expectedPosition(
-        from initialPosition: SIMD3<Float>,
-        initialVelocity: SIMD3<Float>,
-        acceleration: SIMD3<Float>,
+        from initialPosition: SIMD3<Double>,
+        initialVelocity: SIMD3<Double>,
+        acceleration: SIMD3<Double>,
         completedTickCount: UInt64
-    ) -> SIMD3<Float> {
+    ) -> SIMD3<Double> {
         let fixedTimeStep = SimulationRuntime.fixedTimeStep.seconds
         var position = initialPosition
         var velocity = initialVelocity

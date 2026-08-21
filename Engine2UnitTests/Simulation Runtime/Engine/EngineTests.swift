@@ -92,12 +92,12 @@ struct EngineTests {
         let world = World()
         let entity = EntityID(index: 0, generation: 0)
         var motion = CMotion(
-            velocity: SIMD3<Float>(4, 5, 6),
-            impulse: SIMD3<Float>(1, -1, 0.5)
+            velocity: SIMD3<Double>(4, 5, 6),
+            impulse: SIMD3<Double>(1, -1, 0.5)
         )
-        motion.accumulator.acceleration = SIMD3<Float>(2, 0, -2)
+        motion.accumulator.acceleration = SIMD3<Double>(2, 0, -2)
 
-        let initialPosition = CPosition(position: SIMD3<Float>(1, 2, 3))
+        let initialPosition = CPosition(position: SIMD3<Double>(1, 2, 3))
         world.positionComponents.insert(
             initialPosition,
             for: entity
@@ -111,8 +111,12 @@ struct EngineTests {
 
         engine.step()
 
-        #expect(world.motionComponents[entity]?.velocity == SIMD3<Float>(6, 4, 5.5))
-        #expect(world.positionComponents[entity]?.position == SIMD3<Float>(4, 4, 5.75))
+        #expect(
+            world.motionComponents[entity]?.velocity == SIMD3<Double>(6, 4, 5.5)
+        )
+        #expect(
+            world.positionComponents[entity]?.position == SIMD3<Double>(4, 4, 5.75)
+        )
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
@@ -272,7 +276,7 @@ private extension EngineTests {
         let name: String
         let recorder: ExecutionRecorder
 
-        mutating func update(world: inout World, deltaTime: Float) {
+        mutating func update(world: inout World, deltaTime: Double) {
             recorder.entries.append(name)
         }
     }

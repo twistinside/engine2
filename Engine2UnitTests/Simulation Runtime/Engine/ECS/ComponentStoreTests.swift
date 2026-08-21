@@ -6,8 +6,8 @@ struct ComponentStoreTests {
         var store = ComponentStore<CPosition>()
         let first = EntityID(index: 4, generation: 0)
         let second = EntityID(index: 9, generation: 2)
-        let firstPositionValue = SIMD3<Float>(1, 2, 3)
-        let secondPositionValue = SIMD3<Float>(4, 5, 6)
+        let firstPositionValue = SIMD3<Double>(1, 2, 3)
+        let secondPositionValue = SIMD3<Double>(4, 5, 6)
         let firstPosition = CPosition(position: firstPositionValue)
         let secondPosition = CPosition(position: secondPositionValue)
 
@@ -26,8 +26,8 @@ struct ComponentStoreTests {
     @Test func insertForExistingEntityReplacesWithoutAppending() {
         var store = ComponentStore<CPosition>()
         let entity = EntityID(index: 3, generation: 1)
-        let replacementPositionValue = SIMD3<Float>(7, 8, 9)
-        let initialPosition = CPosition(position: SIMD3<Float>(1, 2, 3))
+        let replacementPositionValue = SIMD3<Double>(7, 8, 9)
+        let initialPosition = CPosition(position: SIMD3<Double>(1, 2, 3))
         let replacementPosition = CPosition(position: replacementPositionValue)
 
         store.insert(initialPosition, for: entity)
@@ -45,7 +45,7 @@ struct ComponentStoreTests {
         let position = CPosition(position: .zero)
         store.insert(position, for: entity)
 
-        let expectedPosition = SIMD3<Float>(3, 4, 5)
+        let expectedPosition = SIMD3<Double>(3, 4, 5)
         let didUpdate = store.update(for: entity) { position in
             position.position = expectedPosition
         }
@@ -58,12 +58,12 @@ struct ComponentStoreTests {
         var store = ComponentStore<CPosition>()
         let liveEntity = EntityID(index: 7, generation: 3)
         let staleEntity = EntityID(index: 7, generation: 2)
-        let livePositionValue = SIMD3<Float>(1, 2, 3)
+        let livePositionValue = SIMD3<Double>(1, 2, 3)
         let livePosition = CPosition(position: livePositionValue)
         store.insert(livePosition, for: liveEntity)
 
         let didUpdate = store.update(for: staleEntity) { position in
-            position.position = SIMD3<Float>(9, 9, 9)
+            position.position = SIMD3<Double>(9, 9, 9)
         }
 
         #expect(store[staleEntity] == nil)
@@ -78,7 +78,7 @@ struct ComponentStoreTests {
         let didUpdate = store.update(
             for: missingEntity
         ) { position in
-            position.position = SIMD3<Float>(1, 1, 1)
+            position.position = SIMD3<Double>(1, 1, 1)
         }
 
         #expect(didUpdate == false)
@@ -88,7 +88,7 @@ struct ComponentStoreTests {
     @Test func largeSparseIndexDoesNotAllocateDensePadding() {
         var store = ComponentStore<CPosition>()
         let entity = EntityID(index: Int.max, generation: 0)
-        let positionValue = SIMD3<Float>(1, 2, 3)
+        let positionValue = SIMD3<Double>(1, 2, 3)
         let position = CPosition(position: positionValue)
 
         store.insert(position, for: entity)
@@ -122,7 +122,7 @@ struct ComponentStoreTests {
         original.insert(position, for: entity)
         var copy = original
 
-        let updatedPosition = SIMD3<Float>(9, 8, 7)
+        let updatedPosition = SIMD3<Double>(9, 8, 7)
         copy.update(for: entity) { position in
             position.position = updatedPosition
         }

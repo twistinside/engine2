@@ -3,17 +3,17 @@ import Testing
 
 struct CMotionTests {
     @Test func switchingAccelerationIntentToIdleClearsAccelerationOnly() async throws {
-        let expectedVelocity = SIMD3<Float>(1, 2, 3)
+        let expectedVelocity = SIMD3<Double>(1, 2, 3)
         let accelerationIntent = CMotion.AccelerationIntent.accelerating(
-            SIMD3<Float>(7, 8, 9)
+            SIMD3<Double>(7, 8, 9)
         )
-        let expectedImpulse = SIMD3<Float>(10, 11, 12)
+        let expectedImpulse = SIMD3<Double>(10, 11, 12)
         var motion = CMotion(
             velocity: expectedVelocity,
             accelerationIntent: accelerationIntent,
             impulse: expectedImpulse
         )
-        motion.accumulator.acceleration = SIMD3<Float>(4, 5, 6)
+        motion.accumulator.acceleration = SIMD3<Double>(4, 5, 6)
 
         motion.accelerationIntent = .idle
 
@@ -24,16 +24,16 @@ struct CMotionTests {
     }
 
     @Test func switchingAccelerationIntentToAcceleratingPreservesAccumulator() async throws {
-        let expectedImpulse = SIMD3<Float>(4, 5, 6)
+        let expectedImpulse = SIMD3<Double>(4, 5, 6)
         var motion = CMotion(
             accelerationIntent: .idle,
             impulse: expectedImpulse
         )
-        let expectedAcceleration = SIMD3<Float>(1, 2, 3)
+        let expectedAcceleration = SIMD3<Double>(1, 2, 3)
         motion.accumulator.acceleration = expectedAcceleration
 
         let expectedIntent = CMotion.AccelerationIntent.accelerating(
-            SIMD3<Float>(7, 8, 9)
+            SIMD3<Double>(7, 8, 9)
         )
         motion.accelerationIntent = expectedIntent
 

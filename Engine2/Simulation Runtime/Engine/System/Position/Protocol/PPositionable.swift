@@ -4,11 +4,11 @@
 /// a missing row as a violated registration invariant. Systems should query the
 /// component store directly when processing positions in bulk.
 protocol PPositionable: Entity {
-    var position: SIMD3<Float> { get }
+    var position: SIMD3<Double> { get }
 }
 
 extension PPositionable {
-    var position: SIMD3<Float> {
+    var position: SIMD3<Double> {
         guard let position = world.positionComponents[self.id]?.position else {
             fatalError("There is no position for the positionable entity with ID: \(self.id)")
         }

@@ -24,7 +24,7 @@ struct RuntimeCompositionScenarioTests {
         #expect(runtime.world.inputHistory.entries.isEmpty)
         #expect(
             runtime.latestPresentationSnapshot.entityPresentations.first?.position
-                == position
+                == position.singlePrecision
         )
     }
 
@@ -248,7 +248,7 @@ struct RuntimeCompositionScenarioTests {
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: SIMD3<Float>(1, 0, 0)
+                velocity: SIMD3<Double>(1, 0, 0)
             )
             return world
         }

@@ -19,7 +19,7 @@ struct RealtimeAssemblyConstructionTests {
             maximumStepsPerWake: SimulationStepCount(rawValue: 2),
             backlogTreatment: .preserve
         )
-        let expectedPosition = SIMD3<Float>(3, 4, 5)
+        let expectedPosition = SIMD3<Double>(3, 4, 5)
         let gameContent = BasicGameContent(
             worldBuilder: RealtimeTestWorldBuilder(position: expectedPosition)
         )
@@ -83,7 +83,7 @@ struct RealtimeAssemblyConstructionTests {
 
 private extension RealtimeAssemblyConstructionTests {
     private struct RealtimeTestWorldBuilder: PWorldBuilder {
-        let position: SIMD3<Float>
+        let position: SIMD3<Double>
 
         func buildWorld() -> World {
             let world = World()

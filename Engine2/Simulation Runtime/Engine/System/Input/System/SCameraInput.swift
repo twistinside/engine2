@@ -25,7 +25,7 @@ struct SCameraInput: PSystem {
         self.maximumRadius = maximumRadius
     }
 
-    mutating func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Double) {
         let yawDelta = finiteOrZero(
             world.input.actions.cameraOrbitYawDelta
         )

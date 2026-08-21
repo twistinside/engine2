@@ -1,9 +1,9 @@
-/// Emits persistent acceleration intent into the per-frame motion accumulator.
+/// Emits persistent acceleration intent into the interval-local motion accumulator.
 ///
 /// This keeps long-lived decisions such as "keep thrusting forward" separate
 /// from the transient accumulator fields consumed and cleared by `SMovement`.
 struct SAccelerationIntent: PSystem {
-    mutating func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Double) {
         let entities = world.motionComponents.entities
 
         for entity in entities {
