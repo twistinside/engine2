@@ -2,6 +2,14 @@ import Testing
 @testable import Engine2
 
 struct CMotionTests {
+    @Test func motionlessHasNoMovementOrPendingContributions() {
+        let motion = CMotion.motionless
+
+        #expect(motion.velocity == .zero)
+        #expect(motion.accelerationIntent == .idle)
+        #expect(motion.accumulator == .zero)
+    }
+
     @Test func switchingAccelerationIntentToIdleClearsAccelerationOnly() async throws {
         let expectedVelocity = SIMD3<Double>(1, 2, 3)
         let accelerationIntent = CMotion.AccelerationIntent.accelerating(
@@ -26,6 +34,7 @@ struct CMotionTests {
     @Test func switchingAccelerationIntentToAcceleratingPreservesAccumulator() async throws {
         let expectedImpulse = SIMD3<Double>(4, 5, 6)
         var motion = CMotion(
+            velocity: .zero,
             accelerationIntent: .idle,
             impulse: expectedImpulse
         )

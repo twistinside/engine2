@@ -4,6 +4,13 @@
 /// state, and `accumulator` is interval-local contribution input consumed by
 /// `SMovement`. Translational values use double-precision SI units.
 struct CMotion: PComponent {
+    /// Zero velocity with idle acceleration intent and no pending movement contributions.
+    static let motionless = Self(
+        velocity: .zero,
+        accelerationIntent: .idle,
+        impulse: .zero
+    )
+
     var accelerationIntent: AccelerationIntent {
         didSet {
             if accelerationIntent == .idle {
@@ -22,16 +29,14 @@ struct CMotion: PComponent {
         accumulator.impulse
     }
 
-    /// Creates motion state while normalizing accumulated acceleration to zero.
+    /// Creates motion state with no accumulated acceleration.
     ///
-    /// Velocity, intent, and impulse defaults are neutral per-entity seeds. Persistent
-    /// acceleration intent first contributes through `SAccelerationIntent`, preserving
-    /// the invariant that the accumulator contains only work emitted for the next
-    /// movement invocation.
+    /// `impulse` remains pending until the next movement invocation. Persistent
+    /// acceleration intent contributes only after `SAccelerationIntent` runs.
     init(
-        velocity: SIMD3<Double> = .zero,
-        accelerationIntent: AccelerationIntent = .idle,
-        impulse: SIMD3<Double> = .zero
+        velocity: SIMD3<Double>,
+        accelerationIntent: AccelerationIntent,
+        impulse: SIMD3<Double>
     ) {
         self.velocity = velocity
         self.accelerationIntent = accelerationIntent

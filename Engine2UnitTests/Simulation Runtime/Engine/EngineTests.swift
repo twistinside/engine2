@@ -1,4 +1,5 @@
 import Foundation
+import simd
 import Testing
 @testable import Engine2
 
@@ -93,6 +94,7 @@ struct EngineTests {
         let entity = EntityID(index: 0, generation: 0)
         var motion = CMotion(
             velocity: SIMD3<Double>(4, 5, 6),
+            accelerationIntent: .idle,
             impulse: SIMD3<Double>(1, -1, 0.5)
         )
         motion.accumulator.acceleration = SIMD3<Double>(2, 0, -2)
@@ -118,6 +120,51 @@ struct EngineTests {
             world.positionComponents[entity]?.position == SIMD3<Double>(4, 4, 5.75)
         )
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
+    }
+
+    @Test func productionScheduleLeavesGravityUninstalledUntilRefusalsHaveExpectedOutcomes() {
+        let fixture = makeGravityFixture()
+        let engine = Engine(
+            world: fixture.world,
+            fixedTimeStep: .seconds(1),
+            configuration: .basicGame
+        )
+
+        engine.step()
+
+        #expect(fixture.world.motionComponents[fixture.receiver]?.velocity == .zero)
+        #expect(
+            fixture.world.positionComponents[fixture.receiver]?.position
+                == SIMD3<Double>(2, 0, 0)
+        )
+    }
+
+    @Test func injectedGravityScheduleAppliesGravityBeforeMovement() {
+        let fixture = makeGravityFixture()
+        let engine = Engine(
+            world: fixture.world,
+            fixedTimeStep: .seconds(1),
+            systems: [SGravity(), SMovement()]
+        )
+
+        engine.step()
+
+        let expectedVelocity = SIMD3<Double>(-0.25, 0, 0)
+        let expectedPosition = SIMD3<Double>(1.75, 0, 0)
+        #expect(
+            simd_distance(
+                fixture.world.motionComponents[fixture.receiver]?.velocity ?? .zero,
+                expectedVelocity
+            ) < 1e-12
+        )
+        #expect(
+            simd_distance(
+                fixture.world.positionComponents[fixture.receiver]?.position ?? .zero,
+                expectedPosition
+            ) < 1e-12
+        )
+        #expect(fixture.world.motionComponents[fixture.receiver]?.accumulator == .zero)
+        #expect(fixture.world.positionComponents[fixture.source]?.position == .zero)
     }
 
     @Test func eachStepRunsTheEntireScheduleInDeclarationOrder() {
@@ -268,6 +315,37 @@ private extension SIMD3 where Scalar == Float {
 }
 
 private extension EngineTests {
+    func makeGravityFixture() -> (
+        world: World,
+        source: EntityID,
+        receiver: EntityID
+    ) {
+        let source = EntityID(index: 0, generation: 0)
+        let receiver = EntityID(index: 1, generation: 0)
+        let gravitationalConstant = 6.67430e-11
+        let world = World()
+        world.positionComponents.insert(
+            CPosition(position: .zero),
+            for: source
+        )
+        world.massiveBodyComponents.insert(
+            CMassiveBody(
+                mass: AstronomicalMass(
+                    kilograms: 1 / gravitationalConstant
+                ),
+                physicalRadius: AstronomicalDistance(meters: 0.1)
+            ),
+            for: source
+        )
+        world.positionComponents.insert(
+            CPosition(position: SIMD3(2, 0, 0)),
+            for: receiver
+        )
+        world.motionComponents.insert(CMotion.motionless, for: receiver)
+
+        return (world, source, receiver)
+    }
+
     private final class ExecutionRecorder {
         var entries: [String] = []
     }

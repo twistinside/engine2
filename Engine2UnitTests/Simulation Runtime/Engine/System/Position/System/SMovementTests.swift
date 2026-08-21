@@ -7,6 +7,7 @@ struct SMovementTests {
         let entity = EntityID(index: 0, generation: 0)
         var motion = CMotion(
             velocity: SIMD3<Double>(4, 5, 6),
+            accelerationIntent: .idle,
             impulse: SIMD3<Double>(1, -1, 0.5)
         )
         motion.accumulator.acceleration = SIMD3<Double>(2, 0, -2)
@@ -33,6 +34,7 @@ struct SMovementTests {
         let entity = EntityID(index: 0, generation: 0)
         var expectedMotion = CMotion(
             velocity: SIMD3<Double>(1, 2, 3),
+            accelerationIntent: .idle,
             impulse: SIMD3<Double>(4, 5, 6)
         )
         expectedMotion.accumulator.acceleration = SIMD3<Double>(7, 8, 9)
