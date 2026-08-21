@@ -12,32 +12,32 @@ struct BasicWorldBuilder: PWorldBuilder {
         _ = Ball(
             in: world,
             materialID: .warmDielectricSmooth,
-            position: SIMD3<Float>(-1.75, 1.10, 0)
+            position: SIMD3<Double>(-1.75, 1.10, 0)
         )
         _ = Ball(
             in: world,
             materialID: .warmDielectric,
-            position: SIMD3<Float>(0, 1.10, 0)
+            position: SIMD3<Double>(0, 1.10, 0)
         )
         _ = Ball(
             in: world,
             materialID: .warmDielectricRough,
-            position: SIMD3<Float>(1.75, 1.10, 0)
+            position: SIMD3<Double>(1.75, 1.10, 0)
         )
         _ = Ball(
             in: world,
             materialID: .goldMetalSmooth,
-            position: SIMD3<Float>(-1.75, -1.10, 0)
+            position: SIMD3<Double>(-1.75, -1.10, 0)
         )
         _ = Ball(
             in: world,
             materialID: .goldMetal,
-            position: SIMD3<Float>(0, -1.10, 0)
+            position: SIMD3<Double>(0, -1.10, 0)
         )
         _ = Ball(
             in: world,
             materialID: .goldMetalRough,
-            position: SIMD3<Float>(1.75, -1.10, 0)
+            position: SIMD3<Double>(1.75, -1.10, 0)
         )
 
         return world

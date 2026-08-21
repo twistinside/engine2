@@ -225,8 +225,8 @@ or altered policy even when each individual value is numerically valid.
 
 ## Units and Numeric Domains
 
-Formation uses `Double` throughout. Celestial values do not reuse the current
-Simulation and Render `Float` transforms.
+Formation and authoritative Simulation translation use `Double`. Completed
+presentation snapshots narrow positions to the Render layer's `Float` domain.
 
 The stored domain quantities use one canonical base unit and named projections:
 

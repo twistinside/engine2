@@ -16,10 +16,10 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
     convenience init(
         in world: World,
         materialID: MaterialID,
-        position: SIMD3<Float> = .zero,
-        velocity: SIMD3<Float> = .zero,
+        position: SIMD3<Double> = .zero,
+        velocity: SIMD3<Double> = .zero,
         accelerationIntent: CMotion.AccelerationIntent = .idle,
-        impulse: SIMD3<Float> = .zero,
+        impulse: SIMD3<Double> = .zero,
         rotation: simd_quatf = .identity,
         angularVelocity: SIMD3<Float> = .zero,
         angularAcceleration: SIMD3<Float> = .zero,

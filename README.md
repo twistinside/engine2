@@ -6,6 +6,8 @@ The project is exploring a hybrid architecture:
 
 - ECS component stores are the authoritative simulation state.
 - Systems operate directly on component stores in hot paths.
+- Authoritative translation and fixed-step seconds use `Double`; completed presentation snapshots narrow positions to
+  `Float` for rendering.
 - Typed `Entity` facades and capability protocols provide a convenient game-facing API.
 - Input, simulation, and rendering live in independently owned runtimes connected through explicit snapshots and events.
 - Consumer-defined Game Content supplies entities, world construction, presentation descriptions, and assets without owning runtime infrastructure.

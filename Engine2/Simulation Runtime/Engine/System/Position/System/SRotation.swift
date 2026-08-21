@@ -1,7 +1,7 @@
 import OSLog
 import simd
 
-/// Applies one frame of accumulated angular motion by first updating angular
+/// Applies one scheduled interval of accumulated angular motion by first updating angular
 /// velocity and then advancing orientation from the new angular velocity.
 struct SRotation: PSystem {
     private static let signposter = OSSignposter(
@@ -9,13 +9,13 @@ struct SRotation: PSystem {
         category: "SRotation"
     )
 
-    mutating func update(world: inout World, deltaTime: Float) {
+    mutating func update(world: inout World, deltaTime: Double) {
         let signpostState = Self.signposter.beginInterval("SRotation.update")
         defer {
             Self.signposter.endInterval("SRotation.update", signpostState)
         }
 
-        // Most entities will have no explicit angular input this frame, so reuse
+        // Most entities will have no explicit angular input for this invocation, so reuse
         // one zero-value accumulator instead of constructing a new default each iteration.
         let zeroAccumulator = CAngularMotionAccumulator(
             angularAcceleration: .zero,
@@ -37,14 +37,14 @@ struct SRotation: PSystem {
 
             // Continuous angular acceleration scales with `deltaTime`; impulse is an
             // immediate angular velocity delta. Orientation then advances from the
-            // updated angular velocity over this fixed step.
+            // updated angular velocity over this invocation interval.
             let updatedAngularVelocity =
                 angularVelocity.angularVelocity
-                + accumulator.angularAcceleration * deltaTime
+                + accumulator.angularAcceleration * Float(deltaTime)
                 + accumulator.angularImpulse
             let rotationDelta = deltaRotation(
                 for: updatedAngularVelocity,
-                deltaTime: deltaTime
+                deltaTime: Float(deltaTime)
             )
             let accumulatedRotation = rotationDelta * rotation.rotation
             let updatedRotation = simd_quatf(vector: simd_normalize(accumulatedRotation.vector))
@@ -56,7 +56,7 @@ struct SRotation: PSystem {
                 rotation = CRotation(rotation: updatedRotation)
             }
 
-            // Angular motion contributions are per-frame inputs, so clear the
+            // Angular motion contributions are interval-local inputs, so clear the
             // accumulator after they have been consumed.
             world.angularMotionAccumulatorComponents.update(for: entity) { accumulator in
                 accumulator = zeroAccumulator

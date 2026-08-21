@@ -30,7 +30,7 @@ struct SimulationPresentationSnapshotTests {
             renderable,
             for: renderableEntity
         )
-        let renderablePositionValue = SIMD3<Float>(3, 4, 5)
+        let renderablePositionValue = SIMD3<Double>(3, 4, 5)
         let renderablePosition = CPosition(position: renderablePositionValue)
         world.positionComponents.insert(
             renderablePosition,
@@ -47,7 +47,7 @@ struct SimulationPresentationSnapshotTests {
             renderableScale,
             for: renderableEntity
         )
-        let nonRenderablePosition = CPosition(position: SIMD3<Float>(9, 9, 9))
+        let nonRenderablePosition = CPosition(position: SIMD3<Double>(9, 9, 9))
         world.positionComponents.insert(
             nonRenderablePosition,
             for: nonRenderableEntity
@@ -88,7 +88,7 @@ struct SimulationPresentationSnapshotTests {
         #expect(snapshot.entityPresentations.map(\.id) == [renderableEntity])
 
         let entity = try #require(snapshot.entityPresentations.first)
-        #expect(entity.position == renderablePositionValue)
+        #expect(entity.position == renderablePositionValue.singlePrecision)
         #expect(entity.rotation?.vector == expectedRotation.vector)
         #expect(entity.scale == renderableScaleValue)
         #expect(entity.meshID == .ball)

@@ -86,7 +86,7 @@ struct BasicWorldBuilderRenderTests {
         // values above stay detached from later world changes.
         let firstEntity = Self.expectedEntityIDs[0]
         let didMove = world.positionComponents.update(for: firstEntity) {
-            $0.position = SIMD3<Float>(99, 99, 99)
+            $0.position = SIMD3<Double>(99, 99, 99)
         }
         let didChangeMaterial = world.renderableComponents.update(
             for: firstEntity

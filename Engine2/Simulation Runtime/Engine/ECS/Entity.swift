@@ -21,12 +21,12 @@ class Entity {
         static let empty = InitialState()
 
         // PPositionable
-        var position: SIMD3<Float>? = nil
+        var position: SIMD3<Double>? = nil
 
         // PMovable
-        var velocity: SIMD3<Float>? = nil
+        var velocity: SIMD3<Double>? = nil
         var accelerationIntent: CMotion.AccelerationIntent? = nil
-        var impulse: SIMD3<Float>? = nil
+        var impulse: SIMD3<Double>? = nil
 
         // POrientable
         var rotation: simd_quatf? = nil

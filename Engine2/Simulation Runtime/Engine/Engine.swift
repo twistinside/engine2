@@ -6,7 +6,7 @@
 /// the duration remains injectable here only for focused system integration
 /// tests below the Runtime boundary.
 final class Engine {
-    private let fixedTimeStepSeconds: Float
+    private let fixedTimeStepSeconds: Double
     private var systems: [any PSystem]
 
     let fixedTimeStep: Duration

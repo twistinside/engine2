@@ -35,3 +35,10 @@ nonisolated extension SIMD where Scalar: FloatingPoint {
         indices.allSatisfy { self[$0].isZero }
     }
 }
+
+nonisolated extension SIMD3 where Scalar == Double {
+    /// Narrows a Simulation-space vector for a single-precision presentation boundary.
+    var singlePrecision: SIMD3<Float> {
+        SIMD3<Float>(Float(x), Float(y), Float(z))
+    }
+}

@@ -5,7 +5,7 @@ struct WorldTests {
     @Test func addSeedsOnlyAdvertisedCapabilityComponents() async throws {
         let world = World()
         let entity = TestSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
-        let expectedPosition = SIMD3<Float>(1, 2, 3)
+        let expectedPosition = SIMD3<Double>(1, 2, 3)
         let expectedScale = SIMD3<Float>(2, 2, 2)
         let initialState = Entity.InitialState(
             position: expectedPosition,
@@ -28,7 +28,9 @@ struct WorldTests {
     @Test func addSeedsAccelerationIntentForMovableEntity() async throws {
         let world = World()
         let entity = TestMovableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
-        let expectedIntent = CMotion.AccelerationIntent.accelerating(SIMD3<Float>(1, 2, 3))
+        let expectedIntent = CMotion.AccelerationIntent.accelerating(
+            SIMD3<Double>(1, 2, 3)
+        )
         let initialState = Entity.InitialState(accelerationIntent: expectedIntent)
 
         world.add(

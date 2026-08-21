@@ -51,8 +51,8 @@ struct HeadlessSimulationTests {
             ],
             initialMeasuredCursor: initialCursor,
             finalCursor: finalCursor,
-            firstEntityPosition: SIMD3<Float>(1, 2, 3),
-            lastEntityPosition: SIMD3<Float>(4, 5, 6),
+            firstEntityPosition: SIMD3<Double>(1, 2, 3),
+            lastEntityPosition: SIMD3<Double>(4, 5, 6),
             firstEntityRotation: .identity
         )
 

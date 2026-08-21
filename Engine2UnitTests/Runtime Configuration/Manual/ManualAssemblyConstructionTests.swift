@@ -92,7 +92,7 @@ struct ManualAssemblyConstructionTests {
         #expect(result.completedStepCount.rawValue == 10_000)
         #expect(result.finalCursor.tick == SimulationTick(rawValue: 10_000))
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
-        #expect(presentation.position == worldPosition)
+        #expect(presentation.position == worldPosition.singlePrecision)
         #expect(abs(worldPosition.x - 10_000) < 1)
         #expect(worldPosition.y == 0)
         #expect(worldPosition.z == 0)
@@ -117,7 +117,7 @@ private extension ManualAssemblyConstructionTests {
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: SIMD3<Float>(
+                velocity: SIMD3<Double>(
                     1 / SimulationRuntime.fixedTimeStep.seconds,
                     0,
                     0

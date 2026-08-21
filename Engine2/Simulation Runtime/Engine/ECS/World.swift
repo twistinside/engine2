@@ -37,7 +37,7 @@ class World {
         ).map { entity, renderable in
             EntityPresentationSnapshot(
                 id: entity,
-                position: positionComponents[entity]?.position,
+                position: positionComponents[entity]?.position.singlePrecision,
                 rotation: rotationComponents[entity]?.rotation,
                 scale: scaleComponents[entity]?.scale,
                 meshID: renderable.meshID,

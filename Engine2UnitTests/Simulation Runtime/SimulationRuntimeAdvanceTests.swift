@@ -39,7 +39,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(simulation.latestPresentationSnapshot == result.finalPresentationSnapshot)
         #expect(simulation.currentCursor == result.finalCursor)
-        #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Float>(3, 0, 0))
+        #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Double>(3, 0, 0))
     }
 
     @Test func staleExpectedCursorRejectsWithoutMutation() async {
@@ -383,7 +383,7 @@ struct SimulationRuntimeAdvanceTests {
     private struct MovingWorldBuilder: PWorldBuilder {
         func buildWorld() -> World {
             let world = World()
-            let velocity = SIMD3<Float>(
+            let velocity = SIMD3<Double>(
                 1 / SimulationRuntime.fixedTimeStep.seconds,
                 0,
                 0

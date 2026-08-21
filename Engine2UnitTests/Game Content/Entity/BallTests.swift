@@ -5,10 +5,12 @@ import simd
 struct BallTests {
     @Test func initSeedsMovementAndRotationState() async throws {
         let world = World()
-        let expectedPosition = SIMD3<Float>(1, 2, 3)
-        let expectedVelocity = SIMD3<Float>(4, 5, 6)
-        let expectedAccelerationIntent = CMotion.AccelerationIntent.accelerating(SIMD3<Float>(1, 0, 0))
-        let expectedImpulse = SIMD3<Float>(-1, 0.5, 2)
+        let expectedPosition = SIMD3<Double>(1, 2, 3)
+        let expectedVelocity = SIMD3<Double>(4, 5, 6)
+        let expectedAccelerationIntent = CMotion.AccelerationIntent.accelerating(
+            SIMD3<Double>(1, 0, 0)
+        )
+        let expectedImpulse = SIMD3<Double>(-1, 0.5, 2)
         let expectedRotation = simd_quatf(angle: .pi / 3, axis: SIMD3<Float>(0, 1, 0))
         let expectedAngularVelocity = SIMD3<Float>(0.1, 0.2, 0.3)
         let expectedAngularAcceleration = SIMD3<Float>(0.4, 0.5, 0.6)

@@ -7,8 +7,8 @@ import simd
 /// into the simulation.
 struct EntityMotionRow: Identifiable, Equatable {
     let id: EntityID
-    let position: SIMD3<Float>
-    let speed: Float
+    let position: SIMD3<Double>
+    let speed: Double
 
     var locationText: String {
         "(\(format(position.x)), \(format(position.y)), \(format(position.z)))"
@@ -34,7 +34,7 @@ struct EntityMotionRow: Identifiable, Equatable {
         }
     }
 
-    private func format(_ value: Float) -> String {
+    private func format(_ value: Double) -> String {
         String(format: "%.2f", value)
     }
 }

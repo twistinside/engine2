@@ -8,11 +8,11 @@ struct PMovableTests {
             unregisteredID: EntityID(index: 0, generation: 0),
             in: world
         )
-        let expectedVelocity = SIMD3<Float>(1, 2, 3)
-        let expectedAcceleration = SIMD3<Float>(4, 5, 6)
-        let expectedImpulse = SIMD3<Float>(7, 8, 9)
+        let expectedVelocity = SIMD3<Double>(1, 2, 3)
+        let expectedAcceleration = SIMD3<Double>(4, 5, 6)
+        let expectedImpulse = SIMD3<Double>(7, 8, 9)
         let expectedIntent = CMotion.AccelerationIntent.accelerating(
-            SIMD3<Float>(10, 11, 12)
+            SIMD3<Double>(10, 11, 12)
         )
         var motion = CMotion(
             velocity: expectedVelocity,

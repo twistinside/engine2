@@ -60,13 +60,15 @@ struct RealtimeAdvanceDriverIntegrationTests {
 
         #expect(didAdvance)
         #expect(
-            abs(position.x - SimulationRuntime.fixedTimeStep.seconds) <
-            0.0001
+            abs(
+                position.x
+                    - SimulationRuntime.fixedTimeStep.seconds
+            ) < 0.0001
         )
         #expect(simulationRuntime.latestPresentationSnapshot.cursor == simulationRuntime.currentCursor)
         #expect(
             simulationRuntime.latestPresentationSnapshot.entityPresentations.first?.position ==
-            position
+            position.singlePrecision
         )
         #expect(simulationRuntime.world.camera != initialCamera)
         #expect(
@@ -228,7 +230,7 @@ private extension RealtimeAdvanceDriverIntegrationTests {
                 in: world,
                 materialID: .warmDielectric,
                 position: .zero,
-                velocity: SIMD3<Float>(1, 0, 0)
+                velocity: SIMD3<Double>(1, 0, 0)
             )
             return world
         }

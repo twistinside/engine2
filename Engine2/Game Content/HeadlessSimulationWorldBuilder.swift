@@ -16,9 +16,9 @@ struct HeadlessSimulationWorldBuilder: PWorldBuilder {
 
     func buildWorld() -> World {
         let world = World()
-        let velocity = SIMD3<Float>(3, 2, 1)
+        let velocity = SIMD3<Double>(3, 2, 1)
         let accelerationIntent = CMotion.AccelerationIntent.accelerating(
-            SIMD3<Float>(0.25, 0.5, 0.75)
+            SIMD3<Double>(0.25, 0.5, 0.75)
         )
         let angularVelocity = SIMD3<Float>(0.2, 0.3, 0.4)
 
@@ -37,14 +37,14 @@ struct HeadlessSimulationWorldBuilder: PWorldBuilder {
     }
 
     /// Returns the deterministic spawn position for one headless entity.
-    func initialPosition(forEntityAt entityIndex: Int) -> SIMD3<Float> {
+    func initialPosition(forEntityAt entityIndex: Int) -> SIMD3<Double> {
         precondition(
             (0..<entityCount).contains(entityIndex),
             "The headless entity index must identify a configured entity."
         )
-        return SIMD3<Float>(
-            Float(entityIndex % Self.entitiesPerRow),
-            Float(entityIndex / Self.entitiesPerRow),
+        return SIMD3<Double>(
+            Double(entityIndex % Self.entitiesPerRow),
+            Double(entityIndex / Self.entitiesPerRow),
             0
         )
     }

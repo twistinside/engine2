@@ -37,4 +37,10 @@ struct SIMDTests {
         #expect(subnormal.isSubnormal)
         #expect(normal.isSubnormal == false)
     }
+
+    @Test func singlePrecisionNarrowsEveryDoubleLane() {
+        let value = SIMD3<Double>(1.25, -2.5, 3.75)
+
+        #expect(value.singlePrecision == SIMD3<Float>(1.25, -2.5, 3.75))
+    }
 }

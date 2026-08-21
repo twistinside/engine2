@@ -7,20 +7,20 @@ struct EntityMotionPaneTests {
         let stationary = EntityID(index: 0, generation: 0)
         let moving = EntityID(index: 1, generation: 0)
         let stationaryComponent = CPosition(
-            position: SIMD3<Float>(1, -2, 3.125)
+            position: SIMD3<Double>(1, -2, 3.125)
         )
         world.positionComponents.insert(
             stationaryComponent,
             for: stationary
         )
         let movingPositionComponent = CPosition(
-            position: SIMD3<Float>(4, 5, 6)
+            position: SIMD3<Double>(4, 5, 6)
         )
         world.positionComponents.insert(
             movingPositionComponent,
             for: moving
         )
-        let movingMotion = CMotion(velocity: SIMD3<Float>(3, 4, 0))
+        let movingMotion = CMotion(velocity: SIMD3<Double>(3, 4, 0))
         world.motionComponents.insert(
             movingMotion,
             for: moving
