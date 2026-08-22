@@ -15,13 +15,13 @@ struct MetalOffscreenRenderRuntimeTests {
         }
     }
 
-    @Test func rendersExactMaterialSceneIntoDetachedOpaquePixels() async throws {
+    @Test func rendersBlueMarbleInspiredFeaturesIntoStableOpaquePixels() async throws {
         let fixture = makeFixture()
         let runtime = try MetalOffscreenRenderRuntime(
             catalog: fixture.content.renderAssetCatalog,
             limits: .conservative
         )
-        let size = try RenderPixelSize(width: 320, height: 240)
+        let size = try RenderPixelSize(width: 512, height: 512)
         let settings = OffscreenRenderSettings(
             size: size,
             outputMode: .surface,
@@ -41,8 +41,8 @@ struct MetalOffscreenRenderRuntimeTests {
         #expect(result.viewpoint == fixture.viewpoint)
         #expect(result.settings == settings)
         #expect(result.image.size == size)
-        #expect(result.image.bytesPerRow == 320 * 4)
-        #expect(result.image.bytes.count == 320 * 240 * 4)
+        #expect(result.image.bytesPerRow == size.bgra8BytesPerRow)
+        #expect(result.image.bytes.count == size.bgra8ByteCount)
         #expect(result.image.origin == .topLeft)
 
         let pixels = [UInt8](result.image.bytes)
@@ -53,6 +53,58 @@ struct MetalOffscreenRenderRuntimeTests {
                 || pixels[offset + 1] != 0
                 || pixels[offset + 2] != 0
         })
+
+        let profile = try #require(
+            TerrestrialPlanetRenderProfile(
+                pixels: pixels,
+                size: size
+            )
+        )
+        #expect((0.88...0.95).contains(profile.diskDiameterFraction))
+        #expect((0.48...0.52).contains(profile.diskCenterXFraction))
+        #expect((0.48...0.52).contains(profile.diskCenterYFraction))
+        #expect((0.45...0.68).contains(profile.blueDominantFraction))
+        #expect((0.04...0.16).contains(profile.warmLandFraction))
+        #expect((0.005...0.08).contains(profile.greenVegetationFraction))
+        #expect((0.10...0.26).contains(profile.brightNeutralFraction))
+        #expect(profile.luminanceP10 <= 65)
+        #expect(profile.luminanceP90 >= 185)
+        #expect(profile.westMidDiskBlueFraction >= 0.50)
+        #expect(profile.eastMidDiskBlueFraction >= 0.35)
+        #expect(profile.centralAfricaLandFraction >= 0.15)
+        #expect(profile.southernBrightNeutralFraction >= 0.12)
+        #expect(
+            profile.southernBrightNeutralFraction
+                >= profile.northernBrightNeutralFraction * 1.10
+        )
+
+        let repeatedRequest = OffscreenRenderRequest(
+            id: OffscreenRenderRequestID(),
+            presentationSnapshot: fixture.snapshot,
+            viewpoint: fixture.viewpoint,
+            settings: settings
+        )
+        let repeatedResult = try completedResult(
+            from: await runtime.render(repeatedRequest)
+        )
+        let repeatDifference = imageDifference(
+            between: result.image,
+            and: repeatedResult.image
+        )
+        // Translucent GPU blending may round a few components differently.
+        // Bound that variance without weakening the semantic image profile.
+        #expect(repeatDifference.differentComponentCount <= 16)
+        #expect(repeatDifference.maximumComponentDelta <= 1)
+    }
+
+    @Test func blueMarbleProfileRejectsAFrameWithoutAVisibleDisk() throws {
+        let size = try RenderPixelSize(width: 16, height: 16)
+        let profile = TerrestrialPlanetRenderProfile(
+            pixels: [UInt8](repeating: 0, count: size.bgra8ByteCount),
+            size: size
+        )
+
+        #expect(profile?.diskDiameterFraction == nil)
     }
 
     @Test func overLimitRejectionDoesNotPoisonFollowingRequest() async throws {
@@ -395,6 +447,32 @@ struct MetalOffscreenRenderRuntimeTests {
             throw UnexpectedOutcome()
         }
         return result
+    }
+
+    /// Measures bounded one-byte output drift from translucent GPU blending.
+    private func imageDifference(
+        between first: RenderedBGRA8SRGBImage,
+        and second: RenderedBGRA8SRGBImage
+    ) -> (differentComponentCount: Int, maximumComponentDelta: UInt8) {
+        guard first.size == second.size,
+              first.bytesPerRow == second.bytesPerRow,
+              first.origin == second.origin,
+              first.bytes.count == second.bytes.count else {
+            return (.max, .max)
+        }
+
+        var differentComponentCount = 0
+        var maximumComponentDelta: UInt8 = 0
+        for (firstComponent, secondComponent) in zip(first.bytes, second.bytes) {
+            let delta = firstComponent > secondComponent
+                ? firstComponent - secondComponent
+                : secondComponent - firstComponent
+            if delta > 0 {
+                differentComponentCount += 1
+                maximumComponentDelta = max(maximumComponentDelta, delta)
+            }
+        }
+        return (differentComponentCount, maximumComponentDelta)
     }
 
     private struct UnexpectedOutcome: Error {}

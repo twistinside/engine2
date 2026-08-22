@@ -1,0 +1,1137 @@
+import Foundation
+
+/// Deterministically generates detached terrestrial surface maps for Render.
+///
+/// The generator evaluates every field on a unit sphere, so longitude wraps
+/// without a planar-noise seam. Production Blue Marble generation is retained
+/// as one immutable static value. Focused tests can inject a smaller 2:1 map
+/// size without mutating that shared production value.
+nonisolated struct TerrestrialPlanetSurfaceGenerator: Sendable {
+    static let productionWidth = 1_024
+    static let productionHeight = 512
+
+    private static let blueMarbleMaps = TerrestrialPlanetSurfaceGenerator(
+        width: productionWidth,
+        height: productionHeight
+    ).generateUncached(.blueMarble)
+
+    private static let africa = [
+        SIMD2<Float>(-17, 37), SIMD2<Float>(-7, 35),
+        SIMD2<Float>(1, 37), SIMD2<Float>(10, 37),
+        SIMD2<Float>(19, 34), SIMD2<Float>(27, 31),
+        SIMD2<Float>(32, 31), SIMD2<Float>(35, 25),
+        SIMD2<Float>(36, 20), SIMD2<Float>(41, 15),
+        SIMD2<Float>(51, 11), SIMD2<Float>(47, 5),
+        SIMD2<Float>(43, -2), SIMD2<Float>(41, -11),
+        SIMD2<Float>(36, -21), SIMD2<Float>(32, -29),
+        SIMD2<Float>(25, -34), SIMD2<Float>(18, -35),
+        SIMD2<Float>(11, -30), SIMD2<Float>(7, -23),
+        SIMD2<Float>(10, -10), SIMD2<Float>(13, -3),
+        SIMD2<Float>(12, 1), SIMD2<Float>(9, 4),
+        SIMD2<Float>(2, 4), SIMD2<Float>(-4, 6),
+        SIMD2<Float>(-10, 10), SIMD2<Float>(-15, 17),
+        SIMD2<Float>(-17, 25)
+    ]
+
+    private static let arabia = [
+        SIMD2<Float>(33, 30), SIMD2<Float>(47, 30),
+        SIMD2<Float>(56, 24), SIMD2<Float>(54, 16),
+        SIMD2<Float>(47, 12), SIMD2<Float>(42, 16),
+        SIMD2<Float>(37, 22)
+    ]
+
+    private static let eurasia = [
+        SIMD2<Float>(-11, 36), SIMD2<Float>(-9, 49),
+        SIMD2<Float>(3, 59), SIMD2<Float>(22, 70),
+        SIMD2<Float>(55, 76), SIMD2<Float>(95, 71),
+        SIMD2<Float>(132, 61), SIMD2<Float>(168, 53),
+        SIMD2<Float>(165, 40), SIMD2<Float>(145, 30),
+        SIMD2<Float>(113, 23), SIMD2<Float>(94, 23),
+        SIMD2<Float>(84, 9), SIMD2<Float>(74, 8),
+        SIMD2<Float>(66, 20), SIMD2<Float>(55, 28),
+        SIMD2<Float>(47, 30), SIMD2<Float>(40, 35),
+        SIMD2<Float>(30, 39), SIMD2<Float>(16, 42),
+        SIMD2<Float>(5, 40)
+    ]
+
+    private static let southAmerica = [
+        SIMD2<Float>(-82, 12), SIMD2<Float>(-69, 10),
+        SIMD2<Float>(-50, 4), SIMD2<Float>(-36, -7),
+        SIMD2<Float>(-42, -21), SIMD2<Float>(-54, -36),
+        SIMD2<Float>(-66, -56), SIMD2<Float>(-74, -44),
+        SIMD2<Float>(-79, -22)
+    ]
+
+    private static let northAmerica = [
+        SIMD2<Float>(-168, 69), SIMD2<Float>(-133, 75),
+        SIMD2<Float>(-96, 72), SIMD2<Float>(-61, 56),
+        SIMD2<Float>(-53, 45), SIMD2<Float>(-67, 25),
+        SIMD2<Float>(-82, 15), SIMD2<Float>(-98, 18),
+        SIMD2<Float>(-116, 30), SIMD2<Float>(-127, 49),
+        SIMD2<Float>(-151, 58)
+    ]
+
+    private static let greenland = [
+        SIMD2<Float>(-57, 59), SIMD2<Float>(-28, 60),
+        SIMD2<Float>(-13, 73), SIMD2<Float>(-28, 83),
+        SIMD2<Float>(-54, 82), SIMD2<Float>(-72, 70)
+    ]
+
+    private static let australia = [
+        SIMD2<Float>(113, -11), SIMD2<Float>(132, -10),
+        SIMD2<Float>(153, -25), SIMD2<Float>(146, -42),
+        SIMD2<Float>(125, -44), SIMD2<Float>(112, -30)
+    ]
+
+    private static let madagascar = [
+        SIMD2<Float>(47, -12), SIMD2<Float>(51, -17),
+        SIMD2<Float>(49, -27), SIMD2<Float>(45, -25),
+        SIMD2<Float>(43.5, -19)
+    ]
+
+    private static let landShapes: [(
+        polygon: [SIMD2<Float>],
+        bounds: SIMD4<Float>
+    )] = [
+        (africa, SIMD4<Float>(-20, 54, -39, 41)),
+        (arabia, SIMD4<Float>(30, 59, 9, 33)),
+        (eurasia, SIMD4<Float>(-14, 172, 5, 80)),
+        (southAmerica, SIMD4<Float>(-86, -32, -60, 16)),
+        (northAmerica, SIMD4<Float>(-172, -49, 11, 82)),
+        (greenland, SIMD4<Float>(-76, -10, 56, 86)),
+        (australia, SIMD4<Float>(108, 157, -47, -7)),
+        (madagascar, SIMD4<Float>(41, 53, -30, -9))
+    ]
+
+    let width: Int
+    let height: Int
+
+    /// Selects the production 1024×512 Render policy.
+    init() {
+        self.init(
+            width: Self.productionWidth,
+            height: Self.productionHeight
+        )
+    }
+
+    /// Selects a smaller equirectangular grid for focused generation tests.
+    init(width: Int, height: Int) {
+        precondition(
+            width >= 8 && height >= 4 && width == height * 2,
+            "Procedural planet generation requires a 2:1 grid of at least 8 by 4 pixels."
+        )
+
+        self.width = width
+        self.height = height
+    }
+
+    /// Generates one complete deterministic base-level map set.
+    ///
+    /// The distinguished production recipe shares immutable generated bytes
+    /// across resource stores. Other recipes and injected dimensions evaluate
+    /// independently and never mutate the production value.
+    func generate(
+        _ recipe: TerrestrialPlanetSurfaceRecipe
+    ) -> TerrestrialPlanetSurfaceMaps {
+        if width == Self.productionWidth,
+           height == Self.productionHeight,
+           recipe == .blueMarble {
+            return Self.blueMarbleMaps
+        }
+
+        return generateUncached(recipe)
+    }
+
+    private func generateUncached(
+        _ recipe: TerrestrialPlanetSurfaceRecipe
+    ) -> TerrestrialPlanetSurfaceMaps {
+        let heightField = generateHeightField(seed: recipe.seed)
+        let normalRGBA8 = generateNormalMap(
+            from: heightField,
+            relief: recipe.normalRelief
+        )
+        let appearanceMaps = generateAppearanceMaps(
+            from: heightField,
+            seed: recipe.seed
+        )
+        return TerrestrialPlanetSurfaceMaps(
+            width: width,
+            height: height,
+            normalRGBA8: normalRGBA8,
+            surfaceRGBA8: appearanceMaps.surface,
+            controlRGBA8: appearanceMaps.control,
+            cloudRGBA8: appearanceMaps.cloud
+        )
+    }
+
+    private func generateHeightField(seed: UInt64) -> [Float] {
+        let coastWaves = makeWaves(
+            seed: seed ^ 0xC01A_71E1_7,
+            octaveCount: 3,
+            wavesPerOctave: 3,
+            startingFrequency: 9,
+            persistence: 0.52
+        )
+        let terrainWaves = makeWaves(
+            seed: seed ^ 0x7E22_A1,
+            octaveCount: 3,
+            wavesPerOctave: 3,
+            startingFrequency: 4.2,
+            persistence: 0.50
+        )
+        let ridgeWaves = makeWaves(
+            seed: seed ^ 0xA1_1CE5,
+            octaveCount: 3,
+            wavesPerOctave: 2,
+            startingFrequency: 11,
+            persistence: 0.52
+        )
+        var heights: [Float] = []
+        heights.reserveCapacity(width * height)
+
+        for pixelY in 0..<height {
+            for pixelX in 0..<width {
+                let sample = sphericalSample(pixelX: pixelX, pixelY: pixelY)
+                let longitudeDegrees = degrees(fromRadians: sample.longitude)
+                let latitudeDegrees = degrees(fromRadians: sample.latitude)
+                let coastDetail = sampleWaves(
+                    at: sample.position,
+                    waves: coastWaves
+                ) * 4.2
+                let landField = authoredLandDistance(
+                    longitude: longitudeDegrees,
+                    latitude: latitudeDegrees
+                ) + coastDetail - 2
+
+                if landField >= 0 {
+                    let interior = smoothstep(0, 18, landField)
+                    let terrain = clamp(
+                        0.5 + sampleWaves(
+                            at: sample.position,
+                            waves: terrainWaves
+                        ) * 1.8
+                    )
+                    let ridgeSignal = sampleWaves(
+                        at: sample.position,
+                        waves: ridgeWaves
+                    )
+                    let ridgeDetail = pow(1 - abs(ridgeSignal), 8)
+                    let mountain = authoredMountainInfluence(
+                        longitude: longitudeDegrees,
+                        latitude: latitudeDegrees
+                    ) * mix(0.42, 1, ridgeDetail)
+                    heights.append(
+                        clamp(
+                            0.012
+                                + interior * 0.17
+                                + terrain * mix(0.025, 0.10, interior)
+                                + mountain * 0.70
+                        )
+                    )
+                } else {
+                    heights.append(-pow(clamp(-landField / 58), 0.72))
+                }
+            }
+        }
+
+        return heights
+    }
+
+    private func generateNormalMap(
+        from heights: [Float],
+        relief: Float
+    ) -> [UInt8] {
+        var pixels: [UInt8] = []
+        pixels.reserveCapacity(width * height * 4)
+        let longitudeSpacing = 2 * Float.pi / Float(width)
+        let latitudeSpacing = Float.pi / Float(height)
+
+        for pixelY in 0..<height {
+            let latitude = sphericalSample(
+                pixelX: 0,
+                pixelY: pixelY
+            ).latitude
+            let cosineLatitude = abs(cos(latitude))
+            let poleTangentWeight = smoothstep(
+                0.02,
+                0.16,
+                cosineLatitude
+            )
+
+            for pixelX in 0..<width {
+                let index = pixelY * width + pixelX
+                guard heights[index] >= 0, relief > 0 else {
+                    appendNormal(
+                        SIMD3<Float>(0, 0, 1),
+                        to: &pixels
+                    )
+                    continue
+                }
+
+                let west = max(0, heights[
+                    pixelY * width + wrappedPixelX(pixelX - 1)
+                ])
+                let east = max(0, heights[
+                    pixelY * width + wrappedPixelX(pixelX + 1)
+                ])
+                let north = max(0, heights[
+                    max(0, pixelY - 1) * width + pixelX
+                ])
+                let south = max(0, heights[
+                    min(height - 1, pixelY + 1) * width + pixelX
+                ])
+                let eastArc = longitudeSpacing * max(cosineLatitude, 0.16)
+                let eastGradient = (east - west) * relief
+                    / max(2 * eastArc, 1e-6)
+                let southGradient = (south - north) * relief
+                    / max(2 * latitudeSpacing, 1e-6)
+                let tangentNormal = normalized(
+                    SIMD3<Float>(
+                        -eastGradient * poleTangentWeight,
+                        -southGradient * poleTangentWeight,
+                        1
+                    )
+                )
+                appendNormal(tangentNormal, to: &pixels)
+            }
+        }
+
+        return pixels
+    }
+
+    private func generateAppearanceMaps(
+        from heights: [Float],
+        seed: UInt64
+    ) -> (
+        surface: [UInt8],
+        control: [UInt8],
+        cloud: [UInt8]
+    ) {
+        let moistureWaves = makeWaves(
+            seed: seed ^ 0xB10A_3,
+            octaveCount: 3,
+            wavesPerOctave: 3,
+            startingFrequency: 2.8,
+            persistence: 0.51
+        )
+        let cloudWaves = makeWaves(
+            seed: seed ^ 0xC10D_5,
+            octaveCount: 4,
+            wavesPerOctave: 3,
+            startingFrequency: 4,
+            persistence: 0.54
+        )
+        let cloudDetailWaves = makeWaves(
+            seed: seed ^ 0xDE7A_11,
+            octaveCount: 2,
+            wavesPerOctave: 3,
+            startingFrequency: 24,
+            persistence: 0.50
+        )
+        var surface: [UInt8] = []
+        var control: [UInt8] = []
+        var cloud: [UInt8] = []
+        let expectedByteCount = width * height * 4
+        surface.reserveCapacity(expectedByteCount)
+        control.reserveCapacity(expectedByteCount)
+        cloud.reserveCapacity(expectedByteCount)
+
+        for pixelY in 0..<height {
+            for pixelX in 0..<width {
+                let index = pixelY * width + pixelX
+                let sample = sphericalSample(pixelX: pixelX, pixelY: pixelY)
+                let latitudeDegrees = degrees(fromRadians: sample.latitude)
+                let longitudeDegrees = degrees(fromRadians: sample.longitude)
+                let cosineLatitude = cos(sample.latitude)
+                let normalizedHeight = heights[index]
+                let landHeight = max(0, normalizedHeight)
+                let oceanDepth = max(0, -normalizedHeight)
+                let isLand = normalizedHeight >= 0
+                let slope = heightSlope(
+                    heights,
+                    pixelX: pixelX,
+                    pixelY: pixelY,
+                    cosineLatitude: cosineLatitude
+                )
+                let moistureNoise = sampleWaves(
+                    at: sample.position,
+                    waves: moistureWaves
+                )
+                let moisture = clamp(
+                    0.48
+                        + moistureNoise * 1.65
+                        + cosineLatitude * 0.06
+                        - slope * 0.15
+                        + authoredMoistureAdjustment(
+                            longitude: longitudeDegrees,
+                            latitude: latitudeDegrees
+                        )
+                )
+                let temperatureNoise = moistureNoise * 0.08
+                    + sin(sample.longitude * 3 + sample.latitude * 2) * 0.025
+                let temperature = clamp(
+                    pow(max(0, cosineLatitude), 0.62)
+                        + temperatureNoise
+                        - landHeight * 0.52
+                )
+                let ice = iceCoverage(
+                    temperature: temperature,
+                    latitudeDegrees: latitudeDegrees,
+                    landHeight: landHeight
+                )
+                let vegetation = vegetationCoverage(
+                    isLand: isLand,
+                    moisture: moisture,
+                    temperature: temperature,
+                    landHeight: landHeight,
+                    slope: slope,
+                    ice: ice
+                )
+                let desert = desertCoverage(
+                    isLand: isLand,
+                    moisture: moisture,
+                    temperature: temperature,
+                    ice: ice
+                )
+                let appearance = surfaceAppearance(
+                    isLand: isLand,
+                    landHeight: landHeight,
+                    oceanDepth: oceanDepth,
+                    slope: slope,
+                    moisture: moisture,
+                    vegetation: vegetation,
+                    desert: desert,
+                    ice: ice
+                )
+                appendColor(
+                    appearance.color,
+                    alpha: isLand ? 1 : 0,
+                    to: &surface
+                )
+                appendRGBA(
+                    SIMD4<Float>(
+                        moisture,
+                        vegetation,
+                        ice,
+                        appearance.roughness
+                    ),
+                    to: &control
+                )
+
+                let cloudSample = cloudAppearance(
+                    position: sample.position,
+                    longitude: sample.longitude,
+                    latitude: sample.latitude,
+                    longitudeDegrees: longitudeDegrees,
+                    latitudeDegrees: latitudeDegrees,
+                    cosineLatitude: cosineLatitude,
+                    cloudWaves: cloudWaves,
+                    cloudDetailWaves: cloudDetailWaves
+                )
+                appendRGBA(cloudSample, to: &cloud)
+            }
+        }
+
+        return (surface, control, cloud)
+    }
+
+    private func surfaceAppearance(
+        isLand: Bool,
+        landHeight: Float,
+        oceanDepth: Float,
+        slope: Float,
+        moisture: Float,
+        vegetation: Float,
+        desert: Float,
+        ice: Float
+    ) -> (color: SIMD3<Float>, roughness: Float) {
+        if !isLand {
+            let deepOcean = SIMD3<Float>(0.012, 0.055, 0.14)
+            let middleOcean = SIMD3<Float>(0.018, 0.14, 0.29)
+            let shallowOcean = SIMD3<Float>(0.035, 0.29, 0.38)
+            let shallowAmount = 1 - smoothstep(0.02, 0.48, oceanDepth)
+            var color = mixColor(
+                deepOcean,
+                middleOcean,
+                amount: 1 - oceanDepth
+            )
+            color = mixColor(
+                color,
+                shallowOcean,
+                amount: shallowAmount * 0.68
+            )
+            color = mixColor(
+                color,
+                SIMD3<Float>(0.77, 0.87, 0.90),
+                amount: ice
+            )
+            var roughness = mix(0.16, 0.23, oceanDepth)
+            roughness = mix(roughness, 0.39, ice)
+            return (color, roughness)
+        }
+
+        let soil = SIMD3<Float>(0.31, 0.21, 0.14)
+        let desertColor = SIMD3<Float>(0.57, 0.40, 0.24)
+        let dryGrass = SIMD3<Float>(0.16, 0.38, 0.12)
+        let forest = SIMD3<Float>(0.05, 0.26, 0.08)
+        let rainForest = SIMD3<Float>(0.035, 0.31, 0.09)
+        let rock = SIMD3<Float>(0.31, 0.29, 0.27)
+        let snow = SIMD3<Float>(0.88, 0.91, 0.90)
+        let beach = SIMD3<Float>(0.53, 0.46, 0.34)
+        var color = mixColor(soil, desertColor, amount: desert)
+        var vegetationColor = mixColor(
+            dryGrass,
+            forest,
+            amount: smoothstep(0.28, 0.70, moisture)
+        )
+        vegetationColor = mixColor(
+            vegetationColor,
+            rainForest,
+            amount: smoothstep(0.70, 0.96, moisture)
+        )
+        color = mixColor(color, vegetationColor, amount: vegetation)
+        let rockAmount = max(
+            slope * 0.72,
+            smoothstep(0.38, 0.82, landHeight)
+        ) * (1 - ice)
+        color = mixColor(color, rock, amount: rockAmount)
+        let beachAmount = (1 - smoothstep(0.008, 0.030, landHeight))
+            * (1 - ice) * 0.55
+        color = mixColor(color, beach, amount: beachAmount)
+        color = mixColor(color, snow, amount: ice)
+        var roughness = mix(0.83, 0.73, rockAmount)
+        roughness = mix(
+            roughness,
+            0.89,
+            vegetation * 0.55 + desert * 0.25
+        )
+        roughness = mix(roughness, 0.48, ice)
+        return (color, roughness)
+    }
+
+    private func cloudAppearance(
+        position: SIMD3<Float>,
+        longitude: Float,
+        latitude: Float,
+        longitudeDegrees: Float,
+        latitudeDegrees: Float,
+        cosineLatitude: Float,
+        cloudWaves: [SIMD8<Float>],
+        cloudDetailWaves: [SIMD8<Float>]
+    ) -> SIMD4<Float> {
+        let cloudNoise = sampleWaves(at: position, waves: cloudWaves)
+        let detailNoise = sampleWaves(
+            at: position,
+            waves: cloudDetailWaves
+        )
+        let cloudDetail = clamp(0.5 + detailNoise * 1.85)
+        let latitudeBand = sin(
+            latitude * 9 + sin(longitude * 3) * 2.2
+        ) * 0.055
+        let equatorialBand = exp(-pow(latitudeDegrees / 9, 2)) * 0.085
+        let southernStormBelt = exp(
+            -pow((latitudeDegrees + 46) / 18, 2)
+        ) * 0.30
+        let cyclones = max(
+            cycloneCloudInfluence(
+                longitude: longitudeDegrees,
+                latitude: latitudeDegrees,
+                centerLongitude: -25,
+                centerLatitude: -44,
+                rotation: 1
+            ),
+            cycloneCloudInfluence(
+                longitude: longitudeDegrees,
+                latitude: latitudeDegrees,
+                centerLongitude: 83,
+                centerLatitude: -42,
+                rotation: -1
+            )
+        )
+        let cloudSource = clamp(
+            0.425
+                + cloudNoise * 1.70
+                + detailNoise * 0.58
+                + latitudeBand
+                + equatorialBand
+                + southernStormBelt
+                + cyclones * 0.45
+        )
+        var coverage = smoothstep(0.36, 0.78, cloudSource)
+        coverage *= mix(
+            0.82,
+            1,
+            pow(max(0, cosineLatitude), 0.28)
+        )
+        let southernBias = smoothstep(35, -45, latitudeDegrees)
+        coverage = clamp(coverage * mix(0.70, 1.35, southernBias))
+        let northernClear = ellipticalInfluence(
+            longitude: longitudeDegrees,
+            latitude: latitudeDegrees,
+            centerLongitude: 30,
+            centerLatitude: 18,
+            longitudeRadius: 110,
+            latitudeRadius: 48
+        )
+        coverage *= mix(1, 0.55, northernClear)
+        let density = coverage * mix(0.42, 1, cloudDetail)
+        return SIMD4<Float>(coverage, density, cloudDetail, coverage)
+    }
+
+    private func iceCoverage(
+        temperature: Float,
+        latitudeDegrees: Float,
+        landHeight: Float
+    ) -> Float {
+        let polarCap = smoothstep(64, 78, abs(latitudeDegrees))
+        let polarIce = max(
+            smoothstep(0.50, 0.20, temperature),
+            polarCap * 0.96
+        )
+        let mountainSnow = smoothstep(0.50, 0.21, temperature)
+            * smoothstep(0.14, 0.55, landHeight)
+        return max(polarIce, mountainSnow)
+    }
+
+    private func vegetationCoverage(
+        isLand: Bool,
+        moisture: Float,
+        temperature: Float,
+        landHeight: Float,
+        slope: Float,
+        ice: Float
+    ) -> Float {
+        guard isLand else {
+            return 0
+        }
+
+        let temperateGate = smoothstep(0.18, 0.42, temperature)
+            * (1 - smoothstep(0.86, 1, temperature))
+        return smoothstep(0.24, 0.64, moisture)
+            * temperateGate
+            * (1 - smoothstep(0.34, 0.78, landHeight))
+            * (1 - slope * 0.64)
+            * (1 - ice)
+    }
+
+    private func desertCoverage(
+        isLand: Bool,
+        moisture: Float,
+        temperature: Float,
+        ice: Float
+    ) -> Float {
+        guard isLand else {
+            return 0
+        }
+
+        return (1 - smoothstep(0.20, 0.52, moisture))
+            * smoothstep(0.39, 0.70, temperature)
+            * (1 - ice)
+    }
+
+    private func heightSlope(
+        _ heights: [Float],
+        pixelX: Int,
+        pixelY: Int,
+        cosineLatitude: Float
+    ) -> Float {
+        let west = heights[
+            pixelY * width + wrappedPixelX(pixelX - 1)
+        ]
+        let east = heights[
+            pixelY * width + wrappedPixelX(pixelX + 1)
+        ]
+        let north = heights[
+            max(0, pixelY - 1) * width + pixelX
+        ]
+        let south = heights[
+            min(height - 1, pixelY + 1) * width + pixelX
+        ]
+        let horizontal = (east - west) / max(abs(cosineLatitude), 0.18)
+        let vertical = south - north
+        return smoothstep(0.012, 0.12, hypot(horizontal, vertical))
+    }
+
+    private func authoredLandDistance(
+        longitude: Float,
+        latitude: Float
+    ) -> Float {
+        var greatestDistance = -Float.greatestFiniteMagnitude
+
+        for shape in Self.landShapes {
+            for longitudeOffset: Float in [-360, 0, 360] {
+                greatestDistance = max(
+                    greatestDistance,
+                    signedDistanceToLandShape(
+                        longitude: longitude + longitudeOffset,
+                        latitude: latitude,
+                        polygon: shape.polygon,
+                        bounds: shape.bounds
+                    )
+                )
+            }
+        }
+
+        let antarcticBoundary = -67
+            + sin(radians(fromDegrees: longitude * 3)) * 2.4
+            + sin(radians(fromDegrees: longitude * 7 + 35)) * 1.1
+        return max(greatestDistance, antarcticBoundary - latitude)
+    }
+
+    private func signedDistanceToLandShape(
+        longitude: Float,
+        latitude: Float,
+        polygon: [SIMD2<Float>],
+        bounds: SIMD4<Float>
+    ) -> Float {
+        let margin: Float = 18
+        if longitude < bounds.x - margin
+            || longitude > bounds.y + margin
+            || latitude < bounds.z - margin
+            || latitude > bounds.w + margin {
+            let longitudeDistance = max(
+                bounds.x - longitude,
+                0,
+                longitude - bounds.y
+            ) * max(cos(radians(fromDegrees: latitude)), 0.16)
+            let latitudeDistance = max(
+                bounds.z - latitude,
+                0,
+                latitude - bounds.w
+            )
+            return -hypot(longitudeDistance, latitudeDistance)
+        }
+
+        let distance = distanceToPolygonEdge(
+            longitude: longitude,
+            latitude: latitude,
+            polygon: polygon
+        )
+        return pointIsInsidePolygon(
+            longitude: longitude,
+            latitude: latitude,
+            polygon: polygon
+        ) ? distance : -distance
+    }
+
+    private func pointIsInsidePolygon(
+        longitude: Float,
+        latitude: Float,
+        polygon: [SIMD2<Float>]
+    ) -> Bool {
+        var inside = false
+        var previous = polygon[polygon.count - 1]
+
+        for current in polygon {
+            let crossesLatitude = (current.y > latitude)
+                != (previous.y > latitude)
+            if crossesLatitude {
+                let crossingLongitude = (previous.x - current.x)
+                    * (latitude - current.y)
+                    / (previous.y - current.y)
+                    + current.x
+                if longitude < crossingLongitude {
+                    inside.toggle()
+                }
+            }
+            previous = current
+        }
+
+        return inside
+    }
+
+    private func distanceToPolygonEdge(
+        longitude: Float,
+        latitude: Float,
+        polygon: [SIMD2<Float>]
+    ) -> Float {
+        let longitudeScale = max(
+            cos(radians(fromDegrees: latitude)),
+            0.16
+        )
+        var minimumDistance = Float.greatestFiniteMagnitude
+        var previous = polygon[polygon.count - 1]
+
+        for current in polygon {
+            let start = SIMD2<Float>(
+                (previous.x - longitude) * longitudeScale,
+                previous.y - latitude
+            )
+            let end = SIMD2<Float>(
+                (current.x - longitude) * longitudeScale,
+                current.y - latitude
+            )
+            let edge = end - start
+            let edgeLengthSquared = edge.x * edge.x + edge.y * edge.y
+            let amount: Float
+            if edgeLengthSquared > 0 {
+                amount = clamp(
+                    -(start.x * edge.x + start.y * edge.y)
+                        / edgeLengthSquared
+                )
+            } else {
+                amount = 0
+            }
+            let nearest = start + edge * amount
+            minimumDistance = min(
+                minimumDistance,
+                hypot(nearest.x, nearest.y)
+            )
+            previous = current
+        }
+
+        return minimumDistance
+    }
+
+    private func authoredMountainInfluence(
+        longitude: Float,
+        latitude: Float
+    ) -> Float {
+        max(
+            ellipticalInfluence(
+                longitude: longitude,
+                latitude: latitude,
+                centerLongitude: 37,
+                centerLatitude: 5,
+                longitudeRadius: 5,
+                latitudeRadius: 23
+            ),
+            ellipticalInfluence(
+                longitude: longitude,
+                latitude: latitude,
+                centerLongitude: 4,
+                centerLatitude: 32,
+                longitudeRadius: 15,
+                latitudeRadius: 4
+            ),
+            ellipticalInfluence(
+                longitude: longitude,
+                latitude: latitude,
+                centerLongitude: 78,
+                centerLatitude: 31,
+                longitudeRadius: 25,
+                latitudeRadius: 5
+            ),
+            ellipticalInfluence(
+                longitude: longitude,
+                latitude: latitude,
+                centerLongitude: -72,
+                centerLatitude: -18,
+                longitudeRadius: 5,
+                latitudeRadius: 34
+            ),
+            ellipticalInfluence(
+                longitude: longitude,
+                latitude: latitude,
+                centerLongitude: 148,
+                centerLatitude: -27,
+                longitudeRadius: 5,
+                latitudeRadius: 16
+            )
+        )
+    }
+
+    private func authoredMoistureAdjustment(
+        longitude: Float,
+        latitude: Float
+    ) -> Float {
+        let congo = ellipticalInfluence(
+            longitude: longitude,
+            latitude: latitude,
+            centerLongitude: 22,
+            centerLatitude: 0,
+            longitudeRadius: 18,
+            latitudeRadius: 11
+        )
+        let eastAfrica = ellipticalInfluence(
+            longitude: longitude,
+            latitude: latitude,
+            centerLongitude: 36,
+            centerLatitude: -7,
+            longitudeRadius: 11,
+            latitudeRadius: 18
+        )
+        let sahara = ellipticalInfluence(
+            longitude: longitude,
+            latitude: latitude,
+            centerLongitude: 15,
+            centerLatitude: 23,
+            longitudeRadius: 34,
+            latitudeRadius: 12
+        )
+        let arabia = ellipticalInfluence(
+            longitude: longitude,
+            latitude: latitude,
+            centerLongitude: 46,
+            centerLatitude: 24,
+            longitudeRadius: 18,
+            latitudeRadius: 10
+        )
+        let kalahari = ellipticalInfluence(
+            longitude: longitude,
+            latitude: latitude,
+            centerLongitude: 22,
+            centerLatitude: -24,
+            longitudeRadius: 13,
+            latitudeRadius: 9
+        )
+        let australianInterior = ellipticalInfluence(
+            longitude: longitude,
+            latitude: latitude,
+            centerLongitude: 133,
+            centerLatitude: -25,
+            longitudeRadius: 19,
+            latitudeRadius: 13
+        )
+        return congo * 0.42
+            + eastAfrica * 0.12
+            - sahara * 0.62
+            - arabia * 0.52
+            - kalahari * 0.26
+            - australianInterior * 0.34
+    }
+
+    private func ellipticalInfluence(
+        longitude: Float,
+        latitude: Float,
+        centerLongitude: Float,
+        centerLatitude: Float,
+        longitudeRadius: Float,
+        latitudeRadius: Float
+    ) -> Float {
+        let longitudeDelta = wrappedLongitudeDelta(
+            longitude - centerLongitude
+        ) * max(cos(radians(fromDegrees: centerLatitude)), 0.16)
+        let distance = hypot(
+            longitudeDelta / longitudeRadius,
+            (latitude - centerLatitude) / latitudeRadius
+        )
+        return 1 - smoothstep(0.35, 1, distance)
+    }
+
+    private func cycloneCloudInfluence(
+        longitude: Float,
+        latitude: Float,
+        centerLongitude: Float,
+        centerLatitude: Float,
+        rotation: Float
+    ) -> Float {
+        let longitudeDelta = wrappedLongitudeDelta(
+            longitude - centerLongitude
+        ) * max(cos(radians(fromDegrees: centerLatitude)), 0.16)
+        let latitudeDelta = latitude - centerLatitude
+        let radius = hypot(longitudeDelta, latitudeDelta)
+        guard radius <= 27 else {
+            return 0
+        }
+
+        let angle = atan2(latitudeDelta, longitudeDelta)
+        let spiral = 0.5
+            + 0.5 * sin(angle * 3 + radius * 0.58 * rotation)
+        let envelope = exp(-pow((radius - 13) / 9.5, 2))
+        let eye = smoothstep(2.2, 6, radius)
+        return envelope * eye * smoothstep(0.42, 0.78, spiral)
+    }
+
+    private func makeWaves(
+        seed: UInt64,
+        octaveCount: Int,
+        wavesPerOctave: Int,
+        startingFrequency: Float,
+        persistence: Float
+    ) -> [SIMD8<Float>] {
+        var state = seed
+        var waves: [SIMD8<Float>] = []
+        waves.reserveCapacity(octaveCount * wavesPerOctave)
+        var amplitudeSum: Float = 0
+
+        for octave in 0..<octaveCount {
+            for _ in 0..<wavesPerOctave {
+                let vertical = nextUnitFloat(state: &state) * 2 - 1
+                let azimuth = nextUnitFloat(state: &state) * 2 * Float.pi
+                let phase = nextUnitFloat(state: &state) * 2 * Float.pi
+                let frequencyUnit = nextUnitFloat(state: &state)
+                let amplitudeUnit = nextUnitFloat(state: &state)
+                let radial = sqrt(max(0, 1 - vertical * vertical))
+                let frequency = startingFrequency
+                    * pow(2, Float(octave))
+                    * mix(0.86, 1.14, frequencyUnit)
+                let amplitude = pow(persistence, Float(octave))
+                    * mix(0.72, 1.28, amplitudeUnit)
+                waves.append(
+                    SIMD8<Float>(
+                        radial * cos(azimuth),
+                        vertical,
+                        radial * sin(azimuth),
+                        frequency,
+                        phase,
+                        amplitude,
+                        0,
+                        0
+                    )
+                )
+                amplitudeSum += amplitude
+            }
+        }
+
+        for index in waves.indices {
+            waves[index][5] /= amplitudeSum
+        }
+        return waves
+    }
+
+    private func sampleWaves(
+        at position: SIMD3<Float>,
+        waves: [SIMD8<Float>]
+    ) -> Float {
+        var result: Float = 0
+
+        for wave in waves {
+            let projection = position.x * wave[0]
+                + position.y * wave[1]
+                + position.z * wave[2]
+            result += sin(projection * wave[3] + wave[4]) * wave[5]
+        }
+        return result
+    }
+
+    private func nextUnitFloat(state: inout UInt64) -> Float {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var value = state
+        value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
+        value ^= value >> 31
+        return Float(value >> 40) * (1 / Float(1 << 24))
+    }
+
+    private func sphericalSample(
+        pixelX: Int,
+        pixelY: Int
+    ) -> (
+        position: SIMD3<Float>,
+        latitude: Float,
+        longitude: Float
+    ) {
+        let longitude = (
+            (Float(pixelX) + 0.5) / Float(width) - 0.5
+        ) * 2 * Float.pi
+        let latitude = (
+            0.5 - (Float(pixelY) + 0.5) / Float(height)
+        ) * Float.pi
+        let cosineLatitude = cos(latitude)
+        return (
+            position: SIMD3<Float>(
+                cosineLatitude * cos(longitude),
+                sin(latitude),
+                cosineLatitude * sin(longitude)
+            ),
+            latitude: latitude,
+            longitude: longitude
+        )
+    }
+
+    private func appendNormal(
+        _ normal: SIMD3<Float>,
+        to pixels: inout [UInt8]
+    ) {
+        appendRGBA(
+            SIMD4<Float>(
+                normal.x * 0.5 + 0.5,
+                normal.y * 0.5 + 0.5,
+                normal.z * 0.5 + 0.5,
+                1
+            ),
+            to: &pixels
+        )
+    }
+
+    private func appendColor(
+        _ color: SIMD3<Float>,
+        alpha: Float,
+        to pixels: inout [UInt8]
+    ) {
+        appendRGBA(
+            SIMD4<Float>(color.x, color.y, color.z, alpha),
+            to: &pixels
+        )
+    }
+
+    private func appendRGBA(
+        _ value: SIMD4<Float>,
+        to pixels: inout [UInt8]
+    ) {
+        pixels.append(encodedByte(value.x))
+        pixels.append(encodedByte(value.y))
+        pixels.append(encodedByte(value.z))
+        pixels.append(encodedByte(value.w))
+    }
+
+    private func encodedByte(_ value: Float) -> UInt8 {
+        UInt8((clamp(value) * 255).rounded())
+    }
+
+    private func normalized(_ value: SIMD3<Float>) -> SIMD3<Float> {
+        let length = sqrt(
+            value.x * value.x
+                + value.y * value.y
+                + value.z * value.z
+        )
+        return length > 1e-8 ? value / length : SIMD3<Float>(0, 0, 1)
+    }
+
+    private func wrappedPixelX(_ pixelX: Int) -> Int {
+        let remainder = pixelX % width
+        return remainder >= 0 ? remainder : remainder + width
+    }
+
+    private func wrappedLongitudeDelta(_ delta: Float) -> Float {
+        var wrapped = delta.truncatingRemainder(dividingBy: 360)
+        if wrapped > 180 {
+            wrapped -= 360
+        } else if wrapped < -180 {
+            wrapped += 360
+        }
+        return wrapped
+    }
+
+    private func mixColor(
+        _ first: SIMD3<Float>,
+        _ second: SIMD3<Float>,
+        amount: Float
+    ) -> SIMD3<Float> {
+        first + (second - first) * amount
+    }
+
+    private func mix(
+        _ first: Float,
+        _ second: Float,
+        _ amount: Float
+    ) -> Float {
+        first + (second - first) * amount
+    }
+
+    private func smoothstep(
+        _ lower: Float,
+        _ upper: Float,
+        _ value: Float
+    ) -> Float {
+        let normalized = clamp((value - lower) / (upper - lower))
+        return normalized * normalized * (3 - 2 * normalized)
+    }
+
+    private func clamp(
+        _ value: Float,
+        lower: Float = 0,
+        upper: Float = 1
+    ) -> Float {
+        max(lower, min(upper, value))
+    }
+
+    private func degrees(fromRadians radians: Float) -> Float {
+        radians * 180 / Float.pi
+    }
+
+    private func radians(fromDegrees degrees: Float) -> Float {
+        degrees * Float.pi / 180
+    }
+}

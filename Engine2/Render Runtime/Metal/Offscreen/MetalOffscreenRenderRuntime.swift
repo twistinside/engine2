@@ -163,6 +163,28 @@ final class MetalOffscreenRenderRuntime: POffscreenRenderTarget {
                 )
             }
         }
+        for instance in preparedFrame.terrestrialPlanetInstances {
+            let meshID = instance.renderInstance.meshID
+
+            guard let model = instance.model else {
+                return failure(
+                    at: .preparation,
+                    causedBy: MetalOffscreenRenderTargetError.missingModel(
+                        meshID
+                    )
+                )
+            }
+
+            guard model.hasCompleteDrawableIndexedGeometry else {
+                return failure(
+                    at: .preparation,
+                    causedBy: MetalOffscreenRenderTargetError
+                        .modelHasIncompleteDrawableIndexedGeometry(
+                            meshID
+                        )
+                )
+            }
+        }
 
         guard !Task.isCancelled else {
             return .rejected(.cancelledBeforeSubmission)

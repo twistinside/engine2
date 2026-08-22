@@ -1,3 +1,4 @@
+import Foundation
 import Metal
 import MetalKit
 import ModelIO
@@ -26,7 +27,9 @@ struct USDRenderModelTests {
     @Test func missingPackagedModelReportsAnError() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let missingAsset = ModelAssetReference(
-            resourceName: "ModelThatDoesNotExist",
+            resourceURL: URL(
+                fileURLWithPath: "/tmp/Engine2ModelThatDoesNotExist.usdz"
+            ),
             format: .usdz
         )
         let catalog = RenderAssetCatalog(

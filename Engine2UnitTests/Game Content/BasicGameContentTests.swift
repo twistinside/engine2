@@ -1,11 +1,12 @@
+import Foundation
 import Testing
 @testable import Engine2
 
 struct BasicGameContentTests {
-    @Test func canonicalConstructionSelectsBasicWorldBuilderAndCompleteCatalog() {
+    @Test func canonicalConstructionSelectsPlanetWorldBuilderAndCompleteCatalog() {
         let content = BasicGameContent()
 
-        #expect(content.worldBuilder is BasicWorldBuilder)
+        #expect(content.worldBuilder is TerrestrialPlanetWorldBuilder)
         #expect(content.simulationConfiguration == .basicGame)
         #expect(content.renderAssetCatalog == .everything)
     }
@@ -29,14 +30,13 @@ struct BasicGameContentTests {
         #expect(content.renderAssetCatalog == .everything)
     }
 
-    @Test func mapsBallMeshIdentityToPackagedBallModel() async throws {
-        let expectedModels: [MeshID: ModelAssetReference] = [
-            .ball: ModelAssetReference(
-                resourceName: "Ball",
-                format: .usdz
-            )
-        ]
-        #expect(RenderAssetCatalog.everything.models == expectedModels)
+    @Test func mapsEveryMeshIdentityToAnExactPackagedModelURL() throws {
+        let models = RenderAssetCatalog.everything.models
+        let ball = try #require(models[.ball])
+
+        #expect(models.count == MeshID.allCases.count)
+        #expect(ball.resourceURL.lastPathComponent == "Ball.usdz")
+        #expect(ball.format == .usdz)
     }
 
     @Test func suppliesExactAuthoredMaterialValidationMatrix() throws {
@@ -81,6 +81,23 @@ struct BasicGameContentTests {
         // Game Content vocabulary consumed by Render construction.
         try catalog.validateMaterialCoverage()
         #expect(catalog.materials == expectedMaterials)
+    }
+
+    @Test func suppliesExactTerrestrialPlanetDescription() throws {
+        let catalog = RenderAssetCatalog.everything
+        let description = try #require(
+            catalog.terrestrialPlanets[.terrestrialPlanet]
+        )
+
+        #expect(catalog.terrestrialPlanets.count == 1)
+        #expect(description.surfaceRecipe == .blueMarble)
+        #expect(description.surfaceRadius == 1)
+        #expect(description.surfaceNormalStrength == 0.30)
+        #expect(description.cloudRadius == 1.008)
+        #expect(description.atmosphereRadius == 1.018)
+        #expect(description.cloudOpacity == 0.82)
+        #expect(description.atmosphereIntensity == 0.32)
+        #expect(description.cloudShadowStrength == 0.16)
     }
 }
 

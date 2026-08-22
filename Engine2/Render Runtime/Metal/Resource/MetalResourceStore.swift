@@ -32,6 +32,10 @@ final class MetalResourceStore {
 
     private var models: [MeshID: USDRenderModel] = [:]
 
+    private var terrestrialPlanetResources: [
+        MaterialID: MetalTerrestrialPlanetResources
+    ] = [:]
+
     /// Validated authored descriptions retained as CPU-side Render resources.
     ///
     /// The current material count does not justify a separate GPU table. Each
@@ -39,6 +43,10 @@ final class MetalResourceStore {
     /// while this dictionary preserves the Game Content identity boundary.
     private let materialDescriptions: [
         MaterialID: PBRMaterialDescription
+    ]
+
+    private let terrestrialPlanetDescriptions: [
+        MaterialID: TerrestrialPlanetDescription
     ]
 
     /// Selects the system's default Metal device and creates a complete store
@@ -77,8 +85,12 @@ final class MetalResourceStore {
         let residency = try MetalResidencyManager(
             device: device,
             commandQueue: commandQueue,
-            staticAssetCapacity: max(renderAssetCatalog.models.count * 4, 1),
-            frameResourceCapacity: frameCount * 3
+            staticAssetCapacity: max(
+                renderAssetCatalog.models.count * 4
+                    + renderAssetCatalog.terrestrialPlanets.count * 4,
+                1
+            ),
+            frameResourceCapacity: frameCount * 4
         )
         let requiredResources = try MetalRequiredResources(
             device: device,
@@ -91,12 +103,14 @@ final class MetalResourceStore {
         self.residency = residency
         self.requiredResources = requiredResources
         self.materialDescriptions = renderAssetCatalog.materials
+        self.terrestrialPlanetDescriptions = renderAssetCatalog
+            .terrestrialPlanets
 
         // Construction has already proved the complete fixed resource set.
         // Dynamic frame allocations and optional catalog models keep their
         // separate lifetime and availability contracts.
         try makeFrameResources(count: frameCount)
-        try loadModels(from: renderAssetCatalog)
+        try loadStaticAssets(from: renderAssetCatalog)
     }
 
     /// Resolves an abstract snapshot mesh identity to a retained backend model.
@@ -104,17 +118,21 @@ final class MetalResourceStore {
         models[id]
     }
 
-    /// Resolves one Game Content identity to its retained authored factors.
-    ///
-    /// Store construction validates exhaustive coverage before retaining this
-    /// immutable dictionary. Frame preparation can therefore use the lookup as
-    /// a total mapping without repeating a recoverable content check per draw.
-    func materialDescription(for id: MaterialID) -> PBRMaterialDescription {
-        // Coverage was proved before `materialDescriptions` was retained and
-        // the dictionary never mutates afterward. A future construction path
-        // that violates that invariant is a programmer error, not a frame-time
-        // fallback opportunity.
-        materialDescriptions[id]!
+    /// Resolves one identity to the authored material family Render supports.
+    func renderMaterialDescription(for id: MaterialID) -> RenderMaterialDescription {
+        if let description = materialDescriptions[id] {
+            return .opaquePBR(description)
+        }
+
+        // Complete, exclusive coverage was proved during construction.
+        return .terrestrialPlanet(terrestrialPlanetDescriptions[id]!)
+    }
+
+    /// Returns the retained generated GPU maps for one terrestrial-planet material.
+    func terrestrialPlanetResources(
+        for id: MaterialID
+    ) -> MetalTerrestrialPlanetResources? {
+        terrestrialPlanetResources[id]
     }
 
     /// Creates a fixed ring of per-frame allocators and mutable buffers.
@@ -128,6 +146,11 @@ final class MetalResourceStore {
             guard let commandAllocator = device.makeCommandAllocator(),
                   let instanceBuffer = device.makeBuffer(
                     length: MemoryLayout<GPUInstance>.stride
+                        * FrameResources.maximumInstanceCount,
+                    options: [.storageModeShared]
+                  ),
+                  let terrestrialPlanetInstanceBuffer = device.makeBuffer(
+                    length: MemoryLayout<GPUPlanetInstance>.stride
                         * FrameResources.maximumInstanceCount,
                     options: [.storageModeShared]
                   ),
@@ -145,6 +168,7 @@ final class MetalResourceStore {
 
             for allocation in [
                 instanceBuffer as any MTLAllocation,
+                terrestrialPlanetInstanceBuffer as any MTLAllocation,
                 pbrSceneParametersBuffer as any MTLAllocation,
                 hdrPresentationParametersBuffer as any MTLAllocation
             ] {
@@ -153,6 +177,7 @@ final class MetalResourceStore {
             let frame = FrameResources(
                 commandAllocator: commandAllocator,
                 instanceBuffer: instanceBuffer,
+                terrestrialPlanetInstanceBuffer: terrestrialPlanetInstanceBuffer,
                 pbrSceneParametersBuffer: pbrSceneParametersBuffer,
                 hdrPresentationParametersBuffer: hdrPresentationParametersBuffer
             )
@@ -162,6 +187,15 @@ final class MetalResourceStore {
         // One commit makes every buffer in the completed frame ring visible to
         // queue submissions that reference the frame residency set.
         residency.commitFrameResources()
+    }
+
+    private func loadStaticAssets(from catalog: RenderAssetCatalog) throws {
+        try loadModels(from: catalog)
+        try resolveTerrestrialPlanets(from: catalog)
+
+        // Apply the complete initial asset batch together. Later streaming can
+        // use the same add/commit boundary without changing snapshot contracts.
+        residency.commitStaticAssets()
     }
 
     private func loadModels(from catalog: RenderAssetCatalog) throws {
@@ -177,9 +211,21 @@ final class MetalResourceStore {
                 residency.addStaticAllocation(allocation)
             }
         }
+    }
 
-        // Apply the full initial asset batch together. Later streaming can use
-        // the same add/commit boundary without changing snapshot contracts.
-        residency.commitStaticAssets()
+    private func resolveTerrestrialPlanets(
+        from catalog: RenderAssetCatalog
+    ) throws {
+        for (materialID, description) in catalog.terrestrialPlanets {
+            let resources = try MetalTerrestrialPlanetResources(
+                description: description,
+                device: device
+            )
+            terrestrialPlanetResources[materialID] = resources
+
+            for allocation in resources.allocations {
+                residency.addStaticAllocation(allocation)
+            }
+        }
     }
 }

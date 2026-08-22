@@ -9,9 +9,9 @@ struct BasicGameContent: PGameContent {
 
     let renderAssetCatalog: RenderAssetCatalog
 
-    /// Selects the complete example content used by the App.
+    /// Selects the terrestrial-planet proof scene used by the App.
     init() {
-        self.init(worldBuilder: BasicWorldBuilder())
+        self.init(worldBuilder: TerrestrialPlanetWorldBuilder())
     }
 
     /// Uses a caller-supplied world construction path with the complete

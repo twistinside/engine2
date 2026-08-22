@@ -14,7 +14,8 @@ struct MaterialIDTests {
                 .warmDielectricRough,
                 .goldMetalSmooth,
                 .goldMetal,
-                .goldMetalRough
+                .goldMetalRough,
+                .terrestrialPlanet
             ]
         )
     }

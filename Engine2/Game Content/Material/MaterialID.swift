@@ -12,4 +12,5 @@ nonisolated enum MaterialID: CaseIterable, Codable, Hashable, Sendable {
     case goldMetalSmooth
     case goldMetal
     case goldMetalRough
+    case terrestrialPlanet
 }

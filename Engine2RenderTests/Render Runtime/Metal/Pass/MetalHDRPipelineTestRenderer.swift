@@ -72,12 +72,8 @@ final class MetalHDRPipelineTestRenderer {
         // Reuse the actual Game Content-authored material descriptions while
         // leaving model resolution empty: this harness supplies one analytic
         // triangle buffer and exercises only the production material pathway.
-        let authoredMaterials = BasicGameContent().renderAssetCatalog.materials
         let resources = try MetalResourceStore(
-            renderAssetCatalog: RenderAssetCatalog(
-                models: [:],
-                materials: authoredMaterials
-            ),
+            renderAssetCatalog: .materialOnlyTestCatalog,
             frameCount: 1
         )
         guard let frame = resources.frames.first else {

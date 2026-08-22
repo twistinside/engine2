@@ -6,4 +6,12 @@ nonisolated enum RenderAssetCatalogError: Error, Equatable {
     /// IDs remain in `MaterialID.allCases` order so diagnostics and tests are
     /// deterministic rather than depending on dictionary iteration order.
     case missingMaterialDescriptions([MaterialID])
+
+    /// One or more material identities select both ordinary PBR and
+    /// terrestrial-planet descriptions.
+    ///
+    /// A material identity must resolve to one family so Render never chooses
+    /// a pipeline based on dictionary lookup order.
+    case overlappingMaterialDescriptions([MaterialID])
+
 }

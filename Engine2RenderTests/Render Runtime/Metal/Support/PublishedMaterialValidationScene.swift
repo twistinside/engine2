@@ -1,11 +1,11 @@
 @testable import Engine2
 
-/// Test-only view of the material identities published by the example app.
+/// Test-only view of the ordinary material identities published by the PBR fixture.
 ///
 /// Construction deliberately follows the ordinary Game Content → `World` →
 /// `SimulationPresentationSnapshot` → `RenderFrame` path. GPU and BRDF tests
 /// consume these projected identities instead of restating the validation
-/// scene's six material cases or depending on `MaterialID.allCases` ordering.
+/// scene's six PBR cases or depending on the App's selected planet topology.
 struct PublishedMaterialValidationScene {
     let catalog: RenderAssetCatalog
     let renderFrame: RenderFrame
@@ -17,7 +17,7 @@ struct PublishedMaterialValidationScene {
 
     init() {
         let gameContent = BasicGameContent()
-        let world = gameContent.worldBuilder.buildWorld()
+        let world = BasicWorldBuilder().buildWorld()
         let snapshot = world.presentationSnapshot(
             at: SimulationCursor(
                 sessionID: SimulationSessionID(),
@@ -31,6 +31,6 @@ struct PublishedMaterialValidationScene {
 
     /// Resolves every published identity through the App-supplied catalog.
     func materialDescriptions() throws -> [PBRMaterialDescription] {
-        try materialIDs.map { try catalog.materialDescription(for: $0) }
+        try materialIDs.map { try catalog.pbrMaterialDescription(for: $0) }
     }
 }

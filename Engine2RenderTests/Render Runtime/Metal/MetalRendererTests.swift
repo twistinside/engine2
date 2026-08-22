@@ -16,17 +16,34 @@ struct MetalRendererTests {
         let requiredResources = resources.requiredResources
         let pbrPipeline = requiredResources.modelPBRPipeline
         let normalPipeline = requiredResources.modelNormalDiagnosticPipeline
+        let planetSurfacePipeline = requiredResources.terrestrialPlanetSurfacePipeline
+        let planetNormalPipeline = requiredResources.terrestrialPlanetNormalDiagnosticPipeline
+        let planetCloudPipeline = requiredResources.terrestrialPlanetCloudPipeline
+        let planetAtmospherePipeline = requiredResources.terrestrialPlanetAtmospherePipeline
         let toneMappedPresentationPipeline = requiredResources.hdrToneMappedPresentationPipeline
         let linearPresentationPipeline = requiredResources.linearPresentationPipeline
         let modelArgumentTable = requiredResources.modelArgumentTable
         let pbrSceneArgumentTable = requiredResources.pbrSceneArgumentTable
+        let planetArgumentTable = requiredResources.terrestrialPlanetArgumentTable
         let presentationArgumentTable = requiredResources.hdrPresentationArgumentTable
 
-        // The scene phase has one lit surface pipeline and one diagnostic
-        // sibling. Presentation is a separate phase with tone-mapped and
-        // linear variants, so all four states must exist before drawing.
+        // Construction resolves every ordinary and layered scene pipeline plus
+        // both presentation variants before the first draw.
         #expect(pbrPipeline.label == "USD Model PBR Pipeline")
         #expect(normalPipeline.label == "USD Model Normal Diagnostic Pipeline")
+        #expect(
+            planetSurfacePipeline.label ==
+                "Terrestrial Planet Surface Pipeline"
+        )
+        #expect(
+            planetNormalPipeline.label ==
+                "Terrestrial Planet Normal Diagnostic Pipeline"
+        )
+        #expect(planetCloudPipeline.label == "Terrestrial Planet Cloud Pipeline")
+        #expect(
+            planetAtmospherePipeline.label ==
+                "Terrestrial Planet Atmosphere Pipeline"
+        )
         #expect(
             toneMappedPresentationPipeline.label ==
                 "HDR Tone-Mapped Presentation Pipeline"
@@ -40,6 +57,7 @@ struct MetalRendererTests {
         // separate binding layouts rather than one oversized mutable table.
         #expect(modelArgumentTable.label == "USD Mesh Argument Table")
         #expect(pbrSceneArgumentTable.label == "PBR Scene Argument Table")
+        #expect(planetArgumentTable.label == "Terrestrial Planet Argument Table")
         #expect(
             presentationArgumentTable.label ==
                 "HDR Presentation Argument Table"
@@ -138,6 +156,7 @@ struct MetalRendererTests {
         }
 
         #expect(prepared.instances.count == 6)
+        #expect(prepared.terrestrialPlanetInstances.isEmpty)
         #expect(
             prepared.instances.allSatisfy {
                 $0.renderInstance.meshID == .ball
@@ -195,15 +214,18 @@ struct MetalRendererTests {
         )
 
         #expect(resources.frames.count == 2)
-        #expect(resources.residency.frameResources.allocationCount == 6)
+        #expect(resources.residency.frameResources.allocationCount == 8)
         for frame in resources.frames {
-            // Each reusable slot owns all three CPU-written buffers that can be
-            // read by an in-flight command buffer. Keeping them in the same
-            // ring prevents transforms, lighting, or exposure from being
-            // overwritten while the GPU still consumes an earlier frame.
+            // Each reusable slot owns all four CPU-written buffers that an
+            // in-flight command buffer may read.
             #expect(
                 frame.instanceBuffer.length ==
                     MemoryLayout<GPUInstance>.stride
+                        * FrameResources.maximumInstanceCount
+            )
+            #expect(
+                frame.terrestrialPlanetInstanceBuffer.length ==
+                    MemoryLayout<GPUPlanetInstance>.stride
                         * FrameResources.maximumInstanceCount
             )
             #expect(

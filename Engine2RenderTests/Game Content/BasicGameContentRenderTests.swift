@@ -3,14 +3,14 @@ import Testing
 @testable import Engine2
 
 struct BasicGameContentRenderTests {
-    @Test func packagedBallModelResolvesIntoRendererOwnedMeshes() throws {
+    @Test func packagedModelsResolveIntoRendererOwnedMeshes() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let models = try USDRenderModel.load(
             catalog: BasicGameContent().renderAssetCatalog,
             device: device
         )
 
-        #expect(models.count == 1)
+        #expect(models.count == MeshID.allCases.count)
         #expect(models[.ball]?.meshes.isEmpty == false)
     }
 }

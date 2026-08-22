@@ -1,0 +1,14 @@
+#ifndef ENGINE2_PLANET_VERTEX_OUT_METALH
+#define ENGINE2_PLANET_VERTEX_OUT_METALH
+
+#include <metal_stdlib>
+
+/// Values interpolated from a terrestrial-planet vertex to its layer fragment.
+struct PlanetVertexOut {
+    metal::float4 position [[position]];
+    metal::float3 viewPosition;
+    metal::float3 localDirection;
+    float localRadius;
+};
+
+#endif
