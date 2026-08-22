@@ -3,7 +3,7 @@
 /// `SGravity` treats every entity with this component and `CPosition` as a
 /// source. A source receives gravity only when the same entity also has
 /// `CMotion`.
-struct CMassiveBody: PComponent, Sendable {
+struct CMassiveBody: PComponent {
     let mass: AstronomicalMass
     let physicalRadius: AstronomicalDistance
 

@@ -53,9 +53,17 @@ nonisolated struct NewtonianGravityEvaluator: Sendable {
         gravitationalParameters.reserveCapacity(participants.count)
 
         for (index, participant) in participants.enumerated() {
+            try validatePositionAndPhysicalRadius(
+                for: participant,
+                bodyIndex: index
+            )
+            guard let sourceMass = participant.sourceMass else {
+                gravitationalParameters.append(nil)
+                continue
+            }
             gravitationalParameters.append(
                 try validatedGravitationalParameter(
-                    for: participant,
+                    for: sourceMass,
                     bodyIndex: index
                 )
             )
@@ -64,10 +72,10 @@ nonisolated struct NewtonianGravityEvaluator: Sendable {
         return gravitationalParameters
     }
 
-    private func validatedGravitationalParameter(
+    private func validatePositionAndPhysicalRadius(
         for participant: NewtonianGravityParticipant,
         bodyIndex: Int
-    ) throws(NewtonianGravityEvaluationError) -> Double? {
+    ) throws(NewtonianGravityEvaluationError) {
         guard participant.positionMeters.isFinite else {
             throw .invalidPosition(bodyIndex: bodyIndex)
         }
@@ -75,9 +83,12 @@ nonisolated struct NewtonianGravityEvaluator: Sendable {
               participant.physicalRadius.meters >= 0 else {
             throw .invalidPhysicalRadius(bodyIndex: bodyIndex)
         }
-        guard let sourceMass = participant.sourceMass else {
-            return nil
-        }
+    }
+
+    private func validatedGravitationalParameter(
+        for sourceMass: AstronomicalMass,
+        bodyIndex: Int
+    ) throws(NewtonianGravityEvaluationError) -> Double {
         guard sourceMass.kilograms.isFinite,
               sourceMass.kilograms > 0 else {
             throw .invalidSourceMass(bodyIndex: bodyIndex)
