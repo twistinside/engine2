@@ -11,6 +11,7 @@ class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<CAngularMotionAccumulator>()
     var angularVelocityComponents = ComponentStore<CAngularVelocity>()
+    var massiveBodyComponents = ComponentStore<CMassiveBody>()
     var motionComponents = ComponentStore<CMotion>()
     var positionComponents = ComponentStore<CPosition>()
     var renderableComponents = ComponentStore<CRenderable>()

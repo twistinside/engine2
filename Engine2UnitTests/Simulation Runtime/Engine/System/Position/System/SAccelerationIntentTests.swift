@@ -13,7 +13,8 @@ struct SAccelerationIntentTests {
         )
         let motion = CMotion(
             velocity: .zero,
-            accelerationIntent: accelerationIntent
+            accelerationIntent: accelerationIntent,
+            impulse: .zero
         )
         world.motionComponents.insert(
             motion,
@@ -42,7 +43,7 @@ struct SAccelerationIntentTests {
     @Test func idleIntentDoesNotEmitAcceleration() async throws {
         var world = World()
         let entity = EntityID(index: 0, generation: 0)
-        let motion = CMotion(accelerationIntent: .idle)
+        let motion = CMotion.motionless
 
         world.motionComponents.insert(
             motion,

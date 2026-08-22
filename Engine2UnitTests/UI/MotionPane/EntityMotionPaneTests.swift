@@ -20,7 +20,11 @@ struct EntityMotionPaneTests {
             movingPositionComponent,
             for: moving
         )
-        let movingMotion = CMotion(velocity: SIMD3<Double>(3, 4, 0))
+        let movingMotion = CMotion(
+            velocity: SIMD3<Double>(3, 4, 0),
+            accelerationIntent: .idle,
+            impulse: .zero
+        )
         world.motionComponents.insert(
             movingMotion,
             for: moving

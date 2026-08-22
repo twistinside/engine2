@@ -78,6 +78,9 @@
 		E32000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */; };
 		E32000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */; };
 		E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */; };
+		E32000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */; };
+		E32000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift */; };
+		E3200000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift */; };
 		E42000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */; };
 		E42000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */; };
 		E42000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */; };
@@ -131,9 +134,9 @@
 		E42000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */; };
 		E42000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */; };
 		E42000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */; };
-		E42000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */; };
+		E42000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */; };
 		E42000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */; };
-		E42000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */; };
+		E42000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift */; };
 		E42000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */; };
 		E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */; };
 		E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */; };
@@ -245,6 +248,9 @@
 		E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift"; sourceTree = "<group>"; };
 		E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationSessionID.swift"; sourceTree = "<group>"; };
 		E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationTick.swift"; sourceTree = "<group>"; };
+		E31000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDistance.swift"; sourceTree = "<group>"; };
+		E31000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalMass.swift"; sourceTree = "<group>"; };
+		E3100000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift"; sourceTree = "<group>"; };
 		E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/CelestialMassComposition.swift"; sourceTree = "<group>"; };
 		E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedBodyID.swift"; sourceTree = "<group>"; };
 		E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedMoon.swift"; sourceTree = "<group>"; };
@@ -298,9 +304,9 @@
 		E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift"; sourceTree = "<group>"; };
 		E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift"; sourceTree = "<group>"; };
 		E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Internal/StarSystemRandomStream.swift"; sourceTree = "<group>"; };
-		E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift"; sourceTree = "<group>"; };
+		E41000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDistance.swift"; sourceTree = "<group>"; };
 		E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift"; sourceTree = "<group>"; };
-		E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift"; sourceTree = "<group>"; };
+		E41000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalMass.swift"; sourceTree = "<group>"; };
 		E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift"; sourceTree = "<group>"; };
 		E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift"; sourceTree = "<group>"; };
 		E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift"; sourceTree = "<group>"; };
@@ -491,6 +497,9 @@
 				E31000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift */,
 				E31000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift */,
 				E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */,
+				E31000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */,
+				E31000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift */,
+				E3100000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift */,
 			);
 			name = "Headless Simulation Shared Sources";
 			path = Engine2;
@@ -552,9 +561,9 @@
 				E41000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift */,
 				E41000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift */,
 				E41000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift */,
-				E41000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift */,
+				E41000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */,
 				E41000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift */,
-				E41000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift */,
+				E41000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift */,
 				E41000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift */,
 				E4100000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift */,
 				E4100000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift */,
@@ -870,9 +879,9 @@
 				E42000000000000000000033 /* Game Content/Star System Generation/Internal/ResolvedPlanetSelection.swift in Sources */,
 				E42000000000000000000034 /* Game Content/Star System Generation/Internal/StarSystemRandomDomain.swift in Sources */,
 				E42000000000000000000035 /* Game Content/Star System Generation/Internal/StarSystemRandomStream.swift in Sources */,
-				E42000000000000000000036 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDistance.swift in Sources */,
+				E42000000000000000000036 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */,
 				E42000000000000000000037 /* Game Content/Star System Generation/Physical Quantity/AstronomicalDuration.swift in Sources */,
-				E42000000000000000000038 /* Game Content/Star System Generation/Physical Quantity/AstronomicalMass.swift in Sources */,
+				E42000000000000000000038 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */,
 				E42000000000000000000039 /* Game Content/Star System Generation/Physical Quantity/StellarLuminosity.swift in Sources */,
 				E4200000000000000000003A /* Game Content/Star System Generation/Physical Quantity/SurfacePressure.swift in Sources */,
 				E4200000000000000000003B /* Game Content/Star System Generation/Physical Quantity/ThermodynamicTemperature.swift in Sources */,
@@ -969,6 +978,9 @@
 				E32000000000000000000045 /* Simulation Runtime/Snapshot/SimulationPresentationSnapshot.swift in Sources */,
 				E32000000000000000000046 /* Simulation Runtime/Snapshot/SimulationSessionID.swift in Sources */,
 				E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */,
+				E32000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */,
+				E32000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */,
+				E3200000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,7 +1,7 @@
-/// Nonnegative astronomical mass stored in kilograms.
+/// Represents nonnegative astronomical mass in a shared kilogram base unit.
 ///
-/// The shared base unit lets formation code conserve stellar, planetary, and
-/// satellite mass without mixing unlabelled solar- and Earth-mass values.
+/// Celestial dynamics and Game Content use named projections to cross unit
+/// boundaries without mixing kilogram, Earth-mass, and solar-mass values.
 nonisolated struct AstronomicalMass: Codable, Equatable, Hashable, Sendable {
     static let zero = AstronomicalMass(kilograms: 0)
     static let earth = AstronomicalMass(kilograms: 5.9722e24)

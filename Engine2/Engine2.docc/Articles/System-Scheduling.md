@@ -49,6 +49,14 @@ It is useful to think in coarse simulation phases, then let the dependency graph
 The exact phase list is expected to evolve with the engine.
 Only the export side of presentation belongs in the simulation schedule. Actual rendering and Metal submission should happen after export, from the frozen presentation data, rather than as a world-mutating system.
 
+``SGravity`` is implemented for explicit schedules that place it immediately before ``SMovement``. The invariant
+production schedule does not install it until contact feeds collision handling and numeric refusals feed an expected
+Simulation failure outcome.
+
+An explicitly composed gravity-and-movement schedule currently invokes each system once with the Engine step interval.
+A future substep policy should repeat only a declared physics stage with a fractional interval. Repeating the complete
+Engine schedule would incorrectly replay input and cleanup work.
+
 There is no independent viewpoint controller in the real-time screen schedule. The implemented input-driven orbit camera is ordinary complete-tick Simulation work and becomes visible only through a completed presentation snapshot. Future gameplay-authoritative camera rigs or sensors belong at the same authority boundary. Exact request-carried viewpoints remain outside the scheduler because they select an output from already completed Simulation state.
 ## Cadence
 Some systems should not need to run every simulation tick.
@@ -79,4 +87,5 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 - ``PSystem``
 - ``SInputMapping``
 - ``SCameraInput``
+- ``SGravity``
 - ``SMovement``

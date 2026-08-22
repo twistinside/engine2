@@ -156,6 +156,14 @@ Current example ownership:
   - `CAngularMotionAccumulator`
   - `CScale`
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
+- `Engine2/Simulation Runtime/Engine/System/Gravity/**/*.swift`
+  - `CMassiveBody` stores one gravity source's positive mass and physical radius.
+  - `SGravity` treats `CPosition + CMassiveBody` as a source and `CPosition + CMotion` as a receiver.
+  - The system evaluates a stable detached batch, then adds every valid result to `CMotion.accumulator` before
+    `SMovement`. It does not integrate or clear motion.
+  - Explicitly injected schedules may use `SGravity`, but the invariant production schedule does not install it.
+    Contact must feed collision handling, and numeric refusals must feed an expected Simulation failure outcome, before
+    production enables gravity.
 - `Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
 - `Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
@@ -171,7 +179,11 @@ Current example ownership:
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
 - `Engine2/Simulation Runtime/Engine/*.swift`
   - `Engine` owns exact fixed-step execution and one complete ordered system schedule. Production construction derives that invariant schedule from an explicit `SimulationConfiguration`; the full initializer requires an explicit `World`, fixed step, and complete injected system list for focused integration tests.
-  - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, movement, and rotation are invariant members of every completed tick. The real-time screen camera can change only through a completed Simulation publication; deliberate exact output requests may still carry a separate viewpoint.
+  - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, movement, and rotation are
+    invariant members of every completed tick. Focused schedules may inject gravity immediately before the existing
+    movement authority.
+  - The real-time screen camera can change only through a completed Simulation publication; deliberate exact output
+    requests may still carry a separate viewpoint.
 - `Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
@@ -204,6 +216,10 @@ Current example ownership:
   - `HeadlessSimulationConfiguration` reads positive entity, warm-up, and measured-tick counts. The scheme defaults to 100,000 entities, 10 warm-up ticks, and 60 measured ticks.
 - `Engine2/Game Content/HeadlessSimulationWorldBuilder.swift`
   - Benchmark Game Content constructs ordinary moving, rotating, renderable `Ball` entities. World construction remains outside the measured interval.
+- `Engine2/Celestial Dynamics/**/*.swift`
+  - Shared astronomical mass and distance values keep gravity's kilogram and meter inputs explicit.
+  - `NewtonianGravityEvaluator` computes one stable-order, three-dimensional acceleration batch without ECS or commit
+    authority. It applies no collision resolution or softening.
 - `Engine2/Game Content/Star System Generation/**/*.swift`
   - `StarSystemGenerator` is a synchronous, value-semantic Game Content construction utility. It owns no Runtime lifecycle, cadence, task, cache, ECS state, or Render state.
   - `.coreAccretionLiteV1` generates one main-sequence star, a conserved mass-radius-correlated disk admitted through a Toomre-stability bound, fully funded embryos, supply- and gap-limited formation, bounded post-disk encounters, finite-budget atmosphere evolution, and significant regular or impact moons. It derives orthogonal physical classifications only after resolving mass, composition, orbit, atmosphere, and temperature.
@@ -383,13 +399,19 @@ Use `CMotion` for translational motion state:
 Design intent:
 - gameplay systems emit motion contributions
 - persistent drive state is converted into accumulator input before movement
-- movement updates velocity, then updates position
+- explicitly scheduled gravity adds its collective acceleration contribution to the same accumulator
+- `SMovement` updates velocity, then position, through symplectic Euler
 Avoid having many systems directly overwrite `CMotion.velocity` unless they are doing explicit override/constraint/collision resolution work.
 The runtime-first version of this model is aggregate accumulation, not a per-entity heap of arbitrary contribution objects. If source-level contribution tracking is ever needed for debugging, add that separately.
 The angular equivalent is `CAngularMotionAccumulator`:
 - `angularAcceleration`: continuous rotational influences that scale with `dt`
 - `angularImpulse`: instantaneous angular velocity changes
 `SMovement` and `SRotation` currently combine contribution integration and transform advancement. If collision, constraints, or staged scheduling become substantial, consider splitting those phases while preserving the same accumulator semantics.
+
+An explicitly injected gravity-and-movement schedule currently invokes each system once with the Engine step interval.
+A future substep policy should repeat only the declared physics stage with a fractional `deltaTime`; it must not replay
+input or cleanup work.
+
 ### Component Updates Should Be In-Place
 When a component row already exists, prefer `ComponentStore.update(for:_:)` over constructing a replacement component and passing it back through `insert`.
 Use `insert` for:

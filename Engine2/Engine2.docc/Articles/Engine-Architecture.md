@@ -35,7 +35,12 @@ It owns the component stores, simulation-scoped resources, and entity identity l
 ### Systems
 ``PSystem`` implementations contain simulation logic.
 They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
-``Engine`` owns the invariant schedule required for a valid simulation, including position and orientation mechanics. Future consumer-defined behavior may be admitted through controlled extension points, but Game Content does not assemble or replace the required schedule.
+``Engine`` owns the invariant schedule required for a valid simulation, including position and orientation mechanics.
+Explicit schedules may place ``SGravity`` before ``SMovement`` so gravity contributes through the existing motion
+accumulator and movement authority. The invariant production schedule does not install gravity until contact feeds
+collision handling and numeric refusals feed an expected Simulation failure outcome. Future consumer-defined behavior
+may be admitted through controlled extension points, but Game Content does not assemble or replace the required
+schedule.
 
 Authoritative translational positions, velocities, accelerations, impulses, and fixed-step seconds use `Double`.
 Completed presentation snapshots deliberately narrow positions to `Float`; Render, camera, and GPU values remain single

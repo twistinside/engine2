@@ -228,7 +228,11 @@ An ECS **System** is not a runtime. It is scheduled simulation logic owned by th
 
 This distinction keeps the `S` prefix precise:
 
-- `SInputMapping`, `SCameraInput`, `SInputHistory`, and `SMovement` are scheduled Simulation logic. The input-driven real-time camera is therefore Simulation behavior, while an explicit exact-output viewpoint remains request policy outside the scheduler.
+- `SInputMapping`, `SCameraInput`, `SInputHistory`, and `SMovement` are scheduled production Simulation logic. The
+  input-driven real-time camera is therefore Simulation behavior, while an explicit exact-output viewpoint remains
+  request policy outside the scheduler.
+- `SGravity` is implemented Simulation logic available to explicitly injected schedules. Production does not install it
+  until contact feeds collision handling and numeric refusals feed an expected Simulation failure outcome.
 - `SRenderExtraction` may eventually be an ECS presentation-export system, but actual rendering belongs to the Render Runtime.
 - `InputRuntime` and `RenderRuntime` are top-level owners with independent lifecycles, not ECS systems.
 
