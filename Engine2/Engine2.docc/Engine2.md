@@ -7,6 +7,7 @@ The current codebase is intentionally small, but the core direction is already e
 - The Simulation Runtime is authoritative for gameplay state and contains the engine, world, and ECS systems.
 - Game Content supplies consumer-defined entities, world construction, presentation descriptions, and assets without becoming a runtime.
 - ``StarSystemGenerator`` performs finite, deterministic Game Content construction from a stable correlated disk through significance selection and atmosphere evolution. It returns a validated, serializable physical system with explicit retained, residual, and dynamical conservation destinations without starting a Runtime or mutating ECS state.
+- ``GravitySystemGenerator`` projects that validated system into versioned planar Kepler rails with deterministic phase and orientation. Shared ephemeris, gravity-field, and circular-reference Hohmann utilities power the native Dynamics explorer without claiming authoritative Simulation execution or N-body stability.
 - ``World`` owns authoritative simulation state.
 - ``Engine`` owns exact fixed-step execution and one complete ordered system schedule; cadence and pause policy exist only in assembly-owned drivers.
 - ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
@@ -51,6 +52,7 @@ The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pau
 - <doc:PBR-Implementation-Plan>
 ### Scheduling
 - <doc:System-Scheduling>
-### Generation
+### Celestial Systems
 - <doc:Star-System-Generation>
 - <doc:Star-System-Generation-Calibration>
+- <doc:Celestial-Dynamics-and-Navigation>

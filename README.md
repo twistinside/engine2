@@ -26,6 +26,7 @@ Start with the [Engine2 DocC catalog](Engine2/Engine2.docc/Engine2.md), or jump 
 - [Game Content Architecture](Engine2/Engine2.docc/Articles/Game-Content-Architecture.md) — the consumer-content boundary
 - [Star System Generation](Engine2/Engine2.docc/Articles/Star-System-Generation.md) — deterministic disk, planet, residual-body, encounter, atmosphere, and moon generation with explicit conservation destinations
 - [Star System Generation Calibration](Engine2/Engine2.docc/Articles/Star-System-Generation-Calibration.md) — exact V1 distributions, equations, bounded fallbacks, audit policy, and limitations
+- [Celestial Dynamics and Navigation](Engine2/Engine2.docc/Articles/Celestial-Dynamics-and-Navigation.md) — planar rail projection, hierarchical ephemerides, Hohmann references, and the path to authoritative navigation
 - [Engine Architecture](Engine2/Engine2.docc/Articles/Engine-Architecture.md) — the ECS core and fixed-step simulation
 - [System Scheduling](Engine2/Engine2.docc/Articles/System-Scheduling.md) — current scheduling and proposed future direction
 - [Rendering Architecture](Engine2/Engine2.docc/Articles/Rendering-Architecture.md) — presentation snapshots and Metal rendering
@@ -37,11 +38,17 @@ The DocC pages distinguish between behavior that exists today and architecture p
 
 Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`Engine2/`](Engine2), direct unit coverage is under [`Engine2UnitTests/`](Engine2UnitTests), and renderer integration coverage is under [`Engine2RenderTests/`](Engine2RenderTests).
 
-## Explore generated star systems
+## Explore generated star systems and orbital dynamics
 
-Select the shared `StarSystemExplorer` scheme and run the macOS app. Enter a decimal `UInt64` seed or a hexadecimal value with a `0x` prefix, then choose **Generate**. The explorer presents the host star, protoplanetary disk, selectable linear or zero-safe logarithmic orbital architecture, conserved formation ledger, resolved planets, nested moons, environments, compositions, classifications, and stored model policy.
+Select the shared `StarSystemExplorer` scheme and run the macOS app. Enter a decimal `UInt64` seed or a hexadecimal value with a `0x` prefix, then choose **Generate**.
 
-The explorer compiles the star-system generator's closed source set directly into its own target. It does not construct a Runtime Assembly, ECS world, renderer, or Metal resources. Its focused `StarSystemExplorerTests` target covers seed parsing, logarithmic orbit placement, generator integration, and valid zero-planet output.
+The Generation workspace presents the host star, protoplanetary disk, selectable linear or zero-safe logarithmic orbital architecture, conserved formation ledger, resolved planets, nested moons, environments, compositions, classifications, and stored model policy. The Dynamics workspace projects the same system into deterministic planar planet and moon rails, evaluates their hierarchical state at a selected epoch, reports summed gravity at the selected departure planet, and presents circular-reference Hohmann transfer plans.
+
+The Dynamics diagram provides centered zoom from 0.25× through 8× and manual epoch scrubbing. Display-only playback requests up to 60 updates per second at rates from one displayed day to ten displayed years per wall-clock second. A symbolic reference vehicle waits at the transfer departure, follows the circular-reference transfer rail through the shared Kepler kernel during flight, and remains at the arrival reference afterward. Playback evaluates one immutable ephemeris snapshot at a time; complete rail samples and the fitted physical extent remain unchanged across epochs.
+
+The explorer compiles the star-system and celestial-dynamics source sets directly into its own target. It does not construct a Runtime Assembly, ECS world, renderer, or Metal resources. The Dynamics workspace is an analytic inspection tool, not authoritative ship propagation or an N-body stability proof. Its playback clock does not advance Simulation, and its reference vehicle does not represent an executed spacecraft or prove rendezvous with a potentially eccentric generated destination.
+
+`Engine2UnitTests` pins complete gravity-system fingerprints, validated persistence boundaries, Kepler propagation and conserved quantities, qualified gravity snapshots, and outward and inward Earth–Mars Hohmann references. The focused `StarSystemExplorerTests` target covers seed parsing, orbit placement, generator integration, typed zero- and one-planet states, transfer selection, bounded viewport mapping, cadence-independent display playback, stable diagram geometry, and reference-vehicle projection.
 
 ## Measure headless Simulation performance
 

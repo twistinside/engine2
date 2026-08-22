@@ -841,6 +841,10 @@ not silent mutation of V1:
 8. Add Render appearance descriptions and procedural surface inputs without
    making Render authoritative for physical generation.
 
+See <doc:Celestial-Dynamics-and-Navigation> for the implemented planar rail
+projection and circular-reference transfer slice, its relationship to V1's
+analytic admission, and the proposed path to authoritative propagation.
+
 ## Scientific Context
 
 The architecture follows the causal ordering used by planetary population
@@ -861,6 +865,7 @@ identifies them as direct definitions.
 ## Related Architecture
 
 - <doc:Game-Content-Architecture>
+- <doc:Celestial-Dynamics-and-Navigation>
 - <doc:Engine-Architecture>
 - <doc:Runtime-Architecture>
 - <doc:Rendering-Architecture>
