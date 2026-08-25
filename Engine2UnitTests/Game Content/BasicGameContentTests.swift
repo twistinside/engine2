@@ -14,6 +14,8 @@ struct BasicGameContentTests {
         let configuration = BasicGameContent().simulationConfiguration
 
         #expect(configuration == .basicGame)
+        #expect(configuration.simulationTimeScale == .realTime)
+        #expect(configuration.simulationTimeScale.multiplier == 1)
         #expect(configuration.pointerOrbitSensitivity == 0.01)
         #expect(configuration.scrollZoomSensitivity == 0.04)
         #expect(configuration.cameraOrbitTarget == .zero)

@@ -80,7 +80,13 @@
 		E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */; };
 		E32000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */; };
 		E32000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift */; };
+		E3200000000000000000004A /* Celestial Dynamics/Gravity/NewtonianGravityEvaluationError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004A /* Celestial Dynamics/Gravity/NewtonianGravityEvaluationError.swift */; };
+		E3200000000000000000004B /* Celestial Dynamics/Gravity/NewtonianGravityEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004B /* Celestial Dynamics/Gravity/NewtonianGravityEvaluator.swift */; };
+		E3200000000000000000004C /* Celestial Dynamics/Gravity/NewtonianGravityParticipant.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004C /* Celestial Dynamics/Gravity/NewtonianGravityParticipant.swift */; };
 		E3200000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift */; };
+		E3200000000000000000004E /* Simulation Runtime/Engine/System/Gravity/GravitySystemError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004E /* Simulation Runtime/Engine/System/Gravity/GravitySystemError.swift */; };
+		E3200000000000000000004F /* Simulation Runtime/Engine/System/Gravity/System/SGravity.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3100000000000000000004F /* Simulation Runtime/Engine/System/Gravity/System/SGravity.swift */; };
+		E32000000000000000000050 /* Simulation Runtime/SimulationTimeScale.swift in Sources */ = {isa = PBXBuildFile; fileRef = E31000000000000000000050 /* Simulation Runtime/SimulationTimeScale.swift */; };
 		E42000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */; };
 		E42000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */; };
 		E42000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */; };
@@ -250,7 +256,13 @@
 		E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Snapshot/SimulationTick.swift"; sourceTree = "<group>"; };
 		E31000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalDistance.swift"; sourceTree = "<group>"; };
 		E31000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Domain/AstronomicalMass.swift"; sourceTree = "<group>"; };
+		E3100000000000000000004A /* Celestial Dynamics/Gravity/NewtonianGravityEvaluationError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Gravity/NewtonianGravityEvaluationError.swift"; sourceTree = "<group>"; };
+		E3100000000000000000004B /* Celestial Dynamics/Gravity/NewtonianGravityEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Gravity/NewtonianGravityEvaluator.swift"; sourceTree = "<group>"; };
+		E3100000000000000000004C /* Celestial Dynamics/Gravity/NewtonianGravityParticipant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Celestial Dynamics/Gravity/NewtonianGravityParticipant.swift"; sourceTree = "<group>"; };
 		E3100000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift"; sourceTree = "<group>"; };
+		E3100000000000000000004E /* Simulation Runtime/Engine/System/Gravity/GravitySystemError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/GravitySystemError.swift"; sourceTree = "<group>"; };
+		E3100000000000000000004F /* Simulation Runtime/Engine/System/Gravity/System/SGravity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/System/SGravity.swift"; sourceTree = "<group>"; };
+		E31000000000000000000050 /* Simulation Runtime/SimulationTimeScale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/SimulationTimeScale.swift"; sourceTree = "<group>"; };
 		E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/CelestialMassComposition.swift"; sourceTree = "<group>"; };
 		E41000000000000000000002 /* Game Content/Star System Generation/Domain/GeneratedBodyID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedBodyID.swift"; sourceTree = "<group>"; };
 		E41000000000000000000003 /* Game Content/Star System Generation/Domain/GeneratedMoon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/GeneratedMoon.swift"; sourceTree = "<group>"; };
@@ -499,7 +511,13 @@
 				E31000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift */,
 				E31000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift */,
 				E31000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift */,
+				E3100000000000000000004A /* Celestial Dynamics/Gravity/NewtonianGravityEvaluationError.swift */,
+				E3100000000000000000004B /* Celestial Dynamics/Gravity/NewtonianGravityEvaluator.swift */,
+				E3100000000000000000004C /* Celestial Dynamics/Gravity/NewtonianGravityParticipant.swift */,
 				E3100000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift */,
+				E3100000000000000000004E /* Simulation Runtime/Engine/System/Gravity/GravitySystemError.swift */,
+				E3100000000000000000004F /* Simulation Runtime/Engine/System/Gravity/System/SGravity.swift */,
+				E31000000000000000000050 /* Simulation Runtime/SimulationTimeScale.swift */,
 			);
 			name = "Headless Simulation Shared Sources";
 			path = Engine2;
@@ -980,7 +998,13 @@
 				E32000000000000000000047 /* Simulation Runtime/Snapshot/SimulationTick.swift in Sources */,
 				E32000000000000000000048 /* Celestial Dynamics/Domain/AstronomicalDistance.swift in Sources */,
 				E32000000000000000000049 /* Celestial Dynamics/Domain/AstronomicalMass.swift in Sources */,
+				E3200000000000000000004A /* Celestial Dynamics/Gravity/NewtonianGravityEvaluationError.swift in Sources */,
+				E3200000000000000000004B /* Celestial Dynamics/Gravity/NewtonianGravityEvaluator.swift in Sources */,
+				E3200000000000000000004C /* Celestial Dynamics/Gravity/NewtonianGravityParticipant.swift in Sources */,
 				E3200000000000000000004D /* Simulation Runtime/Engine/System/Gravity/Component/CMassiveBody.swift in Sources */,
+				E3200000000000000000004E /* Simulation Runtime/Engine/System/Gravity/GravitySystemError.swift in Sources */,
+				E3200000000000000000004F /* Simulation Runtime/Engine/System/Gravity/System/SGravity.swift in Sources */,
+				E32000000000000000000050 /* Simulation Runtime/SimulationTimeScale.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

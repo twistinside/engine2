@@ -5,8 +5,10 @@
 /// J2000 elements to zero inclination, use its Earth-Moon barycenter entry for
 /// Earth, and pair those positions with two-body conic velocities. This is a
 /// deterministic gravity and presentation fixture, not a high-precision
-/// ephemeris or a long-horizon stability contract. Symbolic model radii and an
-/// AU-scale camera keep every body visible without changing its physical facts.
+/// ephemeris or collision-safe model. Symbolic model radii and an AU-scale
+/// camera keep every body visible without changing its physical facts. Focused
+/// coverage qualifies 108,000 one-hour integration steps, equivalent to 30
+/// minutes at an ideal 60-tick-per-second request rate.
 struct SolarSystemWorldBuilder: PWorldBuilder {
     private static let sun = SolarSystemBody.InitialState(
         mass: .sun,

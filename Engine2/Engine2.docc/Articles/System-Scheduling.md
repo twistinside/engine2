@@ -49,11 +49,12 @@ It is useful to think in coarse simulation phases, then let the dependency graph
 The exact phase list is expected to evolve with the engine.
 Only the export side of presentation belongs in the simulation schedule. Actual rendering and Metal submission should happen after export, from the frozen presentation data, rather than as a world-mutating system.
 
-``SGravity`` is implemented for explicit schedules that place it immediately before ``SMovement``. The invariant
-production schedule does not install it until contact feeds collision handling and numeric refusals feed an expected
-Simulation failure outcome.
+The invariant production schedule places ``SGravity`` immediately before ``SMovement``. Gravity therefore contributes
+through the same accumulator consumed by the sole movement authority. Contact and numeric refusals still terminate
+scheduled execution because Simulation has no recoverable failure lane.
 
-An explicitly composed gravity-and-movement schedule currently invokes each system once with the Engine step interval.
+The production gravity-and-movement stage currently invokes each system once with the configured world interval.
+``SimulationTimeScale`` may enlarge that interval without changing request or cursor semantics.
 A future substep policy should repeat only a declared physics stage with a fractional interval. Repeating the complete
 Engine schedule would incorrectly replay input and cleanup work.
 

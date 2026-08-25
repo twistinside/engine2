@@ -5,7 +5,11 @@
 /// Cadence, input sampling, pause policy, and lifecycle coordination belong to
 /// the assembly-selected configuration that drives its narrow capabilities.
 final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentationSource {
-    /// The sole production duration represented by one completed Simulation tick.
+    /// Nominal base interval used to configure production Simulation ticks.
+    ///
+    /// ``SimulationTimeScale`` determines the authoritative world interval that
+    /// scheduled systems receive. Assembly policy still decides when to request
+    /// ticks and therefore owns wall-clock cadence.
     nonisolated static let fixedTimeStep: Duration = .seconds(1.0 / 60.0)
 
     private(set) var worldBuilder: any PWorldBuilder

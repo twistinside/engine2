@@ -1,5 +1,6 @@
 # ``Engine2``
-Engine2 is a small ECS-first engine experiment with typed entity facades, per-type component stores, and an exact fixed-step simulation core.
+Engine2 is a small ECS-first engine experiment with typed entity facades, per-type component stores, and an exact
+fixed-tick simulation core.
 ## Overview
 The current codebase is intentionally small, but the core direction is already established:
 - The App constructs selected Game Content, injects it into one ``PRuntimeAssembly``, retains that assembly, and presents it as the SwiftUI root. The assembly constructs and connects independent top-level runtimes through explicit typed boundaries and owns any topology-specific presentation lifecycle in its body.
@@ -8,10 +9,12 @@ The current codebase is intentionally small, but the core direction is already e
 - Game Content supplies consumer-defined entities, world construction, presentation descriptions, and assets without becoming a runtime.
 - ``StarSystemGenerator`` performs finite, deterministic Game Content construction from a stable correlated disk through significance selection and atmosphere evolution. It returns a validated, serializable physical system with explicit retained, residual, and dynamical conservation destinations without starting a Runtime or mutating ECS state.
 - ``World`` owns authoritative simulation state.
-- ``Engine`` owns exact fixed-step execution and one complete ordered system schedule; cadence and pause policy exist only in assembly-owned drivers.
-- ``SGravity`` adds collective Newtonian acceleration to double-precision motion accumulators when an explicit schedule
-  places it before ``SMovement``. Production does not install gravity until contact feeds collision handling and numeric
-  refusals feed an expected Simulation failure outcome.
+- ``Engine`` owns exact fixed-tick execution and one complete ordered system schedule; cadence and pause policy exist
+  only in assembly-owned drivers.
+- ``SGravity`` adds collective Newtonian acceleration to double-precision motion accumulators before ``SMovement``.
+  Contact and numeric refusals still lack a recoverable production outcome.
+- ``SimulationTimeScale`` changes the authoritative world interval without changing request or cursor semantics. Solar
+  System Game Content selects one simulated hour per tick as an explicit smoke-test policy.
 - ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
 - ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
 - ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot``. The real-time screen uses that snapshot's camera exactly; it has no separately mutable viewpoint source.
@@ -30,8 +33,8 @@ At the moment, the codebase already includes:
 - an assembly-retained Input Runtime whose immutable latest snapshot is captured by ``RealtimeAdvanceDriver`` and assigned to an exact Simulation request
 - one complete ordered production system schedule in ``Engine`` with semantic camera input mapping/control, input
   history/cleanup, and authoritative Simulation work
-- an implemented ``SGravity`` system that focused schedules can place before movement while collision handling and
-  numeric-failure reporting remain proposed
+- a production ``SGravity`` system ordered before movement while collision handling and recoverable numeric-failure
+  reporting remain proposed
 - an assembly-owned real-time driver that translates wall time into cursor-qualified exact requests, plus a clock-free ``ManualAssembly``
 - an assembly-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world construction policy, and completed publication
 - a common ``PRuntimeAssembly`` App-hosting boundary whose potentially fallible Game Content injection produces a self-presenting SwiftUI root with compile-time selection and explicit App policy for construction failure

@@ -174,4 +174,34 @@ struct SolarSystemWorldBuilderTests {
         #expect(world.massiveBodyComponents.dense == retainedMassiveBodies)
         #expect(world.scaleComponents.dense == retainedScales)
     }
+
+    @Test func acceleratedProductionTickPublishesChangedFinitePositions() {
+        let world = SolarSystemWorldBuilder().buildWorld()
+        let sessionID = SimulationSessionID()
+        let initialSnapshot = world.presentationSnapshot(
+            at: SimulationCursor(sessionID: sessionID, tick: .zero)
+        )
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .solarSystem
+        )
+
+        engine.step()
+
+        let advancedSnapshot = world.presentationSnapshot(
+            at: SimulationCursor(
+                sessionID: sessionID,
+                tick: engine.completedTick
+            )
+        )
+        let initialPositions = initialSnapshot.entityPresentations.compactMap(\.position)
+        let advancedPositions = advancedSnapshot.entityPresentations.compactMap(\.position)
+
+        #expect(advancedPositions.count == 9)
+        #expect(advancedPositions.allSatisfy { $0.isFinite })
+        for index in advancedPositions.indices {
+            #expect(advancedPositions[index] != initialPositions[index])
+        }
+    }
 }

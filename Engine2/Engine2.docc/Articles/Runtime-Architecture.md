@@ -53,7 +53,12 @@ Runtime names should use a descriptive `Runtime` suffix rather than a single-let
 
 Game-specific entities, initial world construction, presentation descriptions, and packaged assets belong to **Game Content**, not to another runtime. Game Content has no independent cadence or lifecycle. The App constructs selected Game Content and passes it through ``PRuntimeAssembly/init(gameContent:)``. The assembly supplies each relevant portion to its runtimes. Topology-specific initializers accept direct policy, limits, and identities for tests and specialized hosts. Each runtime transforms the relevant content into private operational state.
 
-For example, Solar System Game Content provides its world builder and deliberately selects the complete named `.solarSystem` ``SimulationConfiguration``. Basic Game Content remains a separate fixture with its `.basicGame` policy. Game Content may also provide mesh and material catalogs to the Render Runtime, and sound catalogs plus event-presentation rules to the Audio Runtime. See <doc:Game-Content-Architecture> for the canonical content boundary and proposed construction model.
+For example, Solar System Game Content provides its world builder and deliberately selects the complete named
+`.solarSystem` ``SimulationConfiguration``. That fixture advances one simulated hour per fixed tick from the shared
+1/60-second base interval. Basic Game Content remains a separate unscaled fixture with its `.basicGame` policy. Game
+Content may also provide mesh and material catalogs to the Render Runtime, and sound catalogs plus event-presentation
+rules to the Audio Runtime. See <doc:Game-Content-Architecture> for the canonical content boundary and proposed
+construction model.
 
 ## Runtime Assemblies Construct and Present Runtimes
 
@@ -77,7 +82,7 @@ The runtimes are peers in ownership and encapsulation, but they are not symmetri
 
 The Simulation Runtime owns:
 
-- ``Engine``, the fixed-step definition, and exact step execution
+- ``Engine``, the nominal base interval, the configured world interval, and exact step execution
 - ``World`` and authoritative ECS state
 - ECS components and resources
 - scheduled ``PSystem`` implementations
@@ -90,7 +95,13 @@ Other runtimes may provide inputs to the Simulation Runtime or project its outpu
 
 The camera carried by ``SimulationPresentationSnapshot`` is the completed Simulation-authored camera used exactly by the real-time screen. The live screen has no separate viewpoint authority. The implemented ``SInputMapping`` and ``SCameraInput`` path maps pointer/scroll transients and mutates `World.camera` only during a complete tick; future gameplay-authoritative rigs or sensors belong at that same Simulation boundary. Deliberate exact outputs—including offline and agent captures—may still supply a separately owned ``RenderViewpoint`` by value without changing ``World`` or advancing the Simulation cursor; that request policy does not reopen a raw-input path into the live screen.
 
-Owning tick execution does not require Simulation to own the policy that decides when a tick is requested. ``SimulationRuntime`` exposes exact advancement without owning a polling loop, and ``ManualAssembly`` demonstrates progress with no wall clock. The assembly-owned ``RealtimeAdvanceDriver`` performs wall-clock polling, elapsed-time accumulation, bounded catch-up/overflow policy, pause/rebase policy, and input capture while Simulation remains the sole executor and publisher of completed ticks. All production assemblies share ``SimulationRuntime/fixedTimeStep``; none can redefine what one tick means.
+Owning tick execution does not require Simulation to own the policy that decides when a tick is requested.
+``SimulationRuntime`` exposes exact advancement without owning a polling loop, and ``ManualAssembly`` demonstrates
+progress with no wall clock. The assembly-owned ``RealtimeAdvanceDriver`` performs wall-clock polling, elapsed-time
+accumulation, bounded catch-up/overflow policy, pause/rebase policy, and input capture while Simulation remains the sole
+executor and publisher of completed ticks. All production assemblies share the
+``SimulationRuntime/fixedTimeStep`` base interval; named Simulation configuration may scale the world interval passed
+to systems without changing request or cursor semantics.
 
 This makes the Simulation Runtime first among peers: it is the semantic center of the game without becoming a global owner of the other runtimes. The Simulation Runtime must remain valid when Render, Audio, Achievement, Storage, or Network runtimes are absent. Outputs for absent consumers simply go unobserved.
 
@@ -231,8 +242,8 @@ This distinction keeps the `S` prefix precise:
 - `SInputMapping`, `SCameraInput`, `SInputHistory`, and `SMovement` are scheduled production Simulation logic. The
   input-driven real-time camera is therefore Simulation behavior, while an explicit exact-output viewpoint remains
   request policy outside the scheduler.
-- `SGravity` is implemented Simulation logic available to explicitly injected schedules. Production does not install it
-  until contact feeds collision handling and numeric refusals feed an expected Simulation failure outcome.
+- `SGravity` is scheduled production Simulation logic before `SMovement`. Contact and numeric refusals still terminate
+  the tick because Simulation has no recoverable failure lane.
 - `SRenderExtraction` may eventually be an ECS presentation-export system, but actual rendering belongs to the Render Runtime.
 - `InputRuntime` and `RenderRuntime` are top-level owners with independent lifecycles, not ECS systems.
 

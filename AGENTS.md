@@ -27,8 +27,12 @@ Current types implement part of this direction:
 - `PRuntimeAssembly` is the common App-hosting boundary. It refines `View` and requires potentially throwing construction from `any PGameContent`. Every concrete assembly is a value-type root view that constructs and retains its topology, implements `body: some View`, and owns any topology-specific SwiftUI presentation lifecycle inside that body. SwiftUI copies of one assembly value retain the same reference-owned Runtime graph and shared assembly state; only initialization creates a new graph. `Engine2App` constructs the selected Game Content, retains its compile-time assembly selection as opaque `some PRuntimeAssembly`, and renders that assembly directly without forwarding lifecycle. Selecting a fallible topology requires an explicit App launch-failure policy because failed initialization produces no assembly.
 - `RealtimeAdvanceDriver` is an assembly-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`.
 - `RealtimeAssembly`, `ManualAssembly`, `OfflineCaptureAssembly`, and `AgentSessionAssembly` own their graph construction. They accept Game Content through the common initializer and take focused policy, limit, and identity values through explicit topology-specific initializers. There is no separate forwarding-wrapper or assembly-factory layer.
-- `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level assembly policy cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
-- `SimulationConfiguration` is the immutable Simulation-owned behavior policy used to construct the invariant schedule. Basic Game Content deliberately selects `.basicGame`; individual systems do not choose sensitivity or orbit-radius defaults.
+- `SimulationRuntime.fixedTimeStep` is the sole production 1/60-second base interval. Top-level assembly policy cannot
+  redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
+- `SimulationConfiguration` is the immutable Simulation-owned behavior policy used to construct the invariant schedule.
+  Its named `SimulationTimeScale` derives the world interval passed to systems without changing request semantics.
+  Basic Game Content deliberately selects `.basicGame`; Solar System Game Content selects the fixed `.solarSystem`
+  smoke-test rate.
 - `InputMetalView` submits host `InputEvent` values directly to `InputRuntime` through `PInputEventSink`; it does not call the Simulation Runtime or mutate `World`.
 - `SInputMapping` converts imported pointer and scroll transients into semantic camera commands at the start of a complete tick. `SCameraInput` then derives orbit state from the current `World.camera`, applies those commands, and publishes no separate controller state. Both run before `SInputCleanup`.
 - `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value. Its camera is the exact camera used by the real-time screen path.
@@ -161,9 +165,8 @@ Current example ownership:
   - `SGravity` treats `CPosition + CMassiveBody` as a source and `CPosition + CMotion` as a receiver.
   - The system evaluates a stable detached batch, then adds every valid result to `CMotion.accumulator` before
     `SMovement`. It does not integrate or clear motion.
-  - Explicitly injected schedules may use `SGravity`, but the invariant production schedule does not install it.
-    Contact must feed collision handling, and numeric refusals must feed an expected Simulation failure outcome, before
-    production enables gravity.
+  - The invariant production schedule runs `SGravity` after acceleration intent and before `SMovement`.
+    Contact and numeric refusals still terminate scheduled execution because Simulation has no recoverable failure lane.
 - `Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
 - `Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
@@ -178,16 +181,19 @@ Current example ownership:
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
 - `Engine2/Simulation Runtime/Engine/*.swift`
-  - `Engine` owns exact fixed-step execution and one complete ordered system schedule. Production construction derives that invariant schedule from an explicit `SimulationConfiguration`; the full initializer requires an explicit `World`, fixed step, and complete injected system list for focused integration tests.
-  - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, movement, and rotation are
-    invariant members of every completed tick. Focused schedules may inject gravity immediately before the existing
-    movement authority.
+  - `Engine` owns exact fixed-tick execution and one complete ordered system schedule. Production construction derives
+    that invariant schedule from an explicit `SimulationConfiguration`; the full initializer requires an explicit
+    `World`, fixed step, and complete injected system list for focused integration tests.
+  - Input mapping, Simulation camera control, input history, cleanup, acceleration intent, gravity, movement, and
+    rotation are invariant members of every completed tick. Gravity contributes through the existing motion accumulator
+    before the movement authority integrates and clears it.
   - The real-time screen camera can change only through a completed Simulation publication; deliberate exact output
     requests may still carry a separate viewpoint.
 - `Engine2/Simulation Runtime/SimulationRuntime.swift`
   - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
-  - Validated immutable policy for pointer-orbit sensitivity, scroll-zoom sensitivity, orbit target, and minimum/maximum orbit radius.
+  - Validated immutable policy for Simulation time scale, pointer-orbit sensitivity, scroll-zoom sensitivity, orbit
+    target, and minimum/maximum orbit radius.
 - `Engine2/Runtime Configuration/PRuntimeAssembly.swift`
   - Common SwiftUI hosting and Game Content injection boundary shared by every concrete assembly.
 - `Engine2/Runtime Configuration/PGameContent.swift`
@@ -399,7 +405,7 @@ Use `CMotion` for translational motion state:
 Design intent:
 - gameplay systems emit motion contributions
 - persistent drive state is converted into accumulator input before movement
-- explicitly scheduled gravity adds its collective acceleration contribution to the same accumulator
+- production gravity adds its collective acceleration contribution to the same accumulator
 - `SMovement` updates velocity, then position, through symplectic Euler
 Avoid having many systems directly overwrite `CMotion.velocity` unless they are doing explicit override/constraint/collision resolution work.
 The runtime-first version of this model is aggregate accumulation, not a per-entity heap of arbitrary contribution objects. If source-level contribution tracking is ever needed for debugging, add that separately.
@@ -408,7 +414,7 @@ The angular equivalent is `CAngularMotionAccumulator`:
 - `angularImpulse`: instantaneous angular velocity changes
 `SMovement` and `SRotation` currently combine contribution integration and transform advancement. If collision, constraints, or staged scheduling become substantial, consider splitting those phases while preserving the same accumulator semantics.
 
-An explicitly injected gravity-and-movement schedule currently invokes each system once with the Engine step interval.
+The production gravity-and-movement stage currently invokes each system once with the configured world interval.
 A future substep policy should repeat only the declared physics stage with a fractional `deltaTime`; it must not replay
 input or cleanup work.
 
@@ -434,7 +440,10 @@ However, the store does not yet remove or compact dense rows. If a future free l
 ### Facades Are Live Handles
 Entity objects hold an `unowned` world reference and computed protocol accessors fatal-error when required backing rows are missing. That is acceptable for strict live game objects, but UI inspection or editor tooling may eventually need optional, non-crashing lookup APIs.
 ### Engine Loop Boundaries Are Clear
-`Engine` owns deterministic fixed-step execution and ordered systems. `SimulationRuntime` owns the authoritative session and exact request boundary. `RealtimeAdvanceDriver` owns wall-clock sampling, remainder, input capture, and pause policy, while `RealtimeAssembly` owns construction, coordinated lifecycle, UI wiring, and rebuild cutovers. Keep cadence and peer wiring outside Simulation so the exact core remains easy to test and reuse.
+`Engine` owns deterministic fixed-tick execution and ordered systems. `SimulationRuntime` owns the authoritative
+session and exact request boundary. `RealtimeAdvanceDriver` owns wall-clock sampling, remainder, input capture, and
+pause policy, while `RealtimeAssembly` owns construction, coordinated lifecycle, UI wiring, and rebuild cutovers. Keep
+cadence and peer wiring outside Simulation so the exact core remains easy to test and reuse.
 The real-time driver uses a typed per-wake catch-up cap with explicit preserve/discard overflow treatment. `Engine` contains no elapsed-time accumulator or partial-schedule pause mode; every accepted exact step executes the complete schedule.
 ### The Realtime Screen Camera Is Simulation-Owned
 `World.camera` and `SimulationPresentationSnapshot.camera` provide the completed camera used exactly by the real-time screen. The screen path has no independently mutable viewpoint source. The implemented `SInputMapping` and `SCameraInput` path applies real-time orbit and zoom only inside an attributable complete tick, so paused input publication cannot mutate the camera and resume rebasing discards paused transients.

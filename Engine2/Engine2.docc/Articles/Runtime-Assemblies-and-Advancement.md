@@ -40,7 +40,7 @@ The Simulation Runtime continues to own:
 
 - ``World`` and authoritative ECS mutation
 - ``Engine`` and the invariant system schedule
-- the fixed duration represented by one simulation tick
+- the nominal base interval and configured world interval represented by one simulation tick
 - serialized, atomic execution of each complete tick
 - simulation session and tick identity
 - publication of completed Simulation-owned snapshots and events
@@ -329,7 +329,9 @@ Realtime advance policy
 exact Simulation step requests
 ```
 
-This means the Simulation Runtime still defines the duration and meaning of one tick, while a real-time driver decides how many such ticks current wall time permits. Offline, MCP, replay, lockstep, and tests can issue exact requests without pretending that wall time passed.
+The Simulation Runtime defines the nominal base interval and configured world interval. A real-time driver decides when
+wall time permits another tick. Offline, MCP, replay, lockstep, and tests can issue exact requests without pretending
+that wall time passed.
 
 The ``RealtimeAssembly``-owned ``RealtimeAdvanceDriver`` performs real-time sampling, elapsed-remainder, pause, rebase, input-assignment, and bounded catch-up work through exact requests. ``RealtimeCatchUpPolicy`` caps the indivisible request issued by one wake and chooses whether whole-step overflow is preserved or discarded; the interactive default requests at most four steps and discards overflow. ``Engine`` contains no second wall-clock or partial-schedule path.
 
@@ -1373,7 +1375,8 @@ Future assembly work should preserve these rules:
 1. The Simulation Runtime is the sole owner of authoritative world mutation.
 2. Exactly one complete Simulation tick executes at a time per session.
 3. At most one effective advance authority is active per Simulation session; exactly one authority or arbiter exists whenever progress is permitted.
-4. Simulation owns fixed-step meaning, schedule, cursor, and completed publications; external policy owns when progress is requested.
+4. Simulation owns its nominal base interval, configured world interval, schedule, cursor, and completed publications;
+   external policy owns when progress is requested.
 5. Wall time, display time, output media time, network time, and simulation time remain distinct.
 6. Input and semantic control enter authoritative Simulation state only at safe, attributable tick boundaries.
 7. Reset, rebuild, restore, and fork produce unambiguous session or lineage identity.

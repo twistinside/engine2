@@ -3,7 +3,7 @@ Engine2 is organized around a small set of responsibilities that are meant to st
 The engine, world, and ECS systems described here are the internal architecture of the authoritative ``SimulationRuntime``. See <doc:Runtime-Architecture> for the top-level application model and runtime-boundary vocabulary, and <doc:Runtime-Assemblies-and-Advancement> for the implemented exact-advance boundary and the broader proposed assembly model.
 ## Current Simulation Roles
 ### Engine
-``Engine`` owns exact fixed-step execution and ordered system orchestration.
+``Engine`` owns exact fixed-tick execution and ordered system orchestration.
 At the moment, its exact path:
 - imports an immutable input assignment only when the first requested fixed step begins
 - advances simulation in fixed-size steps
@@ -26,7 +26,10 @@ This keeps timing and scheduling logic out of ``World``.
 ``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, explicit Simulation behavior configuration, and publication of committed results.
 It accepts a ``PWorldBuilder`` and ``SimulationConfiguration`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. Builder replacement without reconstruction and builder replacement with immediate reconstruction are separately named operations; input baselines are explicit at construction and rebuild call sites. Its narrow ``PSimulationAdvanceTarget`` capability validates an optional expected ``SimulationCursor``, applies the request's immutable input assignment, executes the requested number of complete steps, and returns a correlated result.
 
-Cadence is deliberately outside that boundary. The assembly-owned ``RealtimeAdvanceDriver`` polls wall time and samples `PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. Future offline, MCP, network, and replay coordinators can use the same exact capability. Simulation retains the fixed-step definition, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
+Cadence is deliberately outside that boundary. The assembly-owned ``RealtimeAdvanceDriver`` polls wall time and samples
+`PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. Future offline, MCP, network, and
+replay coordinators can use the same exact capability. Simulation retains the nominal base interval, configured world
+interval, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
 ``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
 The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes that contract. Consumer-defined builders, entity types, components, and presentation descriptions belong to Game Content. The Runtime Assembly supplies that content while constructing the Simulation Runtime; the runtime does not discover content through global registries. See <doc:Game-Content-Architecture>.
 ### World
@@ -36,13 +39,12 @@ It owns the component stores, simulation-scoped resources, and entity identity l
 ``PSystem`` implementations contain simulation logic.
 They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
 ``Engine`` owns the invariant schedule required for a valid simulation, including position and orientation mechanics.
-Explicit schedules may place ``SGravity`` before ``SMovement`` so gravity contributes through the existing motion
-accumulator and movement authority. The invariant production schedule does not install gravity until contact feeds
-collision handling and numeric refusals feed an expected Simulation failure outcome. Future consumer-defined behavior
-may be admitted through controlled extension points, but Game Content does not assemble or replace the required
-schedule.
+The invariant production schedule places ``SGravity`` before ``SMovement`` so gravity contributes through the existing
+motion accumulator and movement authority. Contact and numeric refusals still terminate scheduled execution because
+Simulation has no recoverable failure lane. Future consumer-defined behavior may be admitted through controlled
+extension points, but Game Content does not assemble or replace the required schedule.
 
-Authoritative translational positions, velocities, accelerations, impulses, and fixed-step seconds use `Double`.
+Authoritative translational positions, velocities, accelerations, impulses, and system intervals use `Double`.
 Completed presentation snapshots deliberately narrow positions to `Float`; Render, camera, and GPU values remain single
 precision.
 
@@ -69,7 +71,14 @@ The current portable simulation primitive is an exact Runtime-level request:
 4. ``Engine`` executes the complete ordered schedule exactly as many times as requested.
 5. ``SimulationRuntime`` publishes the final completed presentation snapshot and returns initial/final cursors with the completed step count.
 
-This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over what one tick means. ``SimulationRuntime/fixedTimeStep`` is the single production 1/60-second definition; assembly policy cannot substitute another duration. In ``RealtimeAssembly``, ``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and conversion into exact batches. ``ManualAssembly`` proves the same Simulation Runtime can progress without a wall clock or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before one draw.
+This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over
+what one tick means. ``SimulationRuntime/fixedTimeStep`` remains the single production 1/60-second base interval;
+assembly policy cannot substitute another duration. The named ``SimulationTimeScale`` selected through
+``SimulationConfiguration`` determines the authoritative world interval passed to systems. In ``RealtimeAssembly``,
+``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and
+conversion into exact batches. ``ManualAssembly`` proves the same Simulation Runtime can progress without a wall clock
+or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before
+one draw.
 
 ``Engine`` now exposes only exact complete-step execution. New assemblies must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling `Engine.step(inputSnapshot:)` directly.
 ## Current Limits

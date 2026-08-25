@@ -122,7 +122,7 @@ struct EngineTests {
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
-    @Test func productionScheduleLeavesGravityUninstalledUntilRefusalsHaveExpectedOutcomes() {
+    @Test func productionScheduleAppliesGravityBeforeMovement() {
         let fixture = makeGravityFixture()
         let engine = Engine(
             world: fixture.world,
@@ -132,11 +132,15 @@ struct EngineTests {
 
         engine.step()
 
-        #expect(fixture.world.motionComponents[fixture.receiver]?.velocity == .zero)
+        #expect(
+            fixture.world.motionComponents[fixture.receiver]?.velocity
+                == SIMD3<Double>(-0.25, 0, 0)
+        )
         #expect(
             fixture.world.positionComponents[fixture.receiver]?.position
-                == SIMD3<Double>(2, 0, 0)
+                == SIMD3<Double>(1.75, 0, 0)
         )
+        #expect(fixture.world.motionComponents[fixture.receiver]?.accumulator == .zero)
     }
 
     @Test func injectedGravityScheduleAppliesGravityBeforeMovement() {

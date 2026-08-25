@@ -157,7 +157,9 @@ The example App constructs `SolarSystemGameContent` and passes it to the
 selected assembly. That content supplies `SolarSystemWorldBuilder` to
 ``SimulationRuntime`` beside the complete `.solarSystem`
 ``SimulationConfiguration``, and selects `RenderAssetCatalog.everything` for
-the current render paths. The separate `BasicGameContent` fixture supplies
+the current render paths. The Solar policy advances one simulated hour per tick
+as a fixed visual and stability smoke test; it is not a player time control.
+The separate `BasicGameContent` fixture supplies
 `BasicWorldBuilder` and `.basicGame`; its explicit `init(worldBuilder:)` keeps
 basic world construction injectable without hiding either behavior or catalog
 policy behind a default argument. Callers may still construct curated catalogs
@@ -333,10 +335,10 @@ Current project elements map onto Game Content as follows:
 | --- | --- |
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
-| `SolarSystemWorldBuilder` | Example visible, gravity-ready Solar System world construction |
+| `SolarSystemWorldBuilder` | Visible Solar System fixture with physical masses, radii, positions, and velocities |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
 | `BasicGameContent` | Example assembly-selected composition of world construction, Simulation behavior configuration, and render asset mappings |
-| `SolarSystemGameContent` | App-selected Solar System composition with AU-scale camera policy |
+| `SolarSystemGameContent` | App-selected Solar System composition with AU-scale camera and accelerated gravity policy |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |

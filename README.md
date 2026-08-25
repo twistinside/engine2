@@ -6,11 +6,13 @@ The project is exploring a hybrid architecture:
 
 - ECS component stores are the authoritative simulation state.
 - Systems operate directly on component stores in hot paths.
-- Authoritative translation and fixed-step seconds use `Double`; completed presentation snapshots narrow positions to
+- Authoritative translation and system intervals use `Double`; completed presentation snapshots narrow positions to
   `Float` for rendering.
-- Explicit schedules can place `SGravity` before `SMovement`, so collective gravity uses the existing motion accumulator
-  and movement authority. Production waits for collision handling and an expected Simulation failure outcome before it
-  installs gravity.
+- The production schedule places `SGravity` before `SMovement`, so collective gravity uses the existing motion
+  accumulator and movement authority. Contact and numeric refusals still lack a recoverable production outcome.
+- `SimulationTimeScale` derives the authoritative world interval from the nominal 1/60-second base interval without
+  changing real-time request policy. The Solar System fixture advances one simulated hour per tick for visual and soak
+  tests.
 - Typed `Entity` facades and capability protocols provide a convenient game-facing API.
 - Input, simulation, and rendering live in independently owned runtimes connected through explicit snapshots and events.
 - Consumer-defined Game Content supplies entities, world construction, presentation descriptions, and assets without owning runtime infrastructure.
