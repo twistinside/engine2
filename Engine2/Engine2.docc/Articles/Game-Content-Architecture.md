@@ -153,19 +153,20 @@ A snapshot-only consumer needs any visible occurrence represented in durable sna
 
 The App selects one ``PRuntimeAssembly`` implementation at compile time and retains the constructed value behind an opaque `some PRuntimeAssembly` property. The assembly is the concrete composition object for that topology: its required `init(gameContent:)` constructs the independently owned runtimes and supplies each relevant portion of the injected content. Explicit assembly initializers take focused policy, limit, and identity values directly for tests, tools, and specialized hosts.
 
-The example App constructs `BasicGameContent` and passes it to the selected
-assembly. `BasicGameContent` supplies `BasicWorldBuilder` to
-``SimulationRuntime`` beside the complete `.basicGame`
-``SimulationConfiguration``, and deliberately selects
-`RenderAssetCatalog.everything` for the current render paths. Its explicit
-`init(worldBuilder:)` keeps world construction injectable without hiding either
-behavior or catalog policy behind a default argument. Callers may still
-construct curated catalogs through
+The example App constructs `SolarSystemGameContent` and passes it to the
+selected assembly. That content supplies `SolarSystemWorldBuilder` to
+``SimulationRuntime`` beside the complete `.solarSystem`
+``SimulationConfiguration``, and selects `RenderAssetCatalog.everything` for
+the current render paths. The separate `BasicGameContent` fixture supplies
+`BasicWorldBuilder` and `.basicGame`; its explicit `init(worldBuilder:)` keeps
+basic world construction injectable without hiding either behavior or catalog
+policy behind a default argument. Callers may still construct curated catalogs
+through
 `RenderAssetCatalog.init(models:materials:)`. The named `.basicGame` and
-`.everything` values remain in `SimulationConfiguration.swift` and
-`RenderAssetCatalog.swift`, respectively. Repository-owned types are extended
-only from their own files; `BasicGameContent.swift` selects those values without
-quietly declaring members of either type.
+`.solarSystem` values remain in `SimulationConfiguration.swift`, while
+`.everything` remains in `RenderAssetCatalog.swift`. Repository-owned types are
+extended only from their own files; Game Content selects those values without
+quietly declaring members of another type.
 ``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
 Game Content maps the mesh to `Ball.usdz` and maps each material identity to a
 `PBRMaterialDescription`. The renderer privately turns those descriptions and
@@ -332,8 +333,10 @@ Current project elements map onto Game Content as follows:
 | --- | --- |
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
+| `SolarSystemWorldBuilder` | Example visible, gravity-ready Solar System world construction |
 | `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
 | `BasicGameContent` | Example assembly-selected composition of world construction, Simulation behavior configuration, and render asset mappings |
+| `SolarSystemGameContent` | App-selected Solar System composition with AU-scale camera policy |
 | `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
 | `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
 | `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |

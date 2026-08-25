@@ -1,4 +1,4 @@
-/// Example consumer content selected by Engine2's App.
+/// Example consumer content for the basic moving-ball fixture.
 ///
 /// This value owns game-specific construction and asset descriptions, but it
 /// has no cadence, lifecycle, decoded model, or GPU resource of its own.
@@ -9,7 +9,7 @@ struct BasicGameContent: PGameContent {
 
     let renderAssetCatalog: RenderAssetCatalog
 
-    /// Selects the complete example content used by the App.
+    /// Constructs the complete basic example content.
     init() {
         self.init(worldBuilder: BasicWorldBuilder())
     }

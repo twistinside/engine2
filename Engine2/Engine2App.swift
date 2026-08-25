@@ -7,7 +7,7 @@ import SwiftUI
 @main
 struct Engine2App: App {
     private let assembly: some PRuntimeAssembly = RealtimeAssembly(
-        gameContent: BasicGameContent()
+        gameContent: SolarSystemGameContent()
     )
 
     var body: some Scene {

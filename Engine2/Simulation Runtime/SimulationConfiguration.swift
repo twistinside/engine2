@@ -16,6 +16,15 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
         maximumCameraOrbitRadius: 30
     )
 
+    /// Complete Simulation behavior policy selected by Solar System Game Content.
+    static let solarSystem = Self(
+        pointerOrbitSensitivity: 0.01,
+        scrollZoomSensitivity: 4.0e10,
+        cameraOrbitTarget: .zero,
+        minimumCameraOrbitRadius: 2.0e12,
+        maximumCameraOrbitRadius: 3.0e13
+    )
+
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
     let cameraOrbitTarget: SIMD3<Float>
