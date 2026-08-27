@@ -13,9 +13,12 @@ extension PLiveMass {
     }
 
     var mass: Double {
-        guard let mass = world.liveMass(for: id) else {
+        guard let mass = world.massComponents[id] else {
             fatalError("There is no live mass for the massive entity with ID: \(id)")
         }
-        return mass
+        return mass.totalMass(
+            fuel: world.fuelComponents[id],
+            cargo: world.cargoComponents[id]
+        )
     }
 }

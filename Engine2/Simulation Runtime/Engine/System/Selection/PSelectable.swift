@@ -1,13 +1,21 @@
-/// Capability for entity facades that expose live ECS-backed selection state.
+/// Capability for positioned entity facades with live selection state and a spherical hit bound.
 ///
 /// This surface is intended for game code, UI, and inspection flows. The
-/// default accessor resolves `CSelectable` from the entity's world and treats a
-/// missing row as an invalid live-facade invariant.
-protocol PSelectable: Entity {
+/// default accessors resolve the selection rows from the entity's world and
+/// treat missing state as an invalid live-facade invariant.
+protocol PSelectable: PPositionable {
+    var selectionRadius: Double { get }
     var selectionState: CSelectable.SelectionState { get }
 }
 
 extension PSelectable {
+    var selectionRadius: Double {
+        guard let bounds = world.selectionBoundsComponents[id] else {
+            fatalError("There are no selection bounds for the selectable entity with ID: \(id)")
+        }
+        return bounds.radius
+    }
+
     var selectionState: CSelectable.SelectionState {
         guard let selectable = world.selectableComponents[self.id] else {
             fatalError("There is no selectable component for the selectable entity with ID: \(self.id)")

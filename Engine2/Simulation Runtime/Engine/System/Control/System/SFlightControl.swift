@@ -32,10 +32,15 @@ struct SFlightControl: PSystem {
               let propulsion = world.propulsionComponents[entity],
               let fuel = world.fuelComponents[entity],
               let motion = world.motionComponents[entity],
-              let mass = world.liveMass(for: entity),
-              mass.isFinite,
-              mass > 0,
+              let massComponent = world.massComponents[entity],
               fuel.remaining > 0 else {
+            return
+        }
+        let mass = massComponent.totalMass(
+            fuel: fuel,
+            cargo: world.cargoComponents[entity]
+        )
+        guard mass.isFinite, mass > 0 else {
             return
         }
 

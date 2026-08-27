@@ -85,8 +85,9 @@ struct SPlanarSelection: PSystem {
                 continue
             }
 
+            let winsIdentityTie = nearestEntity.map { entity < $0 } ?? true
             if distance < nearestDistance ||
-                (distance == nearestDistance && precedes(entity, nearestEntity)) {
+                (distance == nearestDistance && winsIdentityTie) {
                 nearestEntity = entity
                 nearestDistance = distance
             }
@@ -117,15 +118,5 @@ struct SPlanarSelection: PSystem {
 
         let farDistance = -projectedOffset + root
         return farDistance >= 0 ? farDistance : nil
-    }
-
-    private func precedes(_ lhs: EntityID, _ rhs: EntityID?) -> Bool {
-        guard let rhs else {
-            return true
-        }
-        if lhs.index == rhs.index {
-            return lhs.generation < rhs.generation
-        }
-        return lhs.index < rhs.index
     }
 }

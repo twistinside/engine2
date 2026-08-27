@@ -18,6 +18,7 @@ class World {
     var fuelComponents = ComponentStore<CFuel>()
     var gravityReceiverComponents = ComponentStore<CGravityReceiver>()
     var gravitySourceComponents = ComponentStore<CGravitySource>()
+    var interactionComponents = ComponentStore<CInteraction>()
     var massComponents = ComponentStore<CMass>()
     var mineableComponents = ComponentStore<CMineable>()
     var motionComponents = ComponentStore<CMotion>()
@@ -52,7 +53,7 @@ class World {
     /// authoritative entity store and systems must not use them for hot-path
     /// iteration.
     var registeredEntities: [Entity] {
-        entitiesByID.keys.sorted(by: entityIDPrecedes).compactMap {
+        entitiesByID.keys.sorted().compactMap {
             entitiesByID[$0]
         }
     }
@@ -88,10 +89,6 @@ class World {
     ///
     /// Capability protocols decide which component stores receive rows; the
     /// optional initial values only supply the seeds for those rows.
-    /// `renderableState` is required exactly when the entity advertises
-    /// `PRenderable`, keeping Game Content's mesh/material choice out of the
-    /// live capability protocol.
-    ///
     /// Seed the baseline transform rows first so higher-level capabilities
     /// such as motion and rotation always have their backing state.
     ///
@@ -101,16 +98,30 @@ class World {
     @discardableResult
     func add(
         _ entity: Entity,
-        from state: Entity.InitialState = .empty,
-        renderable renderableState: RenderableInitialState? = nil
+        from state: Entity.InitialState = .empty
     ) -> EntityID {
         addPositionComponent(for: entity, from: state)
         addMotionComponent(for: entity, from: state)
         addRotationComponent(for: entity, from: state)
         addAngularMotionComponents(for: entity, from: state)
         addScaleComponent(for: entity, from: state)
-        addRenderableComponent(for: entity, from: renderableState)
-        addSelectionComponent(for: entity, from: state)
+        addCargoComponent(for: entity, from: state)
+        addCollisionComponents(for: entity, from: state)
+        addDepotServiceComponent(for: entity, from: state)
+        addDisplayNameComponent(for: entity, from: state)
+        addFuelComponent(for: entity, from: state)
+        addGravityReceiverComponent(for: entity, from: state)
+        addGravitySourceComponent(for: entity, from: state)
+        addInteractionComponent(for: entity, from: state)
+        addMassComponent(for: entity, from: state)
+        addMineableComponent(for: entity, from: state)
+        addOrbitPrimaryComponent(for: entity, from: state)
+        addOrbitalRailComponent(for: entity, from: state)
+        addOreDepositComponent(for: entity, from: state)
+        addPlayerControlComponent(for: entity, from: state)
+        addPropulsionComponent(for: entity, from: state)
+        addRenderableComponent(for: entity, from: state)
+        addSelectionComponents(for: entity, from: state)
         register(entity)
         if state.selectionState == .selected {
             precondition(select(entity.id), "A selected seed requires a registered selectable entity")
@@ -121,20 +132,6 @@ class World {
     /// Returns the facade registered for one complete generational identity.
     func entity(for id: EntityID) -> Entity? {
         entitiesByID[id]
-    }
-
-    /// Returns dry mass plus current propellant and cargo mass.
-    ///
-    /// Missing optional storage contributes zero. A missing mass row means the
-    /// entity does not advertise live mass.
-    func liveMass(for entity: EntityID) -> Double? {
-        guard let mass = massComponents[entity] else {
-            return nil
-        }
-
-        return mass.dryMass
-            + (fuelComponents[entity]?.remaining ?? 0)
-            + (cargoComponents[entity]?.ore ?? 0)
     }
 
     /// Returns a live circularization estimate for one capable entity.
@@ -247,16 +244,184 @@ class World {
         scaleComponents.insert(scale, for: entity.id)
     }
 
-    private func addRenderableComponent(for entity: Entity, from renderableState: RenderableInitialState?) {
+    private func addCargoComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            renderableState == nil || entity is PRenderable,
-            "Renderable initial state requires PRenderable conformance"
+            (state.cargo != nil) == (entity is PCargoCarrying),
+            "InitialState.cargo must be present exactly when the entity conforms to PCargoCarrying."
+        )
+        guard let cargo = state.cargo else {
+            return
+        }
+        cargoComponents.insert(cargo, for: entity.id)
+    }
+
+    private func addCollisionComponents(for entity: Entity, from state: Entity.InitialState) {
+        let isCollidable = entity is PCollidable
+        precondition(
+            (state.collisionBody != nil) == isCollidable,
+            "InitialState.collisionBody must be present exactly when the entity conforms to PCollidable."
         )
         precondition(
-            !(entity is PRenderable) || renderableState != nil,
-            "PRenderable conformance requires renderable initial state"
+            (state.previousPosition != nil) == isCollidable,
+            "InitialState.previousPosition must be present exactly when the entity conforms to PCollidable."
         )
-        guard let renderableState else {
+        guard let collisionBody = state.collisionBody,
+              let previousPosition = state.previousPosition else {
+            return
+        }
+        collisionBodyComponents.insert(collisionBody, for: entity.id)
+        previousPositionComponents.insert(previousPosition, for: entity.id)
+    }
+
+    private func addDepotServiceComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.depotService != nil) == (entity is PDepotServicing),
+            "InitialState.depotService must be present exactly when the entity conforms to PDepotServicing."
+        )
+        guard let depotService = state.depotService else {
+            return
+        }
+        depotServiceComponents.insert(depotService, for: entity.id)
+    }
+
+    private func addDisplayNameComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.displayName != nil) == (entity is PDisplayNamed),
+            "InitialState.displayName must be present exactly when the entity conforms to PDisplayNamed."
+        )
+        guard let displayName = state.displayName else {
+            return
+        }
+        displayNameComponents.insert(displayName, for: entity.id)
+    }
+
+    private func addFuelComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.fuel != nil) == (entity is PFueled),
+            "InitialState.fuel must be present exactly when the entity conforms to PFueled."
+        )
+        guard let fuel = state.fuel else {
+            return
+        }
+        fuelComponents.insert(fuel, for: entity.id)
+    }
+
+    private func addGravityReceiverComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.gravityReceiver != nil) == (entity is PGravityAffected),
+            "InitialState.gravityReceiver must be present exactly when the entity conforms to PGravityAffected."
+        )
+        guard let gravityReceiver = state.gravityReceiver else {
+            return
+        }
+        gravityReceiverComponents.insert(gravityReceiver, for: entity.id)
+    }
+
+    private func addGravitySourceComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.gravitySource != nil) == (entity is PGravitySource),
+            "InitialState.gravitySource must be present exactly when the entity conforms to PGravitySource."
+        )
+        guard let gravitySource = state.gravitySource else {
+            return
+        }
+        gravitySourceComponents.insert(gravitySource, for: entity.id)
+    }
+
+    private func addInteractionComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.interaction != nil) == (entity is PInteractable),
+            "InitialState.interaction must be present exactly when the entity conforms to PInteractable."
+        )
+        guard let interaction = state.interaction else {
+            return
+        }
+        interactionComponents.insert(interaction, for: entity.id)
+    }
+
+    private func addMassComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.mass != nil) == (entity is PLiveMass),
+            "InitialState.mass must be present exactly when the entity conforms to PLiveMass."
+        )
+        guard let mass = state.mass else {
+            return
+        }
+        massComponents.insert(mass, for: entity.id)
+    }
+
+    private func addMineableComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.mineable != nil) == (entity is PMineable),
+            "InitialState.mineable must be present exactly when the entity conforms to PMineable."
+        )
+        guard let mineable = state.mineable else {
+            return
+        }
+        mineableComponents.insert(mineable, for: entity.id)
+    }
+
+    private func addOrbitPrimaryComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.orbitPrimary != nil) == (entity is POrbitCircularizable),
+            "InitialState.orbitPrimary must be present exactly when the entity conforms to POrbitCircularizable."
+        )
+        guard let orbitPrimary = state.orbitPrimary else {
+            return
+        }
+        orbitPrimaryComponents.insert(orbitPrimary, for: entity.id)
+    }
+
+    private func addOrbitalRailComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.orbitalRail != nil) == (entity is POrbiting),
+            "InitialState.orbitalRail must be present exactly when the entity conforms to POrbiting."
+        )
+        guard let orbitalRail = state.orbitalRail else {
+            return
+        }
+        orbitalRailComponents.insert(orbitalRail, for: entity.id)
+    }
+
+    private func addOreDepositComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.oreDeposit != nil) == (entity is POreContaining),
+            "InitialState.oreDeposit must be present exactly when the entity conforms to POreContaining."
+        )
+        guard let oreDeposit = state.oreDeposit else {
+            return
+        }
+        oreDepositComponents.insert(oreDeposit, for: entity.id)
+    }
+
+    private func addPlayerControlComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.playerControl != nil) == (entity is PPlayerControlled),
+            "InitialState.playerControl must be present exactly when the entity conforms to PPlayerControlled."
+        )
+        guard let playerControl = state.playerControl else {
+            return
+        }
+        playerControlComponents.insert(playerControl, for: entity.id)
+    }
+
+    private func addPropulsionComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.propulsion != nil) == (entity is PPropelled),
+            "InitialState.propulsion must be present exactly when the entity conforms to PPropelled."
+        )
+        guard let propulsion = state.propulsion else {
+            return
+        }
+        propulsionComponents.insert(propulsion, for: entity.id)
+    }
+
+    private func addRenderableComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.renderable != nil) == (entity is PRenderable),
+            "InitialState.renderable must be present exactly when the entity conforms to PRenderable."
+        )
+        guard let renderableState = state.renderable else {
             return
         }
 
@@ -267,12 +432,17 @@ class World {
         renderableComponents.insert(renderable, for: entity.id)
     }
 
-    private func addSelectionComponent(for entity: Entity, from state: Entity.InitialState) {
+    private func addSelectionComponents(for entity: Entity, from state: Entity.InitialState) {
+        let isSelectable = entity is PSelectable
         precondition(
-            state.selectionState == nil || entity is PSelectable,
+            state.selectionState == nil || isSelectable,
             "Initial state.selectionState requires PSelectable conformance"
         )
-        guard entity is PSelectable else {
+        precondition(
+            (state.selectionBounds != nil) == isSelectable,
+            "InitialState.selectionBounds must be present exactly when the entity conforms to PSelectable."
+        )
+        guard let selectionBounds = state.selectionBounds else {
             return
         }
 
@@ -281,6 +451,7 @@ class World {
             : state.selectionState ?? .unselected
         let selectable = CSelectable(selectionState: selectionState)
         selectableComponents.insert(selectable, for: entity.id)
+        selectionBoundsComponents.insert(selectionBounds, for: entity.id)
     }
 
     private func register(_ entity: Entity) {
@@ -292,13 +463,6 @@ class World {
             return
         }
         entitiesByID[entity.id] = entity
-    }
-
-    private func entityIDPrecedes(_ lhs: EntityID, _ rhs: EntityID) -> Bool {
-        if lhs.index == rhs.index {
-            return lhs.generation < rhs.generation
-        }
-        return lhs.index < rhs.index
     }
 
     func reserveEntityID() -> EntityID {

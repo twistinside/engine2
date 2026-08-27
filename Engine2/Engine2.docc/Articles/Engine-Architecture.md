@@ -34,6 +34,10 @@ The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes 
 ### World
 ``World`` is the authoritative container for simulation state.
 It owns the component stores, simulation-scoped resources, and entity identity lifecycle. The world is not the scheduler and should not decide when simulation advances.
+
+Concrete entity constructors assemble one complete `Entity.InitialState` and call ``World/add(_:from:)``. The World validates that specialized seeds are present exactly when the facade advertises their capabilities, then performs every construction-time component-store write. Entity facades do not insert rows directly. ``PRenderable`` refines ``PPositionable``; ``PSelectable`` requires position, selection state, and a spherical hit bound; and ``PInteractable`` requires position plus one positive proximity range.
+
+``EntityID`` compares index first and generation second. This structural order gives enumeration and equal-result tie-breakers one deterministic definition; it does not encode distance, age, or gameplay priority. Full identity, including generation, remains the lookup and equality boundary.
 ### Systems
 ``PSystem`` implementations contain simulation logic.
 They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
@@ -51,7 +55,7 @@ The SwiftUI orbit assist uses a separate directed command boundary. ``SelectedEn
 
 ### Mining Slice Dynamics
 
-The mining slice composes two authoritative motion policies inside the same schedule. The star supplies gravity, and the skiff dynamically integrates gravity, thrust, fuel use, changing cargo mass, collision response, and request-scoped orbit assistance. Asteroids and the depot follow deterministic analytic circular rails whose systems prepare their position and velocity before force contribution and integration. ``SOrbitCircularization`` runs in Mining Game Content's `inputConsumption` stage and consumes the one-tick command. It validates the complete entity generation and maneuver state, then either contributes the full ideal circularization impulse and deducts its complete fuel cost or changes neither motion nor fuel.
+The mining slice composes two authoritative motion policies inside the same schedule. The star supplies gravity, and the skiff dynamically integrates gravity, thrust, fuel use, changing cargo mass, collision response, and request-scoped orbit assistance. ``CMass`` computes live mass from dry mass plus the joined current fuel and cargo rows; ``PLiveMass`` exposes that same projection through the entity facade. Asteroids and the depot follow deterministic analytic circular rails whose systems prepare their position and velocity before force contribution and integration. ``SOrbitCircularization`` runs in Mining Game Content's `inputConsumption` stage and consumes the one-tick command. It validates the complete entity generation and maneuver state, then either contributes the full ideal circularization impulse and deducts its complete fuel cost or changes neither motion nor fuel.
 
 A rail is a complete motion policy, not a force contribution. Do not run a rail writer and dynamic integration against the same body. A future perturbation feature must define an explicit transition from rail state to dynamic position and velocity.
 
@@ -70,6 +74,8 @@ This keeps `World` authoritative without making it the owner of Metal or other b
 They are not the simulation source of truth. Authoritative gameplay state lives in the world's component stores.
 
 The selected-entity SwiftUI inspector receives one narrow Simulation-owned source that resolves the current full ``EntityID`` to a live facade. It conditionally renders the capability protocols that facade supports. The read source remains separate from the focused orbit-assist callback: the view can submit an identity but cannot mutate the facade or `World`. Neither path adds fuel, cargo, orbit, mining, or other gameplay fields to ``SimulationPresentationSnapshot``.
+
+The facade protocols compose shared invariants instead of repeating them on concrete types. Renderable entities are positionable, selectable entities own their hit bound, and mineable bodies and servicing depots refine ``PInteractable`` while retaining only their action-specific rates and state.
 
 ## Fixed-Step Simulation
 The current portable simulation primitive is an exact Runtime-level request:

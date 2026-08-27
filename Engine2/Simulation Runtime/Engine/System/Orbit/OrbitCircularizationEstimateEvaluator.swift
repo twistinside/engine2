@@ -18,8 +18,14 @@ struct OrbitCircularizationEstimateEvaluator {
               let primaryBody = world.collisionBodyComponents[orbitPrimary.primaryEntityID],
               let propulsion = world.propulsionComponents[entityID],
               let fuel = world.fuelComponents[entityID],
-              let liveMass = world.liveMass(for: entityID),
-              liveMass.isFinite,
+              let mass = world.massComponents[entityID] else {
+            return nil
+        }
+        let liveMass = mass.totalMass(
+            fuel: fuel,
+            cargo: world.cargoComponents[entityID]
+        )
+        guard liveMass.isFinite,
               liveMass > 0 else {
             return nil
         }

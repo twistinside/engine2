@@ -1,8 +1,8 @@
 import simd
 
 /// Finite-ore body that follows one deterministic circular rail.
-final class Asteroid: Entity, PDisplayNamed, PPositionable, PScalable, PRenderable, PSelectable,
-    PSelectionBounded, POrbiting, PCollidable, POreContaining, PMineable {
+final class Asteroid: Entity, PDisplayNamed, PScalable, PRenderable, PSelectable,
+    POrbiting, PCollidable, POreContaining, PMineable {
     convenience init(
         in world: World,
         name: String,
@@ -27,27 +27,23 @@ final class Asteroid: Entity, PDisplayNamed, PPositionable, PScalable, PRenderab
         rail.velocity = initialOrbitState.velocity
 
         self.init(unregisteredID: world.reserveEntityID(), in: world)
-        world.add(
-            self,
-            from: Entity.InitialState(
-                position: initialOrbitState.position,
-                scale: SIMD3<Float>(repeating: Float(physicalRadius)),
-                selectionState: .unselected
+        let initialState = Entity.InitialState(
+            position: initialOrbitState.position,
+            scale: SIMD3<Float>(repeating: Float(physicalRadius)),
+            selectionState: .unselected,
+            collisionBody: CCollisionBody(radius: physicalRadius, restitution: 0.35),
+            displayName: CDisplayName(value: name),
+            interaction: CInteraction(interactionRange: interactionRange),
+            mineable: CMineable(miningRate: miningRate),
+            orbitalRail: rail,
+            oreDeposit: COreDeposit(remainingOre: ore),
+            previousPosition: CPreviousPosition(position: initialOrbitState.position),
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
             ),
-            renderable: RenderableInitialState(meshID: .ball, materialID: materialID)
+            selectionBounds: CSelectionBounds(radius: physicalRadius)
         )
-        world.displayNameComponents.insert(CDisplayName(value: name), for: id)
-        world.selectionBoundsComponents.insert(CSelectionBounds(radius: physicalRadius), for: id)
-        world.orbitalRailComponents.insert(rail, for: id)
-        world.collisionBodyComponents.insert(
-            CCollisionBody(radius: physicalRadius, restitution: 0.35),
-            for: id
-        )
-        world.previousPositionComponents.insert(CPreviousPosition(position: initialOrbitState.position), for: id)
-        world.oreDepositComponents.insert(COreDeposit(remainingOre: ore), for: id)
-        world.mineableComponents.insert(
-            CMineable(interactionRange: interactionRange, miningRate: miningRate),
-            for: id
-        )
+        world.add(self, from: initialState)
     }
 }

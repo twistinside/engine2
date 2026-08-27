@@ -1,8 +1,8 @@
 import simd
 
 /// Rail-bound depot that unloads ore and supplies unlimited fuel.
-final class MiningDepot: Entity, PDisplayNamed, PPositionable, PScalable, PRenderable, PSelectable,
-    PSelectionBounded, POrbiting, PCollidable, PDepotServicing {
+final class MiningDepot: Entity, PDisplayNamed, PScalable, PRenderable, PSelectable,
+    POrbiting, PCollidable, PDepotServicing {
     convenience init(
         in world: World,
         name: String,
@@ -27,30 +27,25 @@ final class MiningDepot: Entity, PDisplayNamed, PPositionable, PScalable, PRende
         rail.velocity = initialOrbitState.velocity
 
         self.init(unregisteredID: world.reserveEntityID(), in: world)
-        world.add(
-            self,
-            from: Entity.InitialState(
-                position: initialOrbitState.position,
-                scale: SIMD3<Float>(repeating: Float(physicalRadius)),
-                selectionState: .unselected
-            ),
-            renderable: RenderableInitialState(meshID: .ball, materialID: materialID)
-        )
-        world.displayNameComponents.insert(CDisplayName(value: name), for: id)
-        world.selectionBoundsComponents.insert(CSelectionBounds(radius: physicalRadius), for: id)
-        world.orbitalRailComponents.insert(rail, for: id)
-        world.collisionBodyComponents.insert(
-            CCollisionBody(radius: physicalRadius, restitution: 0.35),
-            for: id
-        )
-        world.previousPositionComponents.insert(CPreviousPosition(position: initialOrbitState.position), for: id)
-        world.depotServiceComponents.insert(
-            CDepotService(
-                interactionRange: interactionRange,
+        let initialState = Entity.InitialState(
+            position: initialOrbitState.position,
+            scale: SIMD3<Float>(repeating: Float(physicalRadius)),
+            selectionState: .unselected,
+            collisionBody: CCollisionBody(radius: physicalRadius, restitution: 0.35),
+            depotService: CDepotService(
                 unloadingRate: unloadingRate,
                 refuelingRate: refuelingRate
             ),
-            for: id
+            displayName: CDisplayName(value: name),
+            interaction: CInteraction(interactionRange: interactionRange),
+            orbitalRail: rail,
+            previousPosition: CPreviousPosition(position: initialOrbitState.position),
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
+            ),
+            selectionBounds: CSelectionBounds(radius: physicalRadius)
         )
+        world.add(self, from: initialState)
     }
 }

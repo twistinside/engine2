@@ -16,6 +16,7 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
     convenience init(
         in world: World,
         materialID: MaterialID,
+        selectionRadius: Double = 0.5,
         position: SIMD3<Double> = .zero,
         velocity: SIMD3<Double> = .zero,
         accelerationIntent: CMotion.AccelerationIntent = .idle,
@@ -36,12 +37,13 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
             angularVelocity: angularVelocity,
             angularAcceleration: angularAcceleration,
             angularImpulse: angularImpulse,
-            selectionState: selectionState
+            selectionState: selectionState,
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
+            ),
+            selectionBounds: CSelectionBounds(radius: selectionRadius)
         )
-        let renderableState = RenderableInitialState(
-            meshID: .ball,
-            materialID: materialID
-        )
-        world.add(self, from: initialState, renderable: renderableState)
+        world.add(self, from: initialState)
     }
 }

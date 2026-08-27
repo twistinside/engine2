@@ -2,8 +2,8 @@ import simd
 
 /// Player-controlled dynamic craft for mining, hauling, and depot service.
 final class MiningSkiff: Entity, PDisplayNamed, PMovable, PScalable, PRenderable, PSelectable,
-    PSelectionBounded, PGravityAffected, PLiveMass, PPropelled, PFueled, PCargoCarrying,
-    PPlayerControlled, PCollidable, POrbitCircularizable {
+    PGravityAffected, PLiveMass, PPropelled, PFueled, PCargoCarrying, PPlayerControlled,
+    PCollidable, POrbitCircularizable {
     convenience init(
         in world: World,
         name: String,
@@ -19,35 +19,30 @@ final class MiningSkiff: Entity, PDisplayNamed, PMovable, PScalable, PRenderable
         materialID: MaterialID
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
-        world.add(
-            self,
-            from: Entity.InitialState(
-                position: position,
-                velocity: velocity,
-                scale: SIMD3<Float>(repeating: Float(physicalRadius)),
-                selectionState: .selected
+        let initialState = Entity.InitialState(
+            position: position,
+            velocity: velocity,
+            scale: SIMD3<Float>(repeating: Float(physicalRadius)),
+            selectionState: .selected,
+            cargo: CCargo(capacity: cargoCapacity),
+            collisionBody: CCollisionBody(radius: physicalRadius, restitution: 0.35),
+            displayName: CDisplayName(value: name),
+            fuel: CFuel(capacity: fuelCapacity, remaining: fuelCapacity),
+            gravityReceiver: CGravityReceiver(),
+            mass: CMass(dryMass: dryMass),
+            orbitPrimary: COrbitPrimary(primaryEntityID: primaryEntityID),
+            playerControl: CPlayerControl(),
+            previousPosition: CPreviousPosition(position: position),
+            propulsion: CPropulsion(
+                maximumThrust: maximumThrust,
+                exhaustVelocity: exhaustVelocity
             ),
-            renderable: RenderableInitialState(meshID: .ball, materialID: materialID)
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
+            ),
+            selectionBounds: CSelectionBounds(radius: physicalRadius)
         )
-        world.displayNameComponents.insert(CDisplayName(value: name), for: id)
-        world.selectionBoundsComponents.insert(CSelectionBounds(radius: physicalRadius), for: id)
-        world.gravityReceiverComponents.insert(CGravityReceiver(), for: id)
-        world.orbitPrimaryComponents.insert(
-            COrbitPrimary(primaryEntityID: primaryEntityID),
-            for: id
-        )
-        world.massComponents.insert(CMass(dryMass: dryMass), for: id)
-        world.propulsionComponents.insert(
-            CPropulsion(maximumThrust: maximumThrust, exhaustVelocity: exhaustVelocity),
-            for: id
-        )
-        world.fuelComponents.insert(CFuel(capacity: fuelCapacity, remaining: fuelCapacity), for: id)
-        world.cargoComponents.insert(CCargo(capacity: cargoCapacity), for: id)
-        world.playerControlComponents.insert(CPlayerControl(), for: id)
-        world.collisionBodyComponents.insert(
-            CCollisionBody(radius: physicalRadius, restitution: 0.35),
-            for: id
-        )
-        world.previousPositionComponents.insert(CPreviousPosition(position: position), for: id)
+        world.add(self, from: initialState)
     }
 }

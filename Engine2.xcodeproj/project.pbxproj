@@ -99,6 +99,22 @@
 		E36000000000000000000016 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000016 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationCommand.swift */; };
 		E36000000000000000000017 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000017 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimate.swift */; };
 		E36000000000000000000018 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimateEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000018 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimateEvaluator.swift */; };
+		E36000000000000000000019 /* Simulation Runtime/Engine/System/Interaction/Component/CInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000019 /* Simulation Runtime/Engine/System/Interaction/Component/CInteraction.swift */; };
+		E3600000000000000000001A /* Simulation Runtime/Engine/System/Interaction/Protocol/PInteractable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000001A /* Simulation Runtime/Engine/System/Interaction/Protocol/PInteractable.swift */; };
+		E3600000000000000000001B /* Simulation Runtime/Engine/System/Collision/Protocol/PCollidable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000001B /* Simulation Runtime/Engine/System/Collision/Protocol/PCollidable.swift */; };
+		E3600000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift */; };
+		E3600000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift */; };
+		E3600000000000000000001E /* Simulation Runtime/Engine/System/Control/Protocol/PPlayerControlled.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000001E /* Simulation Runtime/Engine/System/Control/Protocol/PPlayerControlled.swift */; };
+		E3600000000000000000001F /* Simulation Runtime/Engine/System/Control/Protocol/PPropelled.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000001F /* Simulation Runtime/Engine/System/Control/Protocol/PPropelled.swift */; };
+		E36000000000000000000020 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravityAffected.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000020 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravityAffected.swift */; };
+		E36000000000000000000021 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravitySource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000021 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravitySource.swift */; };
+		E36000000000000000000022 /* Simulation Runtime/Engine/System/Identity/Protocol/PDisplayNamed.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000022 /* Simulation Runtime/Engine/System/Identity/Protocol/PDisplayNamed.swift */; };
+		E36000000000000000000023 /* Simulation Runtime/Engine/System/Mining/Protocol/PCargoCarrying.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000023 /* Simulation Runtime/Engine/System/Mining/Protocol/PCargoCarrying.swift */; };
+		E36000000000000000000024 /* Simulation Runtime/Engine/System/Mining/Protocol/PDepotServicing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000024 /* Simulation Runtime/Engine/System/Mining/Protocol/PDepotServicing.swift */; };
+		E36000000000000000000025 /* Simulation Runtime/Engine/System/Mining/Protocol/PMineable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000025 /* Simulation Runtime/Engine/System/Mining/Protocol/PMineable.swift */; };
+		E36000000000000000000026 /* Simulation Runtime/Engine/System/Mining/Protocol/POreContaining.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000026 /* Simulation Runtime/Engine/System/Mining/Protocol/POreContaining.swift */; };
+		E36000000000000000000027 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbitCircularizable.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000027 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbitCircularizable.swift */; };
+		E36000000000000000000028 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbiting.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000028 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbiting.swift */; };
 		E36000000000000000000013 /* Simulation Runtime/Engine/System/Selection/CSelectionBounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000013 /* Simulation Runtime/Engine/System/Selection/CSelectionBounds.swift */; };
 		E36000000000000000000014 /* Simulation Runtime/Selection/PSelectedEntitySource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000014 /* Simulation Runtime/Selection/PSelectedEntitySource.swift */; };
 		E42000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */; };
@@ -289,6 +305,22 @@
 		E35000000000000000000016 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Orbit/OrbitCircularizationCommand.swift"; sourceTree = "<group>"; };
 		E35000000000000000000017 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimate.swift"; sourceTree = "<group>"; };
 		E35000000000000000000018 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimateEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimateEvaluator.swift"; sourceTree = "<group>"; };
+		E35000000000000000000019 /* Simulation Runtime/Engine/System/Interaction/Component/CInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Interaction/Component/CInteraction.swift"; sourceTree = "<group>"; };
+		E3500000000000000000001A /* Simulation Runtime/Engine/System/Interaction/Protocol/PInteractable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Interaction/Protocol/PInteractable.swift"; sourceTree = "<group>"; };
+		E3500000000000000000001B /* Simulation Runtime/Engine/System/Collision/Protocol/PCollidable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Collision/Protocol/PCollidable.swift"; sourceTree = "<group>"; };
+		E3500000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift"; sourceTree = "<group>"; };
+		E3500000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift"; sourceTree = "<group>"; };
+		E3500000000000000000001E /* Simulation Runtime/Engine/System/Control/Protocol/PPlayerControlled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Protocol/PPlayerControlled.swift"; sourceTree = "<group>"; };
+		E3500000000000000000001F /* Simulation Runtime/Engine/System/Control/Protocol/PPropelled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Protocol/PPropelled.swift"; sourceTree = "<group>"; };
+		E35000000000000000000020 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravityAffected.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/Protocol/PGravityAffected.swift"; sourceTree = "<group>"; };
+		E35000000000000000000021 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravitySource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/Protocol/PGravitySource.swift"; sourceTree = "<group>"; };
+		E35000000000000000000022 /* Simulation Runtime/Engine/System/Identity/Protocol/PDisplayNamed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Identity/Protocol/PDisplayNamed.swift"; sourceTree = "<group>"; };
+		E35000000000000000000023 /* Simulation Runtime/Engine/System/Mining/Protocol/PCargoCarrying.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Mining/Protocol/PCargoCarrying.swift"; sourceTree = "<group>"; };
+		E35000000000000000000024 /* Simulation Runtime/Engine/System/Mining/Protocol/PDepotServicing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Mining/Protocol/PDepotServicing.swift"; sourceTree = "<group>"; };
+		E35000000000000000000025 /* Simulation Runtime/Engine/System/Mining/Protocol/PMineable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Mining/Protocol/PMineable.swift"; sourceTree = "<group>"; };
+		E35000000000000000000026 /* Simulation Runtime/Engine/System/Mining/Protocol/POreContaining.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Mining/Protocol/POreContaining.swift"; sourceTree = "<group>"; };
+		E35000000000000000000027 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbitCircularizable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Orbit/Protocol/POrbitCircularizable.swift"; sourceTree = "<group>"; };
+		E35000000000000000000028 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbiting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Orbit/Protocol/POrbiting.swift"; sourceTree = "<group>"; };
 		E35000000000000000000013 /* Simulation Runtime/Engine/System/Selection/CSelectionBounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Selection/CSelectionBounds.swift"; sourceTree = "<group>"; };
 		E35000000000000000000014 /* Simulation Runtime/Selection/PSelectedEntitySource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Selection/PSelectedEntitySource.swift"; sourceTree = "<group>"; };
 		E41000000000000000000001 /* Game Content/Star System Generation/Domain/CelestialMassComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Game Content/Star System Generation/Domain/CelestialMassComposition.swift"; sourceTree = "<group>"; };
@@ -508,13 +540,23 @@
 				E35000000000000000000004 /* Simulation Runtime/Engine/StandardSimulationBehavior.swift */,
 				E35000000000000000000005 /* Simulation Runtime/Engine/System/Collision/Component/CCollisionBody.swift */,
 				E35000000000000000000006 /* Simulation Runtime/Engine/System/Collision/Component/CPreviousPosition.swift */,
+				E3500000000000000000001B /* Simulation Runtime/Engine/System/Collision/Protocol/PCollidable.swift */,
 				E35000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift */,
 				E35000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift */,
 				E35000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift */,
 				E3500000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift */,
+				E3500000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift */,
+				E3500000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift */,
+				E3500000000000000000001E /* Simulation Runtime/Engine/System/Control/Protocol/PPlayerControlled.swift */,
+				E3500000000000000000001F /* Simulation Runtime/Engine/System/Control/Protocol/PPropelled.swift */,
 				E3500000000000000000000B /* Simulation Runtime/Engine/System/Gravity/Component/CGravityReceiver.swift */,
 				E3500000000000000000000C /* Simulation Runtime/Engine/System/Gravity/Component/CGravitySource.swift */,
+				E35000000000000000000020 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravityAffected.swift */,
+				E35000000000000000000021 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravitySource.swift */,
 				E3500000000000000000000D /* Simulation Runtime/Engine/System/Identity/Component/CDisplayName.swift */,
+				E35000000000000000000022 /* Simulation Runtime/Engine/System/Identity/Protocol/PDisplayNamed.swift */,
+				E35000000000000000000019 /* Simulation Runtime/Engine/System/Interaction/Component/CInteraction.swift */,
+				E3500000000000000000001A /* Simulation Runtime/Engine/System/Interaction/Protocol/PInteractable.swift */,
 				E31000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift */,
 				E31000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift */,
 				E31000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift */,
@@ -526,11 +568,17 @@
 				E3500000000000000000000F /* Simulation Runtime/Engine/System/Mining/Component/CDepotService.swift */,
 				E35000000000000000000010 /* Simulation Runtime/Engine/System/Mining/Component/CMineable.swift */,
 				E35000000000000000000011 /* Simulation Runtime/Engine/System/Mining/Component/COreDeposit.swift */,
+				E35000000000000000000023 /* Simulation Runtime/Engine/System/Mining/Protocol/PCargoCarrying.swift */,
+				E35000000000000000000024 /* Simulation Runtime/Engine/System/Mining/Protocol/PDepotServicing.swift */,
+				E35000000000000000000025 /* Simulation Runtime/Engine/System/Mining/Protocol/PMineable.swift */,
+				E35000000000000000000026 /* Simulation Runtime/Engine/System/Mining/Protocol/POreContaining.swift */,
 				E35000000000000000000012 /* Simulation Runtime/Engine/System/Orbit/Component/COrbitalRail.swift */,
 				E35000000000000000000015 /* Simulation Runtime/Engine/System/Orbit/Component/COrbitPrimary.swift */,
 				E35000000000000000000016 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationCommand.swift */,
 				E35000000000000000000017 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimate.swift */,
 				E35000000000000000000018 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimateEvaluator.swift */,
+				E35000000000000000000027 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbitCircularizable.swift */,
+				E35000000000000000000028 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbiting.swift */,
 				E3100000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift */,
 				E3100000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift */,
 				E3100000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift */,
@@ -1009,13 +1057,23 @@
 				E36000000000000000000004 /* Simulation Runtime/Engine/StandardSimulationBehavior.swift in Sources */,
 				E36000000000000000000005 /* Simulation Runtime/Engine/System/Collision/Component/CCollisionBody.swift in Sources */,
 				E36000000000000000000006 /* Simulation Runtime/Engine/System/Collision/Component/CPreviousPosition.swift in Sources */,
+				E3600000000000000000001B /* Simulation Runtime/Engine/System/Collision/Protocol/PCollidable.swift in Sources */,
 				E36000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift in Sources */,
 				E36000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift in Sources */,
 				E36000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift in Sources */,
 				E3600000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift in Sources */,
+				E3600000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift in Sources */,
+				E3600000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift in Sources */,
+				E3600000000000000000001E /* Simulation Runtime/Engine/System/Control/Protocol/PPlayerControlled.swift in Sources */,
+				E3600000000000000000001F /* Simulation Runtime/Engine/System/Control/Protocol/PPropelled.swift in Sources */,
 				E3600000000000000000000B /* Simulation Runtime/Engine/System/Gravity/Component/CGravityReceiver.swift in Sources */,
 				E3600000000000000000000C /* Simulation Runtime/Engine/System/Gravity/Component/CGravitySource.swift in Sources */,
+				E36000000000000000000020 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravityAffected.swift in Sources */,
+				E36000000000000000000021 /* Simulation Runtime/Engine/System/Gravity/Protocol/PGravitySource.swift in Sources */,
 				E3600000000000000000000D /* Simulation Runtime/Engine/System/Identity/Component/CDisplayName.swift in Sources */,
+				E36000000000000000000022 /* Simulation Runtime/Engine/System/Identity/Protocol/PDisplayNamed.swift in Sources */,
+				E36000000000000000000019 /* Simulation Runtime/Engine/System/Interaction/Component/CInteraction.swift in Sources */,
+				E3600000000000000000001A /* Simulation Runtime/Engine/System/Interaction/Protocol/PInteractable.swift in Sources */,
 				E32000000000000000000025 /* Simulation Runtime/Engine/System/Input/InputConsumptionBaseline.swift in Sources */,
 				E32000000000000000000026 /* Simulation Runtime/Engine/System/Input/InputHistory.swift in Sources */,
 				E32000000000000000000027 /* Simulation Runtime/Engine/System/Input/InputHistoryEntry.swift in Sources */,
@@ -1027,11 +1085,17 @@
 				E3600000000000000000000F /* Simulation Runtime/Engine/System/Mining/Component/CDepotService.swift in Sources */,
 				E36000000000000000000010 /* Simulation Runtime/Engine/System/Mining/Component/CMineable.swift in Sources */,
 				E36000000000000000000011 /* Simulation Runtime/Engine/System/Mining/Component/COreDeposit.swift in Sources */,
+				E36000000000000000000023 /* Simulation Runtime/Engine/System/Mining/Protocol/PCargoCarrying.swift in Sources */,
+				E36000000000000000000024 /* Simulation Runtime/Engine/System/Mining/Protocol/PDepotServicing.swift in Sources */,
+				E36000000000000000000025 /* Simulation Runtime/Engine/System/Mining/Protocol/PMineable.swift in Sources */,
+				E36000000000000000000026 /* Simulation Runtime/Engine/System/Mining/Protocol/POreContaining.swift in Sources */,
 				E36000000000000000000012 /* Simulation Runtime/Engine/System/Orbit/Component/COrbitalRail.swift in Sources */,
 				E36000000000000000000015 /* Simulation Runtime/Engine/System/Orbit/Component/COrbitPrimary.swift in Sources */,
 				E36000000000000000000016 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationCommand.swift in Sources */,
 				E36000000000000000000017 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimate.swift in Sources */,
 				E36000000000000000000018 /* Simulation Runtime/Engine/System/Orbit/OrbitCircularizationEstimateEvaluator.swift in Sources */,
+				E36000000000000000000027 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbitCircularizable.swift in Sources */,
+				E36000000000000000000028 /* Simulation Runtime/Engine/System/Orbit/Protocol/POrbiting.swift in Sources */,
 				E3200000000000000000002D /* Simulation Runtime/Engine/System/Position/Component/CAngularMotionAccumulator.swift in Sources */,
 				E3200000000000000000002E /* Simulation Runtime/Engine/System/Position/Component/CAngularVelocity.swift in Sources */,
 				E3200000000000000000002F /* Simulation Runtime/Engine/System/Position/Component/CMotion.swift in Sources */,

@@ -13,8 +13,18 @@ struct SFlightControlTests {
         var system = SFlightControl(targetSpeed: 90, responseTime: 2)
         system.update(world: &world, deltaTime: 1)
 
-        #expect(world.liveMass(for: lightSkiff) == 11_985)
-        #expect(world.liveMass(for: loadedSkiff) == 19_985)
+        #expect(
+            world.massComponents[lightSkiff]?.totalMass(
+                fuel: world.fuelComponents[lightSkiff],
+                cargo: world.cargoComponents[lightSkiff]
+            ) == 11_985
+        )
+        #expect(
+            world.massComponents[loadedSkiff]?.totalMass(
+                fuel: world.fuelComponents[loadedSkiff],
+                cargo: world.cargoComponents[loadedSkiff]
+            ) == 19_985
+        )
         #expect(world.motionComponents[lightSkiff]?.acceleration == SIMD3<Double>(25, 0, 0))
         #expect(world.motionComponents[loadedSkiff]?.acceleration == SIMD3<Double>(15, 0, 0))
         #expect(world.fuelComponents[lightSkiff]?.remaining == 1_985)

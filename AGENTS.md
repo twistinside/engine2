@@ -65,7 +65,7 @@ Use these terms and constraints consistently:
 - The Simulation Runtime owns invariant systems and their foundational schedule. Game Content behavior enters through `PSimulationBehavior` and the fixed stages of `SimulationSystemSchedule` rather than replacing that foundation.
 - The runtime performing work owns the interface it consumes. Simulation owns `PWorldBuilder`; Render owns `RenderFrame` and its projection from the publisher-owned `SimulationPresentationSnapshot` contract.
 - Do not make every current type public. Design the smallest coherent extension surface needed by external content while keeping engine storage and backend internals encapsulated.
-- The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:renderable:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
+- The current fixed component-store list in `World` and fixed capability translation in `World.add(_:from:)` are the largest limitations on external consumer-defined components. Preserve strong typing and avoid solving this with a closed component enum or process-global registry.
 
 Current example ownership:
 - `Ball`, `BasicWorldBuilder`, and `BasicGameContent` are example Game Content.
@@ -111,16 +111,17 @@ Current example ownership:
 - `Engine2/Simulation Runtime/Engine/ECS/World.swift`
   - Central world object.
   - Owns component stores.
-  - `add(_:from:renderable:)` translates advertised entity capabilities into component rows and validates that seed values match those capabilities.
+  - `add(_:from:)` translates advertised entity capabilities into component rows, validates that the complete `Entity.InitialState` agrees with those capabilities, and performs every construction-time component-store write.
   - `reserveEntityID()` currently allocates monotonically increasing indices with generation `0`; generation reuse/destruction is still future work.
 - `Engine2/Simulation Runtime/Engine/ECS/Entity.swift`
   - Base `Entity` superclass.
   - Holds `id` and `world`.
-  - `InitialState` carries common spawn-time transform and motion seed values.
+  - `InitialState` carries decomposed foundational seeds plus complete component values for specialized capabilities. Concrete entity constructors assemble that value but do not insert component rows directly.
   - `init(unregisteredID:in:)` is for tests and future reconstruction paths.
   - `init(in:from:)` reserves an ID and registers the entity with `World`.
 - `Engine2/Simulation Runtime/Engine/ECS/EntityID.swift`
   - Entity handle with `index` and `generation`.
+  - `Comparable` orders identities lexicographically by index and then generation for deterministic structural enumeration and tie-breaking. That order does not represent age, distance, or gameplay priority.
   - `generation` should remain meaningful; do not silently regress to index-only identity semantics.
 - `Engine2/Simulation Runtime/Engine/ECS/ComponentStore.swift`
   - Sparse-set style storage:
@@ -150,7 +151,7 @@ Current example ownership:
   - `PRotatable` exposes live angular velocity and angular accumulator input.
   - `PScalable` exposes live `scale`.
 - `Engine2/Simulation Runtime/Engine/System/Selection/PSelectable.swift`
-  - Convenience protocol for entity objects that expose live selection state.
+  - Positioned facade capability that exposes live selection state and its required spherical hit radius. `PSelectable` owns both requirements; there is no separate bounded-selection capability.
 - `Engine2/Simulation Runtime/Engine/System/Position/Component/*.swift`
   - `CPosition` stores authoritative translation in double-precision meters.
   - `CMotion` stores double-precision velocity, acceleration, and impulse values.
@@ -161,6 +162,14 @@ Current example ownership:
   - `CAcceleration` no longer exists; keep the aggregate accumulator direction.
 - `Engine2/Simulation Runtime/Engine/System/Selection/CSelectable.swift`
   - Selection-state component used by `PSelectable` entities and selection UI.
+- `Engine2/Simulation Runtime/Engine/System/Selection/CSelectionBounds.swift`
+  - Positive spherical hit radius required for every `PSelectable` entity.
+- `Engine2/Simulation Runtime/Engine/System/Interaction/**/*.swift`
+  - `CInteraction` stores one positive proximity range independently of the action performed within that range.
+  - `PInteractable` refines `PPositionable` and exposes the live range. `PMineable` and `PDepotServicing` refine this shared target-side capability while their own components retain only mining or depot-specific policy.
+- `Engine2/Simulation Runtime/Engine/System/Control/**/*.swift`
+  - `CMass` owns the component-level live-mass projection: dry mass plus optional current fuel and cargo. Systems call that value operation directly from joined component rows.
+  - `PLiveMass` exposes the same projection through an ergonomic entity facade for Game Content, UI, and tooling.
 - `Engine2/Simulation Runtime/Engine/System/Input/**/*.swift`
   - `InputState` is the authoritative simulation-facing input resource stored on `World`, populated from `InputSnapshot` only at fixed-step boundaries.
   - `InputHistory` is the separate World-owned diagnostic resource. It owns bounded newest-first retention, true fixed-step numbering, consecutive-row coalescing, and display-token formatting without mutating authoritative input.
@@ -279,7 +288,7 @@ Current example ownership:
   - Represents the intended style of game object API more than a finished implementation.
 - `Engine2/Simulation Runtime/Engine/System/Rendering/**/*.swift`
   - `CRenderable` stores only abstract `MeshID` and `MaterialID` values in ECS state.
-  - `PRenderable` seeds those identities from Game Content entities and exposes their live values.
+  - `PRenderable` refines `PPositionable`, because every continuously rendered entity requires an authoritative position, and exposes the live abstract render identities.
 - `Engine2/Simulation Runtime/Snapshot/*.swift`
   - `SimulationTick` identifies completed fixed steps without wall-clock or render-cadence meaning.
   - `SimulationPresentationSnapshot` publishes immutable camera and entity presentation state through `SimulationRuntime.latestPresentationSnapshot`.
@@ -390,8 +399,7 @@ or a closely related `spawn`/factory variant.
 The important idea is:
 - gameplay code should remain ergonomic
 - ECS conversion happens at the world boundary
-If spawn-time data needs to be carried through protocols, prefer small, practical values such as `initialPosition`, `initialVelocity`, etc. Avoid introducing multiple nearly identical "spawn/descriptor/snapshot" types unless there is a concrete need.
-Current note: `Entity.InitialState` is a practical common seed bag for transform and motion data. Do not let it grow into a dumping ground for specialized gameplay state; prefer concrete entity initializers, world builders, or focused future spawn helpers for data that is not broadly engine-level.
+Avoid introducing multiple nearly identical spawn, descriptor, or snapshot types unless there is a concrete need. `Entity.InitialState` is the single typed spawn aggregate: it keeps foundational values with neutral defaults decomposed and carries complete component values for specialized capabilities. Add a seed only with its matching capability-to-store validation in `World.add(_:from:)`; concrete entities must not write component stores directly.
 ### 6. Motion Model: Use Contribution Accumulation
 The project has moved toward a motion contribution model.
 Use `CMotion` for translational motion state:
@@ -438,7 +446,7 @@ Use `update(for:_:)` for:
 This keeps systems data-oriented and avoids extra sparse lookups, generation checks, and whole-value reconstruction when the dense row can be safely mutated in place.
 ## Deep-Dive Notes From Current Code
 ### Spawn Flow Is Capability-Driven
-`World.add(_:from:)` is now the boundary where entity protocol conformances turn into component rows. Keep capability defaults centralized there so concrete entities stay ergonomic and do not duplicate ECS row construction.
+`World.add(_:from:)` is the boundary where entity protocol conformances and one complete `Entity.InitialState` turn into component rows. It validates capability/seed agreement and owns every construction-time insert. Concrete entity constructors assemble the typed seed and call this boundary once; they do not duplicate ECS row construction or mutate stores directly.
 Calling `add` again for the same live entity currently replaces rows. Treat it as spawn-time registration unless a future explicit reset/reseed operation is introduced.
 ### Generation Safety Is Partially Implemented
 `ComponentStore` lookups use `entity.index` for the sparse lookup but then confirm the full `EntityID`, including generation. That protects reads from stale generations.
@@ -482,6 +490,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - Keep systems data-oriented.
 - In systems and other mutation-heavy paths, use `ComponentStore.update(for:_:)` for existing rows instead of `insert`-as-replace.
 - Keep `World.add(_:from:)` as a capability-to-component boundary unless a clearly better spawn API replaces it.
+- Keep every construction-time component write inside `World.add(_:from:)`; concrete entity facades supply typed seed values rather than accessing component stores directly.
 - Add explicit contribution APIs when needed instead of making many systems or object facades directly overwrite integrated velocity.
 - Comment executable logic when explanation clarifies intent, ordering, invariants, ownership, or a non-obvious state transition. Do not narrate self-evident statements. Give substantial methods a short documentation comment when their contract is not already clear from the surrounding type.
 - When the user asks for ideas, architecture notes, or future direction to be captured for later, prefer adding or updating DocC content under `Engine2/Engine2.docc/` rather than leaving that intent only in chat or code comments.

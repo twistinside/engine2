@@ -6,4 +6,9 @@ struct CMass: PComponent {
         precondition(dryMass.isFinite && dryMass > 0, "Dry mass must be finite and positive.")
         self.dryMass = dryMass
     }
+
+    /// Returns dry mass plus the currently stored propellant and ore.
+    func totalMass(fuel: CFuel?, cargo: CCargo?) -> Double {
+        dryMass + (fuel?.remaining ?? 0) + (cargo?.ore ?? 0)
+    }
 }

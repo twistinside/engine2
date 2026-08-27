@@ -42,8 +42,9 @@ struct SSweptCollision: PSystem {
                 continue
             }
 
+            let winsIdentityTie = hitEntity.map { obstacle < $0 } ?? true
             if collision.fraction < hitFraction ||
-                (collision.fraction == hitFraction && entityID(obstacle, precedes: hitEntity)) {
+                (collision.fraction == hitFraction && winsIdentityTie) {
                 hitEntity = obstacle
                 hitFraction = collision.fraction
                 hitNormal = collision.normal
@@ -136,15 +137,5 @@ struct SSweptCollision: PSystem {
             return SIMD2<Double>(motion.velocity.x, motion.velocity.y)
         }
         return .zero
-    }
-
-    private func entityID(_ lhs: EntityID, precedes rhs: EntityID?) -> Bool {
-        guard let rhs else {
-            return true
-        }
-        if lhs.index == rhs.index {
-            return lhs.generation < rhs.generation
-        }
-        return lhs.index < rhs.index
     }
 }

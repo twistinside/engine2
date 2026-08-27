@@ -12,6 +12,17 @@ struct EntityIDTests {
         #expect(Set([firstGeneration, nextGeneration, otherIndex]).count == 3)
     }
 
+    @Test func comparableOrdersIndexBeforeGeneration() {
+        let lowerIndexLaterGeneration = EntityID(index: 4, generation: 9)
+        let higherIndexEarlierGeneration = EntityID(index: 5, generation: 0)
+        let lowerGeneration = EntityID(index: 4, generation: 2)
+
+        #expect(
+            [higherIndexEarlierGeneration, lowerIndexLaterGeneration, lowerGeneration].sorted()
+                == [lowerGeneration, lowerIndexLaterGeneration, higherIndexEarlierGeneration]
+        )
+    }
+
     @Test func codableRoundTripPreservesIndexAndGeneration() throws {
         let original = EntityID(index: 17, generation: 4)
 

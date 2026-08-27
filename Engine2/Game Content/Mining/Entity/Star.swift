@@ -1,8 +1,8 @@
 import simd
 
 /// Mining-slice star that supplies the sole dynamic gravity source.
-final class Star: Entity, PDisplayNamed, PPositionable, PScalable, PRenderable, PSelectable, PSelectionBounded,
-    PGravitySource, PLiveMass, PCollidable {
+final class Star: Entity, PDisplayNamed, PScalable, PRenderable, PSelectable, PGravitySource,
+    PLiveMass, PCollidable {
     convenience init(
         in world: World,
         name: String,
@@ -12,23 +12,21 @@ final class Star: Entity, PDisplayNamed, PPositionable, PScalable, PRenderable, 
         materialID: MaterialID
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
-        world.add(
-            self,
-            from: Entity.InitialState(
-                position: .zero,
-                scale: SIMD3<Float>(repeating: Float(radius)),
-                selectionState: .unselected
+        let initialState = Entity.InitialState(
+            position: .zero,
+            scale: SIMD3<Float>(repeating: Float(radius)),
+            selectionState: .unselected,
+            collisionBody: CCollisionBody(radius: radius, restitution: 0.35),
+            displayName: CDisplayName(value: name),
+            gravitySource: CGravitySource(gravitationalParameter: gravitationalParameter),
+            mass: CMass(dryMass: mass),
+            previousPosition: CPreviousPosition(position: .zero),
+            renderable: RenderableInitialState(
+                meshID: .ball,
+                materialID: materialID
             ),
-            renderable: RenderableInitialState(meshID: .ball, materialID: materialID)
+            selectionBounds: CSelectionBounds(radius: radius)
         )
-        world.displayNameComponents.insert(CDisplayName(value: name), for: id)
-        world.selectionBoundsComponents.insert(CSelectionBounds(radius: radius), for: id)
-        world.gravitySourceComponents.insert(
-            CGravitySource(gravitationalParameter: gravitationalParameter),
-            for: id
-        )
-        world.massComponents.insert(CMass(dryMass: mass), for: id)
-        world.collisionBodyComponents.insert(CCollisionBody(radius: radius, restitution: 0.35), for: id)
-        world.previousPositionComponents.insert(CPreviousPosition(position: .zero), for: id)
+        world.add(self, from: initialState)
     }
 }

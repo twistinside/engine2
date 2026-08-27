@@ -141,7 +141,7 @@ The important boundary is that Simulation publishes completed observable facts w
 
 ## Selected-Entity Inspection Is Not Render Projection
 
-The mining slice's SwiftUI inspector is App presentation, not a Render Runtime projection. It receives the selected live entity through a narrow, read-only Simulation-owned source and conditionally presents protocol-backed capabilities such as motion, orbit, mass, propulsion, fuel, cargo, mining, depot service, and collision. Its orbit-assist button receives a separate focused callback that passes the displayed entity's full identity through the real-time assembly and its sole advance authority.
+The mining slice's SwiftUI inspector is App presentation, not a Render Runtime projection. It receives the selected live entity through a narrow, read-only Simulation-owned source and conditionally presents protocol-backed capabilities such as selection with its required hit bound, motion, orbit, mass, propulsion, fuel, cargo, shared interaction range, mining, depot service, and collision. Its orbit-assist button receives a separate focused callback that passes the displayed entity's full identity through the real-time assembly and its sole advance authority.
 
 The inspector does not read `RenderFrame`, backend resources, or `World`, and the callback cannot mutate the facade. ``OrbitCircularizationCommand`` travels on a cursor-qualified Simulation request rather than through Render or ``InputRuntime``. ``SimulationPresentationSnapshot`` remains the scene-and-camera contract for rendering and does not acquire gameplay fields or commands merely because an in-process UI wants to inspect or act on one entity.
 

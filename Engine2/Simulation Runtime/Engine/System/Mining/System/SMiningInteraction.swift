@@ -31,14 +31,14 @@ struct SMiningInteraction: PSystem {
 
         if let cargo, cargo.ore < cargo.capacity {
             for candidate in world.mineableComponents.entities {
-                guard let mineable = world.mineableComponents[candidate],
+                guard let interaction = world.interactionComponents[candidate],
                       let deposit = world.oreDepositComponents[candidate],
                       deposit.remainingOre > 0,
                       let position = world.positionComponents[candidate]?.position else {
                     continue
                 }
                 let distance = planarDistance(from: actorPosition, to: position)
-                guard distance <= mineable.interactionRange else {
+                guard distance <= interaction.interactionRange else {
                     continue
                 }
                 if isPreferred(candidate, distance: distance, over: target, distance: nearestDistance) {
@@ -51,12 +51,12 @@ struct SMiningInteraction: PSystem {
 
         if (cargo?.ore ?? 0) > 0 || (fuel.map { $0.remaining < $0.capacity } ?? false) {
             for candidate in world.depotServiceComponents.entities {
-                guard let depot = world.depotServiceComponents[candidate],
+                guard let interaction = world.interactionComponents[candidate],
                       let position = world.positionComponents[candidate]?.position else {
                     continue
                 }
                 let distance = planarDistance(from: actorPosition, to: position)
-                guard distance <= depot.interactionRange else {
+                guard distance <= interaction.interactionRange else {
                     continue
                 }
                 if isPreferred(candidate, distance: distance, over: target, distance: nearestDistance) {
@@ -146,9 +146,6 @@ struct SMiningInteraction: PSystem {
         guard distance == incumbentDistance, let incumbent else {
             return false
         }
-        if candidate.index == incumbent.index {
-            return candidate.generation < incumbent.generation
-        }
-        return candidate.index < incumbent.index
+        return candidate < incumbent
     }
 }

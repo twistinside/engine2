@@ -11,7 +11,8 @@ struct SMiningInteractionTests {
         world.cargoComponents.insert(CCargo(capacity: 8_000), for: skiff)
         world.positionComponents.insert(CPosition(position: SIMD3<Double>(100, 0, 0)), for: asteroid)
         world.oreDepositComponents.insert(COreDeposit(remainingOre: 4_000), for: asteroid)
-        world.mineableComponents.insert(CMineable(interactionRange: 140, miningRate: 800), for: asteroid)
+        world.interactionComponents.insert(CInteraction(interactionRange: 140), for: asteroid)
+        world.mineableComponents.insert(CMineable(miningRate: 800), for: asteroid)
 
         var system = SMiningInteraction()
         system.update(world: &world, deltaTime: 1)
@@ -29,8 +30,9 @@ struct SMiningInteractionTests {
         world.cargoComponents.insert(CCargo(capacity: 8_000, ore: 1_000), for: skiff)
         world.fuelComponents.insert(CFuel(capacity: 2_000, remaining: 1_000), for: skiff)
         world.positionComponents.insert(CPosition(position: SIMD3<Double>(100, 0, 0)), for: depot)
+        world.interactionComponents.insert(CInteraction(interactionRange: 140), for: depot)
         world.depotServiceComponents.insert(
-            CDepotService(interactionRange: 140, unloadingRate: 1_600, refuelingRate: 400),
+            CDepotService(unloadingRate: 1_600, refuelingRate: 400),
             for: depot
         )
 
@@ -50,8 +52,9 @@ struct SMiningInteractionTests {
         world.playerControlComponents.insert(CPlayerControl(isInteractionActive: true), for: tug)
         world.fuelComponents.insert(CFuel(capacity: 2_000, remaining: 1_000), for: tug)
         world.positionComponents.insert(CPosition(position: SIMD3<Double>(100, 0, 0)), for: depot)
+        world.interactionComponents.insert(CInteraction(interactionRange: 140), for: depot)
         world.depotServiceComponents.insert(
-            CDepotService(interactionRange: 140, unloadingRate: 1_600, refuelingRate: 400),
+            CDepotService(unloadingRate: 1_600, refuelingRate: 400),
             for: depot
         )
 
@@ -70,8 +73,9 @@ struct SMiningInteractionTests {
         world.playerControlComponents.insert(CPlayerControl(isInteractionActive: true), for: hauler)
         world.cargoComponents.insert(CCargo(capacity: 8_000, ore: 1_000), for: hauler)
         world.positionComponents.insert(CPosition(position: SIMD3<Double>(100, 0, 0)), for: depot)
+        world.interactionComponents.insert(CInteraction(interactionRange: 140), for: depot)
         world.depotServiceComponents.insert(
-            CDepotService(interactionRange: 140, unloadingRate: 1_600, refuelingRate: 400),
+            CDepotService(unloadingRate: 1_600, refuelingRate: 400),
             for: depot
         )
 

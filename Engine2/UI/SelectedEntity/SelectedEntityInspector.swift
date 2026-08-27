@@ -49,9 +49,7 @@ struct SelectedEntityInspector: View {
         if let selectable = entity as? any PSelectable {
             section("Selection", systemImage: "cursorarrow.rays") {
                 metric("State", String(describing: selectable.selectionState))
-                if let bounded = entity as? any PSelectionBounded {
-                    metric("Hit radius", meters(bounded.selectionRadius))
-                }
+                metric("Hit radius", meters(selectable.selectionRadius))
             }
         }
 
@@ -171,9 +169,14 @@ struct SelectedEntityInspector: View {
             }
         }
 
+        if let interactable = entity as? any PInteractable {
+            section("Interaction", systemImage: "hand.tap") {
+                metric("Range", meters(interactable.interactionRange))
+            }
+        }
+
         if let mineable = entity as? any PMineable {
             section("Mining", systemImage: "hammer") {
-                metric("Range", meters(mineable.interactionRange))
                 metric("Rate", format(mineable.miningRate, unit: "kg/s"))
             }
         }
@@ -181,7 +184,6 @@ struct SelectedEntityInspector: View {
         if let depot = entity as? any PDepotServicing {
             section("Depot Service", systemImage: "building.2") {
                 metric("Delivered ore", kilograms(depot.deliveredOre))
-                metric("Range", meters(depot.depotInteractionRange))
                 metric("Unload rate", format(depot.unloadingRate, unit: "kg/s"))
                 metric("Refuel rate", format(depot.refuelingRate, unit: "kg/s"))
             }

@@ -73,17 +73,14 @@ struct SPlanarSelectionTests {
             entity,
             from: Entity.InitialState(
                 position: position,
-                selectionState: .unselected
+                selectionState: .unselected,
+                selectionBounds: CSelectionBounds(radius: radius)
             )
-        )
-        world.selectionBoundsComponents.insert(
-            CSelectionBounds(radius: radius),
-            for: entity.id
         )
         return entity
     }
 }
 
 private extension SPlanarSelectionTests {
-    final class TestBoundedEntity: Entity, PSelectionBounded {}
+    final class TestBoundedEntity: Entity, PSelectable {}
 }

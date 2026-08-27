@@ -73,6 +73,30 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         #expect(!estimate.hasSufficientFuel)
     }
 
+    @Test func cargoMassRaisesRequiredFuelForTheSameManeuver() throws {
+        let emptyFixture = makeFixture(
+            radius: 2_000,
+            primaryVelocity: .zero,
+            entityVelocity: .zero
+        )
+        let loadedFixture = makeFixture(
+            radius: 2_000,
+            primaryVelocity: .zero,
+            entityVelocity: .zero,
+            cargoOre: 8_000
+        )
+
+        let emptyEstimate = try #require(
+            emptyFixture.world.orbitCircularizationEstimate(for: emptyFixture.entity)
+        )
+        let loadedEstimate = try #require(
+            loadedFixture.world.orbitCircularizationEstimate(for: loadedFixture.entity)
+        )
+
+        #expect(loadedEstimate.deltaV == emptyEstimate.deltaV)
+        #expect(loadedEstimate.requiredFuel > emptyEstimate.requiredFuel)
+    }
+
     @Test func contactWithThePrimaryHasNoEstimate() {
         let fixture = makeFixture(
             radius: 110,
@@ -87,7 +111,8 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         radius: Double,
         primaryVelocity: SIMD3<Double>,
         entityVelocity: SIMD3<Double>,
-        remainingFuel: Double = 2_000
+        remainingFuel: Double = 2_000,
+        cargoOre: Double = 0
     ) -> (world: World, primary: EntityID, entity: EntityID) {
         let world = World()
         let primary = EntityID(index: 0, generation: 0)
@@ -124,6 +149,10 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         )
         world.fuelComponents.insert(
             CFuel(capacity: 2_000, remaining: remainingFuel),
+            for: entity
+        )
+        world.cargoComponents.insert(
+            CCargo(capacity: 8_000, ore: cargoOre),
             for: entity
         )
 
