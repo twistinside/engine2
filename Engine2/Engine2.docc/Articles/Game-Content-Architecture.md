@@ -182,11 +182,13 @@ Content or Simulation.
 
 The hand-authored mining slice uses the same construction seam for one star, orbiting asteroids, one player skiff, and one depot. Game Content defines their entity facades, initial component values, semantic input mapping, controlled behavior systems, and abstract render identities. The Simulation Runtime still owns the resulting component stores, schedule execution, selection state, and gameplay mutation.
 
-The slice's `InputMappingConfiguration` maps keyboard and pointer input to context-free translation, interaction, camera, and selection intent. It cannot name the skiff or inspect selection. Systems supplied through ``PSimulationBehavior`` resolve that intent against ECS state, advance deterministic asteroid and depot rails, contribute star gravity and skiff thrust, resolve collisions, and perform mining or depot service at the fixed ``SimulationSystemSchedule`` stages.
+``MiningWorldBuilder`` owns the slice's gravitational parameter, orbital radii, derived circular speeds, and more top-down initial camera framing. Those values tune this Game Content. ``SOrbitalRail`` remains a general Simulation policy, and Runtime cadence does not define the scenario's scale or orbital speed.
+
+The slice's `InputMappingConfiguration` maps keyboard and pointer input to context-free translation, interaction, camera, and selection intent. It cannot name the skiff or inspect selection. Systems supplied through ``PSimulationBehavior`` resolve that intent against ECS state, advance deterministic asteroid and depot rails, contribute star gravity and skiff thrust, resolve collisions, and perform mining or depot service at the fixed ``SimulationSystemSchedule`` stages. The SwiftUI circularization action is deliberately outside that physical mapping: Mining Game Content contributes ``SOrbitCircularization`` at `inputConsumption`, while the command reaches Simulation on an exact advance request.
 
 This is a deliberate mixed-dynamics scenario. Quiet asteroids and the depot follow analytic circular rails; only the skiff dynamically integrates gravity, propulsion, fuel, cargo-dependent mass, and collision response. The generated physical model described later in this article does not implicitly become this gameplay world.
 
-The selected-entity SwiftUI inspector receives a narrow Simulation-owned selected-entity source and renders only the capability protocols supported by the live facade. Game Content supplies those typed capabilities. It does not route inspection through ``SimulationPresentationSnapshot`` or add renderer-specific state to ECS.
+The selected-entity SwiftUI inspector renders only the capability protocols supported by the live facade from a narrow, read-only Simulation-owned source. Game Content supplies those typed capabilities. A separate focused callback submits the displayed entity's full identity for orbit assistance through the real-time assembly; it does not make the facade mutable, route inspection through ``SimulationPresentationSnapshot``, or add renderer-specific state to ECS.
 
 A consumer assembly may use the same production-plus-injection shape:
 

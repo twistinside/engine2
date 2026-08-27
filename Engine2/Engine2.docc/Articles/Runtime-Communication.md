@@ -6,7 +6,7 @@ This article defines the proposed communication model between Engine2 runtimes.
 
 Partially implemented.
 
-The Input Runtime maps physical device state through `InputMappingConfiguration` and publishes a revisioned latest semantic ``InputSnapshot`` through `PInputSnapshotSource`. The snapshot contains context-free translation and interaction intent plus cumulative camera and selection values; it does not identify an entity or expose physical keys and buttons. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. Simulation then interprets the semantic values using authoritative ECS selection and player-control state. The Simulation Runtime separately publishes a latest completed ``SimulationPresentationSnapshot``. The current screen renderer projects that value with `snapshot.camera` exactly, producing a private ``RenderFrame`` that carries the Simulation cursor and no explicit-viewpoint attribution.
+The Input Runtime maps physical device state through `InputMappingConfiguration` and publishes a revisioned latest semantic ``InputSnapshot`` through `PInputSnapshotSource`. The snapshot contains context-free translation and interaction intent plus cumulative camera and selection values; it does not identify an entity or expose physical keys and buttons. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. Simulation then interprets the semantic values using authoritative ECS selection and player-control state. The optional orbit-circularization command uses a separate SwiftUI-to-assembly path but joins that same cursor-qualified request and is imported only for its first tick. The Simulation Runtime separately publishes a latest completed ``SimulationPresentationSnapshot``. The current screen renderer projects that value with `snapshot.camera` exactly, producing a private ``RenderFrame`` that carries the Simulation cursor and no explicit-viewpoint attribution.
 
 `MetalSceneView` hosts one `MetalScenePlatformView`. The single platform `MTKView` supplies the drawable surface used by `MetalRenderer` and submits each physical host ``InputEvent`` directly to ``InputRuntime`` through `PInputEventSink`. It contains no semantic mapping, gameplay decision, or render encoding. No presentation recipient receives physical screen input, and ``RealtimeAssembly`` is not an input router. Ordered event publication, typed multi-source routes, future presentation routes, multi-window output bindings, additional semantic snapshot surfaces, subscription lifetimes, retained runtime publication history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
 
@@ -49,7 +49,7 @@ The current ``SimulationPresentationSnapshot`` is the first such surface. It pub
 
 The presentation snapshot contains enough semantic fidelity for presentation consumers to derive private models without exposing simulation implementation. A future audio, networking, or other continuous-state need may justify another explicitly named Simulation Runtime snapshot. It should not automatically expand this presentation contract or create a universal bag of all simulation state.
 
-The selected-entity SwiftUI inspector uses a different boundary. A narrow Simulation-owned source exposes only the currently selected live entity facade, and the inspector conditionally renders sections from that facade's capability protocols. It does not receive `World`, inspect component-store representation, or require gameplay fields in ``SimulationPresentationSnapshot``. Selection remains authoritative ECS state even though the inspector consumes an ergonomic entity view.
+The selected-entity SwiftUI inspector uses a different boundary. A narrow Simulation-owned source exposes only the currently selected live entity facade, and the inspector conditionally renders sections from that facade's capability protocols. The source remains read-only. A separate focused callback passes the displayed entity's full ``EntityID`` through ``PRealtimeAssemblyViewModel`` to ``RealtimeAdvanceDriver`` when the player requests orbit circularization. The inspector does not receive `World`, inspect component-store representation, mutate the facade, or require gameplay fields in ``SimulationPresentationSnapshot``. Selection remains authoritative ECS state even though the inspector consumes an ergonomic entity view.
 
 A restorable `GameCheckpoint` is a different value. Saving, rollback, or deterministic continuation may require random-generator state, private timers, behavior state, or other details that do not belong in ordinary live publications. The App should coordinate checkpoint creation as a deliberate request/result workflow, and a Storage Runtime may persist the simulation-owned checkpoint without interpreting it.
 
@@ -63,6 +63,7 @@ SimulationRuntime
     +-- SimulationPresentationSnapshot
     |       + RenderViewpoint ----------------------> exact RenderFrame
     +-- selected-entity source ---------------------> SwiftUI inspector
+SwiftUI inspector -- EntityID callback -------------> RealtimeAssembly
 ```
 
 There is no jointly owned snapshot in this flow:
@@ -98,11 +99,13 @@ The App remains the composition root. It decides which runtime outputs are conne
 MetalScenePlatformView -- InputEvent ------> InputRuntime
 InputRuntime -- latest InputSnapshot -----> RealtimeAdvanceDriver
 RealtimeAdvanceDriver
-    +-- SimulationAdvanceRequest ---------> SimulationRuntime
+    +-- SimulationAdvanceRequest [optional OrbitCircularizationCommand] --> SimulationRuntime
 SimulationRuntime
     +-- SimulationPresentationSnapshot ------> MetalRenderer
     +-- SimulationPresentationSnapshot ------> RealtimeSnapshotCaptureConnection
     +-- selected-entity source --------------> SwiftUI inspector
+SwiftUI inspector -- EntityID callback ------> RealtimeAssembly
+RealtimeAssembly -- staged orbit command ----> RealtimeAdvanceDriver
 RealtimeSnapshotCaptureConnection
     +-- OffscreenRenderRequest -------------> MetalOffscreenRenderRuntime
 SimulationRuntime
@@ -124,13 +127,15 @@ A shared infrastructure type resembling `RuntimeOutput<Snapshot, Event>` may eve
 
 An assembly-owned router or hub may be an implementation detail, but it must not erase the explicit typed topology or become globally discoverable mutable state.
 
-The implemented input connection uses narrow capabilities and one recipient. `MetalScenePlatformView` submits physical `InputEvent` values directly to ``InputRuntime`` through `PInputEventSink`; the Runtime ignores them while its publication lifecycle is stopped and otherwise updates private device state, performs context-free mapping, and publishes a semantic snapshot. ``RealtimeAdvanceDriver`` receives only that immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. ``RealtimeAssembly`` owns both connections, and `MetalSceneView` installs the single platform surface. `InputEvent` is therefore host ingress, not a runtime-published event stream, a presentation command, or a direct call into Simulation. Source identity, route epochs, independent recipient baselines, exclusivity, presentation control, and multi-window binding semantics remain future typed-routing work.
+The implemented input connection uses narrow capabilities and one recipient. `MetalScenePlatformView` submits physical `InputEvent` values directly to ``InputRuntime`` through `PInputEventSink`; the Runtime ignores them while its publication lifecycle is stopped and otherwise updates private device state, performs context-free mapping, and publishes a semantic snapshot. ``RealtimeAdvanceDriver`` receives only that immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. ``RealtimeAssembly`` owns both connections, and `MetalSceneView` installs the single platform surface. `InputEvent` is therefore host ingress, not a runtime-published event stream, a presentation command, or a direct call into Simulation. The orbit-assist callback does not weaken that rule: it bypasses Input Runtime and stages one typed Simulation command through the sole real-time advance authority. Source identity, route epochs, independent recipient baselines, exclusivity, presentation control, and multi-window binding semantics remain future typed-routing work.
 
 ## Directed Advancement Needs an Exact Result
 
 Advancing Simulation is neither a snapshot nor an event. It is a deliberate request to perform authoritative work, so the App-owned assembly or its focused coordinator routes it through the narrow Simulation-owned ``PSimulationAdvanceTarget`` request/result capability.
 
 The requester may be a real-time driver, offline capture workflow, MCP session coordinator, network lockstep policy, replay driver, or test. It decides when and how many ticks to request; ``SimulationRuntime`` remains the only owner that executes the complete fixed-step schedule, mutates ``World``, advances the session-qualified cursor, and publishes committed outputs.
+
+The real-time orbit assist demonstrates request-attributed gameplay control without adding a second advance authority. ``RealtimeAdvanceDriver`` stages ``OrbitCircularizationCommand`` behind a generation tag and captures it in the next exact request. Completion retires only the captured generation, so a newer click received while that request is in flight remains pending; session synchronization clears stale pending work. After cursor validation, ``SimulationRuntime`` makes the command visible only to the first tick of a multi-step request, and ``SOrbitCircularization`` consumes and clears it during `inputConsumption`.
 
 Latest-value publication remains correct for consumers allowed to skip superseded states. It is not sufficient for an offline or MCP workflow that must render exactly the state produced by its own command. Such a workflow needs an immutable exact result or cursor-addressed rendezvous labeled with a Simulation session identity and tick. A cursor identifies state but does not imply that state is retained. A multi-tick result must expose enough initial/final cursor correlation for a separately configured ordered event lane or journal to recover required occurrences; the final snapshot does not imply their retention.
 

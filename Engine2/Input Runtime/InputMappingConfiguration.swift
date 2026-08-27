@@ -27,7 +27,7 @@ nonisolated struct InputMappingConfiguration: Equatable, Sendable {
         interactionKeyCodes: [49],
         selectionButton: .left,
         pointerOrbitSensitivity: 0.01,
-        scrollZoomSensitivity: 2
+        scrollZoomSensitivity: 4
     )
 
     let leftKeyCodes: Set<UInt16>

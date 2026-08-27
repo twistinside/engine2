@@ -325,6 +325,59 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.currentCursor.tick == SimulationTick(rawValue: 1))
     }
 
+    @Test func orbitCommandIsImportedOnlyForTheFirstTickOfABatch() async throws {
+        let simulation = makeSimulation(
+            behavior: OrbitCommandProbeBehavior()
+        )
+        let entityID = try #require(
+            simulation.world.positionComponents.entities.first
+        )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: simulation.currentCursor,
+            stepCount: SimulationStepCount(rawValue: 3),
+            inputAssignment: .none,
+            orbitCircularizationCommand: OrbitCircularizationCommand(
+                entityID: entityID
+            )
+        )
+
+        _ = try completedResult(from: await simulation.advance(request))
+
+        #expect(
+            simulation.world.positionComponents[entityID]?.position
+                == SIMD3<Double>(3, 1, 0)
+        )
+        #expect(simulation.world.orbitCircularizationCommand == nil)
+    }
+
+    @Test func cursorMismatchRejectsOrbitCommandWithoutImportingIt() async throws {
+        let simulation = makeSimulation(
+            behavior: OrbitCommandProbeBehavior()
+        )
+        let entityID = try #require(
+            simulation.world.positionComponents.entities.first
+        )
+        let staleCursor = SimulationCursor(
+            sessionID: simulation.sessionID,
+            tick: SimulationTick(rawValue: 5)
+        )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: staleCursor,
+            stepCount: .one,
+            inputAssignment: .none,
+            orbitCircularizationCommand: OrbitCircularizationCommand(
+                entityID: entityID
+            )
+        )
+
+        _ = await simulation.advance(request)
+
+        #expect(
+            simulation.world.positionComponents[entityID]?.position == .zero
+        )
+        #expect(simulation.world.orbitCircularizationCommand == nil)
+    }
+
     @Test func returnedSnapshotRemainsDetachedFromLaterAdvances() async throws {
         let simulation = makeSimulation()
         let firstRequest = SimulationAdvanceRequest(
@@ -351,10 +404,14 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.latestPresentationSnapshot.entityPresentations.first?.position == SIMD3<Float>(2, 0, 0))
     }
 
-    private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
+    private func makeSimulation(
+        sessionID: SimulationSessionID = SimulationSessionID(),
+        behavior: any PSimulationBehavior = StandardSimulationBehavior()
+    ) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
             configuration: .basicGame,
+            behavior: behavior,
             inputBaseline: nil,
             sessionID: sessionID
         )
@@ -399,6 +456,26 @@ struct SimulationRuntimeAdvanceTests {
                 velocity: velocity
             )
             return world
+        }
+    }
+
+    private struct OrbitCommandProbeBehavior: PSimulationBehavior {
+        func makeSystemSchedule() -> SimulationSystemSchedule {
+            SimulationSystemSchedule(
+                inputConsumption: [SOrbitCommandProbe()]
+            )
+        }
+    }
+
+    private struct SOrbitCommandProbe: PSystem {
+        mutating func update(world: inout World, deltaTime _: Double) {
+            guard let command = world.orbitCircularizationCommand else {
+                return
+            }
+
+            world.positionComponents.update(for: command.entityID) { position in
+                position.position.y += 1
+            }
         }
     }
 

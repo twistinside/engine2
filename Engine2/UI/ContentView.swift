@@ -6,7 +6,8 @@ import UniformTypeIdentifiers
 /// ``RealtimeAssemblyView`` supplies one narrow assembly model. This view does
 /// not acquire exact advancement or lifecycle authority: the Metal scene
 /// consumes immutable presentation snapshots, while controls toggle assembly
-/// policy or request a detached artifact through assembly-owned connections.
+/// policy, stage one focused maneuver, or request a detached artifact through
+/// assembly-owned connections.
 struct ContentView: View {
     let model: any PRealtimeAssemblyViewModel
     let debugOptions: AppDebugOptions
@@ -50,7 +51,11 @@ struct ContentView: View {
 
             Divider()
 
-            SelectedEntityInspector(source: model.selectedEntitySource)
+            SelectedEntityInspector(
+                source: model.selectedEntitySource,
+                isAdvancementActive: model.isAdvancementActive,
+                requestOrbitCircularization: model.requestOrbitCircularization
+            )
                 .frame(width: 320)
         }
         .onAppear {

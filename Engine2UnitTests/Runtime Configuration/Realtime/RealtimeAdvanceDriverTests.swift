@@ -3,6 +3,44 @@ import Testing
 @testable import Engine2
 
 struct RealtimeAdvanceDriverTests {
+    @Test func stagedOrbitCommandTravelsWithTheNextExactRequest() async throws {
+        let cursor = makeCursor()
+        let target = RecordingAdvanceTarget(cursor: cursor)
+        let baseInstant = SuspendingClock().now
+        let clock = TestRealtimeClock(
+            initialInstant: baseInstant,
+            suspension: .controlled
+        )
+        let driver = makeDriver(
+            target: target,
+            inputSource: nil,
+            cursor: cursor,
+            fixedTimeStep: .milliseconds(100),
+            pollInterval: .milliseconds(100),
+            clock: clock
+        )
+        let entityID = EntityID(index: 12, generation: 4)
+
+        driver.start()
+        await clock.waitForPendingCount(1)
+        driver.requestOrbitCircularization(for: entityID)
+        await clock.resumeNext(
+            at: baseInstant.advanced(by: .milliseconds(100))
+        )
+        let didRecordRequest = await eventually {
+            await target.requestCount() == 1
+        }
+        driver.stop()
+        await clock.resumeAll()
+
+        let request = try #require(await target.recordedRequests().first)
+        #expect(didRecordRequest)
+        #expect(
+            request.orbitCircularizationCommand
+                == OrbitCircularizationCommand(entityID: entityID)
+        )
+    }
+
     @Test func substepElapsedTimeAccumulatesUntilOneExactStepIsReady() async {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)

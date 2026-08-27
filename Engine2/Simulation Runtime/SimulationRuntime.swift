@@ -111,10 +111,9 @@ final class SimulationRuntime: PSelectedEntitySource, PSimulationAdvanceTarget, 
 
     /// Advances the Runtime by an exact number of complete fixed steps.
     ///
-    /// Input is accepted only through the immutable assignment carried by the
-    /// request and is applied once at the first requested tick boundary. The
-    /// owning assembly is responsible for granting at most one caller effective
-    /// advance authority at a time.
+    /// Input and the optional focused maneuver are accepted only through the
+    /// immutable request and imported once at its first tick boundary. The
+    /// owning assembly grants at most one caller effective advance authority.
     nonisolated func advance(_ request: SimulationAdvanceRequest) async -> SimulationAdvanceOutcome {
         await advanceSynchronously(request)
     }
@@ -138,7 +137,8 @@ final class SimulationRuntime: PSelectedEntitySource, PSimulationAdvanceTarget, 
         let firstStepInput = prepareFirstStepInput(for: request.inputAssignment)
         runFixedSteps(
             request.stepCount,
-            firstStepInput: firstStepInput
+            firstStepInput: firstStepInput,
+            firstStepOrbitCircularizationCommand: request.orbitCircularizationCommand
         )
 
         return .completed(
@@ -172,12 +172,20 @@ final class SimulationRuntime: PSelectedEntitySource, PSimulationAdvanceTarget, 
     }
 
     /// Runs the exact requested batch, applying assigned input only to its first tick.
-    private func runFixedSteps(_ stepCount: SimulationStepCount, firstStepInput: InputSnapshot?) {
+    private func runFixedSteps(
+        _ stepCount: SimulationStepCount,
+        firstStepInput: InputSnapshot?,
+        firstStepOrbitCircularizationCommand: OrbitCircularizationCommand?
+    ) {
         for stepIndex in 0..<stepCount.rawValue {
+            engine.world.orbitCircularizationCommand = stepIndex == 0
+                ? firstStepOrbitCircularizationCommand
+                : nil
             engine.step(
                 inputSnapshot: stepIndex == 0 ? firstStepInput : nil
             )
         }
+        engine.world.orbitCircularizationCommand = nil
     }
 
     /// Publishes the completed batch and forms its cursor-correlated result.

@@ -21,6 +21,7 @@ class World {
     var massComponents = ComponentStore<CMass>()
     var mineableComponents = ComponentStore<CMineable>()
     var motionComponents = ComponentStore<CMotion>()
+    var orbitPrimaryComponents = ComponentStore<COrbitPrimary>()
     var orbitalRailComponents = ComponentStore<COrbitalRail>()
     var oreDepositComponents = ComponentStore<COreDeposit>()
     var playerControlComponents = ComponentStore<CPlayerControl>()
@@ -38,10 +39,12 @@ class World {
     var cameraFollowEntityID: EntityID?
     var input = InputState()
     var inputHistory = InputHistory(maximumEntryCount: 60)
+    var orbitCircularizationCommand: OrbitCircularizationCommand?
     private(set) var selectedEntityID: EntityID?
 
     private var entitiesByID: [EntityID: Entity] = [:]
     private var nextEntityIndex = 0
+    private let orbitCircularizationEstimateEvaluator = OrbitCircularizationEstimateEvaluator()
 
     /// Entity facades in deterministic identity order for UI and tooling.
     ///
@@ -132,6 +135,11 @@ class World {
         return mass.dryMass
             + (fuelComponents[entity]?.remaining ?? 0)
             + (cargoComponents[entity]?.ore ?? 0)
+    }
+
+    /// Returns a live circularization estimate for one capable entity.
+    func orbitCircularizationEstimate(for entity: EntityID) -> OrbitCircularizationEstimate? {
+        orbitCircularizationEstimateEvaluator.estimate(for: entity, in: self)
     }
 
     /// Selects one registered selectable entity and clears every other row.

@@ -33,7 +33,7 @@ struct SOrbitalRailTests {
         var world = World()
         let primary = EntityID(index: 0, generation: 0)
         let satellite = EntityID(index: 1, generation: 0)
-        let radius = 850.0
+        let radius = 1_800.0
         let angularSpeed = sqrt(MiningWorldBuilder.gravitationalParameter / (radius * radius * radius))
         let period = 2 * Double.pi / angularSpeed
         let step = 1.0 / 60

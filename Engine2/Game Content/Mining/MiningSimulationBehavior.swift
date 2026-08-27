@@ -5,6 +5,7 @@ struct MiningSimulationBehavior: PSimulationBehavior {
             inputConsumption: [
                 SPlanarSelection(),
                 SSelectedEntityControl(),
+                SOrbitCircularization(),
             ],
             worldPreparation: [
                 SPreviousPositionCapture(),

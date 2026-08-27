@@ -19,8 +19,8 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
     static let miningGame = Self(
         cameraOrbitTarget: .zero,
         cameraOrbitAxis: SIMD3<Float>(0, 0, 1),
-        minimumCameraOrbitRadius: 250,
-        maximumCameraOrbitRadius: 2_500
+        minimumCameraOrbitRadius: 100,
+        maximumCameraOrbitRadius: 4_000
     )
 
     let cameraOrbitAxis: SIMD3<Float>

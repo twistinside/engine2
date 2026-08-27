@@ -27,4 +27,7 @@ protocol PRealtimeAssemblyViewModel {
 
     /// Requests an assembly-coordinated rebuild of the current session.
     func restartSession()
+
+    /// Stages a selected craft maneuver for the next complete Simulation tick.
+    func requestOrbitCircularization(for entityID: EntityID)
 }

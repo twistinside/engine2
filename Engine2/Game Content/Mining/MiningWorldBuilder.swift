@@ -3,13 +3,13 @@ import simd
 
 /// Builds the deterministic nine-body mining vertical slice.
 struct MiningWorldBuilder: PWorldBuilder {
-    static let cameraHeight: Float = 500
-    static let cameraPlanarOffset: Float = 500
+    static let cameraHeight: Float = 1_200
+    static let cameraPlanarOffset: Float = 400
     static let cargoCapacity = 8_000.0
-    static let depotOrbitRadius = 650.0
+    static let depotOrbitRadius = 1_200.0
     static let exhaustVelocity = 20_000.0
     static let fuelCapacity = 2_000.0
-    static let gravitationalParameter = 5_000_000.0
+    static let gravitationalParameter = 4_000_000.0
     static let maximumThrust = 300_000.0
     static let miningRate = 800.0
     static let refuelingRate = 400.0
@@ -19,7 +19,7 @@ struct MiningWorldBuilder: PWorldBuilder {
 
     private let asteroidOre = [4_000.0, 5_000.0, 6_000.0, 7_000.0, 8_000.0, 9_000.0]
     private let asteroidPhases = [0.35, 1.30, 2.25, 3.20, 4.15, 5.10]
-    private let asteroidRadii = [850.0, 1_000.0, 1_125.0, 1_300.0, 1_450.0, 1_600.0]
+    private let asteroidRadii = [1_800.0, 2_400.0, 3_000.0, 3_600.0, 4_300.0, 5_000.0]
     private let asteroidSizes = [32.0, 38.0, 44.0, 36.0, 48.0, 42.0]
 
     func buildWorld() -> World {
@@ -39,6 +39,7 @@ struct MiningWorldBuilder: PWorldBuilder {
         let skiff = MiningSkiff(
             in: world,
             name: "Prospector",
+            primaryEntityID: star.id,
             position: skiffPosition,
             velocity: circularVelocity(at: skiffPosition),
             physicalRadius: 10,
@@ -75,7 +76,7 @@ struct MiningWorldBuilder: PWorldBuilder {
                 Self.cameraHeight
             ),
             up: SIMD3<Float>(0, 0, 1),
-            projection: .perspective(verticalFieldOfView: .pi / 3, near: 1, far: 10_000)
+            projection: .perspective(verticalFieldOfView: .pi / 3, near: 1, far: 20_000)
         )
         return world
     }

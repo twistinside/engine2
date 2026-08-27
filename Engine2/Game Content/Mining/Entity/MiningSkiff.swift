@@ -3,10 +3,11 @@ import simd
 /// Player-controlled dynamic craft for mining, hauling, and depot service.
 final class MiningSkiff: Entity, PDisplayNamed, PMovable, PScalable, PRenderable, PSelectable,
     PSelectionBounded, PGravityAffected, PLiveMass, PPropelled, PFueled, PCargoCarrying,
-    PPlayerControlled, PCollidable {
+    PPlayerControlled, PCollidable, POrbitCircularizable {
     convenience init(
         in world: World,
         name: String,
+        primaryEntityID: EntityID,
         position: SIMD3<Double>,
         velocity: SIMD3<Double>,
         physicalRadius: Double,
@@ -31,6 +32,10 @@ final class MiningSkiff: Entity, PDisplayNamed, PMovable, PScalable, PRenderable
         world.displayNameComponents.insert(CDisplayName(value: name), for: id)
         world.selectionBoundsComponents.insert(CSelectionBounds(radius: physicalRadius), for: id)
         world.gravityReceiverComponents.insert(CGravityReceiver(), for: id)
+        world.orbitPrimaryComponents.insert(
+            COrbitPrimary(primaryEntityID: primaryEntityID),
+            for: id
+        )
         world.massComponents.insert(CMass(dryMass: dryMass), for: id)
         world.propulsionComponents.insert(
             CPropulsion(maximumThrust: maximumThrust, exhaustVelocity: exhaustVelocity),

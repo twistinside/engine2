@@ -215,6 +215,11 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         }
     }
 
+    /// Routes one UI maneuver through the sole real-time advance authority.
+    func requestOrbitCircularization(for entityID: EntityID) {
+        advanceDriver.requestOrbitCircularization(for: entityID)
+    }
+
     /// Reconstructs Simulation as one coordinated cursor and input-baseline cutover.
     func rebuildSimulation() async {
         let transition = lifecycleState.beginTransition()

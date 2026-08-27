@@ -3,11 +3,13 @@ import SwiftUI
 
 /// Persistent capability-driven inspector for the selected Simulation entity.
 ///
-/// The view receives only a selected-entity source. Every displayed value comes
-/// through a capability protocol backed by authoritative ECS component stores;
-/// unsupported sections remain absent instead of requiring one universal DTO.
+/// Every displayed value comes through a read-only capability protocol backed
+/// by authoritative ECS stores. One focused callback stages the orbit-assist
+/// command without granting the view World or advancement authority.
 struct SelectedEntityInspector: View {
     let source: any PSelectedEntitySource
+    let isAdvancementActive: Bool
+    let requestOrbitCircularization: (EntityID) -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 0.1)) { _ in
@@ -78,6 +80,43 @@ struct SelectedEntityInspector: View {
             section("Orbital Rail", systemImage: "circle.dashed") {
                 metric("Radius", meters(orbiting.orbitalRadius))
                 metric("Rail velocity", vector(orbiting.orbitalVelocity, unit: "m/s"))
+            }
+        }
+
+        if let circularizable = entity as? any POrbitCircularizable {
+            section("Orbit Assist", systemImage: "scope") {
+                if let estimate = circularizable.orbitCircularizationEstimate {
+                    metric("Required Δv", format(estimate.deltaV, unit: "m/s"))
+                    metric("Required fuel", kilograms(estimate.requiredFuel))
+                    Button {
+                        requestOrbitCircularization(entity.id)
+                    } label: {
+                        Label("Circularize Orbit", systemImage: "circle.dashed")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(
+                        isAdvancementActive == false
+                            || estimate.hasSufficientFuel == false
+                    )
+
+                    if isAdvancementActive == false {
+                        Text("Resume the simulation to use the orbit assist.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if estimate.hasSufficientFuel == false {
+                        Text("The maneuver requires more fuel.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Applies one fuel-costed ideal impulse around the designated primary.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text("No valid circular orbit is available here.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
 
@@ -248,6 +287,10 @@ struct SelectedEntityInspector: View {
         behavior: MiningSimulationBehavior(),
         inputBaseline: nil
     )
-    SelectedEntityInspector(source: simulation)
+    SelectedEntityInspector(
+        source: simulation,
+        isAdvancementActive: true,
+        requestOrbitCircularization: { _ in }
+    )
         .frame(width: 320, height: 720)
 }

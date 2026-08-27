@@ -1,0 +1,106 @@
+import Testing
+import simd
+@testable import Engine2
+
+struct SOrbitCircularizationTests {
+    @Test func successfulCommandAppliesOneImpulseConsumesFuelAndStopsTranslation() throws {
+        var fixture = makeFixture(remainingFuel: 2_000)
+        let originalImpulse = try #require(
+            fixture.world.motionComponents[fixture.entity]?.accumulator.impulse
+        )
+        let originalFuel = try #require(
+            fixture.world.fuelComponents[fixture.entity]?.remaining
+        )
+        let estimate = try #require(
+            fixture.world.orbitCircularizationEstimate(for: fixture.entity)
+        )
+        fixture.world.orbitCircularizationCommand = OrbitCircularizationCommand(
+            entityID: fixture.entity
+        )
+
+        var system = SOrbitCircularization()
+        system.update(world: &fixture.world, deltaTime: 1.0 / 60)
+
+        #expect(fixture.world.orbitCircularizationCommand == nil)
+        #expect(
+            fixture.world.motionComponents[fixture.entity]?.accumulator.impulse
+                == originalImpulse + estimate.deltaVelocity
+        )
+        #expect(
+            fixture.world.fuelComponents[fixture.entity]?.remaining
+                == originalFuel - estimate.requiredFuel
+        )
+        #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
+    }
+
+    @Test func insufficientFuelConsumesCommandWithoutChangingPhysicalOrControlState() throws {
+        var fixture = makeFixture(remainingFuel: 1)
+        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
+        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
+        let originalControl = try #require(fixture.world.playerControlComponents[fixture.entity])
+        let estimate = try #require(
+            fixture.world.orbitCircularizationEstimate(for: fixture.entity)
+        )
+        #expect(!estimate.hasSufficientFuel)
+        fixture.world.orbitCircularizationCommand = OrbitCircularizationCommand(
+            entityID: fixture.entity
+        )
+
+        var system = SOrbitCircularization()
+        system.update(world: &fixture.world, deltaTime: 1.0 / 60)
+
+        #expect(fixture.world.orbitCircularizationCommand == nil)
+        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
+        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
+        #expect(fixture.world.playerControlComponents[fixture.entity] == originalControl)
+    }
+
+    private func makeFixture(
+        remainingFuel: Double
+    ) -> (world: World, primary: EntityID, entity: EntityID) {
+        let world = World()
+        let primary = EntityID(index: 0, generation: 0)
+        let entity = EntityID(index: 1, generation: 0)
+
+        world.positionComponents.insert(CPosition(position: .zero), for: primary)
+        world.gravitySourceComponents.insert(
+            CGravitySource(gravitationalParameter: 4_000_000),
+            for: primary
+        )
+        world.collisionBodyComponents.insert(
+            CCollisionBody(radius: 100, restitution: 0.35),
+            for: primary
+        )
+        world.positionComponents.insert(
+            CPosition(position: SIMD3<Double>(1_200, 0, 0)),
+            for: entity
+        )
+        world.motionComponents.insert(
+            CMotion(velocity: .zero, impulse: SIMD3<Double>(1, 2, 3)),
+            for: entity
+        )
+        world.orbitPrimaryComponents.insert(
+            COrbitPrimary(primaryEntityID: primary),
+            for: entity
+        )
+        world.collisionBodyComponents.insert(
+            CCollisionBody(radius: 10, restitution: 0.35),
+            for: entity
+        )
+        world.massComponents.insert(CMass(dryMass: 10_000), for: entity)
+        world.propulsionComponents.insert(
+            CPropulsion(maximumThrust: 300_000, exhaustVelocity: 20_000),
+            for: entity
+        )
+        world.fuelComponents.insert(
+            CFuel(capacity: 2_000, remaining: remainingFuel),
+            for: entity
+        )
+        world.playerControlComponents.insert(
+            CPlayerControl(translation: SIMD2<Double>(1, -1)),
+            for: entity
+        )
+
+        return (world, primary, entity)
+    }
+}

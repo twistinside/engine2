@@ -149,7 +149,7 @@ struct MetalScenePlatformViewTests {
         #expect(scrollEvent.hasPreciseScrollingDeltas)
         view.scrollWheel(with: scrollEvent)
 
-        #expect(inputRuntime.latestInputSnapshot.cameraZoomTotal == -14)
+        #expect(inputRuntime.latestInputSnapshot.cameraZoomTotal == -28)
     }
 
     private func makeKeyEvent(type: NSEvent.EventType, isRepeat: Bool) -> NSEvent? {

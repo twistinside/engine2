@@ -8,6 +8,8 @@ struct MiningGameContentTests {
         #expect(content.inputMappingConfiguration == .miningGame)
         #expect(content.simulationConfiguration == .miningGame)
         #expect(content.simulationConfiguration.cameraOrbitAxis == SIMD3<Float>(0, 0, 1))
+        #expect(content.simulationConfiguration.minimumCameraOrbitRadius == 100)
+        #expect(content.simulationConfiguration.maximumCameraOrbitRadius == 4_000)
         #expect(content.simulationBehavior is MiningSimulationBehavior)
         #expect(content.worldBuilder is MiningWorldBuilder)
         #expect(content.renderAssetCatalog == .everything)

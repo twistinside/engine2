@@ -23,9 +23,9 @@ Use these terms consistently:
 
 Current types implement part of this direction:
 - `InputRuntime` owns platform device state and physical-to-semantic mapping. Platform adapters submit `InputEvent` values through `PInputEventSink`; the Runtime publishes context-free translation and interaction intent plus cumulative camera and selection values in its latest immutable `InputSnapshot` through `PInputSnapshotSource`.
-- `SimulationRuntime` owns one authoritative session, `Engine`, and `World`; construction requires one validated `SimulationConfiguration`, and the Runtime accepts exact cursor-qualified advance requests without owning wall-clock cadence or a live Input source.
+- `SimulationRuntime` owns one authoritative session, `Engine`, and `World`; construction requires one validated `SimulationConfiguration`, and the Runtime accepts exact cursor-qualified advance requests without owning wall-clock cadence or a live Input source. An optional `OrbitCircularizationCommand` is attributable to that request and is imported only for its first fixed step.
 - `PRuntimeAssembly` is the common App-hosting boundary. It refines `View` and requires potentially throwing construction from `any PGameContent`. Every concrete assembly is a value-type root view that constructs and retains its topology, implements `body: some View`, and owns any topology-specific SwiftUI presentation lifecycle inside that body. SwiftUI copies of one assembly value retain the same reference-owned Runtime graph and shared assembly state; only initialization creates a new graph. `Engine2App` constructs the selected Game Content, retains its compile-time assembly selection as opaque `some PRuntimeAssembly`, and renders that assembly directly without forwarding lifecycle. Selecting a fallible topology requires an explicit App launch-failure policy because failed initialization produces no assembly.
-- `RealtimeAdvanceDriver` is an assembly-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`.
+- `RealtimeAdvanceDriver` is an assembly-owned connection object that samples wall time and the configured latest Input publication, then submits immutable assignments through `PSimulationAdvanceTarget`. It also stages the real-time UI's one-shot orbit-circularization command behind a generation tag, captures that command in the next cursor-qualified request, and retires only the captured generation after completion so a newer in-flight click remains pending.
 - `RealtimeAssembly`, `ManualAssembly`, `OfflineCaptureAssembly`, and `AgentSessionAssembly` own their graph construction. They accept Game Content through the common initializer and take focused policy, limit, and identity values through explicit topology-specific initializers. There is no separate forwarding-wrapper or assembly-factory layer.
 - `SimulationRuntime.fixedTimeStep` is the sole production definition of one tick's duration. Top-level assembly policy cannot redefine it, and `Engine` has no competing wall-clock or partial-schedule path.
 - `SimulationConfiguration` is the immutable Simulation-owned camera policy used to construct the invariant schedule. Basic and Mining Game Content deliberately select their named values; individual systems do not choose camera-orbit defaults.
@@ -33,6 +33,7 @@ Current types implement part of this direction:
 - `MetalSceneView` hosts one `MetalScenePlatformView`, which is both the drawable `MTKView` used by `MetalRenderer` and the thin AppKit event-ingress adapter for `InputRuntime`. The platform view forwards focus loss so Input can clear held physical state; it contains no semantic mapping, gameplay decisions, or rendering logic.
 - `PSimulationBehavior` produces one `SimulationSystemSchedule` whose `inputConsumption`, `worldPreparation`, `forceContribution`, `postMovement`, and `prePresentation` stages compose Game Content systems around the Engine-owned foundation. Game Content cannot replace or reorder the foundational camera, integration, history, or cleanup work.
 - `InputState` imports semantic `InputSnapshot` values at fixed-step boundaries. Simulation interprets translation and interaction intent using authoritative selection and player-control components, while `SCameraInput` derives orbit/zoom deltas from cumulative semantic totals. All paths run before `SInputCleanup`.
+- Orbit circularization is not physical or context-free Input Runtime state. `SelectedEntityInspector` supplies the selected full `EntityID` through a focused callback, `PRealtimeAssemblyViewModel` routes it to the sole real-time advance authority, and the resulting typed command travels with an exact Simulation request.
 - `SimulationPresentationSnapshot` is the Simulation Runtime-owned latest completed presentation value. Its camera is the exact camera used by the real-time screen path.
 - `RenderViewpoint` is an immutable output-specific camera value with stable identity and monotonic revision for deliberate exact Render requests. `RenderFrame` is the Render Runtime-owned private projection that preserves the source Simulation cursor plus explicit-viewpoint identity and revision only on that request path.
 - `MetalFrameEncoder` owns view-independent Metal frame preparation and encoding against caller-owned targets, frame resources, and an already-begun command buffer.
@@ -172,11 +173,16 @@ Current example ownership:
   - `SAccelerationIntent` emits persistent acceleration intent into `CMotion`'s interval-local accumulator.
   - `SMovement` integrates `CMotion` accumulator input into velocity, moves position, then clears the accumulator.
   - `SRotation` integrates angular accumulator input into angular velocity, advances rotation, normalizes it, then clears the accumulator.
+- `Engine2/Simulation Runtime/Engine/System/Orbit/**/*.swift`
+  - `SOrbitalRail` writes deterministic analytic position and velocity for bodies whose complete motion policy is a rail.
+  - `COrbitPrimary` identifies the gravity-source primary used by one dynamically integrated body's orbital maneuvers. It does not put that body on `COrbitalRail`.
+  - `POrbitCircularizable` exposes a read-only live `OrbitCircularizationEstimate`. The shared evaluator derives the ideal target velocity, delta-velocity, fuel cost, and sufficiency from authoritative position, motion, primary gravity, live mass, and propulsion state.
+  - `SOrbitCircularization` consumes the request-scoped command during Mining Game Content's `inputConsumption` stage. It validates the complete entity generation and maneuver inputs, then either contributes the full fuel-costed ideal impulse, deducts its complete fuel cost, and clears same-tick translation or changes neither motion nor fuel.
 - `Engine2/Simulation Runtime/Engine/*.swift`
   - `Engine` owns exact fixed-step execution and one complete ordered system schedule. Production construction derives its foundation from an explicit `SimulationConfiguration` and composes the controlled stages supplied by `PSimulationBehavior`; the full initializer requires an explicit `World`, fixed step, and complete injected system list for focused integration tests.
   - `SimulationSystemSchedule` admits Game Content systems only through `inputConsumption`, `worldPreparation`, `forceContribution`, `postMovement`, and `prePresentation`. Camera control, acceleration-intent application, movement, rotation, input history, and cleanup remain Engine-owned members of every completed tick.
 - `Engine2/Simulation Runtime/SimulationRuntime.swift`
-  - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, and completed presentation publication above `Engine`.
+  - `SimulationRuntime` owns session bootstrap, exact serialized advancement, explicit Simulation configuration and input-baseline application, request-scoped orbit-command import, and completed presentation publication above `Engine`. It imports the assigned snapshot and optional orbit command only before the first tick of a multi-step request. Held `InputState` intent then persists by its own semantics, while transient input and the orbit command do not replay.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
   - Validated immutable Simulation policy for the orbit target, normalized orbit axis, and minimum/maximum camera radius. Physical bindings and input sensitivity belong to `InputMappingConfiguration`.
 - `Engine2/Runtime Configuration/PRuntimeAssembly.swift`
@@ -192,10 +198,11 @@ Current example ownership:
   - `RealtimeAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
   - `RealtimeStepAccumulator` is the driver's value-semantic elapsed-debt and bounded-batching policy. It has no clock, cursor, lifecycle, Input, or Simulation authority.
   - `RealtimeInputAssignmentState` couples one transition baseline to its policy generation, forms the immutable assignment for an exact request, and prevents older completion bookkeeping from clearing newer policy.
+  - `RealtimeOrbitCircularizationCommandState` generation-tags the pending one-shot maneuver. Request completion retires only an unchanged captured generation; synchronization or rebuild clears stale pending work.
   - `RealtimeAdvanceDriver` constructs `SuspendingRealtimeClock` on its production path and accepts one injected
     `PRealtimeClock` for deterministic tests or specialized hosts. Sampling and suspension cannot be supplied as
     unrelated dependencies.
-  - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
+  - `RealtimeAdvanceDriver` alone translates elapsed wall time into bounded exact cursor-qualified requests, applies configured overflow treatment, captures transition input baselines plus one later immutable publication and any pending orbit command per batch, faults on an unexpected authority mismatch, and does not retain an otherwise abandoned assembly between sleeps.
 - `Engine2/Runtime Configuration/Manual/*.swift`
   - `ManualAssembly` constructs from injected Game Content and exposes caller-driven exact advancement without Input or a polling task. Its body renders completed presentation and can request one exact tick through `PSimulationAdvanceTarget`; it adds no automatic cadence.
   - `ManualSimulationControls` owns exact-step controls, and `ManualAssemblyToolbar` owns topology-specific toolbar declarations outside the root view.
@@ -258,6 +265,7 @@ Current example ownership:
   - Conforms to `PGameContent` and selects Input mapping, controlled Simulation behavior, the complete named `.basicGame` Simulation configuration, its world builder, and its render catalog so every Runtime topology receives the same authored construction policy.
 - `Engine2/Game Content/Mining/**/*.swift`
   - `MiningGameContent` is the App-selected playable slice. Its world builder creates one gravity-source star, six rail-driven asteroids, one dynamically integrated skiff, and one rail-driven depot; its behavior composes gameplay systems only through `SimulationSystemSchedule`.
+  - `MiningWorldBuilder` owns the slice's gravitational parameter, orbital radii, derived circular speeds, and more top-down initial camera framing. These are Game Content tuning values; neither `SOrbitalRail` nor Runtime cadence defines the scenario scale.
   - `BasicGameContent` and `BasicWorldBuilder` remain small example fixtures rather than the App's selected mining world.
 - `Engine2/Simulation Runtime/SimulationConfiguration.swift`
   - Owns the named `.basicGame` and `.miningGame` camera policies with the type that exposes them; each Game Content composition deliberately selects its matching value.
@@ -324,7 +332,7 @@ Current example ownership:
 - `Engine2/UI/ContentView.swift`
   - Real-time content UI that receives only `PRealtimeAssemblyViewModel`, plus the assembly-owned snapshot presentation model, within `RealtimeAssembly`'s topology-local subtree.
 - `Engine2/UI/SelectedEntity/*.swift`
-  - `SelectedEntityInspector` conditionally renders protocol-backed sections from `PSelectedEntitySource`; it does not read component stores or add gameplay data to `SimulationPresentationSnapshot`.
+  - `SelectedEntityInspector` conditionally renders protocol-backed sections from the read-only `PSelectedEntitySource`. Its focused orbit-assist callback passes one full `EntityID` back through `PRealtimeAssemblyViewModel`; it does not read component stores, mutate a facade or `World`, or add gameplay data to `SimulationPresentationSnapshot`.
 - `Engine2UnitTests/`
   - Fast, deterministic Swift Testing coverage directly exercises individual production types and methods.
   - The unit-test tree mirrors the app/source tree where practical.
@@ -410,7 +418,9 @@ The mining slice composes general ECS capabilities without turning the scenario 
 - asteroids and the depot follow deterministic analytic circular rails
 - the skiff alone integrates gravity, thrust, fuel use, changing cargo mass, and collision response
 - translation and interaction intent apply only to the selected entity when its ECS state advertises player control
-- the selected-entity SwiftUI inspector receives one narrow Simulation-owned selection source and renders protocol-backed capabilities; it does not expand `SimulationPresentationSnapshot` into a gameplay-state DTO
+- the selected-entity SwiftUI inspector renders protocol-backed capabilities from one narrow read-only Simulation-owned selection source; a separate callback sends the displayed entity's full identity through the assembly and sole real-time advance authority
+- the generation-tagged circularization command travels on the next cursor-qualified request, is visible only to its first tick, and is consumed by `SOrbitCircularization` in Mining Game Content's `inputConsumption` stage
+- orbit circularization is all-or-nothing: the system either applies the complete ideal impulse and matching fuel cost or mutates neither motion nor fuel
 
 Rails are authoritative motion policy for quiet bodies, not approximate results of the dynamic integrator. A future perturbation feature needs an explicit handoff into dynamic state rather than silently combining rail placement with accumulated forces.
 
@@ -480,7 +490,7 @@ The code has already moved past earlier examples such as `Missile` and `CAcceler
 - Do not reuse an entity index until component removal and dense iteration behavior are generation-safe.
 - Prefer adding capability protocols over deepening inheritance.
 - Keep the game-object layer ergonomic, but keep the ECS layer authoritative.
-- Keep selected-entity inspection behind a narrow Simulation-owned source that resolves full `EntityID` values to typed live facades. Do not expose `World` or add gameplay state to the render presentation snapshot for this UI.
+- Keep selected-entity inspection behind a narrow Simulation-owned source that resolves full `EntityID` values to typed live facades. Route UI actions through focused callbacks and Simulation-owned request values; do not expose `World`, mutate facades from SwiftUI, or add gameplay state to the render presentation snapshot for this UI.
 - Mirror direct type and method tests under `Engine2UnitTests/`. For example, tests for `Engine2/Simulation Runtime/Engine/System/Position/System/SMovement.swift` should live in `Engine2UnitTests/Simulation Runtime/Engine/System/Position/System/SMovementTests.swift`.
 - Place tests that validate Render across multiple production boundaries under `Engine2RenderTests/`. This includes real shader execution, command submission, GPU lifetime, renderer assembly, and packaged-model decoding.
 ## Current Gaps / Known TODOs

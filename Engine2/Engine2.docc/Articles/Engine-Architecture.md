@@ -47,9 +47,11 @@ precision.
 
 ``InputRuntime`` publishes context-free translation and interaction intent plus cumulative camera and selection values. At a fixed-step boundary, Simulation derives interval-local changes and interprets them using authoritative ECS state. Selection resolution updates selection components, and control routing applies held translation or interaction only when the selected entity advertises player control. Selecting a non-controllable entity or clearing selection removes commanded control; the Input Runtime never receives an entity identity.
 
+The SwiftUI orbit assist uses a separate directed command boundary. ``SelectedEntityInspector`` passes the displayed entity's complete ``EntityID`` through a focused callback, and ``PRealtimeAssemblyViewModel`` routes it to ``RealtimeAdvanceDriver``. The driver generation-tags pending one-shot work and captures ``OrbitCircularizationCommand`` in the next cursor-qualified ``SimulationAdvanceRequest``. After cursor validation, ``SimulationRuntime`` imports that command only for the request's first tick. It does not enter `InputSnapshot` or `InputState`.
+
 ### Mining Slice Dynamics
 
-The mining slice composes two authoritative motion policies inside the same schedule. The star supplies gravity, and the skiff dynamically integrates gravity, thrust, fuel use, changing cargo mass, and collision response. Asteroids and the depot follow deterministic analytic circular rails whose systems prepare their position and velocity before force contribution and integration.
+The mining slice composes two authoritative motion policies inside the same schedule. The star supplies gravity, and the skiff dynamically integrates gravity, thrust, fuel use, changing cargo mass, collision response, and request-scoped orbit assistance. Asteroids and the depot follow deterministic analytic circular rails whose systems prepare their position and velocity before force contribution and integration. ``SOrbitCircularization`` runs in Mining Game Content's `inputConsumption` stage and consumes the one-tick command. It validates the complete entity generation and maneuver state, then either contributes the full ideal circularization impulse and deducts its complete fuel cost or changes neither motion nor fuel.
 
 A rail is a complete motion policy, not a force contribution. Do not run a rail writer and dynamic integration against the same body. A future perturbation feature must define an explicit transition from rail state to dynamic position and velocity.
 
@@ -67,7 +69,7 @@ This keeps `World` authoritative without making it the owner of Metal or other b
 ``Entity`` subclasses such as ``Ball`` remain useful as typed, ergonomic objects at the game boundary, UI boundary, and inspection layer.
 They are not the simulation source of truth. Authoritative gameplay state lives in the world's component stores.
 
-The selected-entity SwiftUI inspector receives one narrow Simulation-owned source that resolves the current full ``EntityID`` to a live facade. It conditionally renders the capability protocols that facade supports. It does not receive `World` and does not add fuel, cargo, orbit, mining, or other gameplay fields to ``SimulationPresentationSnapshot``.
+The selected-entity SwiftUI inspector receives one narrow Simulation-owned source that resolves the current full ``EntityID`` to a live facade. It conditionally renders the capability protocols that facade supports. The read source remains separate from the focused orbit-assist callback: the view can submit an identity but cannot mutate the facade or `World`. Neither path adds fuel, cargo, orbit, mining, or other gameplay fields to ``SimulationPresentationSnapshot``.
 
 ## Fixed-Step Simulation
 The current portable simulation primitive is an exact Runtime-level request:

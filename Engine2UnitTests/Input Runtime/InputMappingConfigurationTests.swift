@@ -13,7 +13,7 @@ struct InputMappingConfigurationTests {
         #expect(miningConfiguration.interactionKeyCodes == [49])
         #expect(miningConfiguration.selectionButton == .left)
         #expect(miningConfiguration.pointerOrbitSensitivity == 0.01)
-        #expect(miningConfiguration.scrollZoomSensitivity == 2)
+        #expect(miningConfiguration.scrollZoomSensitivity == 4)
         #expect(basicConfiguration.pointerOrbitSensitivity == 0.01)
         #expect(basicConfiguration.scrollZoomSensitivity == 0.04)
     }
