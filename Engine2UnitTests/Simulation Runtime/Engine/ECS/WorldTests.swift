@@ -55,6 +55,7 @@ struct WorldTests {
 
         #expect(world.selectableComponents[entity.id]?.selectionState == expectedState)
         #expect(entity.selectionState == expectedState)
+        #expect(world.selectedEntityID == entity.id)
     }
 
     @Test func addSeedsMeshAndMaterialIdentityForRenderableEntity() async throws {
@@ -94,6 +95,45 @@ struct WorldTests {
         #expect(second.index == 1)
         #expect(first.generation == 0)
         #expect(second.generation == 0)
+    }
+
+    @Test func repeatedRegistrationOfTheSameFacadeIsIdempotent() {
+        let world = World()
+        let entity = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
+
+        world.add(entity)
+        world.add(entity)
+
+        #expect(world.registeredEntities.count == 1)
+        #expect(world.entity(for: entity.id) === entity)
+    }
+
+    @Test func repeatedRegistrationCannotDesynchronizeSelectedState() {
+        let world = World()
+        let entity = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
+        world.add(entity, from: Entity.InitialState(selectionState: .selected))
+
+        world.add(entity)
+
+        #expect(world.selectedEntityID == entity.id)
+        #expect(world.selectableComponents[entity.id]?.selectionState == .selected)
+    }
+
+    @Test func selectSynchronizesTheResourceAndEverySelectableRow() {
+        let world = World()
+        let first = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
+        let second = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
+        world.add(first)
+        world.add(second)
+
+        #expect(world.select(second.id))
+        #expect(world.selectedEntityID == second.id)
+        #expect(world.selectableComponents[first.id]?.selectionState == .unselected)
+        #expect(world.selectableComponents[second.id]?.selectionState == .selected)
+
+        #expect(world.select(nil))
+        #expect(world.selectedEntityID == nil)
+        #expect(world.selectableComponents[second.id]?.selectionState == .unselected)
     }
 }
 

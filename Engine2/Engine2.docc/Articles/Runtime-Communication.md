@@ -6,9 +6,9 @@ This article defines the proposed communication model between Engine2 runtimes.
 
 Partially implemented.
 
-The Input Runtime now publishes a revisioned latest ``InputSnapshot`` through `PInputSnapshotSource`. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. The Simulation Runtime publishes a latest completed ``SimulationPresentationSnapshot``. The current screen renderer projects that value with `snapshot.camera` exactly, producing a private ``RenderFrame`` that carries the Simulation cursor and no explicit-viewpoint attribution.
+The Input Runtime maps physical device state through `InputMappingConfiguration` and publishes a revisioned latest semantic ``InputSnapshot`` through `PInputSnapshotSource`. The snapshot contains context-free translation and interaction intent plus cumulative camera and selection values; it does not identify an entity or expose physical keys and buttons. In the real-time assembly, ``RealtimeAdvanceDriver`` captures immutable input into each ``SimulationAdvanceRequest``; at a connection transition it pairs the activation baseline with the later request-time publication so Simulation can apply both atomically at an exact fixed-step boundary. Simulation then interprets the semantic values using authoritative ECS selection and player-control state. The Simulation Runtime separately publishes a latest completed ``SimulationPresentationSnapshot``. The current screen renderer projects that value with `snapshot.camera` exactly, producing a private ``RenderFrame`` that carries the Simulation cursor and no explicit-viewpoint attribution.
 
-`InputMetalView` submits each host ``InputEvent`` directly to ``InputRuntime`` through `PInputEventSink`. No current presentation recipient receives raw screen input, and ``RealtimeAssembly`` is not an input router. Ordered event publication, typed multi-source routes, future presentation routes, multi-window output bindings, additional semantic snapshot surfaces, subscription lifetimes, retained runtime publication history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
+`MetalSceneView` hosts one `MetalScenePlatformView`. The single platform `MTKView` supplies the drawable surface used by `MetalRenderer` and submits each physical host ``InputEvent`` directly to ``InputRuntime`` through `PInputEventSink`. It contains no semantic mapping, gameplay decision, or render encoding. No presentation recipient receives physical screen input, and ``RealtimeAssembly`` is not an input router. Ordered event publication, typed multi-source routes, future presentation routes, multi-window output bindings, additional semantic snapshot surfaces, subscription lifetimes, retained runtime publication history, generalized exchange infrastructure, and non-main-actor delivery remain proposed.
 
 ## Runtimes Publish State and Occurrences
 
@@ -28,7 +28,7 @@ For example:
 
 | Publisher | Snapshot state | Example events |
 | --- | --- | --- |
-| Input Runtime | held keys and pointer state, including cumulative motion and scroll totals | future ordered key, button, and pointer transitions |
+| Input Runtime | held translation and interaction intent plus cumulative camera and selection values | future ordered semantic transitions or text input |
 | Simulation Runtime | purpose-specific completed state such as abstract presentation | collision occurred, weapon fired, level completed |
 | Achievement Runtime | current awarded and tracked achievement state | achievement awarded |
 
@@ -47,7 +47,9 @@ The current ``SimulationPresentationSnapshot`` is the first such surface. It pub
 - tasks, locks, services, caches, and backend resources
 - any other machinery used to execute the Simulation Runtime rather than describe completed game state
 
-The presentation snapshot contains enough semantic fidelity for presentation consumers to derive private models without exposing simulation implementation. A future audio, networking, inspection, or other continuous-state need may justify another explicitly named Simulation Runtime snapshot. It should not automatically expand this presentation contract or create a universal bag of all simulation state.
+The presentation snapshot contains enough semantic fidelity for presentation consumers to derive private models without exposing simulation implementation. A future audio, networking, or other continuous-state need may justify another explicitly named Simulation Runtime snapshot. It should not automatically expand this presentation contract or create a universal bag of all simulation state.
+
+The selected-entity SwiftUI inspector uses a different boundary. A narrow Simulation-owned source exposes only the currently selected live entity facade, and the inspector conditionally renders sections from that facade's capability protocols. It does not receive `World`, inspect component-store representation, or require gameplay fields in ``SimulationPresentationSnapshot``. Selection remains authoritative ECS state even though the inspector consumes an ergonomic entity view.
 
 A restorable `GameCheckpoint` is a different value. Saving, rollback, or deterministic continuation may require random-generator state, private timers, behavior state, or other details that do not belong in ordinary live publications. The App should coordinate checkpoint creation as a deliberate request/result workflow, and a Storage Runtime may persist the simulation-owned checkpoint without interpreting it.
 
@@ -57,13 +59,10 @@ A receiving runtime transforms a publisher-owned snapshot into its own private o
 
 ```text
 SimulationRuntime
-    publishes SimulationPresentationSnapshot
-                        |
-                        +--> current screen projects snapshot.camera
-                        |                  into RenderFrame
-                        +--> exact or alternate output combines an explicit
-                        |                  RenderViewpoint and projects RenderFrame
-                        +--> optional capture or inspection tooling
+    +-- SimulationPresentationSnapshot -------------> screen RenderFrame
+    +-- SimulationPresentationSnapshot
+    |       + RenderViewpoint ----------------------> exact RenderFrame
+    +-- selected-entity source ---------------------> SwiftUI inspector
 ```
 
 There is no jointly owned snapshot in this flow:
@@ -96,13 +95,14 @@ Consumers that begin late can converge from the latest snapshot. Ordinary epheme
 The App remains the composition root. It decides which runtime outputs are connected to which runtime inputs.
 
 ```text
-InputMetalView -- InputEvent -------------> InputRuntime
+MetalScenePlatformView -- InputEvent ------> InputRuntime
 InputRuntime -- latest InputSnapshot -----> RealtimeAdvanceDriver
 RealtimeAdvanceDriver
     +-- SimulationAdvanceRequest ---------> SimulationRuntime
 SimulationRuntime
     +-- SimulationPresentationSnapshot ------> MetalRenderer
     +-- SimulationPresentationSnapshot ------> RealtimeSnapshotCaptureConnection
+    +-- selected-entity source --------------> SwiftUI inspector
 RealtimeSnapshotCaptureConnection
     +-- OffscreenRenderRequest -------------> MetalOffscreenRenderRuntime
 SimulationRuntime
@@ -124,7 +124,7 @@ A shared infrastructure type resembling `RuntimeOutput<Snapshot, Event>` may eve
 
 An assembly-owned router or hub may be an implementation detail, but it must not erase the explicit typed topology or become globally discoverable mutable state.
 
-The implemented input connection uses narrow capabilities and one recipient. `InputMetalView` submits `InputEvent` values directly to ``InputRuntime`` through `PInputEventSink`; the Runtime ignores them while its publication lifecycle is stopped and otherwise incorporates them into canonical device-state publication. ``RealtimeAdvanceDriver`` receives only the immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. ``RealtimeAssembly`` owns both connections and its view installs the platform adapter. `InputEvent` is therefore host ingress, not a runtime-published event stream, a presentation command, or a direct call into Simulation. Source identity, route epochs, independent recipient baselines, exclusivity, presentation control, and multi-window binding semantics remain future typed-routing work.
+The implemented input connection uses narrow capabilities and one recipient. `MetalScenePlatformView` submits physical `InputEvent` values directly to ``InputRuntime`` through `PInputEventSink`; the Runtime ignores them while its publication lifecycle is stopped and otherwise updates private device state, performs context-free mapping, and publishes a semantic snapshot. ``RealtimeAdvanceDriver`` receives only that immutable latest `InputSnapshot` through `PInputSnapshotSource` and captures it in the directed exact request. ``RealtimeAssembly`` owns both connections, and `MetalSceneView` installs the single platform surface. `InputEvent` is therefore host ingress, not a runtime-published event stream, a presentation command, or a direct call into Simulation. Source identity, route epochs, independent recipient baselines, exclusivity, presentation control, and multi-window binding semantics remain future typed-routing work.
 
 ## Directed Advancement Needs an Exact Result
 
@@ -152,7 +152,7 @@ Events naturally use ordered-stream semantics:
 - buffering, backpressure, and drop behavior may differ by connection
 - there is no assumed universal ordering across different runtimes and cadences
 
-The implemented input boundary demonstrates latest-value behavior. `InputRevision` identifies the publisher session and version represented by each `InputSnapshot`. Held keys and buttons are state in that value. Within one publisher session, pointer motion and scroll are cumulative totals, so Simulation can derive the complete change between the revisions it samples even when host events and fixed ticks do not run one-for-one. Re-reading the same revision does not replay a transient delta.
+The implemented input boundary demonstrates latest-value behavior. `InputRevision` identifies the publisher session and version represented by each `InputSnapshot`. Held translation and interaction intent persist until a later publication changes them. Camera orbit and zoom are cumulative totals, and the latest normalized selection press is paired with a cumulative press count. Simulation can therefore derive the complete camera interval and consume a selection press at most once even when host events and fixed ticks do not run one-for-one. Re-reading the same revision does not replay a transient delta or press. When the platform surface loses keyboard focus or its window resigns key status, it submits a physical focus-loss event; ``InputRuntime`` clears held keys and buttons and republishes the resulting semantic state so a missed key-up cannot leave gameplay input stuck.
 
 Ordered discrete transitions are a separate future lane. If key-down/up ordering, text composition, replay, or other occurrence history must survive skipped snapshots, the Input Runtime will need an explicit event sequence plus buffering or journaling policy. The platform-facing `InputEvent` ingress does not provide those publication guarantees by itself. A future snapshot revision and publisher-local event sequence may define a consistent boundary between the lanes; the atomic-publication and subscription mechanism remains unresolved.
 
@@ -162,7 +162,7 @@ Ordinary runtime publication is not a database.
 
 If replay, auditing, debugging, networking, or another feature requires retained history, an explicit recorder or journal can subscribe to selected runtime outputs and own that retention policy. Durable history should not impose storage or delivery guarantees on every ordinary runtime connection.
 
-The World-owned ``InputHistory`` is deliberately different. It retains a bounded diagnostic projection of Simulation-consumed input for App tooling; it is neither an ordered Input Runtime publication nor a durable replay journal.
+The World-owned ``InputHistory`` is deliberately different. It retains a bounded diagnostic projection of Simulation-consumed semantic input for App tooling; it does not recover physical bindings and is neither an ordered Input Runtime publication nor a durable replay journal.
 
 Likewise, a Storage Runtime may publish its own status snapshot and completion events, but save and load workflows remain deliberate assembly-coordinated requests and results rather than ambient access to a snapshot database.
 

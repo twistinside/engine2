@@ -18,11 +18,12 @@ struct EngineTests {
         )
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
-            pointerPosition: .zero,
-            pointerMotionTotal: SIMD2<Float>(40, 0),
-            scrollTotal: SIMD2<Float>(0, 30),
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: SIMD2<Float>(0.4, 0),
+            cameraZoomTotal: 1.2,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -38,13 +39,11 @@ struct EngineTests {
         #expect(cameraAfterInput.position.isApproximately(expectedPosition))
         #expect(cameraAfterInput.projection == initialCamera.projection)
         #expect(world.inputHistory.entries.first?.tokens == [
-            "Mouse dx:+40 dy:+0",
-            "Wheel:+30"
+            "Orbit dx:+0.40 dy:+0.00",
+            "Zoom:+1.20"
         ])
-        #expect(world.input.mouse.delta == .zero)
-        #expect(world.input.mouse.scrollDelta == .zero)
-        #expect(world.input.actions.cameraOrbitYawDelta == 0)
-        #expect(world.input.actions.cameraZoomDelta == 0)
+        #expect(world.input.cameraOrbitDelta == .zero)
+        #expect(world.input.cameraZoomDelta == 0)
 
         engine.step()
 
@@ -53,7 +52,7 @@ struct EngineTests {
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
-    @Test func malformedRawInputCannotPoisonCameraOrCrashHistory() {
+    @Test func malformedSemanticInputCannotPoisonCameraOrCrashHistory() {
         let world = World()
         let initialCamera = world.camera
         let engine = Engine(
@@ -61,30 +60,22 @@ struct EngineTests {
             fixedTimeStep: SimulationRuntime.fixedTimeStep,
             configuration: .basicGame
         )
-        let pointerMotionTotal = SIMD2<Float>(.nan, .infinity)
-        let scrollTotal = SIMD2<Float>(0, -.infinity)
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
-            pointerPosition: .zero,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: SIMD2<Float>(.nan, .infinity),
+            cameraZoomTotal: -.infinity,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
 
         #expect(world.camera == initialCamera)
-        #expect(
-            world.inputHistory.entries.first?.tokens == [
-                "Mouse dx:+nan dy:+inf",
-                "Wheel:-inf"
-            ]
-        )
-        #expect(world.input.mouse.delta == .zero)
-        #expect(world.input.mouse.scrollDelta == .zero)
-        #expect(world.input.actions.cameraOrbitYawDelta == 0)
-        #expect(world.input.actions.cameraZoomDelta == 0)
+        #expect(world.inputHistory.entries.isEmpty)
+        #expect(world.input.cameraOrbitDelta == .zero)
+        #expect(world.input.cameraZoomDelta == 0)
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }
 
@@ -146,20 +137,21 @@ struct EngineTests {
         )
         let snapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
-            pointerPosition: .zero,
-            pointerMotionTotal: SIMD2<Float>(3, -2),
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: SIMD2<Float>(3, -2),
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
         engine.step()
 
         #expect(world.inputHistory.entries.count == 1)
-        #expect(world.inputHistory.entries.first?.tokens == ["Mouse dx:+3 dy:-2"])
+        #expect(world.inputHistory.entries.first?.tokens == ["Orbit dx:+3.00 dy:-2.00"])
         #expect(world.inputHistory.entries.first?.frameCount == 1)
-        #expect(world.input.mouse.delta == .zero)
+        #expect(world.input.cameraOrbitDelta == .zero)
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
@@ -171,23 +163,23 @@ struct EngineTests {
         )
         engine.step()
         let replacement = World()
-        let pointerPosition = SIMD2<Float>(8, 9)
         let baseline = InputSnapshot(
             revision: InputRevision(session: 2, sequence: 10),
-            pointerPosition: pointerPosition,
-            pointerMotionTotal: SIMD2<Float>(100, 0),
-            scrollTotal: SIMD2<Float>(0, 40),
-            pressedMouseButtons: [.right],
-            pressedKeys: []
+            translation: SIMD2<Float>(1, 0),
+            isInteractionActive: true,
+            cameraOrbitTotal: SIMD2<Float>(1, 0),
+            cameraZoomTotal: 1.6,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
 
         engine.replaceWorld(with: replacement, inputBaseline: baseline)
 
         #expect(engine.completedTick == .zero)
-        #expect(replacement.input.mouse.position == pointerPosition)
-        #expect(replacement.input.mouse.buttons == [.right])
-        #expect(replacement.input.mouse.delta == .zero)
-        #expect(replacement.input.mouse.scrollDelta == .zero)
+        #expect(replacement.input.translation == SIMD2<Float>(1, 0))
+        #expect(replacement.input.isInteractionActive)
+        #expect(replacement.input.cameraOrbitDelta == .zero)
+        #expect(replacement.input.cameraZoomDelta == 0)
     }
 
     @Test func cameraControlDerivesFromAReplacementWorldCamera() {
@@ -199,11 +191,12 @@ struct EngineTests {
         )
         let initialSnapshot = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 1),
-            pointerPosition: .zero,
-            pointerMotionTotal: SIMD2<Float>(100, 0),
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: SIMD2<Float>(1, 0),
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
         engine.step(inputSnapshot: initialSnapshot)
 
@@ -223,11 +216,12 @@ struct EngineTests {
 
         let replacementSnapshot = InputSnapshot(
             revision: InputRevision(session: 2, sequence: 1),
-            pointerPosition: .zero,
-            pointerMotionTotal: SIMD2<Float>(10, 0),
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: SIMD2<Float>(0.1, 0),
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
         engine.step(inputSnapshot: replacementSnapshot)
 

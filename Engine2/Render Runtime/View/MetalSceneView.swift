@@ -24,8 +24,8 @@ struct MetalSceneView: NSViewRepresentable {
         )
     }
 
-    func makeNSView(context: Context) -> InputMetalView {
-        let view = InputMetalView(frame: .zero, device: context.coordinator.renderer?.device)
+    func makeNSView(context: Context) -> MetalScenePlatformView {
+        let view = MetalScenePlatformView(frame: .zero, device: context.coordinator.renderer?.device)
 
         view.autoResizeDrawable = true
         view.clearColor = MTLClearColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1)
@@ -42,13 +42,13 @@ struct MetalSceneView: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: InputMetalView, context: Context) {
+    func updateNSView(_ nsView: MetalScenePlatformView, context: Context) {
         context.coordinator.renderer?.presentationSource = presentationSource
         context.coordinator.renderer?.outputMode = outputMode
         nsView.inputSink = inputSink
     }
 
-    static func dismantleNSView(_ nsView: InputMetalView, coordinator: Coordinator) {
+    static func dismantleNSView(_ nsView: MetalScenePlatformView, coordinator: Coordinator) {
         nsView.inputSink = nil
         nsView.delegate = nil
     }

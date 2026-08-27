@@ -1,3 +1,5 @@
+import Foundation
+
 /// World-owned diagnostic history derived from authoritative fixed-step input.
 ///
 /// This resource retains a bounded newest-first view for assembly UI tooling. It owns
@@ -51,28 +53,46 @@ struct InputHistory {
     private func tokens(for input: InputState) -> [String] {
         var tokens: [String] = []
 
-        tokens += input.mouse.buttons.sorted().map(\.displayName)
-
-        if input.mouse.delta != .zero {
-            tokens.append("Mouse dx:\(format(signed: input.mouse.delta.x)) dy:\(format(signed: input.mouse.delta.y))")
+        if input.translation != .zero {
+            tokens.append(
+                "Move x:\(format(signed: input.translation.x)) y:\(format(signed: input.translation.y))"
+            )
         }
 
-        if input.mouse.scrollDelta != .zero {
-            tokens.append("Wheel:\(format(signed: input.mouse.scrollDelta.y))")
+        if input.isInteractionActive {
+            tokens.append("Interact")
         }
 
-        tokens += input.keyboard.keys.sorted().map(\.displayName)
+        if input.cameraOrbitDelta != .zero {
+            tokens.append(
+                "Orbit dx:\(format(signed: input.cameraOrbitDelta.x)) dy:\(format(signed: input.cameraOrbitDelta.y))"
+            )
+        }
+
+        if input.cameraZoomDelta != 0 {
+            tokens.append("Zoom:\(format(signed: input.cameraZoomDelta))")
+        }
+
+        if let selectionPress = input.selectionPress {
+            tokens.append(
+                "Select x:\(format(signed: selectionPress.normalizedPosition.x)) "
+                    + "y:\(format(signed: selectionPress.normalizedPosition.y))"
+            )
+        }
 
         return tokens
     }
 
     private func format(signed value: Float) -> String {
-        let rounded = value.rounded()
-        guard let integer = Int(exactly: rounded) else {
+        guard value.isFinite else {
             let text = String(value)
             return value.sign == .minus ? text : "+\(text)"
         }
 
-        return integer >= 0 ? "+\(integer)" : "\(integer)"
+        return String(
+            format: "%+.2f",
+            locale: Locale(identifier: "en_US_POSIX"),
+            arguments: [value]
+        )
     }
 }

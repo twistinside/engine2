@@ -5,10 +5,17 @@ struct SimulationControls: View {
     let isSimulationRunning: Bool
     let isCapturingSnapshot: Bool
     let toggleSimulation: () -> Void
+    let restartSimulation: () -> Void
     let captureSnapshot: () -> Void
 
     var body: some View {
         HStack {
+            Button(
+                "Restart Session",
+                systemImage: "arrow.counterclockwise",
+                action: restartSimulation
+            )
+
             Button(
                 isSimulationRunning
                     ? "Simulation Running"
@@ -42,6 +49,7 @@ struct SimulationControls: View {
         isSimulationRunning: true,
         isCapturingSnapshot: false,
         toggleSimulation: {},
+        restartSimulation: {},
         captureSnapshot: {}
     )
     .padding()

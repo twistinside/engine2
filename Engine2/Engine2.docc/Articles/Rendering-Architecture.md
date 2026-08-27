@@ -7,8 +7,9 @@ The current codebase already has:
 - ``RenderViewpoint`` as the immutable explicit camera carried by exact offscreen, offline, and agent requests
 - `RenderFrame(projecting:)` as the tolerant, snapshot-camera-locked screen projection and `RenderFrame(exactlyProjecting:viewpoint:)` as the strict explicit-viewpoint request projection
 - ``MetalSceneView`` as the SwiftUI/MetalKit bridge
+- `MetalScenePlatformView` as the single onscreen `MTKView`, drawable surface, and thin AppKit input-ingress adapter
 - ``MetalFrameEncoder`` as the view-independent owner of reusable Metal frame preparation and encoding
-- ``MetalRenderer`` as the thin MetalKit adapter that samples one presentation source, uses that snapshot's camera exactly, owns screen submission/presentation policy, and delegates encoding
+- ``MetalRenderer`` as the `MTKView` delegate that samples one presentation source, uses that snapshot's camera exactly, owns screen submission/presentation policy, and delegates encoding
 - ``POffscreenRenderTarget`` and its request/outcome values as the backend-neutral asynchronous exact-render boundary
 - ``MetalOffscreenRenderRuntime`` as the production view- and drawable-independent Metal implementation with dedicated one-slot resources and explicit single-flight backpressure
 - ``PImageArtifactEncoder`` as the asynchronous CPU-transformation boundary above one completed raw result, with ``ImageIOArtifactEncoder`` as the immutable, eagerly sRGB-configured JPEG-and-PNG production implementation
@@ -76,10 +77,17 @@ normals, but that does not turn the core renderer into a deferred path.
 ## Rendering Belongs to the Render Runtime
 Rendering is owned by the proposed Render Runtime, not by an ECS gameplay system that mutates authoritative state.
 Simulation systems update `World`, the Simulation Runtime publishes an immutable `SimulationPresentationSnapshot`, and the Render Runtime projects the latest completed value into private render-oriented state according to its own cadence. The Simulation Runtime remains valid when no Render Runtime is present; its presentation snapshot simply has no consumer.
+
+## One Platform View Serves Rendering and Input Ingress
+
+``MetalSceneView`` creates one `MetalScenePlatformView`. That `MTKView` provides the drawable surface, and ``MetalRenderer`` remains its delegate for draw cadence, drawable acquisition, encoding, submission, and presentation. There is no separate input view or transparent overlay.
+
+The same platform view receives AppKit focus, keyboard, pointer, drag, and scroll callbacks because it already defines the interactive scene's coordinate space. It converts those callbacks into physical `InputEvent` values and submits them through `PInputEventSink`. ``InputRuntime`` owns semantic mapping. `MetalScenePlatformView` neither renders nor decides what a key, button, or pointer gesture means to gameplay.
+
 ## Simulation Truth Stays in ECS
 Rendering should not become a second gameplay state model.
 The authoritative simulation state should remain in ECS component stores. Render code should consume a completed `SimulationPresentationSnapshot`, not read or mutate gameplay state directly through entity objects during drawing.
-`World` may still contain abstract presentation state such as mesh handles, material handles, visibility, Simulation-authoritative camera settings, and render style. Its published camera is the exact camera used by the current real-time screen. The current real-time orbit control is Simulation-owned through ``SInputMapping`` and ``SCameraInput``, so it changes only on a complete tick. Exact offscreen, offline, and agent requests may instead carry an explicit output-specific viewpoint. Future photo, editor, replay, spectator, or multi-window assemblies may deliberately own interactive output viewpoints, but those are separate modes rather than a pause-time bypass. `World` should not contain backend-specific Metal objects.
+`World` may still contain abstract presentation state such as mesh handles, material handles, visibility, Simulation-authoritative camera settings, and render style. Its published camera is the exact camera used by the current real-time screen. ``InputRuntime`` publishes cumulative semantic orbit and zoom totals, and ``SCameraInput`` applies their interval deltas only during a complete Simulation tick. Exact offscreen, offline, and agent requests may instead carry an explicit output-specific viewpoint. Future photo, editor, replay, spectator, or multi-window assemblies may deliberately own interactive output viewpoints, but those are separate modes rather than a pause-time bypass. `World` should not contain backend-specific Metal objects.
 
 The current `CRenderable` component demonstrates that distinction. It stores a
 `MeshID` and `MaterialID`, while `BasicGameContent` maps `MeshID.ball` to the
@@ -131,9 +139,15 @@ The render-oriented structs may grow to represent only the data needed to issue 
 These projected values should be small, stable, and detached from gameplay-facing entity objects.
 The important boundary is that Simulation publishes completed observable facts while Render defines its private frame format.
 
+## Selected-Entity Inspection Is Not Render Projection
+
+The mining slice's SwiftUI inspector is App presentation, not a Render Runtime projection. It receives the selected live entity through a narrow Simulation-owned source and conditionally presents protocol-backed capabilities such as motion, orbit, mass, propulsion, fuel, cargo, mining, depot service, and collision.
+
+The inspector does not read `RenderFrame`, backend resources, or `World`. ``SimulationPresentationSnapshot`` remains the scene-and-camera contract for rendering and does not acquire gameplay fields merely because an in-process UI wants to inspect them.
+
 ## The Real-Time Screen Uses the Simulation Camera
 
-At draw cadence, `MetalRenderer` samples one ``SimulationPresentationSnapshot`` and calls `RenderFrame(projecting:)` without an explicit viewpoint. The frame therefore uses `snapshot.camera` exactly, preserves the source ``SimulationCursor``, and leaves explicit ``RenderViewpointID`` and ``RenderViewpointRevision`` attribution absent. Raw host input is not interpreted by Render and cannot revise the screen camera independently.
+At draw cadence, `MetalRenderer` samples one ``SimulationPresentationSnapshot`` and calls `RenderFrame(projecting:)` without an explicit viewpoint. The frame therefore uses `snapshot.camera` exactly, preserves the source ``SimulationCursor``, and leaves explicit ``RenderViewpointID`` and ``RenderViewpointRevision`` attribution absent. Physical host input and semantic intent are not interpreted by Render and cannot revise the screen camera independently.
 
 Exact offscreen work remains deliberately different: every ``OffscreenRenderRequest`` carries its explicit ``RenderViewpoint`` by value. Current-cursor offline capture can therefore render the coordinator's retained scene through several separately requested viewpoints without advancing. The real-time screenshot connection adapts the selected snapshot camera into that required exact-request value before its first suspension; it does not consult independent screen-camera state. Interactive free viewpoints, persistent offline viewpoint controllers, authored camera tracks, typed input routes, route epochs, per-window controllers and bindings, Simulation observer anchors, and atomic multi-view jobs remain proposed.
 ## Snapshot Publication and Storage
@@ -395,11 +409,11 @@ rendering or advancing again, and then advances from tick one to tick two throug
 only the agent assembly's exposed boundary. Transport, authentication,
 structured observation, controls, durable request history, and artifact
 persistence remain outside Rendering and outside the implemented agent session.
-The current image artifact is a visual observation only; it is not a semantic inspection
-contract. Agent/MCP physical-control emulation and externally submitted
-semantic controls remain future; the current Agent Session submits `.none`
-input. That missing agent-facing boundary is separate from the focused
-real-time pointer/scroll-to-camera consumer.
+The current image artifact is a visual observation only; it is not the
+selected-entity inspection contract. Agent/MCP physical-control emulation and
+externally submitted semantic controls remain future; the current Agent Session
+submits `.none` input. That missing agent-facing boundary is separate from the
+implemented real-time semantic input snapshot.
 
 ## Metal 4 Residency Sets
 

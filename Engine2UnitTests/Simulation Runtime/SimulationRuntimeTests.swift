@@ -125,19 +125,15 @@ struct SimulationRuntimeTests {
         )
     }
 
-    @Test func explicitInputBaselineEstablishesWorldWithoutReplayingMotion() {
-        let key = KeyboardKey(
-            keyCode: 13,
-            charactersIgnoringModifiers: "w"
-        )
-        let pointerPosition = SIMD2<Float>(20, 30)
+    @Test func explicitInputBaselineEstablishesWorldWithoutReplayingTransients() {
         let inputBaseline = InputSnapshot(
             revision: InputRevision(session: 2, sequence: 4),
-            pointerPosition: pointerPosition,
-            pointerMotionTotal: SIMD2<Float>(8, -3),
-            scrollTotal: SIMD2<Float>(0, 5),
-            pressedMouseButtons: [.left],
-            pressedKeys: [key]
+            translation: SIMD2<Float>(0, 1),
+            isInteractionActive: true,
+            cameraOrbitTotal: SIMD2<Float>(0.08, -0.03),
+            cameraZoomTotal: 0.2,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: .zero),
@@ -145,19 +141,17 @@ struct SimulationRuntimeTests {
             inputBaseline: inputBaseline
         )
 
-        #expect(simulation.world.input.mouse.position == pointerPosition)
-        #expect(simulation.world.input.mouse.buttons == [.left])
-        #expect(simulation.world.input.keyboard.keys == [key])
-        #expect(simulation.world.input.mouse.delta == .zero)
-        #expect(simulation.world.input.mouse.scrollDelta == .zero)
+        #expect(simulation.world.input.translation == SIMD2<Float>(0, 1))
+        #expect(simulation.world.input.isInteractionActive)
+        #expect(simulation.world.input.cameraOrbitDelta == .zero)
+        #expect(simulation.world.input.cameraZoomDelta == 0)
 
         simulation.rebuildWorld(inputBaseline: inputBaseline)
 
-        #expect(simulation.world.input.mouse.position == pointerPosition)
-        #expect(simulation.world.input.mouse.buttons == [.left])
-        #expect(simulation.world.input.keyboard.keys == [key])
-        #expect(simulation.world.input.mouse.delta == .zero)
-        #expect(simulation.world.input.mouse.scrollDelta == .zero)
+        #expect(simulation.world.input.translation == SIMD2<Float>(0, 1))
+        #expect(simulation.world.input.isInteractionActive)
+        #expect(simulation.world.input.cameraOrbitDelta == .zero)
+        #expect(simulation.world.input.cameraZoomDelta == 0)
     }
 }
 

@@ -43,6 +43,6 @@ struct RealtimeAssemblyView: View {
 
 #Preview {
     // Exercise the same root lifecycle used by every production SwiftUI host.
-    RealtimeAssembly(gameContent: BasicGameContent())
+    RealtimeAssembly(gameContent: MiningGameContent())
         .frame(width: 960, height: 640)
 }

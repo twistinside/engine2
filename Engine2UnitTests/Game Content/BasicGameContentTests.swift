@@ -6,6 +6,7 @@ struct BasicGameContentTests {
         let content = BasicGameContent()
 
         #expect(content.worldBuilder is BasicWorldBuilder)
+        #expect(content.inputMappingConfiguration == .basicGame)
         #expect(content.simulationConfiguration == .basicGame)
         #expect(content.renderAssetCatalog == .everything)
     }
@@ -14,9 +15,8 @@ struct BasicGameContentTests {
         let configuration = BasicGameContent().simulationConfiguration
 
         #expect(configuration == .basicGame)
-        #expect(configuration.pointerOrbitSensitivity == 0.01)
-        #expect(configuration.scrollZoomSensitivity == 0.04)
         #expect(configuration.cameraOrbitTarget == .zero)
+        #expect(configuration.cameraOrbitAxis == SIMD3<Float>(0, 1, 0))
         #expect(configuration.minimumCameraOrbitRadius == 2)
         #expect(configuration.maximumCameraOrbitRadius == 30)
     }

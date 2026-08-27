@@ -10,9 +10,9 @@ The first assembly and advancement slice is now implemented. ``SimulationSession
 
 ``RealtimeAssembly`` now constructs and owns ``RealtimeAdvanceDriver``. Its required Game Content initializer selects ``SimulationRuntime/fixedTimeStep`` polling and ``RealtimeCatchUpPolicy/interactive`` before the driver constructs its production ``SuspendingRealtimeClock``. Its explicit initializer requires the positive polling interval and catch-up policy directly for tests and specialized hosts. The driver owns wall-clock sampling, elapsed remainder, pause policy, immutable input capture, exact requests, a typed per-wake catch-up cap with explicit overflow treatment, and an async stop-and-drain boundary while Simulation owns execution. Deterministic tests inject one ``PRealtimeClock`` whose monotonic sampling and absolute suspension share the same instant domain. The driver captures transition baselines at activation, resume, and synchronization, then carries the baseline plus the later request-time publication through atomic `.rebaseThenIngest`. Assembly lifecycle generations prevent stale asynchronous stop or rebuild completion from applying an older visibility decision, the assembly body's disappearance modifier invalidates queued lifecycle work and drains visibility-dependent work, and polling reacquires the driver weakly between sleeps so an abandoned assembly is not retained by its cadence task. Playback UI derives its state from the observable driver rather than caching a second Boolean. Focused coverage plus scenario-level composition coverage exercise exact mutation, post-activation input, cursor advancement, completed publication, and a clock-driven Simulation with neither Input nor Render peers.
 
-The first screen-camera boundary is also implemented. ``RealtimeAssemblyView`` connects `InputMetalView` directly to the assembly's ``InputRuntime``; host input has no side channel into Render or a presentation controller. On an accepted tick, ``SInputMapping`` converts imported pointer/scroll transients into semantic orbit/zoom commands and ``SCameraInput`` applies them to the current authoritative camera before cleanup. `MetalRenderer` samples one exact latest ``SimulationPresentationSnapshot``, and `RenderFrame(projecting:)` always uses that publication's camera. Ordinary pause therefore freezes both authoritative scene state and the screen camera while Input may continue publishing; resume captures a new baseline so paused transients are discarded rather than replayed. Exact offscreen workflows remain deliberately different: every request carries an explicit ``RenderViewpoint`` by value. The legacy wall-clock loop, elapsed-time accumulator, partial-schedule pause path, and screen-only viewpoint override have been removed.
+The first screen-camera boundary is also implemented. ``RealtimeAssemblyView`` hosts ``MetalScenePlatformView`` as the single `MTKView` used by `MetalRenderer` and as a thin AppKit ingress adapter. The view forwards physical host events to the assembly's ``InputRuntime`` but owns no semantic mapping, gameplay decision, or rendering logic. ``InputRuntime`` maps those events into context-free semantic camera, selection, translation, and interaction values before publishing ``InputSnapshot``. On an accepted tick, ``SCameraInput`` interprets the imported camera commands against the authoritative camera, while content behavior systems interpret the remaining semantics against ECS selection and control state. `MetalRenderer` samples one exact latest ``SimulationPresentationSnapshot``, and `RenderFrame(projecting:)` always uses that publication's camera. Ordinary pause therefore freezes both authoritative scene state and the screen camera while Input may continue publishing; resume captures a new baseline so paused transients are discarded rather than replayed. Exact offscreen workflows remain deliberately different: every request carries an explicit ``RenderViewpoint`` by value. The legacy wall-clock loop, elapsed-time accumulator, partial-schedule pause path, and screen-only viewpoint override have been removed.
 
-The common App-hosting boundary is implemented as ``PRuntimeAssembly``. It refines SwiftUI `View` and requires potentially throwing `init(gameContent:)`; concrete nonfallible assemblies satisfy the initializer requirement without throwing. Each assembly implements the inherited `body` requirement with `some View` and owns any topology-specific SwiftUI presentation lifecycle inside that body. The `View` protocol's associated `Body` type preserves that concrete result for each conformer. `Engine2App` constructs Basic Game Content, injects it into its compile-time-selected ``RealtimeAssembly``, retains that assembly behind an opaque `some PRuntimeAssembly` property, and renders it directly without lifecycle forwarding. Its window does not know that topology's runtimes or capabilities. One opaque property always has one underlying concrete type. Runtime-dynamic selection among heterogeneous assemblies would require an explicit enum or type-erasing host instead. The protocol does not convert construction failure into UI. An App that selects a fallible assembly must choose an explicit launch policy. ``RealtimeAssemblyView`` composes screen and snapshot-capture presentation with focused simulation controls and `RealtimeAssemblyToolbar`. ``ManualAssemblyView`` composes screen presentation with `ManualSimulationControls` and `ManualAssemblyToolbar`, without adding Input or automatic cadence. The offline and agent assembly bodies show static initial identity only; they do not claim live progress, add screen Render Runtimes, or expose the concrete owners hidden behind their operational capabilities.
+The common App-hosting boundary is implemented as ``PRuntimeAssembly``. It refines SwiftUI `View` and requires potentially throwing `init(gameContent:)`; concrete nonfallible assemblies satisfy the initializer requirement without throwing. Each assembly implements the inherited `body` requirement with `some View` and owns any topology-specific SwiftUI presentation lifecycle inside that body. The `View` protocol's associated `Body` type preserves that concrete result for each conformer. `Engine2App` constructs Mining Game Content, injects it into its compile-time-selected ``RealtimeAssembly``, retains that assembly behind an opaque `some PRuntimeAssembly` property, and renders it directly without lifecycle forwarding. Its window does not know that topology's runtimes or capabilities. One opaque property always has one underlying concrete type. Runtime-dynamic selection among heterogeneous assemblies would require an explicit enum or type-erasing host instead. The protocol does not convert construction failure into UI. An App that selects a fallible assembly must choose an explicit launch policy. ``RealtimeAssemblyView`` composes screen and snapshot-capture presentation with focused simulation controls and `RealtimeAssemblyToolbar`. ``ManualAssemblyView`` composes screen presentation with `ManualSimulationControls` and `ManualAssemblyToolbar`, without adding Input or automatic cadence. The offline and agent assembly bodies show static initial identity only; they do not claim live progress, add screen Render Runtimes, or expose the concrete owners hidden behind their operational capabilities.
 
 The first view-independent Metal encoding seam is implemented as ``MetalFrameEncoder``. It prepares and records a frame into caller-owned textures, `FrameResources`, and an already-begun Metal 4 command buffer without source sampling, MetalKit/view/drawable access, frame-slot arbitration, queue submission, presentation, or caller error policy. ``MetalRenderer`` is now the thin screen adapter that owns those MetalKit-specific decisions. A real integration test uses the production encoder with caller-owned offscreen targets, explicit residency and feedback, and readback without a view or drawable.
 
@@ -169,7 +169,7 @@ protocol PRuntimeAssembly: View {
 @main
 struct Engine2App: App {
     private let assembly: some PRuntimeAssembly = RealtimeAssembly(
-        gameContent: BasicGameContent()
+        gameContent: MiningGameContent()
     )
 
     var body: some Scene {
@@ -282,13 +282,13 @@ nonisolated protocol PSimulationAdvanceTarget: AnyObject, Sendable {
 
 These boundary values and their complete presentation-snapshot value graph are explicitly `nonisolated` and `Sendable`, so they do not inherit the app target's current default `MainActor` isolation. The implemented ``SimulationRuntime`` remains `MainActor`-isolated during this migration and provides a nonisolated asynchronous protocol witness that enters its serialized mutation domain. A future implementation may use its own actor or another concurrency-safe placement without changing the capability. Neither `async`, `Sendable`, nor actor isolation by itself establishes the request-ordering rules below.
 
-The current physical-input slice carries one immutable ``SimulationInputAssignment`` with each request. `.ingest` derives current transients against Simulation's private baseline, `.rebase` establishes a new baseline without replaying cumulative motion, and `.none` advances without a new physical-input value. The exact boundary also accepts `.rebaseThenIngest(baseline:snapshot:)`: after cursor validation, Simulation atomically installs the captured transition baseline and ingests a later publication at the first requested tick, so only same-session transients accumulated after that baseline survive. ``RealtimeAdvanceDriver`` samples its configured latest-value source once and submits a captured assignment with the exact request; ``SimulationRuntime`` does not retain the source.
+The current semantic-input slice carries one immutable ``SimulationInputAssignment`` with each request. `.ingest` derives current camera and selection transients against Simulation's private baseline, `.rebase` establishes a new baseline without replaying cumulative semantic commands, and `.none` advances without a new semantic input value. The exact boundary also accepts `.rebaseThenIngest(baseline:snapshot:)`: after cursor validation, Simulation atomically installs the captured transition baseline and ingests a later publication at the first requested tick, so only same-session transients accumulated after that baseline survive. ``RealtimeAdvanceDriver`` samples its configured latest-value source once and submits a captured assignment with the exact request; ``SimulationRuntime`` does not retain the source.
 
 ``RealtimeAdvanceDriver`` uses that transition form today. It captures the latest publication immediately when an enabled connection starts or resumes, or when ``RealtimeAssembly`` synchronizes a rebuilt session. At the later request boundary it samples the current publication and carries both immutable values together, preserving same-session input accumulated between activation and the first subsequent tick without replaying inactive history. Publisher identity, channel identity, route epochs, recipient identity, and full typed Input Route validation remain proposed.
 
 Replay, networking, bots, or Game Content may later require tick-addressed semantic control batches. Those should use a Simulation-owned typed control surface or a deliberate evolution of the request rather than making keyboard-shaped state the permanent command vocabulary. Whatever the selected ingress, the controls consumed by a tick must be attributable to its advance request.
 
-For a multi-step physical-input request carrying one routed snapshot assignment, the baseline policy imports that snapshot before the first requested tick: that Simulation consumer derives cumulative pointer and scroll transients once for the first tick, while held state remains available to later ticks. The immutable snapshot remains available to other routed recipients with independent baselines. A batch that changes controls between ticks requires an explicit tick-addressed schedule. Exact results or an accompanying journal should eventually identify the input publisher, channel, route epoch, revision, or semantic-control identities consumed by the committed cursor range.
+For a multi-step request carrying one semantic snapshot assignment, the baseline policy imports that snapshot before the first requested tick. Simulation derives interval-local camera and selection commands once for the first tick, while held translation and interaction intent remain available to later ticks. A future route could make the same immutable snapshot available to other recipients with independent baselines. A batch that changes controls between ticks requires an explicit tick-addressed schedule. Exact results or an accompanying journal should eventually identify the input publisher, channel, route epoch, revision, or semantic-control identities consumed by the committed cursor range.
 
 `SimulationStepCount` is strictly positive. Reading or rendering completed state without advancing is a separate capability rather than a zero-step command with hidden side effects. The implemented ``POfflineCaptureTarget/captureCurrent(_:)`` follows that rule: it verifies a mandatory expected cursor against the coordinator's retained completed presentation and never constructs a `SimulationAdvanceRequest`.
 
@@ -337,11 +337,12 @@ The ``RealtimeAssembly``-owned ``RealtimeAdvanceDriver`` performs real-time samp
 
 Each tick committed by a Simulation advance executes one complete invariant fixed-step schedule. Assembly policy chooses whether and when to request that operation; it does not select an arbitrary subset of systems for the operation to run.
 
-The schedule itself is constructed from one explicit ``SimulationConfiguration``.
-Basic Game Content selects its complete named production value once, and every
-Runtime topology passes that same value to Simulation. This keeps orbit and zoom
-behavior consistent without turning the required system list into a
-topology-policy surface.
+The Engine constructs the schedule foundation from one explicit
+``SimulationConfiguration`` and composes systems from one
+``PSimulationBehavior`` only at the controlled ``SimulationSystemSchedule``
+stages. Game Content selects both values once, and every Runtime topology passes
+the same pair to Simulation. This keeps camera and gameplay behavior consistent
+without turning the required system order into a topology-policy surface.
 
 Engine2 should not expose a general `step(mode:)`, public system mask, `cameraOnly` tick, or assembly-defined schedule bucket. Partial execution would give ``SimulationTick`` several meanings and make snapshots, events, deterministic replay, MCP results, and system invariants depend on an implicit run mode. A completed cursor must mean that the whole authoritative schedule committed.
 
@@ -356,46 +357,47 @@ the Simulation cursor. The remaining input work maps as follows:
 
 | Current or retained work | Implemented or target disposition |
 | --- | --- |
-| ``SInputMapping`` | Maps finite raw pointer and scroll transients into semantic camera commands at the start of a complete tick. |
-| ``SCameraInput`` | Derives orbit state from the current authoritative camera and applies mapped commands before transient cleanup. |
+| ``InputRuntime`` mapping | Maps accepted physical events into context-free translation, interaction, camera, and selection semantics before publication. |
+| ``SCameraInput`` | Derives orbit state from the current authoritative camera and applies semantic camera commands before transient cleanup. |
+| Content behavior systems | Interpret translation, interaction, and selection intent against authoritative ECS selection and control state during a complete tick. |
 | ``SInputHistory`` | Simulation-consumed history runs on complete ticks; host or device diagnostics belong to Input Runtime or assembly-owned UI tooling. |
-| ``SInputCleanup`` | Raw and mapped transient cleanup is the invariant final input stage, after input consumers and before the remaining Simulation systems. |
+| ``SInputCleanup`` | Interval-local semantic command cleanup runs after input consumers while held semantic intent remains available to later steps. |
 | Metrics and tracing | Observe requests, completed publications, and results without requiring a partial ECS mutation pass. |
 
 Ordinary frozen pause means the absence of advance requests and no cursor change. A future game-specific **soft pause** can remain authoritative game state processed by the complete schedule—for example, movement may stop while network/session rules, scripted world state, or explicitly pause-exempt entities continue. Menu UI and other presentation can progress independently without making a partial Simulation tick. Soft pause is not implemented by suppressing an arbitrary engine system list.
 
 ## Input Must Be Attributable to Ticks
 
-Current ``InputSnapshot`` semantics are useful across several assemblies: held state persists, and cumulative pointer/scroll totals let Simulation derive motion across skipped publisher revisions. A future MCP physical-control adapter could submit the same `InputEvent` values as the platform adapter and then request a tick, but the implemented agent session does not do so. No current gameplay system consumes that agent input, and output viewpoint selection is already request-carried presentation state rather than authoritative physical control.
+Current ``InputSnapshot`` semantics are useful across several assemblies: held translation and interaction intent persist, while cumulative camera values and the selection-press count let Simulation derive commands across skipped publisher revisions. A future MCP physical-control adapter could submit the same `InputEvent` values as the platform adapter and then request a tick, allowing ``InputRuntime`` to apply the same configured mapping. The implemented agent session does not do so, and it has no semantic gameplay-control ingress. Output viewpoint selection is already request-carried presentation state rather than authoritative player control.
 
 That is not the only control boundary Engine2 will ever need. Three levels should remain distinct:
 
-1. raw host ingress such as keyboard, pointer, controller, or text callbacks
-2. revisioned device state published by an Input Runtime
-3. tick-addressed player actions or game-semantic commands accepted at the Simulation boundary
+1. physical host ingress such as keyboard, pointer, controller, or text callbacks
+2. revisioned, context-free semantic intent published by an Input Runtime
+3. context-sensitive interpretation against ECS selection and control state, or future tick-addressed game-semantic commands accepted at the Simulation boundary
 
 MCP, bots, replays, network peers, and tests may eventually prefer semantic commands rather than impersonating a keyboard. Do not expand physical `InputEvent` into a universal command bag to serve those uses.
 
 ### Multiple Sources Converge at One Input Authority
 
-Input sources may collect work concurrently, but ``InputRuntime`` owns the serialized acceptance order, canonical device state, publication session and revision, and coherent snapshot. The assembly supplies source-to-input-channel assignment and merge policy; adapters do not mutate one shared pressed-key set directly. An input-domain channel groups sources into one logical control surface without deciding which player, window, or viewpoint will consume it.
+The implemented ``InputRuntime`` serializes one platform source, owns its physical state and configured semantic mapping, and publishes one coherent revisioned snapshot. A future multi-source version should also own source-to-channel assignment, merge policy, and serialized acceptance across sources; adapters must not mutate one shared pressed-key set directly. An input-domain channel would group sources into one logical control surface without deciding which player, window, or viewpoint consumes it.
 
 ```text
-InputMetalView ------------------+
-controller source --------------+--> InputRuntime --> InputSnapshot
-MCP physical-control connector --+
-bot physical-control source -----+
-                       concurrent ingress
-                       serialized acceptance
+MetalScenePlatformView -------------------+
+future controller adapter ----------------+--> InputRuntime --> semantic InputSnapshot
+future MCP physical-control connector ----+
+future bot physical-control adapter -------+
+                                 physical ingress
+                                 serialized acceptance and mapping
 ```
 
 Multi-source ingress requires stable source identity and source-local held state. If two sources hold the same key, releasing it from one source must not erase the other's contribution. Detaching or restarting a source neutralizes only that source. Axis combination, pointer ownership, source-to-channel assignment, source priority, and human-versus-bot takeover all require explicit policies; arrival order alone is not a merge policy.
 
 The Input Runtime assigns its own publication revision after accepting and merging source changes. Source-local sequence identities may additionally support deduplication, diagnostics, and replay. A deterministic assembly records the accepted total order whenever concurrent arrival can affect the result.
 
-Input Runtime normalization stops at input-domain state. Simulation-owned mapping converts imported input into player or other gameplay concepts at the fixed-tick boundary. Presentation viewpoint control may map the same input through its own recipient-domain bindings. A complete MCP or Network service with transport, authentication, and session lifetime remains a peer Runtime; only a deliberately configured physical-control connector participates in Input Runtime fan-in. Semantic commands may instead enter through a separately named Simulation-owned control boundary.
+Input Runtime mapping stops at context-free semantic intent. It can publish translation, interaction, camera, and selection values without deciding which entity receives them or what gameplay action succeeds. Simulation behavior interprets those semantics against authoritative ECS selection and control state at the fixed-tick boundary. A future presentation viewpoint controller may interpret deliberately routed semantic controls within its own recipient domain. A complete MCP or Network service with transport, authentication, and session lifetime remains a peer Runtime; only a deliberately configured physical-control connector participates in Input Runtime fan-in. Game-semantic commands may instead enter through a separately named Simulation-owned control boundary.
 
-Batch advancement must define its input behavior. “Apply this input and advance 30 ticks” is ambiguous unless the contract states whether a transition occurs once, held state persists, an action repeats every tick, or a distinct per-tick control schedule is supplied. One-step requests are the unambiguous baseline; an optimized batch should carry explicit input scheduling semantics.
+Batch advancement must define its input behavior. “Apply this input and advance 30 ticks” is ambiguous unless the contract states whether a one-shot semantic press occurs once, held translation and interaction intent persist, an action repeats every tick, or a distinct per-tick control schedule is supplied. One-step requests are the unambiguous baseline; an optimized batch should carry explicit input scheduling semantics.
 
 Publisher revisions from independent Runtime instances cannot be merged by choosing the numerically newest value. Multiple producers normally converge through one designated Input Runtime. If an assembly-owned arbiter combines several Input Runtime publications, it becomes the effective input authority with its own publisher/session identity and emits one coherent, source-attributed publication through a typed boundary. An ordinary Input Route never mints or compares revisions from unrelated publishers.
 
@@ -405,16 +407,16 @@ The current ``InputSnapshot`` is a single-channel vertical slice. A future multi
 
 “Who owns input?” has three answers at three boundaries:
 
-1. The **Input Runtime** owns source identity, serialized acceptance, canonical input-domain state, publication sessions and revisions, and coherent immutable input values.
+1. The **Input Runtime** owns physical source facts, serialized acceptance, physical-to-context-free-semantic mapping, publication sessions and revisions, and coherent immutable input values. The current single-source implementation does not yet assign explicit source identities.
 2. The **Runtime Assembly** owns typed **Input Routes** that decide which input-domain channels or control lanes reach which recipient capabilities.
-3. Each **recipient** owns interpretation. Simulation maps routed controls into authoritative player or gameplay concepts at a fixed-tick boundary. A presentation viewpoint controller maps routed controls into an output-specific viewpoint. UI, editor, accessibility, and tooling recipients define their own command vocabularies.
+3. Each **recipient** owns contextual interpretation. Simulation applies routed semantics against authoritative ECS selection and control state at a fixed-tick boundary. A presentation viewpoint controller maps routed controls into an output-specific viewpoint. UI, editor, accessibility, and tooling recipients define their own command vocabularies.
 
 ```text
 hardware, MCP physical-control, and bot adapters
                     |
                     v
               InputRuntime
-        source-attributed input state
+       context-free semantic intent
                     |
                     v
         Assembly-owned Input Routes
@@ -427,19 +429,19 @@ hardware, MCP physical-control, and bot adapters
   authoritative state  immutable viewpoint ---> Render
 ```
 
-Render normally consumes an immutable scene value, a resolved viewpoint, and Render-owned settings. Audio consumes immutable listener state and ordered audio occurrences. Neither Runtime consumes raw input, clears Simulation input, or gains gameplay authority merely because a common real-time assembly binds one player to one screen and listener.
+Render normally consumes an immutable scene value, a resolved viewpoint, and Render-owned settings. Audio consumes immutable listener state and ordered audio occurrences. Neither Runtime consumes physical `InputEvent` values or semantic input snapshots, clears Simulation input, or gains gameplay authority merely because a common real-time assembly binds one player to one screen and listener.
 
 An **exclusive route** assigns a control lane to one recipient for its active route epoch. Relative pointer motion, text entry, a captured controller, and photo-mode orbit commonly require exclusivity so one gesture does not also steer gameplay. A **shared route** deliberately lets several recipients observe the same immutable publication, for example diagnostics, accessibility behavior, or a tracking source whose latest pose serves both authoritative and late-presentation needs. A partitioned policy may route distinct controls from one channel to different recipients. Sharing or partitioning must be explicit rather than an accidental consequence of several objects polling the same source.
 
 Input source, input channel, Simulation player or observer, window or viewport, output, viewpoint, and Simulation-session identities remain distinct. One player may use several sources. Moving a source between input channels is an Input Runtime transition that removes its held contribution from the old channel and establishes it in the new one. Rebinding a channel to another player, observer, viewport, or viewpoint is an assembly transition that creates a new route epoch and recipient baseline. Several windows may follow one player, one window may switch observers, and a spectator viewpoint may have no player. An assembly expresses those relationships rather than inferring them from focus, array position, or one global camera.
 
-An ``InputSnapshot`` is a non-destructive publication. Reading or importing it does not acknowledge data to ``InputRuntime`` or consume motion on behalf of another recipient. Each route-and-recipient pair keeps a private consumer baseline scoped by input publisher identity, publication session, input channel, route identity and epoch, and recipient target/session. Its ``InputRevision`` and cumulative totals have meaning only inside that scope. Re-reading one revision produces no new delta for that recipient, while another recipient derives its own delta independently. The current Simulation-owned ``InputState`` already demonstrates the local revision-and-total mechanism for one publisher and channel. The current realtime assembly has one direct host-to-Input-Runtime ingress and no presentation-input recipient; a future presentation route will need its own local cursor plus the missing route-scope identities.
+An ``InputSnapshot`` is a non-destructive publication. Reading or importing it does not acknowledge data to ``InputRuntime`` or consume semantic commands on behalf of another recipient. Each route-and-recipient pair keeps a private consumer baseline scoped by input publisher identity, publication session, input channel, route identity and epoch, and recipient target/session. Its ``InputRevision`` and cumulative semantic totals have meaning only inside that scope. Re-reading one revision produces no new delta for that recipient, while another recipient derives its own delta independently. The current Simulation-owned ``InputState`` already demonstrates the local revision-and-total mechanism for one publisher and channel. The current realtime assembly has one direct host-to-Input-Runtime ingress and no presentation-input recipient; a future presentation route will need its own local cursor plus the missing route-scope identities.
 
-Creating, retargeting, suspending, or resuming a route establishes a new route epoch and an explicit baseline against the latest publication. Historical pointer and scroll totals normally do not replay. The route policy also decides whether currently held controls are inherited, neutralized, or ignored until released. The transition produces an immutable baseline/neutralization assignment that the recipient applies through its own typed boundary: Simulation applies it at a safe advance boundary, while a Viewpoint Controller applies it within its own state isolation. The App never reaches into ``InputState`` or mutates a recipient cursor directly. Delayed delivery from an older route epoch cannot affect the new recipient. Rebasing one route never resets ``InputRuntime`` or advances another recipient's cursor.
+Creating, retargeting, suspending, or resuming a route establishes a new route epoch and an explicit baseline against the latest publication. Historical semantic camera totals and selection presses normally do not replay. The route policy also decides whether currently held semantic intent is inherited, neutralized, or ignored until released. The transition produces an immutable baseline or neutralization assignment that the recipient applies through its own typed boundary: Simulation applies it at a safe advance boundary, while a Viewpoint Controller applies it within its own state isolation. The App never reaches into ``InputState`` or mutates a recipient cursor directly. Delayed delivery from an older route epoch cannot affect the new recipient. Rebasing one route never resets ``InputRuntime`` or advances another recipient's cursor.
 
 Each transition also establishes an explicit cutover at an Input publisher revision and, when an ordered lane exists, an event-sequence boundary. Changes accepted before and after that boundary follow the old and new route policies respectively. Epoch checking rejects delayed delivery, but does not replace this cutover rule. If handoff deliberately drops or coalesces input, that behavior is part of the declared transition policy.
 
-The implemented exact-advance boundary already accepts explicit ingest or rebase assignments. A future typed Simulation route must preserve that construction rule: it explicitly chooses a current-publication rebase or deliberate session-start replay, then submits that immutable assignment with the first request. It must not accidentally ingest the entire cumulative pointer and scroll history merely because the Runtime does not retain a live Input source.
+The implemented exact-advance boundary already accepts explicit ingest or rebase assignments. A future typed Simulation route must preserve that construction rule: it explicitly chooses a current-publication rebase or deliberate session-start replay, then submits that immutable assignment with the first request. It must not accidentally ingest the entire cumulative semantic command history merely because the Runtime does not retain a live Input source.
 
 ## There Is At Most One Effective Advance Authority
 
@@ -472,7 +474,7 @@ Engine2 needs several explicit boundary shapes rather than one universal bus:
 | Exact request/result | Caller awaits a value correlated to its command | Simulation advance, offscreen render, MCP response |
 | Durable journal | Explicit retained history and cursoring | Replay, auditing, rollback, time travel |
 
-Cumulative input snapshots recover aggregate pointer/scroll motion and current held state across skipped publications within one publisher session; totals restart when the ``InputRevision`` session changes. They do not recover the order or multiplicity of discrete transitions. A future ordered Input event lane is a broadcast publication with an independent sequence position and cancellation lifetime for each subscription, plus explicit buffering and overflow policy for each connection. Storage may be shared or per subscription; one subscriber advancing or dropping its position must not advance another subscriber. When a consumer needs a coherent snapshot followed by ordered transitions, the publisher correlates the snapshot revision with an event-sequence boundary. Retained replay is a deliberate journal policy, not an accidental property of the live lane.
+Cumulative semantic input snapshots recover camera orbit and zoom totals, the latest selection press and its count, and current held translation and interaction intent across skipped publications within one publisher session. Totals and counts restart when the ``InputRevision`` session changes. They do not recover the order or multiplicity of discrete presses or physical transitions. A future ordered Input event lane is a broadcast publication with an independent sequence position and cancellation lifetime for each subscription, plus explicit buffering and overflow policy for each connection. Storage may be shared or per subscription; one subscriber advancing or dropping its position must not advance another subscriber. When a consumer needs a coherent snapshot followed by ordered transitions, the publisher correlates the snapshot revision with an event-sequence boundary. Retained replay is a deliberate journal policy, not an accidental property of the live lane.
 
 ``PSimulationPresentationSource`` is intentionally a latest-value boundary. That is correct for a display renderer that can skip superseded states. It is insufficient by itself for an offline frame job or agent operation that must render exactly the state produced by its own advance request or recapture one already completed cursor.
 
@@ -505,14 +507,13 @@ assembly directly. The assembly body owns its root-visibility behavior.
 The implemented topology is deliberately concrete:
 
 ```text
-InputMetalView ---> InputRuntime ---> RealtimeAdvanceDriver ---> Simulation
-                                                                  |
-                                                                  v
-MetalRenderer <---------------- SimulationPresentationSnapshot
+MetalScenePlatformView --physical events--> InputRuntime --semantic InputSnapshot--> RealtimeAdvanceDriver --> Simulation
+          |                                                                                                   |
+          +-- drawable and delegate --> MetalRenderer <------------- SimulationPresentationSnapshot ---------+
 ```
 
-``InputRuntime`` accepts host events only while active and publishes canonical
-device state. During ordinary pause the driver requests no Simulation work.
+``InputRuntime`` accepts host events only while active, maps them with its
+configured bindings, and publishes context-free semantic intent. During ordinary pause the driver requests no Simulation work.
 Input publications may change, and Render may redraw, but the latest completed
 presentation—including its camera—does not change. This locked path prevents a
 camera pose that Simulation has never published. Typed route identity, route
@@ -690,7 +691,7 @@ A render viewpoint and an audio listener are distinct immutable values even when
 
 An output shared by several observers still requires a finite modality-specific policy. A window may compose several viewports. One physical audio mix may select one listener, produce separate listener-specific streams, or apply an explicitly designed combined-listener model; several observers never implicitly collapse into one listener transform.
 
-The common real-time one-player arrangement is a simple pair of bindings: player input routes to Simulation, Simulation updates the authoritative observer, and one screen viewpoint plus one audio listener follow its published anchors. Render and Audio never need the raw input. That one-to-one shape is an assembly convenience, not an identity rule. One observer may drive several windows or streams, several observers may feed separate outputs, an output may switch observers, and Render and Audio may intentionally follow different anchors.
+The common real-time one-player arrangement is a simple pair of bindings: player input routes to Simulation, Simulation updates the authoritative observer, and one screen viewpoint plus one audio listener follow its published anchors. Render and Audio need neither physical input events nor semantic input snapshots. That one-to-one shape is an assembly convenience, not an identity rule. One observer may drive several windows or streams, several observers may feed separate outputs, an output may switch observers, and Render and Audio may intentionally follow different anchors.
 
 ### Gameplay Perception Is Not Presentation Feedback
 
@@ -728,8 +729,8 @@ assignment for Simulation; Simulation applies it at the next safe advance
 boundary before executing another tick. That assignment discards photo-mode
 transients and carries the assembly's held-control reacquisition policy.
 With several windows, each route additionally carries window or viewport and
-viewpoint identity rather than merging all pointer motion into one global
-camera.
+viewpoint identity rather than merging all semantic camera intent into one
+global camera.
 
 The implemented agent session now uses the same separation for exact output: one unique request may advance and capture, while later `.current` requests can supply alternate explicit viewpoints and produce several images from the retained Simulation cursor before another advance. Each image remains a separately identified serial request rather than an atomic multi-camera batch. A future richer MCP assembly may add persistent viewpoint control or orbit operations, but those controls are distinct from the request-carried ``RenderViewpoint`` already supported here.
 
@@ -1104,7 +1105,7 @@ Assembly policy alone does not guarantee bitwise replay across hardware. Stable 
 One `BasicGameContent` value can feed several assemblies:
 
 - its world builder configures Simulation in real-time, offline, MCP, test, or server assemblies
-- its ``SimulationConfiguration/basicGame`` policy configures the foundational Simulation behavior consistently across those assemblies
+- its ``SimulationConfiguration/basicGame`` policy configures the foundational Simulation camera consistently across those assemblies
 - its render catalog configures screen, offscreen, thumbnail, or alternate render consumers
 - future text, audio, or accessibility presentation mappings configure the runtime that performs those projections
 
@@ -1118,12 +1119,12 @@ Game Content does not select cadence, start runtimes, own caches, or coordinate 
 | ``SimulationSessionID`` and ``SimulationCursor`` | Implemented session-qualified identity; rebuilding establishes a fresh session at tick zero |
 | ``SimulationRuntime`` | Implemented owner of session construction, authoritative state, serialized exact advancement, and completed publication; it no longer owns cadence or a live Input source |
 | ``PSimulationAdvanceTarget`` and its request/result values | Implemented exact directed boundary with expected-cursor rejection, bounded step count, immutable input assignment, and an exact final presentation value |
-| ``PRuntimeAssembly`` and `Engine2App` | Implemented direct App-hosting boundary: the protocol refines SwiftUI `View` and requires potentially throwing Game Content injection; concrete assemblies implement `body: some View` and own topology-specific presentation lifecycle, while the App constructs Basic Game Content, retains one compile-time-selected assembly behind `some PRuntimeAssembly`, renders it directly, and owns explicit launch policy for a fallible selection |
+| ``PRuntimeAssembly`` and `Engine2App` | Implemented direct App-hosting boundary: the protocol refines SwiftUI `View` and requires potentially throwing Game Content injection; concrete assemblies implement `body: some View` and own topology-specific presentation lifecycle, while the App constructs Mining Game Content, retains one compile-time-selected assembly behind `some PRuntimeAssembly`, renders it directly, and owns explicit launch policy for a fallible selection |
 | ``ManualAssembly``, ``ManualAssemblyView``, `ManualSimulationControls`, and `ManualAssemblyToolbar` | Implemented caller-driven topology constructed from injected content and direct session identity, with no Input Runtime or automatic cadence; focused controls request exact steps and the screen presents completed snapshots |
 | `HeadlessSimulationMain`, ``HeadlessSimulationRunner``, the `HeadlessSimulation` target, and the `Headless Simulation` scheme | Implemented finite optimized command-line product that constructs Simulation directly through shared composition boundaries, registers a configurable high-cardinality world, measures exact one-tick Runtime requests with one presentation publication each, validates committed state and identity, and reports timing without app, assembly, UI, renderer implementation, render assets, or GPU code; Simulation still uses the backend-neutral ``Camera`` contract |
 | ``RealtimeAssembly``, ``RealtimeAssemblyView``, `RealtimeAssemblyToolbar`, and ``RealtimeAdvanceDriver`` | Implemented real-time topology constructed from injected content and direct cadence policy; the assembly body's appearance modifiers and scene-phase adapter coordinate lifecycle, focused UI types own platform input, screen presentation, debug controls, and snapshot-capture presentation, and the driver retains weak between-wake ownership, captured transition baselines, atomic rebase-then-ingest, bounded per-wake catch-up, overflow treatment, and exact advancement |
-| ``InputRuntime`` | Implemented single-channel physical-input authority with narrow ingress and latest-snapshot capabilities; multi-source and multi-seat fan-in still need source/channel identity, source-local state, and configured merge policy |
-| ``InputState`` | Existing authoritative Simulation-local consumer cursor, cumulative baseline, held state, raw transients, mapped camera actions, and cleanup boundary; evidence that importing a snapshot need not consume it for another recipient |
+| ``InputRuntime`` | Implemented single-channel authority for physical-event collection, configured physical-to-context-free-semantic mapping, and latest semantic snapshot publication; multi-source and multi-seat fan-in still need source/channel identity, source-local state, and configured merge policy |
+| ``InputState`` | Existing authoritative Simulation-local consumer cursor and cumulative semantic baseline, with held translation and interaction intent, interval-local camera and selection commands, and a cleanup boundary; evidence that importing a snapshot need not consume it for another recipient |
 | ``InputHistory`` | Existing World-owned bounded diagnostic projection of Simulation-consumed input with fixed-step numbering, consecutive-row coalescing, and display formatting; it is not retained Input Runtime publication or a durable journal |
 | `World.camera` and `SimulationPresentationSnapshot.camera` | Implemented Simulation-authored screen-camera authority; the live screen has no override and remains locked to the latest completed publication |
 | ``RenderViewpoint``, ``RenderViewpointID``, and ``RenderViewpointRevision`` | Implemented immutable explicit camera value and attribution for exact offscreen requests; no live screen viewpoint source exists |
@@ -1190,8 +1191,9 @@ Implemented for the first real-time slice: ``RealtimeAssembly`` constructs and o
 The first one-screen slice is implemented. `MetalRenderer` projects the exact
 camera in the latest completed ``SimulationPresentationSnapshot``; its
 screen-oriented ``RenderFrame`` initializer has no viewpoint override.
-``RealtimeAssemblyView`` gives ``InputMetalView`` the assembly's narrow Input
-capability, and there is no event fan-out into Render-side camera state. Focused coverage proves that input
+``RealtimeAssemblyView`` gives ``MetalScenePlatformView`` the assembly's narrow Input
+capability. The same view remains the single `MTKView` used by `MetalRenderer`,
+and there is no event fan-out into Render-side camera state. Focused coverage proves that input
 continues publishing while pause freezes both the Simulation cursor and the
 complete screen presentation. Exact offscreen coverage separately proves that
 one snapshot can be projected through several explicitly identified
@@ -1213,7 +1215,7 @@ authoritative camera rigs remain ordinary members of that complete schedule.
 
 Implemented as ``ManualAssembly``: the resulting Simulation has no polling task or Input Runtime and advances exactly one or N ticks only when its caller uses the exact capability. Its explicit initializer accepts Game Content and session identity directly. ``ManualAssemblyView`` renders the latest completed presentation, `ManualSimulationControls` offers a one-tick control, and `ManualAssemblyToolbar` owns the toolbar declarations without adding input collection or automatic cadence. This is the first foundation for replay, offline work, and MCP rather than an implementation of those larger coordinators.
 
-The common App-hosting slice is also implemented. ``PRuntimeAssembly`` refines SwiftUI `View` and requires potentially throwing `init(gameContent:)`. Each concrete assembly supplies `body: some View` and owns any topology-specific SwiftUI presentation lifecycle there. `Engine2App` constructs Basic Game Content, injects it into its compile-time-selected nonfallible assembly, retains that assembly behind `some PRuntimeAssembly`, and renders it directly. Topology-specific initializers accept direct content, policy, limit, and identity values. A fallible selected topology requires an explicit App launch policy. Runtime-dynamic heterogeneous selection would require an enum or deliberate erasure.
+The common App-hosting slice is also implemented. ``PRuntimeAssembly`` refines SwiftUI `View` and requires potentially throwing `init(gameContent:)`. Each concrete assembly supplies `body: some View` and owns any topology-specific SwiftUI presentation lifecycle there. `Engine2App` constructs Mining Game Content, injects it into its compile-time-selected nonfallible assembly, retains that assembly behind `some PRuntimeAssembly`, and renders it directly. Topology-specific initializers accept direct content, policy, limit, and identity values. A fallible selected topology requires an explicit App launch policy. Runtime-dynamic heterogeneous selection would require an enum or deliberate erasure.
 
 ### 6. Add Multi-Source Input and Typed Routing
 
@@ -1281,10 +1283,10 @@ Current automated coverage proves the first reusable boundaries:
 - one exact Simulation presentation value projects through several independently identified viewpoints while retaining source and viewpoint attribution
 - no production advancement path allows an external caller to select a partial Simulation system schedule
 - full-tick input import, cleanup, system ordering, publication, and cursor advancement remain invariant across every advance authority
-- Render consumes a resolved viewpoint rather than raw Input Runtime state
+- Render consumes a resolved viewpoint rather than physical events or semantic Input Runtime publications
 - a world rebuild produces a new session-qualified cursor
 - realtime, manual, offline, and agent-session types conform to one View-refining App-hosting protocol, construct their graphs from injected Game Content, implement concrete bodies with `some View`, and own any topology-specific presentation lifecycle in those bodies
-- the App constructs Basic Game Content, injects it into one compile-time-selected nonfallible assembly behind `some PRuntimeAssembly`, renders that assembly directly, and handles any thrown generic construction attempt explicitly
+- the App constructs Mining Game Content, injects it into one compile-time-selected nonfallible assembly behind `some PRuntimeAssembly`, renders that assembly directly, and handles any thrown generic construction attempt explicitly
 - direct assembly initializers preserve custom content, focused policy, limits, and identity
 - each focused assembly still exposes at most one effective advance authority per Simulation session; the common view boundary adds no authority
 - the production offline assembly completes serial advance captures through only its initial cursor and capture target across real fixed-step Simulation, Metal readback, and JPEG/PNG derivation while preserving cursor, request, viewpoint, render, and encoding provenance
@@ -1301,7 +1303,7 @@ Current automated coverage proves the first reusable boundaries:
 
 Remaining vertical slices should prove:
 
-- entering and leaving photo mode establishes new route epochs, does not replay accumulated physical input, and applies the declared held-control policy
+- entering and leaving photo mode establishes new route epochs, does not replay accumulated semantic transients, and applies the declared held-control policy
 - each routed recipient derives cumulative transients at most once relative to its own cursor, and no recipient advances another recipient's cursor
 - shared recipients may skip or accept revisions independently; one recipient's sampling decisions do not mutate the publication, advance another recipient's cursor, or alter the total motion that the other recipient derives from its own baseline
 - every route transition has an exact publisher-revision/event-sequence cutover and rejects delivery from stale route epochs
@@ -1342,7 +1344,7 @@ Avoid:
 - treating a Simulation observer anchor as inherently one Render camera, Audio listener, window, or stream
 - assuming one observer identity has exactly one presentation anchor or exactly one output
 - feeding Render culling, a resolved camera, or Audio mixing results back into AI or gameplay perception
-- allowing Render or Audio to consume and interpret raw input state
+- allowing Render or Audio to consume and interpret physical input events or semantic input snapshots
 - using one destructive input cursor or baseline for several recipients
 - implicitly rebinding Audio whenever a render viewpoint changes
 - advancing the Simulation cursor merely to move an output-specific viewpoint
@@ -1389,7 +1391,7 @@ Future assembly work should preserve these rules:
 17. Output-specific viewpoints may change independently of Simulation state, and exact render results identify both their scene source and viewpoint.
 18. Each Runtime owns the concurrency policy for its private mutable state; cross-runtime mutable implementation state never escapes its boundary.
 19. Runtime ownership does not require a dedicated actor, executor, thread, or pool, but independently advancing Runtimes must not be forced through one required serial execution domain.
-20. Input Runtime owns source facts, the Runtime Assembly owns routes, and recipients own interpretation; no recipient destructively consumes another recipient's input.
+20. Input Runtime owns physical source facts and context-free semantic mapping, the Runtime Assembly owns routes, and recipients own contextual interpretation; no recipient destructively consumes another recipient's input.
 21. Input source, logical input channel, player or observer, window or viewport, output, viewpoint, and Simulation-session identities are explicit and are never inferred to be one-to-one.
 22. Simulation-authored observer anchors are one-way completed publications; Render viewpoints, Audio listeners, and other modality-specific values are resolved through explicit output bindings.
 23. Presentation input and output-specific state cannot feed back into Simulation except through a deliberate Simulation-owned command accepted at a tick boundary.

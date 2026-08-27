@@ -284,11 +284,11 @@ struct RealtimeAdvanceDriverTests {
         let target = RecordingAdvanceTarget(cursor: cursor)
         let expectedSnapshot = inputSnapshot(
             revision: InputRevision(session: 4, sequence: 7),
-            pointerMotionTotal: SIMD2<Float>(12, -3)
+            cameraOrbitTotal: SIMD2<Float>(12, -3)
         )
         let laterSnapshot = inputSnapshot(
             revision: InputRevision(session: 4, sequence: 8),
-            pointerMotionTotal: SIMD2<Float>(99, 99)
+            cameraOrbitTotal: SIMD2<Float>(99, 99)
         )
         let inputSource = SequencedInputSource(
             snapshots: [expectedSnapshot, laterSnapshot]
@@ -342,21 +342,21 @@ struct RealtimeAdvanceDriverTests {
     @Test func pauseDiscardsBacklogAndResumeRebasesInput() async throws {
         let cursor = makeCursor()
         let target = RecordingAdvanceTarget(cursor: cursor)
-        let secondPointerMotionTotal = SIMD2<Float>(10, 0)
-        let thirdPointerMotionTotal = SIMD2<Float>(12, 0)
+        let secondCameraOrbitTotal = SIMD2<Float>(10, 0)
+        let thirdCameraOrbitTotal = SIMD2<Float>(12, 0)
         let inputSource = SequencedInputSource(
             snapshots: [
                 inputSnapshot(
                     revision: InputRevision(session: 2, sequence: 1),
-                    pointerMotionTotal: SIMD2<Float>(6, 0)
+                    cameraOrbitTotal: SIMD2<Float>(6, 0)
                 ),
                 inputSnapshot(
                     revision: InputRevision(session: 2, sequence: 2),
-                    pointerMotionTotal: secondPointerMotionTotal
+                    cameraOrbitTotal: secondCameraOrbitTotal
                 ),
                 inputSnapshot(
                     revision: InputRevision(session: 2, sequence: 3),
-                    pointerMotionTotal: thirdPointerMotionTotal
+                    cameraOrbitTotal: thirdCameraOrbitTotal
                 )
             ]
         )
@@ -414,8 +414,8 @@ struct RealtimeAdvanceDriverTests {
 
         #expect(didRecordRequest)
         #expect(request.stepCount.rawValue == 1)
-        #expect(baseline.pointerMotionTotal == secondPointerMotionTotal)
-        #expect(snapshot.pointerMotionTotal == thirdPointerMotionTotal)
+        #expect(baseline.cameraOrbitTotal == secondCameraOrbitTotal)
+        #expect(snapshot.cameraOrbitTotal == thirdCameraOrbitTotal)
     }
 
     @Test func startAndStopAreIdempotentAndPreservePausePreference() async {
@@ -508,7 +508,7 @@ struct RealtimeAdvanceDriverTests {
             snapshots: [
                 inputSnapshot(
                     revision: InputRevision(session: 8, sequence: 1),
-                    pointerMotionTotal: SIMD2<Float>(3, 1)
+                    cameraOrbitTotal: SIMD2<Float>(3, 1)
                 )
             ]
         )
@@ -970,14 +970,15 @@ struct RealtimeAdvanceDriverTests {
         SimulationCursor(sessionID: sessionID, tick: tick)
     }
 
-    private func inputSnapshot(revision: InputRevision, pointerMotionTotal: SIMD2<Float>) -> InputSnapshot {
+    private func inputSnapshot(revision: InputRevision, cameraOrbitTotal: SIMD2<Float>) -> InputSnapshot {
         InputSnapshot(
             revision: revision,
-            pointerPosition: pointerMotionTotal,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: cameraOrbitTotal,
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
     }
 

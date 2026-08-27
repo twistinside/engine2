@@ -11,19 +11,48 @@ class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<CAngularMotionAccumulator>()
     var angularVelocityComponents = ComponentStore<CAngularVelocity>()
+    var cargoComponents = ComponentStore<CCargo>()
+    var collisionBodyComponents = ComponentStore<CCollisionBody>()
+    var depotServiceComponents = ComponentStore<CDepotService>()
+    var displayNameComponents = ComponentStore<CDisplayName>()
+    var fuelComponents = ComponentStore<CFuel>()
+    var gravityReceiverComponents = ComponentStore<CGravityReceiver>()
+    var gravitySourceComponents = ComponentStore<CGravitySource>()
+    var massComponents = ComponentStore<CMass>()
+    var mineableComponents = ComponentStore<CMineable>()
     var motionComponents = ComponentStore<CMotion>()
+    var orbitalRailComponents = ComponentStore<COrbitalRail>()
+    var oreDepositComponents = ComponentStore<COreDeposit>()
+    var playerControlComponents = ComponentStore<CPlayerControl>()
     var positionComponents = ComponentStore<CPosition>()
+    var previousPositionComponents = ComponentStore<CPreviousPosition>()
+    var propulsionComponents = ComponentStore<CPropulsion>()
     var renderableComponents = ComponentStore<CRenderable>()
     var rotationComponents = ComponentStore<CRotation>()
     var scaleComponents = ComponentStore<CScale>()
     var selectableComponents = ComponentStore<CSelectable>()
+    var selectionBoundsComponents = ComponentStore<CSelectionBounds>()
 
     // MARK: Resources
     var camera = Camera.standard
+    var cameraFollowEntityID: EntityID?
     var input = InputState()
     var inputHistory = InputHistory(maximumEntryCount: 60)
+    private(set) var selectedEntityID: EntityID?
 
+    private var entitiesByID: [EntityID: Entity] = [:]
     private var nextEntityIndex = 0
+
+    /// Entity facades in deterministic identity order for UI and tooling.
+    ///
+    /// The returned objects project live component state. They are not a second
+    /// authoritative entity store and systems must not use them for hot-path
+    /// iteration.
+    var registeredEntities: [Entity] {
+        entitiesByID.keys.sorted(by: entityIDPrecedes).compactMap {
+            entitiesByID[$0]
+        }
+    }
 
     /// Captures this World's completed backend-neutral presentation facts.
     ///
@@ -79,7 +108,50 @@ class World {
         addScaleComponent(for: entity, from: state)
         addRenderableComponent(for: entity, from: renderableState)
         addSelectionComponent(for: entity, from: state)
+        register(entity)
+        if state.selectionState == .selected {
+            precondition(select(entity.id), "A selected seed requires a registered selectable entity")
+        }
         return entity.id
+    }
+
+    /// Returns the facade registered for one complete generational identity.
+    func entity(for id: EntityID) -> Entity? {
+        entitiesByID[id]
+    }
+
+    /// Returns dry mass plus current propellant and cargo mass.
+    ///
+    /// Missing optional storage contributes zero. A missing mass row means the
+    /// entity does not advertise live mass.
+    func liveMass(for entity: EntityID) -> Double? {
+        guard let mass = massComponents[entity] else {
+            return nil
+        }
+
+        return mass.dryMass
+            + (fuelComponents[entity]?.remaining ?? 0)
+            + (cargoComponents[entity]?.ore ?? 0)
+    }
+
+    /// Selects one registered selectable entity and clears every other row.
+    ///
+    /// Passing `nil` clears selection. An unknown or nonselectable identity is
+    /// rejected without changing the current selection.
+    @discardableResult
+    func select(_ entity: EntityID?) -> Bool {
+        if let entity,
+           (entitiesByID[entity] == nil || selectableComponents[entity] == nil) {
+            return false
+        }
+
+        for candidate in selectableComponents.entities {
+            selectableComponents.update(for: candidate) { selectable in
+                selectable.selectionState = candidate == entity ? .selected : .unselected
+            }
+        }
+        selectedEntityID = entity
+        return true
     }
 
     private func addPositionComponent(for entity: Entity, from state: Entity.InitialState) {
@@ -196,8 +268,29 @@ class World {
             return
         }
 
-        let selectable = CSelectable(selectionState: state.selectionState ?? .unselected)
+        let selectionState: CSelectable.SelectionState = selectedEntityID == entity.id
+            ? .selected
+            : state.selectionState ?? .unselected
+        let selectable = CSelectable(selectionState: selectionState)
         selectableComponents.insert(selectable, for: entity.id)
+    }
+
+    private func register(_ entity: Entity) {
+        if let existing = entitiesByID[entity.id] {
+            precondition(
+                existing === entity,
+                "A different entity facade is already registered for ID: \(entity.id)"
+            )
+            return
+        }
+        entitiesByID[entity.id] = entity
+    }
+
+    private func entityIDPrecedes(_ lhs: EntityID, _ rhs: EntityID) -> Bool {
+        if lhs.index == rhs.index {
+            return lhs.generation < rhs.generation
+        }
+        return lhs.index < rhs.index
     }
 
     func reserveEntityID() -> EntityID {

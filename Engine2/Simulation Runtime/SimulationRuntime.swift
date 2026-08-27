@@ -4,7 +4,7 @@
 /// active world, serializes exact advancement, and publishes completed state.
 /// Cadence, input sampling, pause policy, and lifecycle coordination belong to
 /// the assembly-selected configuration that drives its narrow capabilities.
-final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentationSource {
+final class SimulationRuntime: PSelectedEntitySource, PSimulationAdvanceTarget, PSimulationPresentationSource {
     /// The sole production duration represented by one completed Simulation tick.
     nonisolated static let fixedTimeStep: Duration = .seconds(1.0 / 60.0)
 
@@ -23,6 +23,14 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         engine.world
     }
 
+    /// Selected facade exposed without wider World or Simulation authority.
+    var selectedEntity: Entity? {
+        guard let selectedEntityID = world.selectedEntityID else {
+            return nil
+        }
+        return world.entity(for: selectedEntityID)
+    }
+
     /// Exact committed position of the currently owned authoritative timeline.
     var currentCursor: SimulationCursor {
         SimulationCursor(sessionID: sessionID, tick: engine.completedTick)
@@ -31,6 +39,7 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     init(
         worldBuilder: any PWorldBuilder,
         configuration: SimulationConfiguration,
+        behavior: any PSimulationBehavior = StandardSimulationBehavior(),
         inputBaseline: InputSnapshot?,
         sessionID: SimulationSessionID
     ) {
@@ -43,7 +52,8 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
         let engine = Engine(
             world: world,
             fixedTimeStep: Self.fixedTimeStep,
-            configuration: configuration
+            configuration: configuration,
+            behavior: behavior
         )
         self.engine = engine
         let initialCursor = SimulationCursor(
@@ -62,11 +72,13 @@ final class SimulationRuntime: PSimulationAdvanceTarget, PSimulationPresentation
     convenience init(
         worldBuilder: any PWorldBuilder,
         configuration: SimulationConfiguration,
+        behavior: any PSimulationBehavior = StandardSimulationBehavior(),
         inputBaseline: InputSnapshot?
     ) {
         self.init(
             worldBuilder: worldBuilder,
             configuration: configuration,
+            behavior: behavior,
             inputBaseline: inputBaseline,
             sessionID: SimulationSessionID()
         )
