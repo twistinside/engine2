@@ -37,19 +37,6 @@ The DocC pages distinguish between behavior that exists today and architecture p
 
 Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`Engine2/`](Engine2), direct unit coverage is under [`Engine2UnitTests/`](Engine2UnitTests), and renderer integration coverage is under [`Engine2RenderTests/`](Engine2RenderTests).
 
-## Explore generated star systems
-
-Select the shared `StarSystemExplorer` scheme and run the macOS app. Enter a decimal `UInt64` seed or a hexadecimal value with a `0x` prefix, then choose **Generate**. The explorer presents the host star, protoplanetary disk, selectable linear or zero-safe logarithmic orbital architecture, conserved formation ledger, resolved planets, nested moons, environments, compositions, classifications, and stored model policy.
-
-The explorer compiles the star-system generator's closed source set directly into its own target. It does not construct a Runtime Assembly, ECS world, renderer, or Metal resources. Its focused `StarSystemExplorerTests` target covers seed parsing, logarithmic orbit placement, generator integration, and valid zero-planet output.
-
-## Measure headless Simulation performance
-
-Select the shared `Headless Simulation` scheme and run it. The scheme builds the separate `HeadlessSimulation` command-line executable with Release optimization. Its thin entry point constructs `SimulationRuntime` directly through the same world-builder and configuration boundaries as the rendered application. An explicit positive source list excludes the app entry point, assemblies, UI, renderer implementation, render assets, and Metal sources. The backend-neutral `Camera` contract remains because Simulation snapshots require it.
-
-The default workload constructs 100,000 moving and rotating `Ball` entities, warms up for 10 ticks, and measures 60 exact one-tick requests. Each sample includes the complete Simulation system schedule and one presentation publication. The console reports construction time, tick-duration percentiles, throughput, and a named 60 Hz wall-time reference.
-
-Change the workload through the scheme's `ENGINE2_HEADLESS_ENTITY_COUNT`, `ENGINE2_HEADLESS_WARMUP_TICKS`, and `ENGINE2_HEADLESS_MEASURED_TICKS` environment variables. Each value must be a positive integer.
 
 ## Status
 
