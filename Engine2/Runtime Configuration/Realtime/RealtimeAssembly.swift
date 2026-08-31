@@ -49,6 +49,11 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         inputRuntime
     }
 
+    /// Narrow selected-entity source for the topology-local SwiftUI inspector.
+    var selectedEntitySource: any PSelectedEntitySource {
+        simulationRuntime
+    }
+
     /// Snapshot of the diagnostics consumed by the current Simulation world.
     var inputHistoryEntries: [InputHistoryEntry] {
         simulationRuntime.world.inputHistory.entries
@@ -77,10 +82,13 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         pollInterval: Duration,
         catchUpPolicy: RealtimeCatchUpPolicy
     ) {
-        let inputRuntime = InputRuntime()
+        let inputRuntime = InputRuntime(
+            mappingConfiguration: gameContent.inputMappingConfiguration
+        )
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
             configuration: gameContent.simulationConfiguration,
+            behavior: gameContent.simulationBehavior,
             inputBaseline: inputRuntime.latestInputSnapshot
         )
         let advanceDriver = RealtimeAdvanceDriver(
@@ -198,6 +206,18 @@ struct RealtimeAssembly: PRuntimeAssembly, PRealtimeAssemblyViewModel {
         } else {
             resumeAdvancement()
         }
+    }
+
+    /// Starts the existing coordinated session rebuild from synchronous UI actions.
+    func restartSession() {
+        Task {
+            await rebuildSimulation()
+        }
+    }
+
+    /// Routes one UI maneuver through the sole real-time advance authority.
+    func requestOrbitCircularization(for entityID: EntityID) {
+        advanceDriver.requestOrbitCircularization(for: entityID)
     }
 
     /// Reconstructs Simulation as one coordinated cursor and input-baseline cutover.

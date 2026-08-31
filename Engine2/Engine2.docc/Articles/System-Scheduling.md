@@ -2,14 +2,32 @@
 This article captures the intended scheduling direction for Engine2.
 ## Status
 Partially implemented. Parts of this model are not implemented yet.
-The current engine stores one foundational ordered system list. Production real-time, manual, offline, and agent advancement all reach the same exact ``Engine/step(inputSnapshot:)`` operation, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. The obsolete partial-schedule and independent real-time screen-camera paths have been removed. ``SInputMapping`` and ``SCameraInput`` instead run inside the complete schedule before transient cleanup, so the live screen's exact `SimulationPresentationSnapshot.camera` can change only through completed Simulation work. Deliberate exact offscreen, offline, and agent requests may still carry a separate ``RenderViewpoint`` as output policy.
+The current engine stores one complete ordered system list. Production real-time, manual, offline, and agent advancement all reach the same exact ``Engine/step(inputSnapshot:)`` operation, and ordinary pause means ``RealtimeAdvanceDriver`` issues no request. ``PSimulationBehavior`` and ``SimulationSystemSchedule`` provide controlled Game Content insertion stages around the Engine-owned foundation. ``SCameraInput`` runs inside that complete schedule before input cleanup, so the live screen's exact `SimulationPresentationSnapshot.camera` can change only through completed Simulation work. Deliberate exact offscreen, offline, and agent requests may still carry a separate ``RenderViewpoint`` as output policy.
 The ideas below describe the intended next layer of scheduling behavior as the engine becomes more complex.
 
 ECS systems and this scheduler live inside the authoritative Simulation Runtime. A system is scheduled simulation logic, not a top-level runtime. See <doc:Runtime-Architecture> for that distinction.
 
 An assembly-selected advance driver is not an ECS system and should not use the `S` prefix. It decides when to request progress, while the Simulation Runtime's scheduler still defines and executes one complete tick. See <doc:Runtime-Assemblies-and-Advancement>.
 
-Platform collection is not a scheduled ECS system. `InputMetalView` submits host events directly to ``InputRuntime``, which publishes a latest immutable `InputSnapshot`; ``Engine`` imports an assigned value into World-owned ``InputState`` only at the beginning of an actual fixed step. The current default maps raw pointer/scroll transients into semantic camera commands, applies them to the authoritative camera, projects a diagnostic row into the separate World-owned ``InputHistory``, clears raw and mapped transients, and performs the remaining authoritative work as one complete tick. Selecting an explicit viewpoint for a deliberate exact output request is separate output policy, not a scheduler phase.
+Platform collection and physical mapping are not scheduled ECS systems. The single `MetalScenePlatformView` submits host events directly to ``InputRuntime``, which maps them and publishes a latest immutable semantic `InputSnapshot`. ``Engine`` imports an assigned value into World-owned ``InputState`` only at the beginning of an actual fixed step. Simulation derives interval camera and selection values, resolves selection, routes translation and interaction through ECS control state, applies camera input, projects semantic diagnostics into the separate World-owned ``InputHistory``, and clears interval-local input as part of one complete tick. The SwiftUI orbit assist does not extend this Input path: ``SimulationRuntime`` imports its request-carried ``OrbitCircularizationCommand`` only for the first tick of the exact batch. That one-shot command may engage per-entity Simulation-owned autopilot state, which later ticks advance without replaying the request. Selecting an explicit viewpoint for a deliberate exact output request is separate output policy, not a scheduler stage.
+
+## Implemented Behavior Stages
+
+``PSimulationBehavior`` creates a fresh ``SimulationSystemSchedule`` for one Engine construction. The Engine flattens its systems into this fixed order:
+
+1. Game Content `inputConsumption`
+2. Engine-owned camera input
+3. Game Content `worldPreparation`
+4. Game Content `forceContribution`
+5. Engine-owned acceleration intent, movement, and rotation
+6. Game Content `postMovement`
+7. Game Content `prePresentation`
+8. Engine-owned input history and cleanup
+
+These stages are controlled extension points, not a replacement scheduler. Game Content cannot remove the foundation or move a system across a stage boundary after construction.
+
+The mining behavior uses `inputConsumption` for selection, selected-control routing, and ``SOrbitCircularization``. The circularization system consumes and clears the one-shot command before camera input and movement, validates the complete target identity and maneuver state, and engages per-entity Simulation-owned autopilot state. `worldPreparation` performs previous-position capture plus deterministic asteroid and depot rails. In `forceContribution`, gravity runs first, ``SOrbitCircularizationAutopilot`` advances the engaged finite burn, and ``SFlightControl`` handles remaining manual flight. The autopilot suppresses manual translation while engaged and admits only the acceleration and fuel use supported by maximum thrust, current fuel, live mass, and fixed-step duration. Movement integrates gravity and the autopilot contribution together, so the maneuver responds to gravity and changing fuel and cargo mass across ticks instead of replacing velocity atomically. `postMovement` resolves collisions, mining and depot service, and camera follow. ``SMiningInteraction`` joins the shared ``CInteraction`` proximity range with mining- or depot-specific component rows rather than duplicating that range in each action component. Mining currently contributes no `prePresentation` system. The star is the gravity source; only the skiff is dynamically integrated. Mining's camera policy orbits around the XY gameplay plane's Z normal, and flight control normalizes the camera's projected planar axes before interpreting translation. A future perturbation feature needs an explicit rail-to-dynamics transition rather than scheduling rail placement and dynamic forces for the same body.
+
 ## Non-Reentrant Updates
 Only one simulation update should be in flight at a time.
 When the clock produces new elapsed time, the engine should treat that as additional backlog, not permission to begin another overlapping world update. If the engine is already stepping systems, newly arrived time should be accumulated and drained later.
@@ -26,7 +44,7 @@ From that metadata, the scheduler can derive edges such as:
 - writer to writer
 - explicit before/after ordering
 An edge means "must run before." If the resulting graph contains a cycle, scheduling should fail loudly instead of silently choosing an arbitrary order.
-## Ordered Stages
+## Future Dependency Stages
 The dependency graph can be reduced into execution stages.
 Within a stage:
 - systems have no unmet dependencies on one another
@@ -34,7 +52,7 @@ Within a stage:
 Between stages:
 - a barrier exists
 - all work in the earlier stage must finish before the next stage begins
-This staged model is the intended way to preserve deterministic ordering while still allowing parallel execution where safe.
+This dependency-derived staged model is separate from the implemented named behavior insertion stages. It is the intended way to preserve deterministic ordering while still allowing parallel execution where safe.
 ## Phase Thinking
 Not every dependency needs to be expressed as a hand-written edge.
 It is useful to think in coarse simulation phases, then let the dependency graph provide finer ordering inside those phases. Likely phases include:
@@ -46,7 +64,7 @@ It is useful to think in coarse simulation phases, then let the dependency graph
 - movement
 - cleanup
 - presentation or export
-The exact phase list is expected to evolve with the engine.
+These conceptual phases may eventually inform dependency metadata. They do not replace the implemented ``SimulationSystemSchedule`` stage contract.
 Only the export side of presentation belongs in the simulation schedule. Actual rendering and Metal submission should happen after export, from the frozen presentation data, rather than as a world-mutating system.
 
 There is no independent viewpoint controller in the real-time screen schedule. The implemented input-driven orbit camera is ordinary complete-tick Simulation work and becomes visible only through a completed presentation snapshot. Future gameplay-authoritative camera rigs or sensors belong at the same authority boundary. Exact request-carried viewpoints remain outside the scheduler because they select an output from already completed Simulation state.
@@ -77,6 +95,7 @@ That keeps authoritative world mutation inside the scheduler while still allowin
 - ``Engine``
 - ``World``
 - ``PSystem``
-- ``SInputMapping``
+- ``PSimulationBehavior``
+- ``SimulationSystemSchedule``
 - ``SCameraInput``
 - ``SMovement``

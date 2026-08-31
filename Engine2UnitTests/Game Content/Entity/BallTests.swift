@@ -16,11 +16,13 @@ struct BallTests {
         let expectedAngularAcceleration = SIMD3<Float>(0.4, 0.5, 0.6)
         let expectedAngularImpulse = SIMD3<Float>(0.7, 0.8, 0.9)
         let expectedSelectionState = CSelectable.SelectionState.highlighted
+        let expectedSelectionRadius = 2.0
         let expectedMaterialID = MaterialID.goldMetal
 
         let ball = Ball(
             in: world,
             materialID: expectedMaterialID,
+            selectionRadius: expectedSelectionRadius,
             position: expectedPosition,
             velocity: expectedVelocity,
             accelerationIntent: expectedAccelerationIntent,
@@ -47,6 +49,7 @@ struct BallTests {
             world.renderableComponents[ball.id]?.materialID == expectedMaterialID
         )
         #expect(ball.selectionState == expectedSelectionState)
+        #expect(ball.selectionRadius == expectedSelectionRadius)
         #expect(world.scaleComponents[ball.id] == nil)
     }
 
@@ -67,6 +70,7 @@ struct BallTests {
         #expect(ball.meshID == .ball)
         #expect(ball.materialID == .warmDielectric)
         #expect(ball.selectionState == .unselected)
+        #expect(ball.selectionRadius == 0.5)
     }
 
     @Test func materialIdentityIsPerBallWhileMeshIdentityRemainsShared() {

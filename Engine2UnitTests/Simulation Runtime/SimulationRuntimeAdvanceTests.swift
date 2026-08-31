@@ -52,7 +52,7 @@ struct SimulationRuntimeAdvanceTests {
         )
         let snapshot = inputSnapshot(
             revision: InputRevision(session: 9, sequence: 2),
-            pointerMotion: SIMD2<Float>(7, 3)
+            cameraOrbit: SIMD2<Float>(0.07, 0.03)
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: staleCursor,
@@ -132,8 +132,8 @@ struct SimulationRuntimeAdvanceTests {
         let initialCamera = simulation.world.camera
         let snapshot = inputSnapshot(
             revision: InputRevision(session: 3, sequence: 1),
-            pointerMotion: SIMD2<Float>(5, 0),
-            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
+            translation: SIMD2<Float>(0, 1),
+            cameraOrbit: SIMD2<Float>(0.05, 0)
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
@@ -144,11 +144,16 @@ struct SimulationRuntimeAdvanceTests {
         let result = try completedResult(from: await simulation.advance(request))
 
         #expect(simulation.world.inputHistory.entries.count == 2)
-        #expect(simulation.world.inputHistory.entries[0].tokens == ["W"])
+        #expect(simulation.world.inputHistory.entries[0].tokens == ["Move x:+0.00 y:+1.00"])
         #expect(simulation.world.inputHistory.entries[0].frameCount == 2)
-        #expect(simulation.world.inputHistory.entries[1].tokens == ["Mouse dx:+5 dy:+0", "W"])
+        #expect(
+            simulation.world.inputHistory.entries[1].tokens == [
+                "Move x:+0.00 y:+1.00",
+                "Orbit dx:+0.05 dy:+0.00"
+            ]
+        )
         #expect(simulation.world.inputHistory.entries[1].frameCount == 1)
-        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.cameraOrbitDelta == .zero)
         let expectedCameraPosition = SIMD3<Float>(
             sinf(0.05) * 8,
             0,
@@ -176,8 +181,8 @@ struct SimulationRuntimeAdvanceTests {
         let initialCamera = simulation.world.camera
         let snapshot = inputSnapshot(
             revision: InputRevision(session: 6, sequence: 8),
-            pointerMotion: SIMD2<Float>(12, -4),
-            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
+            translation: SIMD2<Float>(0, 1),
+            cameraOrbit: SIMD2<Float>(0.12, -0.04)
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
@@ -188,9 +193,9 @@ struct SimulationRuntimeAdvanceTests {
         _ = try completedResult(from: await simulation.advance(request))
 
         #expect(simulation.world.inputHistory.entries.count == 1)
-        #expect(simulation.world.inputHistory.entries[0].tokens == ["W"])
+        #expect(simulation.world.inputHistory.entries[0].tokens == ["Move x:+0.00 y:+1.00"])
         #expect(simulation.world.inputHistory.entries[0].frameCount == 2)
-        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.cameraOrbitDelta == .zero)
         #expect(simulation.world.camera == initialCamera)
     }
 
@@ -199,13 +204,13 @@ struct SimulationRuntimeAdvanceTests {
         let initialCamera = simulation.world.camera
         let baseline = inputSnapshot(
             revision: InputRevision(session: 7, sequence: 4),
-            pointerMotion: SIMD2<Float>(12, -4),
-            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
+            translation: SIMD2<Float>(0, 1),
+            cameraOrbit: SIMD2<Float>(0.12, -0.04)
         )
         let subsequentSnapshot = inputSnapshot(
             revision: InputRevision(session: 7, sequence: 9),
-            pointerMotion: SIMD2<Float>(17, -1),
-            pressedKeys: [KeyboardKey(keyCode: 2, displayName: "D")]
+            translation: SIMD2<Float>(1, 0),
+            cameraOrbit: SIMD2<Float>(0.17, -0.01)
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: nil,
@@ -219,18 +224,17 @@ struct SimulationRuntimeAdvanceTests {
         let result = try completedResult(from: await simulation.advance(request))
 
         #expect(simulation.world.inputHistory.entries.count == 2)
-        #expect(simulation.world.inputHistory.entries[0].tokens == ["D"])
+        #expect(simulation.world.inputHistory.entries[0].tokens == ["Move x:+1.00 y:+0.00"])
         #expect(simulation.world.inputHistory.entries[0].frameCount == 2)
         #expect(
             simulation.world.inputHistory.entries[1].tokens == [
-                "Mouse dx:+5 dy:+3",
-                "D"
+                "Move x:+1.00 y:+0.00",
+                "Orbit dx:+0.05 dy:+0.03"
             ]
         )
         #expect(simulation.world.inputHistory.entries[1].frameCount == 1)
-        #expect(simulation.world.input.keyboard.keys == subsequentSnapshot.pressedKeys)
-        #expect(simulation.world.input.mouse.position == subsequentSnapshot.pointerPosition)
-        #expect(simulation.world.input.mouse.delta == .zero)
+        #expect(simulation.world.input.translation == subsequentSnapshot.translation)
+        #expect(simulation.world.input.cameraOrbitDelta == .zero)
         let expectedCameraPosition = SIMD3<Float>(
             sinf(0.05) * 8,
             0,
@@ -262,13 +266,13 @@ struct SimulationRuntimeAdvanceTests {
         )
         let baseline = inputSnapshot(
             revision: InputRevision(session: 3, sequence: 2),
-            pointerMotion: SIMD2<Float>(8, 1),
-            pressedKeys: [KeyboardKey(keyCode: 13, displayName: "W")]
+            translation: SIMD2<Float>(0, 1),
+            cameraOrbit: SIMD2<Float>(0.08, 0.01)
         )
         let subsequentSnapshot = inputSnapshot(
             revision: InputRevision(session: 3, sequence: 3),
-            pointerMotion: SIMD2<Float>(11, 2),
-            pressedKeys: [KeyboardKey(keyCode: 2, displayName: "D")]
+            translation: SIMD2<Float>(1, 0),
+            cameraOrbit: SIMD2<Float>(0.11, 0.02)
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: staleCursor,
@@ -287,8 +291,7 @@ struct SimulationRuntimeAdvanceTests {
             )
         )
         #expect(simulation.currentCursor == currentCursor)
-        #expect(simulation.world.input.keyboard.keys.isEmpty)
-        #expect(simulation.world.input.mouse.position == .zero)
+        #expect(simulation.world.input.translation == .zero)
         #expect(simulation.world.inputHistory.entries.isEmpty)
     }
 
@@ -322,6 +325,59 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.currentCursor.tick == SimulationTick(rawValue: 1))
     }
 
+    @Test func orbitCommandIsImportedOnlyForTheFirstTickOfABatch() async throws {
+        let simulation = makeSimulation(
+            behavior: OrbitCommandProbeBehavior()
+        )
+        let entityID = try #require(
+            simulation.world.positionComponents.entities.first
+        )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: simulation.currentCursor,
+            stepCount: SimulationStepCount(rawValue: 3),
+            inputAssignment: .none,
+            orbitCircularizationCommand: OrbitCircularizationCommand(
+                entityID: entityID
+            )
+        )
+
+        _ = try completedResult(from: await simulation.advance(request))
+
+        #expect(
+            simulation.world.positionComponents[entityID]?.position
+                == SIMD3<Double>(3, 1, 0)
+        )
+        #expect(simulation.world.orbitCircularizationCommand == nil)
+    }
+
+    @Test func cursorMismatchRejectsOrbitCommandWithoutImportingIt() async throws {
+        let simulation = makeSimulation(
+            behavior: OrbitCommandProbeBehavior()
+        )
+        let entityID = try #require(
+            simulation.world.positionComponents.entities.first
+        )
+        let staleCursor = SimulationCursor(
+            sessionID: simulation.sessionID,
+            tick: SimulationTick(rawValue: 5)
+        )
+        let request = SimulationAdvanceRequest(
+            expectedCursor: staleCursor,
+            stepCount: .one,
+            inputAssignment: .none,
+            orbitCircularizationCommand: OrbitCircularizationCommand(
+                entityID: entityID
+            )
+        )
+
+        _ = await simulation.advance(request)
+
+        #expect(
+            simulation.world.positionComponents[entityID]?.position == .zero
+        )
+        #expect(simulation.world.orbitCircularizationCommand == nil)
+    }
+
     @Test func returnedSnapshotRemainsDetachedFromLaterAdvances() async throws {
         let simulation = makeSimulation()
         let firstRequest = SimulationAdvanceRequest(
@@ -348,10 +404,14 @@ struct SimulationRuntimeAdvanceTests {
         #expect(simulation.latestPresentationSnapshot.entityPresentations.first?.position == SIMD3<Float>(2, 0, 0))
     }
 
-    private func makeSimulation(sessionID: SimulationSessionID = SimulationSessionID()) -> SimulationRuntime {
+    private func makeSimulation(
+        sessionID: SimulationSessionID = SimulationSessionID(),
+        behavior: any PSimulationBehavior = StandardSimulationBehavior()
+    ) -> SimulationRuntime {
         SimulationRuntime(
             worldBuilder: MovingWorldBuilder(),
             configuration: .basicGame,
+            behavior: behavior,
             inputBaseline: nil,
             sessionID: sessionID
         )
@@ -367,16 +427,17 @@ struct SimulationRuntimeAdvanceTests {
 
     private func inputSnapshot(
         revision: InputRevision,
-        pointerMotion: SIMD2<Float>,
-        pressedKeys: Set<KeyboardKey> = []
+        translation: SIMD2<Float> = .zero,
+        cameraOrbit: SIMD2<Float>
     ) -> InputSnapshot {
         InputSnapshot(
             revision: revision,
-            pointerPosition: pointerMotion,
-            pointerMotionTotal: pointerMotion,
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: pressedKeys
+            translation: translation,
+            isInteractionActive: false,
+            cameraOrbitTotal: cameraOrbit,
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
     }
 
@@ -395,6 +456,26 @@ struct SimulationRuntimeAdvanceTests {
                 velocity: velocity
             )
             return world
+        }
+    }
+
+    private struct OrbitCommandProbeBehavior: PSimulationBehavior {
+        func makeSystemSchedule() -> SimulationSystemSchedule {
+            SimulationSystemSchedule(
+                inputConsumption: [SOrbitCommandProbe()]
+            )
+        }
+    }
+
+    private struct SOrbitCommandProbe: PSystem {
+        mutating func update(world: inout World, deltaTime _: Double) {
+            guard let command = world.orbitCircularizationCommand else {
+                return
+            }
+
+            world.positionComponents.update(for: command.entityID) { position in
+                position.position.y += 1
+            }
         }
     }
 

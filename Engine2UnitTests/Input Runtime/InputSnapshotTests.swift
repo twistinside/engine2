@@ -6,58 +6,40 @@ struct InputSnapshotTests {
         let snapshot = InputSnapshot.empty
 
         #expect(snapshot.revision == .initial)
-        #expect(snapshot.pointerPosition == .zero)
-        #expect(snapshot.pointerMotionTotal == .zero)
-        #expect(snapshot.scrollTotal == .zero)
-        #expect(snapshot.pressedMouseButtons.isEmpty)
-        #expect(snapshot.pressedKeys.isEmpty)
+        #expect(snapshot.translation == .zero)
+        #expect(snapshot.isInteractionActive == false)
+        #expect(snapshot.cameraOrbitTotal == .zero)
+        #expect(snapshot.cameraZoomTotal == 0)
+        #expect(snapshot.latestSelectionPress == nil)
+        #expect(snapshot.selectionPressCount == 0)
     }
 
-    @Test func equalityUsesSetValuesRatherThanInsertionOrder() {
-        let firstKey = KeyboardKey(keyCode: 1, displayName: "A")
-        let secondKey = KeyboardKey(keyCode: 2, displayName: "B")
-        let revision = InputRevision(session: 1, sequence: 2)
-        let pointerPosition = SIMD2<Float>(3, 4)
-        let pointerMotionTotal = SIMD2<Float>(5, 6)
-        let scrollTotal = SIMD2<Float>(7, 8)
+    @Test func everySemanticFieldParticipatesInValueIdentity() throws {
+        let selectionPress = try #require(
+            SelectionPress(
+                normalizedPosition: SIMD2<Float>(0.25, 0.75),
+                aspectRatio: 2
+            )
+        )
         let first = InputSnapshot(
-            revision: revision,
-            pointerPosition: pointerPosition,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
-            pressedMouseButtons: [.left, .other(4)],
-            pressedKeys: [firstKey, secondKey]
-        )
-        let second = InputSnapshot(
-            revision: revision,
-            pointerPosition: pointerPosition,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
-            pressedMouseButtons: [.other(4), .left],
-            pressedKeys: [secondKey, firstKey]
-        )
-
-        #expect(first == second)
-    }
-
-    @Test func revisionRemainsPartOfSnapshotValueIdentity() {
-        let first = InputSnapshot(
-            revision: InputRevision(session: 1, sequence: 1),
-            pointerPosition: .zero,
-            pointerMotionTotal: .zero,
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
-        )
-        let second = InputSnapshot(
             revision: InputRevision(session: 1, sequence: 2),
-            pointerPosition: .zero,
-            pointerMotionTotal: .zero,
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: SIMD2<Float>(1, 0),
+            isInteractionActive: true,
+            cameraOrbitTotal: SIMD2<Float>(3, 4),
+            cameraZoomTotal: 5,
+            latestSelectionPress: selectionPress,
+            selectionPressCount: 6
         )
 
-        #expect(first != second)
+        #expect(first != .empty)
+        #expect(InputSnapshot(
+            revision: first.revision.advanced(),
+            translation: first.translation,
+            isInteractionActive: first.isInteractionActive,
+            cameraOrbitTotal: first.cameraOrbitTotal,
+            cameraZoomTotal: first.cameraZoomTotal,
+            latestSelectionPress: first.latestSelectionPress,
+            selectionPressCount: first.selectionPressCount
+        ) != first)
     }
 }

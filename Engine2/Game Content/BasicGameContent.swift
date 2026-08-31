@@ -3,6 +3,10 @@
 /// This value owns game-specific construction and asset descriptions, but it
 /// has no cadence, lifecycle, decoded model, or GPU resource of its own.
 struct BasicGameContent: PGameContent {
+    let inputMappingConfiguration: InputMappingConfiguration
+
+    let simulationBehavior: any PSimulationBehavior
+
     let worldBuilder: any PWorldBuilder
 
     let simulationConfiguration: SimulationConfiguration
@@ -18,6 +22,8 @@ struct BasicGameContent: PGameContent {
     /// authored catalog owned by this Game Content.
     init(worldBuilder: any PWorldBuilder) {
         self.worldBuilder = worldBuilder
+        self.inputMappingConfiguration = .basicGame
+        self.simulationBehavior = StandardSimulationBehavior()
         self.simulationConfiguration = .basicGame
         self.renderAssetCatalog = .everything
     }

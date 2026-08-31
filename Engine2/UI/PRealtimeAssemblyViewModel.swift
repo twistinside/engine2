@@ -13,6 +13,9 @@ protocol PRealtimeAssemblyViewModel {
     /// Platform-event ingress connected to the Input Runtime.
     var inputSink: any PInputEventSink { get }
 
+    /// Selected live entity exposed through capability protocols for inspection.
+    var selectedEntitySource: any PSelectedEntitySource { get }
+
     /// Read-only copy of Simulation-consumed input diagnostics.
     var inputHistoryEntries: [InputHistoryEntry] { get }
 
@@ -21,4 +24,10 @@ protocol PRealtimeAssemblyViewModel {
 
     /// Toggles only the assembly-owned advancement policy.
     func toggleAdvancement()
+
+    /// Requests an assembly-coordinated rebuild of the current session.
+    func restartSession()
+
+    /// Stages a selected craft maneuver for the next complete Simulation tick.
+    func requestOrbitCircularization(for entityID: EntityID)
 }

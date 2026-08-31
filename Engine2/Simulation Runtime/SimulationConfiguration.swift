@@ -1,39 +1,47 @@
 import simd
 
-/// Immutable behavior policy required to construct the foundational Simulation schedule.
+/// Immutable camera policy required to construct the foundational Simulation schedule.
 ///
-/// The value keeps camera-control sensitivities and orbit constraints consistent across
-/// every system in one Simulation Runtime. Its initializer validates the complete policy;
+/// The value keeps camera-orbit constraints consistent across every system in one
+/// Simulation Runtime. Its initializer validates the complete policy;
 /// Game Content or the Runtime Assembly must deliberately select a named production
 /// value instead of letting individual systems choose local defaults.
 nonisolated struct SimulationConfiguration: Equatable, Sendable {
-    /// Complete Simulation behavior policy selected by Basic Game Content.
+    /// Complete camera policy selected by Basic Game Content.
     static let basicGame = Self(
-        pointerOrbitSensitivity: 0.01,
-        scrollZoomSensitivity: 0.04,
         cameraOrbitTarget: .zero,
+        cameraOrbitAxis: SIMD3<Float>(0, 1, 0),
         minimumCameraOrbitRadius: 2,
         maximumCameraOrbitRadius: 30
     )
 
-    let pointerOrbitSensitivity: Float
-    let scrollZoomSensitivity: Float
+    /// Camera policy for the mining slice's large planar world.
+    static let miningGame = Self(
+        cameraOrbitTarget: .zero,
+        cameraOrbitAxis: SIMD3<Float>(0, 0, 1),
+        minimumCameraOrbitRadius: 100,
+        maximumCameraOrbitRadius: 4_000
+    )
+
+    let cameraOrbitAxis: SIMD3<Float>
     let cameraOrbitTarget: SIMD3<Float>
     let minimumCameraOrbitRadius: Float
     let maximumCameraOrbitRadius: Float
 
     init(
-        pointerOrbitSensitivity: Float,
-        scrollZoomSensitivity: Float,
         cameraOrbitTarget: SIMD3<Float>,
+        cameraOrbitAxis: SIMD3<Float> = SIMD3<Float>(0, 1, 0),
         minimumCameraOrbitRadius: Float,
         maximumCameraOrbitRadius: Float
     ) {
-        precondition(pointerOrbitSensitivity.isFinite, "Pointer orbit sensitivity must be finite.")
-        precondition(scrollZoomSensitivity.isFinite, "Scroll zoom sensitivity must be finite.")
         precondition(
             cameraOrbitTarget.isFinite,
             "Camera orbit target must be finite."
+        )
+        let orbitAxisLength = simd_length(cameraOrbitAxis)
+        precondition(
+            cameraOrbitAxis.isFinite && orbitAxisLength.isFinite && orbitAxisLength > 0,
+            "Camera orbit axis must be finite and nonzero."
         )
         precondition(
             minimumCameraOrbitRadius.isFinite && minimumCameraOrbitRadius > 0,
@@ -44,9 +52,8 @@ nonisolated struct SimulationConfiguration: Equatable, Sendable {
             "Camera orbit maximum radius must be finite and no smaller than its minimum."
         )
 
-        self.pointerOrbitSensitivity = pointerOrbitSensitivity
-        self.scrollZoomSensitivity = scrollZoomSensitivity
         self.cameraOrbitTarget = cameraOrbitTarget
+        self.cameraOrbitAxis = cameraOrbitAxis / orbitAxisLength
         self.minimumCameraOrbitRadius = minimumCameraOrbitRadius
         self.maximumCameraOrbitRadius = maximumCameraOrbitRadius
     }

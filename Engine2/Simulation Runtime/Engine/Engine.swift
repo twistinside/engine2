@@ -15,25 +15,38 @@ final class Engine {
     private(set) var world: World
 
     /// Constructs the invariant production schedule from one validated Simulation policy.
-    convenience init(world: World, fixedTimeStep: Duration, configuration: SimulationConfiguration) {
+    convenience init(
+        world: World,
+        fixedTimeStep: Duration,
+        configuration: SimulationConfiguration,
+        behavior: any PSimulationBehavior = StandardSimulationBehavior()
+    ) {
+        let behaviorSchedule = behavior.makeSystemSchedule()
         self.init(
             world: world,
             fixedTimeStep: fixedTimeStep,
-            systems: [
-                SInputMapping(
-                    pointerOrbitSensitivity: configuration.pointerOrbitSensitivity,
-                    scrollZoomSensitivity: configuration.scrollZoomSensitivity
-                ),
+            systems:
+            behaviorSchedule.inputConsumption +
+            [
                 SCameraInput(
                     target: configuration.cameraOrbitTarget,
+                    orbitAxis: configuration.cameraOrbitAxis,
                     minimumRadius: configuration.minimumCameraOrbitRadius,
                     maximumRadius: configuration.maximumCameraOrbitRadius
                 ),
-                SInputHistory(),
-                SInputCleanup(),
+            ] +
+            behaviorSchedule.worldPreparation +
+            behaviorSchedule.forceContribution +
+            [
                 SAccelerationIntent(),
                 SMovement(),
-                SRotation()
+                SRotation(),
+            ] +
+            behaviorSchedule.postMovement +
+            behaviorSchedule.prePresentation +
+            [
+                SInputHistory(),
+                SInputCleanup(),
             ]
         )
     }

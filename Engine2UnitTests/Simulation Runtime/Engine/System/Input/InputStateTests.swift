@@ -1,257 +1,240 @@
-import simd
 import Testing
 @testable import Engine2
 
 struct InputStateTests {
-    @Test func initialAndNewSessionCumulativeTotalsApplyFromZero() {
+    @Test func initialAndNewSessionCumulativeTotalsApplyFromZero() throws {
         var input = InputState()
-
-        let initialPosition = SIMD2<Float>(13, 18)
-        let initialPointerMotionTotal = SIMD2<Float>(3, -2)
-        let initialScrollTotal = SIMD2<Float>(0, -4)
-        let initialSnapshot = snapshot(
-            session: 1,
-            sequence: 4,
-            position: initialPosition,
-            pointerMotionTotal: initialPointerMotionTotal,
-            scrollTotal: initialScrollTotal,
-            pressedMouseButtons: [.left]
+        let firstSelection = try #require(
+            SelectionPress(
+                normalizedPosition: SIMD2<Float>(0.25, 0.75),
+                aspectRatio: 2
+            )
         )
-        input.ingest(initialSnapshot)
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 4,
+                translation: SIMD2<Float>(1, 0),
+                isInteractionActive: true,
+                cameraOrbitTotal: SIMD2<Float>(3, -2),
+                cameraZoomTotal: -4,
+                latestSelectionPress: firstSelection,
+                selectionPressCount: 2
+            )
+        )
 
-        #expect(input.mouse.buttons == [.left])
-        #expect(input.mouse.position == initialPosition)
-        #expect(input.mouse.delta == initialPointerMotionTotal)
-        #expect(input.mouse.scrollDelta == initialScrollTotal)
+        #expect(input.translation == SIMD2<Float>(1, 0))
+        #expect(input.isInteractionActive)
+        #expect(input.cameraOrbitDelta == SIMD2<Float>(3, -2))
+        #expect(input.cameraZoomDelta == -4)
+        #expect(input.selectionPress == firstSelection)
 
         input.clearTransientInput()
-        let nextPosition = SIMD2<Float>(20, 30)
-        let nextPointerMotionTotal = SIMD2<Float>(5, 6)
-        let nextScrollTotal = SIMD2<Float>(0, 7)
-        let nextSnapshot = snapshot(
-            session: 2,
-            sequence: 2,
-            position: nextPosition,
-            pointerMotionTotal: nextPointerMotionTotal,
-            scrollTotal: nextScrollTotal
+        input.ingest(
+            snapshot(
+                session: 2,
+                sequence: 2,
+                translation: SIMD2<Float>(0, -1),
+                cameraOrbitTotal: SIMD2<Float>(5, 6),
+                cameraZoomTotal: 7
+            )
         )
-        input.ingest(nextSnapshot)
 
-        #expect(input.mouse.position == nextPosition)
-        #expect(input.mouse.delta == nextPointerMotionTotal)
-        #expect(input.mouse.scrollDelta == nextScrollTotal)
+        #expect(input.translation == SIMD2<Float>(0, -1))
+        #expect(input.isInteractionActive == false)
+        #expect(input.cameraOrbitDelta == SIMD2<Float>(5, 6))
+        #expect(input.cameraZoomDelta == 7)
+        #expect(input.selectionPress == nil)
     }
 
-    @Test func sameRevisionDoesNotReplayTransientInput() {
+    @Test func repeatedAndStaleRevisionsDoNotReplayOrReplaceState() {
         var input = InputState()
         let publication = snapshot(
             session: 1,
             sequence: 3,
-            pointerMotionTotal: SIMD2<Float>(4, -2),
-            scrollTotal: SIMD2<Float>(0, 5)
+            translation: SIMD2<Float>(0, 1),
+            cameraOrbitTotal: SIMD2<Float>(4, -2),
+            cameraZoomTotal: 5
         )
-
         input.ingest(publication)
         input.clearTransientInput()
+
         input.ingest(publication)
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 2,
+                translation: SIMD2<Float>(1, 0),
+                cameraOrbitTotal: SIMD2<Float>(100, 100),
+                cameraZoomTotal: 100
+            )
+        )
 
-        #expect(input.mouse.delta == .zero)
-        #expect(input.mouse.scrollDelta == .zero)
+        #expect(input.translation == SIMD2<Float>(0, 1))
+        #expect(input.cameraOrbitDelta == .zero)
+        #expect(input.cameraZoomDelta == 0)
     }
 
-    @Test func skippedRevisionsPreserveCumulativeDifferences() {
+    @Test func skippedRevisionsPreserveCumulativeDifferencesAndLatestSelection() throws {
         var input = InputState()
-
-        let initialSnapshot = snapshot(
-            session: 1,
-            sequence: 1,
-            pointerMotionTotal: SIMD2<Float>(2, 1),
-            scrollTotal: SIMD2<Float>(0, 3)
+        let firstSelection = try #require(
+            SelectionPress(normalizedPosition: SIMD2<Float>(0.1, 0.2), aspectRatio: 1)
         )
-        input.ingest(initialSnapshot)
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 1,
+                cameraOrbitTotal: SIMD2<Float>(2, 1),
+                cameraZoomTotal: 3,
+                latestSelectionPress: firstSelection,
+                selectionPressCount: 1
+            )
+        )
         input.clearTransientInput()
 
-        let nextSnapshot = snapshot(
-            session: 1,
-            sequence: 5,
-            pointerMotionTotal: SIMD2<Float>(9, -3),
-            scrollTotal: SIMD2<Float>(0, 11)
+        let latestSelection = try #require(
+            SelectionPress(normalizedPosition: SIMD2<Float>(0.8, 0.9), aspectRatio: 2)
         )
-        input.ingest(nextSnapshot)
-
-        #expect(input.mouse.delta == SIMD2<Float>(7, -4))
-        #expect(input.mouse.scrollDelta == SIMD2<Float>(0, 8))
-    }
-
-    @Test func staleRevisionIsIgnored() {
-        var input = InputState()
-        let heldKey = KeyboardKey(
-            keyCode: 13,
-            charactersIgnoringModifiers: "w"
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 5,
+                cameraOrbitTotal: SIMD2<Float>(9, -3),
+                cameraZoomTotal: 11,
+                latestSelectionPress: latestSelection,
+                selectionPressCount: 3
+            )
         )
 
-        let currentPosition = SIMD2<Float>(8, 9)
-        let currentSnapshot = snapshot(
-            session: 2,
-            sequence: 5,
-            position: currentPosition,
-            pointerMotionTotal: SIMD2<Float>(4, 3),
-            pressedMouseButtons: [.right],
-            pressedKeys: [heldKey]
-        )
-        input.ingest(currentSnapshot)
+        #expect(input.cameraOrbitDelta == SIMD2<Float>(7, -4))
+        #expect(input.cameraZoomDelta == 8)
+        #expect(input.selectionPress == latestSelection)
+
         input.clearTransientInput()
-
-        let stalePosition = SIMD2<Float>(100, 100)
-        let staleSnapshot = snapshot(
-            session: 2,
-            sequence: 4,
-            position: stalePosition,
-            pointerMotionTotal: stalePosition
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 6,
+                cameraOrbitTotal: SIMD2<Float>(9, -3),
+                cameraZoomTotal: 11,
+                latestSelectionPress: latestSelection,
+                selectionPressCount: 3
+            )
         )
-        input.ingest(staleSnapshot)
-
-        #expect(input.mouse.position == currentPosition)
-        #expect(input.mouse.buttons == [.right])
-        #expect(input.keyboard.keys == [heldKey])
-        #expect(input.mouse.delta == .zero)
-        #expect(input.mouse.scrollDelta == .zero)
-
-        let newerPosition = SIMD2<Float>(9, 10)
-        let newerSnapshot = snapshot(
-            session: 2,
-            sequence: 6,
-            position: newerPosition,
-            pointerMotionTotal: SIMD2<Float>(7, 5)
-        )
-        input.ingest(newerSnapshot)
-
-        #expect(input.mouse.position == newerPosition)
-        #expect(input.mouse.delta == SIMD2<Float>(3, 2))
+        #expect(input.selectionPress == nil)
     }
 
-    @Test func rebaseImportsPersistentStateWithoutHistoricalTransients() {
+    @Test func rebaseImportsHeldIntentAndConsumesHistoricalTransients() throws {
         var input = InputState()
-        let heldKey = KeyboardKey(
-            keyCode: 49,
-            charactersIgnoringModifiers: " "
+        let baselineSelection = try #require(
+            SelectionPress(normalizedPosition: SIMD2<Float>(0.4, 0.6), aspectRatio: 2)
         )
-
-        let baselinePosition = SIMD2<Float>(21, 34)
         let baseline = snapshot(
             session: 3,
             sequence: 8,
-            position: baselinePosition,
-            pointerMotionTotal: SIMD2<Float>(50, -40),
-            scrollTotal: SIMD2<Float>(0, 12),
-            pressedMouseButtons: [.left],
-            pressedKeys: [heldKey]
+            translation: SIMD2<Float>(1, 0),
+            isInteractionActive: true,
+            cameraOrbitTotal: SIMD2<Float>(50, -40),
+            cameraZoomTotal: 12,
+            latestSelectionPress: baselineSelection,
+            selectionPressCount: 4
         )
         input.rebase(to: baseline)
 
-        #expect(input.mouse.position == baselinePosition)
-        #expect(input.mouse.buttons == [.left])
-        #expect(input.keyboard.keys == [heldKey])
-        #expect(input.mouse.delta == .zero)
-        #expect(input.mouse.scrollDelta == .zero)
+        #expect(input.translation == SIMD2<Float>(1, 0))
+        #expect(input.isInteractionActive)
+        #expect(input.cameraOrbitDelta == .zero)
+        #expect(input.cameraZoomDelta == 0)
+        #expect(input.selectionPress == nil)
 
-        let nextSnapshot = snapshot(
-            session: 3,
-            sequence: 9,
-            position: SIMD2<Float>(23, 31),
-            pointerMotionTotal: SIMD2<Float>(52, -43),
-            scrollTotal: SIMD2<Float>(0, 14),
-            pressedMouseButtons: [.left],
-            pressedKeys: [heldKey]
+        input.ingest(
+            snapshot(
+                session: 3,
+                sequence: 9,
+                translation: SIMD2<Float>(0, 1),
+                cameraOrbitTotal: SIMD2<Float>(52, -43),
+                cameraZoomTotal: 14,
+                latestSelectionPress: baselineSelection,
+                selectionPressCount: 4
+            )
         )
-        input.ingest(nextSnapshot)
 
-        #expect(input.mouse.delta == SIMD2<Float>(2, -3))
-        #expect(input.mouse.scrollDelta == SIMD2<Float>(0, 2))
+        #expect(input.translation == SIMD2<Float>(0, 1))
+        #expect(input.isInteractionActive == false)
+        #expect(input.cameraOrbitDelta == SIMD2<Float>(2, -3))
+        #expect(input.cameraZoomDelta == 2)
+        #expect(input.selectionPress == nil)
     }
 
-    @Test func newerSnapshotUpdatesHeldKeyboardState() {
+    @Test func cleanupClearsOnlyIntervalLocalSemanticInput() throws {
         var input = InputState()
-        let key = KeyboardKey(keyCode: 13, charactersIgnoringModifiers: "w")
-
-        let heldKeySnapshot = snapshot(
-            session: 1,
-            sequence: 1,
-            pressedKeys: [key]
+        let selection = try #require(
+            SelectionPress(normalizedPosition: SIMD2<Float>(0.5, 0.5), aspectRatio: 1)
         )
-        input.ingest(heldKeySnapshot)
-        #expect(input.keyboard.keys == [key])
-
-        let releasedKeySnapshot = snapshot(session: 1, sequence: 2)
-        input.ingest(releasedKeySnapshot)
-        #expect(input.keyboard.keys.isEmpty)
-    }
-
-    @Test func newerSnapshotUpdatesHeldButtonsAndPointerPosition() {
-        var input = InputState()
-
-        let initialSnapshot = snapshot(
-            session: 1,
-            sequence: 1,
-            position: SIMD2<Float>(2, 3),
-            pressedMouseButtons: [.right]
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 1,
+                translation: SIMD2<Float>(-1, 0),
+                isInteractionActive: true,
+                cameraOrbitTotal: SIMD2<Float>(1, 2),
+                cameraZoomTotal: -2,
+                latestSelectionPress: selection,
+                selectionPressCount: 1
+            )
         )
-        input.ingest(initialSnapshot)
-        let updatedPosition = SIMD2<Float>(8, 9)
-        let updatedSnapshot = snapshot(
-            session: 1,
-            sequence: 2,
-            position: updatedPosition
-        )
-        input.ingest(updatedSnapshot)
 
-        #expect(input.mouse.buttons.isEmpty)
-        #expect(input.mouse.position == updatedPosition)
-    }
-
-    @Test func cleanupClearsDeltasButPreservesHeldState() {
-        var input = InputState()
-        let key = KeyboardKey(keyCode: 49, charactersIgnoringModifiers: " ")
-
-        let position = SIMD2<Float>(5, 0)
-        let snapshot = snapshot(
-            session: 1,
-            sequence: 1,
-            position: position,
-            pointerMotionTotal: position,
-            scrollTotal: SIMD2<Float>(0, 2),
-            pressedMouseButtons: [.left],
-            pressedKeys: [key]
-        )
-        input.ingest(snapshot)
-        input.actions.cameraOrbitYawDelta = 1
-        input.actions.cameraZoomDelta = -2
         input.clearTransientInput()
 
-        #expect(input.mouse.buttons == [.left])
-        #expect(input.keyboard.keys == [key])
-        #expect(input.mouse.delta == .zero)
-        #expect(input.mouse.scrollDelta == .zero)
-        #expect(input.actions.cameraOrbitYawDelta == 0)
-        #expect(input.actions.cameraZoomDelta == 0)
+        #expect(input.translation == SIMD2<Float>(-1, 0))
+        #expect(input.isInteractionActive)
+        #expect(input.cameraOrbitDelta == .zero)
+        #expect(input.cameraZoomDelta == 0)
+        #expect(input.selectionPress == nil)
+    }
+
+    @Test func invalidSemanticSnapshotIsIgnoredAtomically() {
+        var input = InputState()
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 1,
+                translation: SIMD2<Float>(0, 1)
+            )
+        )
+        input.clearTransientInput()
+
+        input.ingest(
+            snapshot(
+                session: 1,
+                sequence: 2,
+                translation: SIMD2<Float>(2, 0),
+                cameraOrbitTotal: SIMD2<Float>(4, 5)
+            )
+        )
+
+        #expect(input.translation == SIMD2<Float>(0, 1))
+        #expect(input.cameraOrbitDelta == .zero)
     }
 
     private func snapshot(
         session: UInt64,
         sequence: UInt64,
-        position: SIMD2<Float> = .zero,
-        pointerMotionTotal: SIMD2<Float> = .zero,
-        scrollTotal: SIMD2<Float> = .zero,
-        pressedMouseButtons: Set<MouseButton> = [],
-        pressedKeys: Set<KeyboardKey> = []
+        translation: SIMD2<Float> = .zero,
+        isInteractionActive: Bool = false,
+        cameraOrbitTotal: SIMD2<Float> = .zero,
+        cameraZoomTotal: Float = 0,
+        latestSelectionPress: SelectionPress? = nil,
+        selectionPressCount: UInt64 = 0
     ) -> InputSnapshot {
         InputSnapshot(
             revision: InputRevision(session: session, sequence: sequence),
-            pointerPosition: position,
-            pointerMotionTotal: pointerMotionTotal,
-            scrollTotal: scrollTotal,
-            pressedMouseButtons: pressedMouseButtons,
-            pressedKeys: pressedKeys
+            translation: translation,
+            isInteractionActive: isInteractionActive,
+            cameraOrbitTotal: cameraOrbitTotal,
+            cameraZoomTotal: cameraZoomTotal,
+            latestSelectionPress: latestSelectionPress,
+            selectionPressCount: selectionPressCount
         )
     }
 }

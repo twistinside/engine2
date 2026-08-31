@@ -1,4 +1,4 @@
-/// Stable keyboard key identity for raw input state and debug display.
+/// Stable keyboard key identity received through physical input ingress.
 ///
 /// Keyboard layouts expose an open-ended display vocabulary, so the label is
 /// retained as a string alongside the stable platform key code.

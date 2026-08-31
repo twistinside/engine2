@@ -4,6 +4,8 @@
 /// assembly receives only the Simulation world recipe and policy plus the
 /// backend-neutral Render catalog needed to construct independent runtimes.
 protocol PGameContent {
+    var inputMappingConfiguration: InputMappingConfiguration { get }
+    var simulationBehavior: any PSimulationBehavior { get }
     var worldBuilder: any PWorldBuilder { get }
     var simulationConfiguration: SimulationConfiguration { get }
     var renderAssetCatalog: RenderAssetCatalog { get }

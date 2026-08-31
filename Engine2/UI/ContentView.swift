@@ -6,7 +6,8 @@ import UniformTypeIdentifiers
 /// ``RealtimeAssemblyView`` supplies one narrow assembly model. This view does
 /// not acquire exact advancement or lifecycle authority: the Metal scene
 /// consumes immutable presentation snapshots, while controls toggle assembly
-/// policy or request a detached artifact through assembly-owned connections.
+/// policy, stage one focused maneuver, or request a detached artifact through
+/// assembly-owned connections.
 struct ContentView: View {
     let model: any PRealtimeAssemblyViewModel
     let debugOptions: AppDebugOptions
@@ -19,31 +20,43 @@ struct ContentView: View {
         let exporter = captureModel.presentedModal?.exporter
         let failure = captureModel.presentedModal?.failure
 
-        ZStack {
-            MetalSceneView(
-                renderAssetCatalog: model.renderAssetCatalog,
-                presentationSource: model.presentationSource,
-                inputSink: model.inputSink,
-                outputMode: debugOptions.renderOutputMode
-            )
+        HStack(spacing: 0) {
+            ZStack {
+                MetalSceneView(
+                    renderAssetCatalog: model.renderAssetCatalog,
+                    presentationSource: model.presentationSource,
+                    inputSink: model.inputSink,
+                    outputMode: debugOptions.renderOutputMode
+                )
                 .ignoresSafeArea()
 
-            SimulationControls(
-                isSimulationRunning: model.isAdvancementActive,
-                isCapturingSnapshot: captureModel.isCapturing,
-                toggleSimulation: model.toggleAdvancement,
-                captureSnapshot: captureSnapshot
-            )
+                SimulationControls(
+                    isSimulationRunning: model.isAdvancementActive,
+                    isCapturingSnapshot: captureModel.isCapturing,
+                    toggleSimulation: model.toggleAdvancement,
+                    restartSimulation: model.restartSession,
+                    captureSnapshot: captureSnapshot
+                )
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
-            if debugOptions.showsInputHistory {
-                InputHistoryPane {
-                    model.inputHistoryEntries
+                if debugOptions.showsInputHistory {
+                    InputHistoryPane {
+                        model.inputHistoryEntries
+                    }
+                        .padding()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
-                    .padding()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+
+            Divider()
+
+            SelectedEntityInspector(
+                source: model.selectedEntitySource,
+                isAdvancementActive: model.isAdvancementActive,
+                requestOrbitCircularization: model.requestOrbitCircularization
+            )
+                .frame(width: 320)
         }
         .onAppear {
             captureModel.activatePresentation()

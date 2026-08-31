@@ -9,7 +9,8 @@ nonisolated enum InputConsumptionBaseline: Equatable, Sendable {
     case uninitialized
     case consumed(
         revision: InputRevision,
-        pointerMotionTotal: SIMD2<Float>,
-        scrollTotal: SIMD2<Float>
+        cameraOrbitTotal: SIMD2<Float>,
+        cameraZoomTotal: Float,
+        selectionPressCount: UInt64
     )
 }

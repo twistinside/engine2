@@ -6,11 +6,12 @@ struct SimulationInputAssignmentTests {
     @Test func distinguishesNoInputIngestionAndRebasing() {
         let publication = InputSnapshot(
             revision: InputRevision(session: 4, sequence: 12),
-            pointerPosition: SIMD2<Float>(3, 5),
-            pointerMotionTotal: SIMD2<Float>(8, -2),
-            scrollTotal: SIMD2<Float>(0, 7),
-            pressedMouseButtons: [.left],
-            pressedKeys: []
+            translation: SIMD2<Float>(1, 0),
+            isInteractionActive: true,
+            cameraOrbitTotal: SIMD2<Float>(0.08, -0.02),
+            cameraZoomTotal: 0.28,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
 
         let ingest = SimulationInputAssignment.ingest(publication)
@@ -34,11 +35,12 @@ struct SimulationInputAssignmentTests {
         let baseline = InputSnapshot.empty
         let snapshot = InputSnapshot(
             revision: baseline.revision.advanced(),
-            pointerPosition: SIMD2<Float>(4, 2),
-            pointerMotionTotal: SIMD2<Float>(4, 2),
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: SIMD2<Float>(0.04, 0.02),
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
         let assignment = SimulationInputAssignment.rebaseThenIngest(
             baseline: baseline,

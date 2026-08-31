@@ -62,6 +62,9 @@ final class RealtimeAdvanceDriver {
     private var inputAssignmentState = RealtimeInputAssignmentState()
 
     @ObservationIgnored
+    private var orbitCircularizationCommandState = RealtimeOrbitCircularizationCommandState()
+
+    @ObservationIgnored
     private var discardNextElapsedSample = false
 
     @ObservationIgnored
@@ -155,6 +158,8 @@ final class RealtimeAdvanceDriver {
 
     /// Cancels polling and discards elapsed work that has not been requested.
     func stop() {
+        orbitCircularizationCommandState.clear()
+
         guard isRunning else {
             previousElapsedSample = nil
             stepAccumulator.reset()
@@ -225,6 +230,7 @@ final class RealtimeAdvanceDriver {
         }
 
         advancementState = .paused
+        orbitCircularizationCommandState.clear()
         stepAccumulator.reset()
         setTransitionInputBaseline(nil)
 
@@ -243,6 +249,7 @@ final class RealtimeAdvanceDriver {
         precondition(synchronizationGeneration < .max, "Real-time synchronization generation exhausted.")
         synchronizationGeneration += 1
         expectedCursor = cursor
+        orbitCircularizationCommandState.clear()
         setTransitionInputBaseline(
             inputBaseline ?? inputSource?.latestInputSnapshot
         )
@@ -251,6 +258,17 @@ final class RealtimeAdvanceDriver {
         if case .faulted = advancementState {
             advancementState = .paused
         }
+    }
+
+    /// Stages one selected-entity maneuver for the next enabled exact request.
+    func requestOrbitCircularization(for entityID: EntityID) {
+        guard isRunning, isAdvancementEnabled else {
+            return
+        }
+
+        orbitCircularizationCommandState.stage(
+            OrbitCircularizationCommand(entityID: entityID)
+        )
     }
 
     /// Launches the one polling task after any retiring request has settled.
@@ -326,9 +344,11 @@ final class RealtimeAdvanceDriver {
         }
 
         let requestInputAssignmentState = inputAssignmentState
+        let requestOrbitCircularizationCommandState = orbitCircularizationCommandState
         let request = makeAdvanceRequest(
             stepCount: stepCount,
-            inputAssignmentState: requestInputAssignmentState
+            inputAssignmentState: requestInputAssignmentState,
+            orbitCircularizationCommandState: requestOrbitCircularizationCommandState
         )
         let requestSynchronizationGeneration = synchronizationGeneration
 
@@ -343,6 +363,7 @@ final class RealtimeAdvanceDriver {
         recordCommittedAdvance(
             from: outcome,
             inputAssignmentState: requestInputAssignmentState,
+            orbitCircularizationCommandState: requestOrbitCircularizationCommandState,
             synchronizationGeneration: requestSynchronizationGeneration
         )
 
@@ -389,20 +410,22 @@ final class RealtimeAdvanceDriver {
         return stepAccumulator.consumeSteps(adding: elapsed)
     }
 
-    /// Captures latest Input and forms one immutable exact advance request.
+    /// Captures latest Input and pending command as one immutable exact request.
     private func makeAdvanceRequest(
         stepCount: SimulationStepCount,
-        inputAssignmentState: RealtimeInputAssignmentState
+        inputAssignmentState: RealtimeInputAssignmentState,
+        orbitCircularizationCommandState: RealtimeOrbitCircularizationCommandState
     ) -> SimulationAdvanceRequest {
-        // Read the latest-value source once so input and step count remain one
-        // immutable, attributable request across the async boundary.
+        // Read the latest-value source once so input, command, and step count
+        // remain one attributable request across the async boundary.
         let inputSnapshot = inputSource?.latestInputSnapshot
         return SimulationAdvanceRequest(
             expectedCursor: expectedCursor,
             stepCount: stepCount,
             inputAssignment: inputAssignmentState.assignment(
                 ingesting: inputSnapshot
-            )
+            ),
+            orbitCircularizationCommand: orbitCircularizationCommandState.command
         )
     }
 
@@ -418,6 +441,7 @@ final class RealtimeAdvanceDriver {
     private func recordCommittedAdvance(
         from outcome: SimulationAdvanceOutcome,
         inputAssignmentState requestInputAssignmentState: RealtimeInputAssignmentState,
+        orbitCircularizationCommandState requestOrbitCircularizationCommandState: RealtimeOrbitCircularizationCommandState,
         synchronizationGeneration requestSynchronizationGeneration: UInt64
     ) {
         // Apply committed bookkeeping before checking run cancellation. A
@@ -433,6 +457,9 @@ final class RealtimeAdvanceDriver {
         }
         inputAssignmentState.retireTransitionBaseline(
             ifUnchangedSince: requestInputAssignmentState
+        )
+        orbitCircularizationCommandState.retire(
+            ifUnchangedSince: requestOrbitCircularizationCommandState
         )
     }
 
@@ -458,6 +485,7 @@ final class RealtimeAdvanceDriver {
             // assembly may synchronize after coordinating the cause.
             advancementState = .faulted(.cursorMismatch(expected: expected, current: current))
             isRunning = false
+            orbitCircularizationCommandState.clear()
             stepAccumulator.reset()
             setTransitionInputBaseline(nil)
             return false

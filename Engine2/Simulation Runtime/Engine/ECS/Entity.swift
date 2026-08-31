@@ -11,12 +11,11 @@ class Entity {
     let id: EntityID
     unowned let world: World
 
-    /// Common optional values used to seed authoritative component rows.
+    /// Complete typed values used to seed authoritative component rows.
     ///
-    /// Only values shared by foundational engine capabilities belong here.
-    /// Specialized Game Content should use concrete entity initializers,
-    /// builders, or focused spawn helpers instead of growing this into a
-    /// universal descriptor.
+    /// Foundational transform and motion values remain decomposed where neutral
+    /// defaults are useful. Specialized capabilities carry complete component
+    /// values so `World` can validate and perform every construction-time write.
     struct InitialState {
         static let empty = InitialState()
 
@@ -41,6 +40,26 @@ class Entity {
 
         // PSelectable
         var selectionState: CSelectable.SelectionState? = nil
+
+        // Specialized capabilities
+        var cargo: CCargo? = nil
+        var collisionBody: CCollisionBody? = nil
+        var depotService: CDepotService? = nil
+        var displayName: CDisplayName? = nil
+        var fuel: CFuel? = nil
+        var gravityReceiver: CGravityReceiver? = nil
+        var gravitySource: CGravitySource? = nil
+        var interaction: CInteraction? = nil
+        var mass: CMass? = nil
+        var mineable: CMineable? = nil
+        var orbitPrimary: COrbitPrimary? = nil
+        var orbitalRail: COrbitalRail? = nil
+        var oreDeposit: COreDeposit? = nil
+        var playerControl: CPlayerControl? = nil
+        var previousPosition: CPreviousPosition? = nil
+        var propulsion: CPropulsion? = nil
+        var renderable: RenderableInitialState? = nil
+        var selectionBounds: CSelectionBounds? = nil
     }
 
     /// Creates a live entity handle without registering it in the world.

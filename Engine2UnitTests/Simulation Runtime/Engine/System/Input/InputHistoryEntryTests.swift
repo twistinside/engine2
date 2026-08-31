@@ -7,9 +7,9 @@ struct InputHistoryEntryTests {
             id: 1,
             frameIndex: 12,
             frameCount: 3,
-            tokens: ["LMB", "Mouse dx:+2 dy:-1", "W"]
+            tokens: ["Move x:+1.00 y:+0.00", "Interact", "Zoom:-2.00"]
         )
 
-        #expect(entry.tokenText == "LMB  Mouse dx:+2 dy:-1  W")
+        #expect(entry.tokenText == "Move x:+1.00 y:+0.00  Interact  Zoom:-2.00")
     }
 }

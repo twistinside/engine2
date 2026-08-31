@@ -39,7 +39,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
         inputRuntime.receive(
             .mouseDragged(
                 delta: SIMD2<Float>(5, 0),
-                position: SIMD2<Float>(20, 10)
+                position: SIMD2<Float>(20, 10),
+                viewportSize: SIMD2<Float>(100, 50)
             )
         )
         clock.resumeNext()
@@ -81,7 +82,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
         #expect(
             renderFrame.camera == simulationRuntime.world.camera
         )
-        #expect(simulationRuntime.world.inputHistory.entries.first?.tokens == ["Mouse dx:+5 dy:+0"])
+        #expect(simulationRuntime.world.inputHistory.entries.first?.tokens == ["Orbit dx:+0.05 dy:+0.00"])
     }
 
     @Test
@@ -130,7 +131,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
         inputRuntime.receive(
             .mouseDragged(
                 delta: SIMD2<Float>(50, 0),
-                position: SIMD2<Float>(10, 20)
+                position: SIMD2<Float>(10, 20),
+                viewportSize: SIMD2<Float>(100, 50)
             )
         )
         inputRuntime.receive(.scroll(delta: SIMD2<Float>(0, 25)))
@@ -167,7 +169,8 @@ struct RealtimeAdvanceDriverIntegrationTests {
         inputRuntime.receive(
             .mouseDragged(
                 delta: SIMD2<Float>(10, 0),
-                position: SIMD2<Float>(20, 20)
+                position: SIMD2<Float>(20, 20),
+                viewportSize: SIMD2<Float>(100, 50)
             )
         )
         #expect(simulationRuntime.world.camera == initialCamera)
@@ -198,7 +201,7 @@ struct RealtimeAdvanceDriverIntegrationTests {
         )
         #expect(
             simulationRuntime.world.inputHistory.entries.first?.tokens ==
-            ["Mouse dx:+10 dy:+0"]
+            ["Orbit dx:+0.10 dy:+0.00"]
         )
     }
 

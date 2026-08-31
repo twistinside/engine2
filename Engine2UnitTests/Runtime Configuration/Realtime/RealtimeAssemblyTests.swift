@@ -175,7 +175,8 @@ struct RealtimeAssemblyTests {
         hostSink.receive(
             .mouseDragged(
                 delta: pointerDelta,
-                position: SIMD2<Float>(10, 20)
+                position: SIMD2<Float>(10, 20),
+                viewportSize: SIMD2<Float>(100, 50)
             )
         )
         let scrollDelta = SIMD2<Float>(0, 25)
@@ -187,17 +188,9 @@ struct RealtimeAssemblyTests {
         #expect(
             assembly.inputRuntime.latestInputSnapshot.revision != inputRevision
         )
-        #expect(
-            assembly.inputRuntime.latestInputSnapshot.pressedKeys == [heldKey]
-        )
-        #expect(
-            assembly.inputRuntime.latestInputSnapshot.pointerMotionTotal ==
-            pointerDelta
-        )
-        #expect(
-            assembly.inputRuntime.latestInputSnapshot.scrollTotal
-                == scrollDelta
-        )
+        #expect(assembly.inputRuntime.latestInputSnapshot.translation == SIMD2<Float>(0, 1))
+        #expect(assembly.inputRuntime.latestInputSnapshot.cameraOrbitTotal == pointerDelta * 0.01)
+        #expect(assembly.inputRuntime.latestInputSnapshot.cameraZoomTotal == scrollDelta.y * 0.04)
 
         let pausedFrame = RenderFrame(
             projecting: assembly.simulationRuntime.latestPresentationSnapshot

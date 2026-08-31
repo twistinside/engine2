@@ -11,11 +11,26 @@ struct SimulationAdvanceRequestTests {
         )
 
         #expect(request.expectedCursor == nil)
+        #expect(request.orbitCircularizationCommand == nil)
         #expect(request.stepCount.rawValue == 3)
         guard case .none = request.inputAssignment else {
             Issue.record("Expected the explicit no-input assignment")
             return
         }
+        requireSendable(request)
+    }
+
+    @Test func carriesOneFocusedOrbitCommandWithTheExactRequest() {
+        let entityID = EntityID(index: 7, generation: 3)
+        let command = OrbitCircularizationCommand(entityID: entityID)
+        let request = SimulationAdvanceRequest(
+            expectedCursor: nil,
+            stepCount: .one,
+            inputAssignment: .none,
+            orbitCircularizationCommand: command
+        )
+
+        #expect(request.orbitCircularizationCommand == command)
         requireSendable(request)
     }
 

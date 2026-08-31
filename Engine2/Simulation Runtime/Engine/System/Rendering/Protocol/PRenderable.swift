@@ -1,5 +1,5 @@
 /// Capability for entities that advertise continuous mesh/material presentation.
-protocol PRenderable: Entity {
+protocol PRenderable: PPositionable {
     /// Current backend-neutral mesh identity stored in ECS state.
     var meshID: MeshID { get }
 

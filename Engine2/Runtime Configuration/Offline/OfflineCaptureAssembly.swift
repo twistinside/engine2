@@ -42,6 +42,7 @@ struct OfflineCaptureAssembly: PRuntimeAssembly {
         let simulationRuntime = SimulationRuntime(
             worldBuilder: gameContent.worldBuilder,
             configuration: gameContent.simulationConfiguration,
+            behavior: gameContent.simulationBehavior,
             inputBaseline: nil,
             sessionID: sessionID
         )

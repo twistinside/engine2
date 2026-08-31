@@ -80,11 +80,12 @@ struct RealtimeInputAssignmentStateTests {
     private func makeSnapshot(sequence: UInt64) -> InputSnapshot {
         InputSnapshot(
             revision: InputRevision(session: 1, sequence: sequence),
-            pointerPosition: .zero,
-            pointerMotionTotal: .zero,
-            scrollTotal: .zero,
-            pressedMouseButtons: [],
-            pressedKeys: []
+            translation: .zero,
+            isInteractionActive: false,
+            cameraOrbitTotal: .zero,
+            cameraZoomTotal: 0,
+            latestSelectionPress: nil,
+            selectionPressCount: 0
         )
     }
 }
