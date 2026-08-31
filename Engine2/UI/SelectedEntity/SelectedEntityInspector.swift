@@ -161,7 +161,7 @@ struct SelectedEntityInspector: View {
         if let controlled = entity as? any PPlayerControlled {
             section("Player Control", systemImage: "gamecontroller") {
                 metric("Translation", vector(controlled.translationIntent))
-                metric("Interaction", controlled.isInteractionActive ? "Active" : "Idle")
+                metric("Interaction", interactionDescription(controlled.interactionState))
             }
         }
 
@@ -319,6 +319,15 @@ struct SelectedEntityInspector: View {
             return .orange
         }
         return .green
+    }
+
+    private func interactionDescription(_ state: PlayerInteractionState) -> String {
+        switch state {
+        case .inactive:
+            "Idle"
+        case .active:
+            "Active"
+        }
     }
 
     @ViewBuilder

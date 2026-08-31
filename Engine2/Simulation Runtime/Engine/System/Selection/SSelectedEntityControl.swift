@@ -9,7 +9,7 @@ struct SSelectedEntityControl: PSystem {
         for entity in world.playerControlComponents.entities {
             world.playerControlComponents.update(for: entity) { control in
                 control.translation = .zero
-                control.isInteractionActive = false
+                control.interactionState = .inactive
             }
         }
 
@@ -18,10 +18,10 @@ struct SSelectedEntityControl: PSystem {
         }
 
         let translation = SIMD2<Double>(world.input.translation)
-        let isInteractionActive = world.input.isInteractionActive
+        let interactionState: PlayerInteractionState = world.input.isInteractionActive ? .active : .inactive
         world.playerControlComponents.update(for: selectedEntityID) { control in
             control.translation = translation
-            control.isInteractionActive = isInteractionActive
+            control.interactionState = interactionState
         }
     }
 }

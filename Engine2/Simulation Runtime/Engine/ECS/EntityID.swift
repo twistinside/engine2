@@ -8,10 +8,12 @@
 /// Comparison orders index before generation for deterministic structural
 /// enumeration and tie-breaking. It does not represent creation chronology or
 /// gameplay priority.
-nonisolated struct EntityID: Codable, Comparable, Hashable, Sendable {
+nonisolated struct EntityID: Codable, Hashable, Sendable {
     let index: Int
     let generation: Int
+}
 
+extension EntityID: Comparable {
     static func < (lhs: Self, rhs: Self) -> Bool {
         if lhs.index == rhs.index {
             return lhs.generation < rhs.generation

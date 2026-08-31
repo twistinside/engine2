@@ -18,7 +18,7 @@ struct SMiningInteraction: PSystem {
     }
 
     private func interact(actor: EntityID, in world: World, deltaTime: Double) {
-        guard world.playerControlComponents[actor]?.isInteractionActive == true,
+        guard world.playerControlComponents[actor]?.interactionState == .active,
               let actorPosition = world.positionComponents[actor]?.position else {
             return
         }

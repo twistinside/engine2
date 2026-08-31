@@ -86,6 +86,7 @@
 		E36000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift */; };
 		E36000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift */; };
 		E36000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift */; };
+		E36000000000000000000030 /* Simulation Runtime/Engine/System/Control/PlayerInteractionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35000000000000000000030 /* Simulation Runtime/Engine/System/Control/PlayerInteractionState.swift */; };
 		E3600000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift */; };
 		E3600000000000000000000B /* Simulation Runtime/Engine/System/Gravity/Component/CGravityReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000000B /* Simulation Runtime/Engine/System/Gravity/Component/CGravityReceiver.swift */; };
 		E3600000000000000000000C /* Simulation Runtime/Engine/System/Gravity/Component/CGravitySource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3500000000000000000000C /* Simulation Runtime/Engine/System/Gravity/Component/CGravitySource.swift */; };
@@ -293,6 +294,7 @@
 		E35000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Component/CFuel.swift"; sourceTree = "<group>"; };
 		E35000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Component/CMass.swift"; sourceTree = "<group>"; };
 		E35000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift"; sourceTree = "<group>"; };
+		E35000000000000000000030 /* Simulation Runtime/Engine/System/Control/PlayerInteractionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/PlayerInteractionState.swift"; sourceTree = "<group>"; };
 		E3500000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift"; sourceTree = "<group>"; };
 		E3500000000000000000000B /* Simulation Runtime/Engine/System/Gravity/Component/CGravityReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/Component/CGravityReceiver.swift"; sourceTree = "<group>"; };
 		E3500000000000000000000C /* Simulation Runtime/Engine/System/Gravity/Component/CGravitySource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Simulation Runtime/Engine/System/Gravity/Component/CGravitySource.swift"; sourceTree = "<group>"; };
@@ -546,6 +548,7 @@
 				E35000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift */,
 				E35000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift */,
 				E35000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift */,
+				E35000000000000000000030 /* Simulation Runtime/Engine/System/Control/PlayerInteractionState.swift */,
 				E3500000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift */,
 				E3500000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift */,
 				E3500000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift */,
@@ -1064,6 +1067,7 @@
 				E36000000000000000000007 /* Simulation Runtime/Engine/System/Control/Component/CFuel.swift in Sources */,
 				E36000000000000000000008 /* Simulation Runtime/Engine/System/Control/Component/CMass.swift in Sources */,
 				E36000000000000000000009 /* Simulation Runtime/Engine/System/Control/Component/CPlayerControl.swift in Sources */,
+				E36000000000000000000030 /* Simulation Runtime/Engine/System/Control/PlayerInteractionState.swift in Sources */,
 				E3600000000000000000000A /* Simulation Runtime/Engine/System/Control/Component/CPropulsion.swift in Sources */,
 				E3600000000000000000001C /* Simulation Runtime/Engine/System/Control/Protocol/PFueled.swift in Sources */,
 				E3600000000000000000001D /* Simulation Runtime/Engine/System/Control/Protocol/PLiveMass.swift in Sources */,

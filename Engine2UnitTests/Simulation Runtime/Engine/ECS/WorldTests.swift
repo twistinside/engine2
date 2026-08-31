@@ -132,7 +132,7 @@ struct WorldTests {
             oreDeposit: COreDeposit(remainingOre: 70),
             playerControl: CPlayerControl(
                 translation: SIMD2<Double>(0.5, -0.5),
-                isInteractionActive: true
+                interactionState: .active
             ),
             previousPosition: CPreviousPosition(position: SIMD3<Double>(-1, -2, -3)),
             propulsion: CPropulsion(maximumThrust: 80, exhaustVelocity: 90),
