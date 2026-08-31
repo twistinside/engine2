@@ -1,8 +1,7 @@
-/// Executes one all-or-nothing instantaneous circularization command.
+/// Consumes one command and engages persistent circularization authority.
 ///
-/// The command is consumed even when current state cannot fund or define the
-/// burn. A successful burn contributes one velocity impulse, consumes the
-/// estimated propellant, and cancels translation input for the same tick.
+/// The command is consumed even when current state cannot fund or define a
+/// maneuver. Repeated commands do not change an engaged maneuver's direction.
 struct SOrbitCircularization: PSystem {
     mutating func update(world: inout World, deltaTime _: Double) {
         guard let command = world.orbitCircularizationCommand else {
@@ -10,29 +9,27 @@ struct SOrbitCircularization: PSystem {
         }
         world.orbitCircularizationCommand = nil
 
+        guard let autopilot = world.orbitCircularizationAutopilotComponents[command.entityID] else {
+            return
+        }
+        if autopilot.isEngaged {
+            suppressTranslation(for: command.entityID, in: world)
+            return
+        }
+
         guard let estimate = world.orbitCircularizationEstimate(for: command.entityID),
-              estimate.hasSufficientFuel,
-              let motion = world.motionComponents[command.entityID],
-              let fuel = world.fuelComponents[command.entityID] else {
+              estimate.hasSufficientFuel else {
             return
         }
 
-        let updatedImpulse = motion.accumulator.impulse + estimate.deltaVelocity
-        let updatedFuel = fuel.remaining - estimate.requiredFuel
-        guard updatedImpulse.isFinite,
-              updatedFuel.isFinite,
-              updatedFuel >= 0,
-              updatedFuel <= fuel.capacity else {
-            return
+        world.orbitCircularizationAutopilotComponents.update(for: command.entityID) { component in
+            component = .engaged(direction: estimate.direction)
         }
+        suppressTranslation(for: command.entityID, in: world)
+    }
 
-        world.motionComponents.update(for: command.entityID) { component in
-            component.accumulator.impulse = updatedImpulse
-        }
-        world.fuelComponents.update(for: command.entityID) { component in
-            component.remaining = updatedFuel
-        }
-        world.playerControlComponents.update(for: command.entityID) { component in
+    private func suppressTranslation(for entity: EntityID, in world: World) {
+        world.playerControlComponents.update(for: entity) { component in
             component.translation = .zero
         }
     }

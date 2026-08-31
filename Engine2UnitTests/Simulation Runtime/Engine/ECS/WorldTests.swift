@@ -155,6 +155,7 @@ struct WorldTests {
         #expect(world.massComponents[entity.id] == state.mass)
         #expect(world.mineableComponents[entity.id] == state.mineable)
         #expect(world.motionComponents[entity.id] != nil)
+        #expect(world.orbitCircularizationAutopilotComponents[entity.id] == .idle)
         #expect(world.orbitPrimaryComponents[entity.id] == state.orbitPrimary)
         #expect(world.orbitalRailComponents[entity.id] == state.orbitalRail)
         #expect(world.oreDepositComponents[entity.id] == state.oreDeposit)

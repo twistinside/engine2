@@ -22,6 +22,7 @@ class World {
     var massComponents = ComponentStore<CMass>()
     var mineableComponents = ComponentStore<CMineable>()
     var motionComponents = ComponentStore<CMotion>()
+    var orbitCircularizationAutopilotComponents = ComponentStore<COrbitCircularizationAutopilot>()
     var orbitPrimaryComponents = ComponentStore<COrbitPrimary>()
     var orbitalRailComponents = ComponentStore<COrbitalRail>()
     var oreDepositComponents = ComponentStore<COreDeposit>()
@@ -115,7 +116,7 @@ class World {
         addInteractionComponent(for: entity, from: state)
         addMassComponent(for: entity, from: state)
         addMineableComponent(for: entity, from: state)
-        addOrbitPrimaryComponent(for: entity, from: state)
+        addOrbitCircularizationComponents(for: entity, from: state)
         addOrbitalRailComponent(for: entity, from: state)
         addOreDepositComponent(for: entity, from: state)
         addPlayerControlComponent(for: entity, from: state)
@@ -361,7 +362,7 @@ class World {
         mineableComponents.insert(mineable, for: entity.id)
     }
 
-    private func addOrbitPrimaryComponent(for entity: Entity, from state: Entity.InitialState) {
+    private func addOrbitCircularizationComponents(for entity: Entity, from state: Entity.InitialState) {
         precondition(
             (state.orbitPrimary != nil) == (entity is POrbitCircularizable),
             "InitialState.orbitPrimary must be present exactly when the entity conforms to POrbitCircularizable."
@@ -370,6 +371,7 @@ class World {
             return
         }
         orbitPrimaryComponents.insert(orbitPrimary, for: entity.id)
+        orbitCircularizationAutopilotComponents.insert(.idle, for: entity.id)
     }
 
     private func addOrbitalRailComponent(for entity: Entity, from state: Entity.InitialState) {

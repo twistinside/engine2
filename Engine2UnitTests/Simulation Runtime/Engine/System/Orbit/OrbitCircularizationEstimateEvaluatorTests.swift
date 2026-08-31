@@ -19,12 +19,27 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         let circularSpeed = sqrt(4_000_000 / 2_000)
         let expectedTarget = SIMD3<Double>(5, 7 + circularSpeed, 2)
         let expectedDelta = expectedTarget - currentVelocity
+        let expectedAvailableDeltaV = 20_000 * log(12_000.0 / 10_000)
         let expectedFuel = -12_000 * expm1(-simd_length(expectedDelta) / 20_000)
+        let expectedBurnDuration = expectedFuel * 20_000 / 300_000
+        let expectedOrbitalPeriod = 2 * Double.pi * sqrt(
+            2_000.0 * 2_000 * 2_000 / 4_000_000
+        )
 
+        #expect(estimate.direction == .counterclockwise)
         #expect(simd_length(estimate.targetVelocity - expectedTarget) < 1e-12)
         #expect(simd_length(estimate.deltaVelocity - expectedDelta) < 1e-12)
         #expect(abs(estimate.deltaV - simd_length(expectedDelta)) < 1e-12)
+        #expect(abs(estimate.availableDeltaV - expectedAvailableDeltaV) < 1e-12)
+        #expect(
+            abs(
+                estimate.deltaVMargin
+                    - (expectedAvailableDeltaV - simd_length(expectedDelta))
+            ) < 1e-12
+        )
         #expect(abs(estimate.requiredFuel - expectedFuel) < 1e-12)
+        #expect(abs(estimate.minimumBurnDuration - expectedBurnDuration) < 1e-12)
+        #expect(abs(estimate.localOrbitalPeriod - expectedOrbitalPeriod) < 1e-12)
         #expect(estimate.hasSufficientFuel)
     }
 
@@ -40,6 +55,7 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         )
 
         #expect(estimate.targetVelocity.y < 4)
+        #expect(estimate.direction == .clockwise)
     }
 
     @Test func equalBurnsSelectCounterclockwise() throws {
@@ -55,6 +71,25 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         )
 
         #expect(estimate.targetVelocity.y > primaryVelocity.y)
+        #expect(estimate.direction == .counterclockwise)
+    }
+
+    @Test func engagedAutopilotRetainsItsDirectionWhenTheOtherBurnIsCheaper() throws {
+        let fixture = makeFixture(
+            radius: 2_000,
+            primaryVelocity: .zero,
+            entityVelocity: SIMD3<Double>(0, 40, 0)
+        )
+        fixture.world.orbitCircularizationAutopilotComponents.update(for: fixture.entity) {
+            $0 = .engaged(direction: .clockwise)
+        }
+
+        let estimate = try #require(
+            fixture.world.orbitCircularizationEstimate(for: fixture.entity)
+        )
+
+        #expect(estimate.direction == .clockwise)
+        #expect(estimate.targetVelocity.y < 0)
     }
 
     @Test func insufficientFuelRemainsAReadableEstimate() throws {
@@ -70,6 +105,8 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         )
 
         #expect(estimate.requiredFuel > 1)
+        #expect(estimate.availableDeltaV < estimate.deltaV)
+        #expect(estimate.deltaVMargin < 0)
         #expect(!estimate.hasSufficientFuel)
     }
 
@@ -138,6 +175,7 @@ struct OrbitCircularizationEstimateEvaluatorTests {
             COrbitPrimary(primaryEntityID: primary),
             for: entity
         )
+        world.orbitCircularizationAutopilotComponents.insert(.idle, for: entity)
         world.collisionBodyComponents.insert(
             CCollisionBody(radius: 10, restitution: 0.35),
             for: entity

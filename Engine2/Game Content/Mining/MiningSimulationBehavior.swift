@@ -13,6 +13,7 @@ struct MiningSimulationBehavior: PSimulationBehavior {
             ],
             forceContribution: [
                 SGravity(),
+                SOrbitCircularizationAutopilot(completionTolerance: 0.5),
                 SFlightControl(targetSpeed: 90, responseTime: 2),
             ],
             postMovement: [

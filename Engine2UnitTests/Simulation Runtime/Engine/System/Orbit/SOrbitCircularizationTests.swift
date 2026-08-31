@@ -3,14 +3,10 @@ import simd
 @testable import Engine2
 
 struct SOrbitCircularizationTests {
-    @Test func successfulCommandAppliesOneImpulseConsumesFuelAndStopsTranslation() throws {
+    @Test func successfulCommandEngagesWithoutChangingMotionOrFuel() throws {
         var fixture = makeFixture(remainingFuel: 2_000)
-        let originalImpulse = try #require(
-            fixture.world.motionComponents[fixture.entity]?.accumulator.impulse
-        )
-        let originalFuel = try #require(
-            fixture.world.fuelComponents[fixture.entity]?.remaining
-        )
+        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
+        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
         let estimate = try #require(
             fixture.world.orbitCircularizationEstimate(for: fixture.entity)
         )
@@ -23,13 +19,11 @@ struct SOrbitCircularizationTests {
 
         #expect(fixture.world.orbitCircularizationCommand == nil)
         #expect(
-            fixture.world.motionComponents[fixture.entity]?.accumulator.impulse
-                == originalImpulse + estimate.deltaVelocity
+            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+                == .engaged(direction: estimate.direction)
         )
-        #expect(
-            fixture.world.fuelComponents[fixture.entity]?.remaining
-                == originalFuel - estimate.requiredFuel
-        )
+        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
+        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
         #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
     }
 
@@ -50,9 +44,42 @@ struct SOrbitCircularizationTests {
         system.update(world: &fixture.world, deltaTime: 1.0 / 60)
 
         #expect(fixture.world.orbitCircularizationCommand == nil)
+        #expect(fixture.world.orbitCircularizationAutopilotComponents[fixture.entity] == .idle)
         #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
         #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
         #expect(fixture.world.playerControlComponents[fixture.entity] == originalControl)
+    }
+
+    @Test func repeatedCommandPreservesTheEngagedManeuverAndPhysicalState() throws {
+        var fixture = makeFixture(remainingFuel: 2_000)
+        fixture.world.orbitCircularizationCommand = OrbitCircularizationCommand(
+            entityID: fixture.entity
+        )
+        var system = SOrbitCircularization()
+        system.update(world: &fixture.world, deltaTime: 1.0 / 60)
+        let engagedState = try #require(
+            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+        )
+
+        fixture.world.playerControlComponents.update(for: fixture.entity) {
+            $0.translation = SIMD2<Double>(-1, 1)
+        }
+        fixture.world.orbitCircularizationCommand = OrbitCircularizationCommand(
+            entityID: fixture.entity
+        )
+        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
+        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
+
+        system.update(world: &fixture.world, deltaTime: 1.0 / 60)
+
+        #expect(fixture.world.orbitCircularizationCommand == nil)
+        #expect(
+            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+                == engagedState
+        )
+        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
+        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
+        #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
     }
 
     private func makeFixture(
@@ -83,6 +110,7 @@ struct SOrbitCircularizationTests {
             COrbitPrimary(primaryEntityID: primary),
             for: entity
         )
+        world.orbitCircularizationAutopilotComponents.insert(.idle, for: entity)
         world.collisionBodyComponents.insert(
             CCollisionBody(radius: 10, restitution: 0.35),
             for: entity

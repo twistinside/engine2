@@ -72,33 +72,25 @@ struct SFlightControl: PSystem {
         let targetVelocity = worldDirection / worldDirectionMagnitude * (targetSpeed * boundedInputMagnitude)
         let velocityError = targetVelocity - SIMD2<Double>(motion.velocity.x, motion.velocity.y)
         let requestedAcceleration = velocityError / responseTime
-        let requestedForce = requestedAcceleration * mass
-        let requestedForceMagnitude = simd_length(requestedForce)
-        guard requestedForceMagnitude.isFinite, requestedForceMagnitude > 0 else {
+        let requestedVelocityChange = SIMD3<Double>(
+            requestedAcceleration.x * deltaTime,
+            requestedAcceleration.y * deltaTime,
+            0
+        )
+        guard let burn = propulsion.burn(
+            toward: requestedVelocityChange,
+            mass: mass,
+            availableFuel: fuel.remaining,
+            deltaTime: deltaTime
+        ) else {
             return
         }
-
-        let appliedForceMagnitude = min(requestedForceMagnitude, propulsion.maximumThrust)
-        let requestedImpulse = appliedForceMagnitude * deltaTime
-        let availableImpulse = fuel.remaining * propulsion.exhaustVelocity
-        let appliedImpulse = min(requestedImpulse, availableImpulse)
-        guard appliedImpulse.isFinite, appliedImpulse > 0 else {
-            return
-        }
-
-        let forceDirection = requestedForce / requestedForceMagnitude
-        let appliedAcceleration2D = forceDirection * (appliedImpulse / deltaTime / mass)
-        let fuelUsed = min(fuel.remaining, appliedImpulse / propulsion.exhaustVelocity)
 
         world.motionComponents.update(for: entity) { component in
-            component.accumulator.acceleration += SIMD3<Double>(
-                appliedAcceleration2D.x,
-                appliedAcceleration2D.y,
-                0
-            )
+            component.accumulator.acceleration += burn.acceleration
         }
         world.fuelComponents.update(for: entity) { component in
-            component.remaining -= fuelUsed
+            component.remaining -= burn.fuelUsed
         }
     }
 

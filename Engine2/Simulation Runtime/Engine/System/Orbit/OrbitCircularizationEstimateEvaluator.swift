@@ -1,11 +1,11 @@
 import Foundation
 import simd
 
-/// Evaluates an instantaneous planar circularization against live ECS rows.
+/// Evaluates live planar circularization guidance against authoritative ECS rows.
 ///
 /// Invalid or incomplete state and contact with the designated primary have no
-/// estimate. Both circular directions remain candidates; equal burns select
-/// counterclockwise motion deterministically.
+/// estimate. An engaged autopilot retains its latched direction. Otherwise,
+/// both directions remain candidates and equal burns select counterclockwise.
 struct OrbitCircularizationEstimateEvaluator {
     func estimate(for entityID: EntityID, in world: World) -> OrbitCircularizationEstimate? {
         guard let orbitPrimary = world.orbitPrimaryComponents[entityID],
@@ -29,6 +29,10 @@ struct OrbitCircularizationEstimateEvaluator {
               liveMass > 0 else {
             return nil
         }
+        let finalMass = liveMass - fuel.remaining
+        guard finalMass.isFinite, finalMass > 0 else {
+            return nil
+        }
 
         let radialOffset = SIMD2<Double>(
             entityPosition.x - primaryPosition.x,
@@ -41,6 +45,16 @@ struct OrbitCircularizationEstimateEvaluator {
               radius > contactRadius,
               contactRadius.isFinite,
               contactRadius > 0 else {
+            return nil
+        }
+        let radiusCubed = radius * radius * radius
+        let localOrbitalPeriod = 2 * Double.pi * sqrt(
+            radiusCubed / gravitySource.gravitationalParameter
+        )
+        guard radiusCubed.isFinite,
+              radiusCubed > 0,
+              localOrbitalPeriod.isFinite,
+              localOrbitalPeriod > 0 else {
             return nil
         }
 
@@ -79,31 +93,50 @@ struct OrbitCircularizationEstimateEvaluator {
             return nil
         }
 
+        let direction: COrbitCircularizationAutopilot.Direction
         let targetVelocity: SIMD3<Double>
         let deltaVelocity: SIMD3<Double>
         let deltaV: Double
-        if counterclockwiseDeltaV <= clockwiseDeltaV {
+        let latchedDirection = world.orbitCircularizationAutopilotComponents[entityID]?.direction
+        if latchedDirection == .counterclockwise
+            || (latchedDirection == nil && counterclockwiseDeltaV <= clockwiseDeltaV) {
+            direction = .counterclockwise
             targetVelocity = counterclockwiseTarget
             deltaVelocity = counterclockwiseDelta
             deltaV = counterclockwiseDeltaV
         } else {
+            direction = .clockwise
             targetVelocity = clockwiseTarget
             deltaVelocity = clockwiseDelta
             deltaV = clockwiseDeltaV
         }
 
+        let availableDeltaV = propulsion.exhaustVelocity * log(liveMass / finalMass)
         let requiredFuel = -liveMass * expm1(-deltaV / propulsion.exhaustVelocity)
-        guard requiredFuel.isFinite,
-              requiredFuel >= 0 else {
+        let deltaVMargin = availableDeltaV - deltaV
+        let minimumBurnDuration = requiredFuel * propulsion.exhaustVelocity
+            / propulsion.maximumThrust
+        guard availableDeltaV.isFinite,
+              availableDeltaV >= 0,
+              requiredFuel.isFinite,
+              requiredFuel >= 0,
+              deltaVMargin.isFinite,
+              minimumBurnDuration.isFinite,
+              minimumBurnDuration >= 0 else {
             return nil
         }
 
         return OrbitCircularizationEstimate(
+            availableDeltaV: availableDeltaV,
             deltaVelocity: deltaVelocity,
-            targetVelocity: targetVelocity,
             deltaV: deltaV,
+            deltaVMargin: deltaVMargin,
+            direction: direction,
+            hasSufficientFuel: requiredFuel <= fuel.remaining,
+            localOrbitalPeriod: localOrbitalPeriod,
+            minimumBurnDuration: minimumBurnDuration,
             requiredFuel: requiredFuel,
-            hasSufficientFuel: requiredFuel <= fuel.remaining
+            targetVelocity: targetVelocity
         )
     }
 

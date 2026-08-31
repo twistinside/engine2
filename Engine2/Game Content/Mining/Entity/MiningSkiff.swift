@@ -1,9 +1,8 @@
 import simd
 
 /// Player-controlled dynamic craft for mining, hauling, and depot service.
-final class MiningSkiff: Entity, PDisplayNamed, PMovable, PScalable, PRenderable, PSelectable,
-    PGravityAffected, PLiveMass, PPropelled, PFueled, PCargoCarrying, PPlayerControlled,
-    PCollidable, POrbitCircularizable {
+final class MiningSkiff: Entity, PDisplayNamed, PScalable, PRenderable, PSelectable,
+    PCargoCarrying, PPlayerControlled, POrbitCircularizable {
     convenience init(
         in world: World,
         name: String,

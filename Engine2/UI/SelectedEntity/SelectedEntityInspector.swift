@@ -83,38 +83,7 @@ struct SelectedEntityInspector: View {
 
         if let circularizable = entity as? any POrbitCircularizable {
             section("Orbit Assist", systemImage: "scope") {
-                if let estimate = circularizable.orbitCircularizationEstimate {
-                    metric("Required Δv", format(estimate.deltaV, unit: "m/s"))
-                    metric("Required fuel", kilograms(estimate.requiredFuel))
-                    Button {
-                        requestOrbitCircularization(entity.id)
-                    } label: {
-                        Label("Circularize Orbit", systemImage: "circle.dashed")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(
-                        isAdvancementActive == false
-                            || estimate.hasSufficientFuel == false
-                    )
-
-                    if isAdvancementActive == false {
-                        Text("Resume the simulation to use the orbit assist.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if estimate.hasSufficientFuel == false {
-                        Text("The maneuver requires more fuel.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Applies one fuel-costed ideal impulse around the designated primary.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Text("No valid circular orbit is available here.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                orbitAssist(for: entity.id, circularizable: circularizable)
             }
         }
 
@@ -239,6 +208,120 @@ struct SelectedEntityInspector: View {
     }
 
     @ViewBuilder
+    private func orbitAssist(
+        for entityID: EntityID,
+        circularizable: any POrbitCircularizable
+    ) -> some View {
+        if let estimate = circularizable.orbitCircularizationEstimate {
+            let isActive = circularizable.isOrbitCircularizationActive
+            metric("Required Δv", format(estimate.deltaV, unit: "m/s"))
+            metric("Available Δv", format(estimate.availableDeltaV, unit: "m/s"))
+            metric("Reserve after burn", format(estimate.deltaVMargin, unit: "m/s"))
+            ProgressView(value: estimate.deltaVReserveFraction)
+                .tint(deltaVReserveColor(for: estimate))
+                .accessibilityLabel("Delta-v reserve after maneuver")
+                .accessibilityValue(percent(estimate.deltaVReserveFraction))
+            metric("Required fuel", kilograms(estimate.requiredFuel))
+            metric("Minimum burn", duration(estimate.minimumBurnDuration))
+
+            Button {
+                requestOrbitCircularization(entityID)
+            } label: {
+                orbitAssistButtonLabel(isActive: isActive)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(
+                isActive
+                    || isAdvancementActive == false
+                    || estimate.hasSufficientFuel == false
+            )
+
+            orbitAssistStatus(isActive: isActive, estimate: estimate)
+        } else {
+            Text("No valid circular orbit is available here.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func orbitAssistButtonLabel(isActive: Bool) -> some View {
+        HStack(spacing: 6) {
+            if isActive && isAdvancementActive {
+                ProgressView()
+                    .controlSize(.small)
+            } else if isActive {
+                Image(systemName: "pause.circle")
+            } else {
+                Image(systemName: "circle.dashed")
+            }
+            Text(
+                isActive
+                    ? (isAdvancementActive ? "Circularizing" : "Circularization Paused")
+                    : "Circularize Orbit"
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func orbitAssistStatus(
+        isActive: Bool,
+        estimate: OrbitCircularizationEstimate
+    ) -> some View {
+        if isActive {
+            Text(
+                isAdvancementActive
+                    ? "Autopilot has translation control and is applying finite thrust."
+                    : "Resume the simulation to continue the autopilot burn."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } else if isAdvancementActive == false {
+            Text("Resume the simulation to use the orbit assist.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        if estimate.hasSufficientFuel == false {
+            Text("The maneuver needs \(format(-estimate.deltaVMargin, unit: "m/s")) more ideal Δv.")
+                .font(.caption)
+                .foregroundStyle(.red)
+        } else if estimate.deltaVReserveFraction <= 0.05 {
+            Text("The maneuver leaves almost no Δv reserve.")
+                .font(.caption)
+                .foregroundStyle(.red)
+        } else if estimate.deltaVReserveFraction <= 0.2 {
+            Text("The remaining Δv reserve is getting low.")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
+
+        if estimate.minimumBurnOrbitFraction >= 1.0 / 12.0 {
+            Text("The minimum burn spans at least 30° of the local orbit; gravity losses may prevent a clean circularization.")
+                .font(.caption)
+                .foregroundStyle(.red)
+        } else if estimate.minimumBurnOrbitFraction >= 1.0 / 36.0 {
+            Text("The minimum burn spans at least 10° of the local orbit, so expect noticeable steering losses.")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        } else if isActive == false && isAdvancementActive {
+            Text("Autopilot will use bounded thrust until the orbit is circularized.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func deltaVReserveColor(for estimate: OrbitCircularizationEstimate) -> Color {
+        if estimate.hasSufficientFuel == false || estimate.deltaVReserveFraction <= 0.05 {
+            return .red
+        }
+        if estimate.deltaVReserveFraction <= 0.2 {
+            return .orange
+        }
+        return .green
+    }
+
+    @ViewBuilder
     private func velocityGlyph(_ velocity: SIMD3<Double>) -> some View {
         let planarVelocity = SIMD2<Double>(velocity.x, velocity.y)
         let speed = simd_length(planarVelocity)
@@ -279,6 +362,20 @@ struct SelectedEntityInspector: View {
 
     private func kilograms(_ value: Double) -> String {
         format(value, unit: "kg")
+    }
+
+    private func duration(_ seconds: Double) -> String {
+        guard seconds >= 60 else {
+            return format(seconds, unit: "s")
+        }
+
+        let minutes = Int(seconds / 60)
+        let remainingSeconds = seconds - Double(minutes * 60)
+        return "\(minutes)m \(format(remainingSeconds))s"
+    }
+
+    private func percent(_ fraction: Double) -> String {
+        fraction.formatted(.percent.precision(.fractionLength(0)))
     }
 }
 
