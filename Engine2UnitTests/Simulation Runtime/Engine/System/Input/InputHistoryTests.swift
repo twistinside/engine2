@@ -76,9 +76,7 @@ struct InputHistoryTests {
         input.isInteractionActive = true
         input.cameraOrbitDelta = SIMD2<Float>(1.6, -1.6)
         input.cameraZoomDelta = 0.4
-        input.selectionPress = try #require(
-            SelectionPress(normalizedPosition: SIMD2<Float>(0.25, 0.75), aspectRatio: 2)
-        )
+        input.selectionPress = SelectionPress(normalizedPosition: SIMD2<Float>(0.25, 0.75), aspectRatio: 2)
 
         history.record(input: input)
 
