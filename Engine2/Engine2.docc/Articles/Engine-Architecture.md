@@ -1,113 +1,237 @@
 # Engine Architecture
-Engine2 is organized around a small set of responsibilities that are meant to stay separate as the engine grows.
-The engine, world, and ECS systems described here are the internal architecture of the authoritative ``SimulationRuntime``. See <doc:Runtime-Architecture> for the top-level application model and runtime-boundary vocabulary, and <doc:Runtime-Assemblies-and-Advancement> for the implemented exact-advance boundary and the broader proposed assembly model.
-## Current Simulation Roles
-### Engine
-``Engine`` owns exact fixed-step execution and ordered system orchestration.
-At the moment, its exact path:
-- imports an immutable input assignment only when the first requested fixed step begins
-- advances simulation in fixed-size steps
-- runs one complete system schedule in stable call order
 
-``Engine`` has no elapsed-time accumulator or simulation-gated partial
-schedule. Wall-time accumulation and pause policy belong to
-``RealtimeAdvanceDriver``; a completed tick always means the complete schedule
-ran once.
+Engine2 keeps fixed-step execution, authoritative ECS state, system logic, and
+entity facades separate inside ``SimulationRuntime``. See
+<doc:Runtime-Architecture> for top-level Runtime ownership and
+<doc:Runtime-Assemblies-and-Advancement> for the exact-advance boundary.
+
+## Current Simulation Roles
+
+### Engine
+
+``Engine`` owns exact fixed-step execution and one ordered system list.
+``Engine/step(inputSnapshot:)`` optionally ingests one ``InputSnapshot``, runs
+the complete list in declaration order, and advances the completed tick once.
+It does not sample a clock, accumulate elapsed time, or run a partial schedule.
+
+Request-level input policy belongs to ``SimulationRuntime``. The Runtime
+applies any rebase and passes an ingest snapshot only to the first Engine step
+of an accepted batch. ``RealtimeAdvanceDriver`` owns wall-time accumulation and
+pause policy; neither concern enters ``Engine``.
 
 Production construction receives one validated ``SimulationConfiguration`` and
-one ``PSimulationBehavior``. The Engine builds its invariant camera,
-integration, history, and cleanup foundation from the Simulation policy, then
-inserts the behavior's ``SimulationSystemSchedule`` systems only at the named
+one ``SimulationBehavior``. The Engine builds its invariant camera-input,
+acceleration-intent, movement, rotation, and input-cleanup systems. It inserts
+the behavior's ``SimulationSystemSchedule`` systems only at the named
 `inputConsumption`, `worldPreparation`, `forceContribution`, `postMovement`,
-and `prePresentation` stages. Physical bindings and pointer/scroll sensitivity
-belong to the Input Runtime's `InputMappingConfiguration`, not Simulation. The
-complete injected-systems initializer remains available for focused integration
-tests, but it requires the `World`, fixed step, and entire system list explicitly.
-This keeps timing and scheduling logic out of ``World``.
+and `prePresentation` stages. ``SimulationConfiguration`` supplies the camera
+policy. Physical bindings and input sensitivity remain
+``InputMappingConfiguration`` policy owned by the Input Runtime.
+
+The complete injected-systems initializer remains available for focused
+integration tests. Callers of that initializer must supply the ``World``, fixed
+step, and entire system list explicitly.
+
 ### Simulation Runtime and World Builders
-``SimulationRuntime`` sits above ``Engine`` and owns session bootstrap, serialized exact advancement, world-construction policy, explicit Simulation behavior configuration, and publication of committed results.
-It accepts a ``PWorldBuilder``, ``SimulationConfiguration``, and ``PSimulationBehavior`` for a new simulation, generated scenario, or loaded save, and can rebuild or replace the active world when the session changes. Builder replacement without reconstruction and builder replacement with immediate reconstruction are separately named operations; input baselines are explicit at construction and rebuild call sites. Its narrow ``PSimulationAdvanceTarget`` capability validates an optional expected ``SimulationCursor``, applies the request's immutable input assignment, executes the requested number of complete steps, and returns a correlated result.
 
-Cadence is deliberately outside that boundary. The assembly-owned ``RealtimeAdvanceDriver`` polls wall time and samples `PInputSnapshotSource`; a manual caller can advance with no clock or Input Runtime. Future offline, MCP, network, and replay coordinators can use the same exact capability. Simulation retains the fixed-step definition, complete system schedule, cursor identity, authoritative mutation, and publication of committed results.
-``PWorldBuilder`` types are not simulation ``PSystem`` implementations. They are one-shot construction helpers that produce a fully bootstrapped ``World`` before or between simulation runs.
-The Simulation Runtime owns the ``PWorldBuilder`` interface because it consumes that contract. Consumer-defined builders, entity types, components, and presentation descriptions belong to Game Content. The Runtime Assembly supplies that content while constructing the Simulation Runtime; the runtime does not discover content through global registries. See <doc:Game-Content-Architecture>.
+``SimulationRuntime`` owns one authoritative session, its ``Engine``, world
+construction, serialized exact advancement, and publication of committed
+results. Construction requires a ``WorldBuilder``,
+``SimulationConfiguration``, an explicit input baseline, and either an explicit
+or newly generated ``SimulationSessionID``. It accepts a
+``SimulationBehavior`` and defaults to ``StandardSimulationBehavior``.
+
+The Runtime can rebuild the active world from its retained builder, replace the
+builder used by a later rebuild, or replace the builder and rebuild immediately.
+Each rebuild begins a new session at tick zero and publishes its initial
+presentation. Its ``SimulationAdvanceTarget`` capability validates an optional
+expected ``SimulationCursor`` before applying input or a maneuver command,
+executes the requested number of complete steps, and returns a cursor-correlated
+result.
+
+Cadence remains outside this boundary. Deterministic tests can issue exact
+requests without a clock or Input Runtime. The real-time assembly instead uses
+``RealtimeAdvanceDriver`` to translate wall time and latest input into those
+same requests.
+
+``WorldBuilder`` is a one-shot Simulation-owned construction interface, not a
+simulation ``System``. A builder returns a fully bootstrapped ``World`` before
+the Runtime begins or rebuilds a session. Game Content supplies the conforming
+builder; the Runtime does not discover content through a global registry. See
+<doc:Game-Content-Architecture>.
+
 ### World
-``World`` is the authoritative container for simulation state.
-It owns the component stores, simulation-scoped resources, and entity identity lifecycle. The world is not the scheduler and should not decide when simulation advances.
 
-Concrete entity constructors assemble one complete `Entity.InitialState` and call ``World/add(_:from:)``. The World validates that specialized seeds are present exactly when the facade advertises their capabilities, then performs every construction-time component-store write. Entity facades do not insert rows directly. ``PRenderable`` refines ``PPositionable``; ``PSelectable`` requires position, selection state, and a spherical hit bound; and ``PInteractable`` requires position plus one positive proximity range.
+``World`` owns authoritative component stores, simulation-scoped resources,
+``EntityID`` allocation, and the live-facade registry. It is not the scheduler and
+does not decide when Simulation advances.
 
-``EntityID`` compares index first and generation second. This structural order gives enumeration and equal-result tie-breakers one deterministic definition; it does not encode distance, age, or gameplay priority. Full identity, including generation, remains the lookup and equality boundary.
+Concrete entity constructors assemble one `Entity.InitialState` and call
+``World/add(_:from:)``. The World accepts foundational seeds only for advertised
+capabilities and requires each specialized seed exactly when its capability is
+advertised. It then performs every construction-time component-store write and
+registers the facade. Entity facades do not insert rows directly.
+
+Capability composition supplies shared invariants. ``Renderable`` refines
+``Positionable``. ``Selectable`` refines ``Positionable`` and requires a
+selection row plus a positive spherical hit bound. ``Interactable`` refines
+``Positionable`` and requires one positive proximity range.
+
+``EntityID`` compares index first and generation second. This structural order
+provides deterministic enumeration and equal-result tie-breaking; it does not
+encode distance, age, or gameplay priority. Lookup and equality preserve the
+complete identity, including generation.
+
 ### Systems
-``PSystem`` implementations contain simulation logic.
-They receive mutable access to the world for a single step and perform real gameplay work by reading and writing component stores directly. Systems are intended to be data-oriented and should avoid routing hot-path logic through entity facade objects.
-``Engine`` owns the invariant schedule required for a valid simulation, including camera, position, orientation, input-history, and cleanup mechanics. Game Content behavior enters only through ``PSimulationBehavior`` and ``SimulationSystemSchedule``; it does not assemble, replace, or reorder the required foundation.
 
-Authoritative translational positions, velocities, accelerations, impulses, and fixed-step seconds use `Double`.
-Completed presentation snapshots deliberately narrow positions to `Float`; Render, camera, and GPU values remain single
-precision.
+``System`` implementations receive mutable access to ``World`` for one step.
+Systems that process components iterate or join stores directly instead of
+routing hot-path work through entity facades. Existing rows are mutated with
+``ComponentStore/update(for:_:)``.
+
+The production Engine foundation is limited to camera input, acceleration
+intent, movement, rotation, and input cleanup. The current mining behavior
+supplies collision baselines, rail motion, forces, collision resolution,
+interaction, and camera follow at Game Content stages. Game Content can compose
+these systems only through ``SimulationBehavior`` and
+``SimulationSystemSchedule``; it cannot replace or reorder the Engine-owned
+foundation.
+
+Authoritative translational positions, velocities, accelerations, impulses,
+and fixed-step seconds use `Double`. ``SimulationPresentationSnapshot`` narrows
+entity positions to `Float`; camera, Render, and GPU values use single precision.
 
 ### Semantic Input and Selection
 
-``InputRuntime`` publishes context-free translation and interaction intent plus cumulative camera and selection values. At a fixed-step boundary, Simulation derives interval-local changes and interprets them using authoritative ECS state. Selection resolution updates selection components, and control routing applies held translation or interaction only when the selected entity advertises player control. Selecting a non-controllable entity or clearing selection removes commanded control; the Input Runtime never receives an entity identity.
+``InputRuntime`` publishes context-free translation and interaction intent plus
+cumulative camera and selection values. At a fixed-step boundary, Simulation
+derives interval-local changes and interprets them using authoritative ECS
+state. Selection updates selection rows, and control routing applies held
+translation or interaction only to the selected player-controlled entity.
+Selecting a non-controllable entity or clearing selection clears the previous
+control row. The Input Runtime never receives an entity identity.
 
-The SwiftUI orbit assist uses a separate directed command boundary. ``SelectedEntityInspector`` passes the displayed entity's complete ``EntityID`` through a focused callback, and ``PRealtimeAssemblyViewModel`` routes it to ``RealtimeAdvanceDriver``. The driver generation-tags the pending one-shot engagement command and captures ``OrbitCircularizationCommand`` in the next cursor-qualified ``SimulationAdvanceRequest``. After cursor validation, ``SimulationRuntime`` imports that command only for the request's first tick, where it may engage persistent per-entity autopilot state. Neither the command nor that state enters `InputSnapshot` or `InputState`.
+The SwiftUI orbit-assist action uses a separate directed command boundary.
+``SelectedEntityInspector`` passes the displayed entity's complete ``EntityID``
+through a focused callback, and ``RealtimeAssemblyViewModel`` routes it to
+``RealtimeAdvanceDriver``. The driver generation-tags the pending command and
+captures ``OrbitCircularizationCommand`` in the next cursor-qualified request.
+After cursor validation, ``SimulationRuntime`` imports the command only for the
+request's first tick, where it may engage persistent per-entity autopilot state.
+Neither the command nor that state enters ``InputSnapshot`` or ``InputState``.
 
 ### Mining Slice Dynamics
 
-The mining slice composes two authoritative motion policies inside the same schedule. The star supplies gravity, and the skiff dynamically integrates gravity, thrust, fuel use, changing cargo mass, collision response, and request-engaged orbit assistance. ``CMass`` computes live mass from dry mass plus the joined current fuel and cargo rows; ``PLiveMass`` exposes that same projection through the entity facade. Asteroids and the depot follow deterministic analytic circular rails whose systems prepare their position and velocity before force contribution and integration. ``SOrbitCircularization`` consumes the one-shot command in Mining Game Content's `inputConsumption` stage and engages per-entity Simulation-owned autopilot state. ``SOrbitCircularizationAutopilot`` advances an engaged burn in `forceContribution` after gravity and before manual flight control. Each tick suppresses manual translation and limits the autopilot contribution by maximum thrust, current fuel, live mass, and fixed-step duration. ``POrbitCircularizable`` exposes the live delta-velocity reserve and minimum burn duration to the protocol-backed inspector without adding gameplay fields to ``SimulationPresentationSnapshot``.
+The mining slice composes rail-driven and dynamically integrated motion in one
+schedule. The star supplies gravity. The skiff integrates gravity, propulsion,
+fuel use, cargo-dependent live mass, collision response, and request-engaged
+orbit assistance. ``MassComponent`` derives live mass from dry mass plus the
+current fuel and cargo rows; ``LiveMass`` exposes the same projection through a
+facade.
 
-A rail is a complete motion policy, not a force contribution. Do not run a rail writer and dynamic integration against the same body. A future perturbation feature must define an explicit transition from rail state to dynamic position and velocity.
+Six asteroids and one depot follow deterministic circular rails. During
+`worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep
+baselines and ``OrbitalRailSystem`` updates rail positions and velocities.
+``OrbitCircularizationSystem`` consumes the one-shot command during
+`inputConsumption`. In `forceContribution`, gravity runs before
+``OrbitCircularizationAutopilotSystem``, which runs before manual
+``FlightControlSystem``. While engaged, the autopilot suppresses manual
+translation and limits each contribution by thrust, fuel, live mass, and fixed
+step duration.
+
+A rail is a complete motion policy, not a force contribution. A body must not
+receive rail placement and dynamic integration in the same tick. A future
+perturbation feature needs an explicit transition from rail state to dynamic
+position and velocity.
 
 ### Presentation and Rendering
-Rendering belongs to the proposed Render Runtime and is not itself a simulation ``PSystem``.
-The world may contain abstract presentation state such as mesh handles, material handles, camera data, visibility flags, or render style. Backend-specific render state should remain inside the render layer.
-The intended boundary is:
-1. systems update `World`
-2. the Simulation Runtime publishes a completed `SimulationPresentationSnapshot`
-3. the Render Runtime projects published state into private render-facing frame data
-4. the renderer consumes that private frame data
-This keeps `World` authoritative without making it the owner of Metal or other backend objects.
+
+A concrete `RenderRuntime` type remains proposed, but the current screen path
+already preserves the Runtime boundary:
+
+1. Systems update ``World``.
+2. ``SimulationRuntime`` publishes a completed
+   ``SimulationPresentationSnapshot``.
+3. ``RenderFrame`` projects that snapshot into private Render state.
+4. ``MetalRenderer`` delegates private resource preparation and encoding to
+   ``MetalFrameEncoder``, then submits and presents the frame.
+
+``World`` contains backend-neutral mesh and material identities plus the
+authoritative camera. It does not own Metal objects, decoded models, or Render
+caches.
 
 ### Entity Facades
-``Entity`` subclasses such as ``Ball`` remain useful as typed, ergonomic objects at the game boundary, UI boundary, and inspection layer.
-They are not the simulation source of truth. Authoritative gameplay state lives in the world's component stores.
 
-The selected-entity SwiftUI inspector receives one narrow Simulation-owned source that resolves the current full ``EntityID`` to a live facade. It conditionally renders the capability protocols that facade supports. The read source remains separate from the focused orbit-assist callback: the view can submit an identity but cannot mutate the facade or `World`. Neither path adds fuel, cargo, orbit, mining, or other gameplay fields to ``SimulationPresentationSnapshot``.
+``Entity`` subclasses such as ``Ball`` are typed, ergonomic views over live ECS
+state for Game Content, UI, and tooling. They are not a second authoritative
+state model.
 
-The facade protocols compose shared invariants instead of repeating them on concrete types. Renderable entities are positionable, selectable entities own their hit bound, and mineable bodies and servicing depots refine ``PInteractable`` while retaining only their action-specific rates and state.
+The selected-entity inspector receives a narrow Simulation-owned source that
+resolves the selected complete ``EntityID`` to its registered facade. It renders
+the capability protocols that facade supports. The read source remains separate
+from the orbit-assist callback: the view can submit an identity but cannot
+mutate the facade or ``World``. Gameplay inspection fields therefore do not
+expand ``SimulationPresentationSnapshot``.
 
 ## Fixed-Step Simulation
-The current portable simulation primitive is an exact Runtime-level request:
 
-1. A caller supplies an optional expected ``SimulationCursor``, a positive step count, and one immutable semantic input assignment.
-2. ``SimulationRuntime`` validates the expected cursor inside its serialized mutation domain.
-3. A rebase assignment establishes held intent without replaying older camera or selection totals, an ingest assignment is consumed only at the first requested tick boundary, and rebase-then-ingest atomically preserves input published after a captured transition baseline.
-4. ``Engine`` executes the complete ordered schedule exactly as many times as requested.
-5. ``SimulationRuntime`` publishes the final completed presentation snapshot and returns initial/final cursors with the completed step count.
+The portable Simulation primitive is an exact Runtime-level request:
 
-This keeps systems working in simulation time without giving wall time, drawing, or a tool invocation authority over what one tick means. ``SimulationRuntime/fixedTimeStep`` is the single production 1/60-second definition; assembly policy cannot substitute another duration. In ``RealtimeAssembly``, ``RealtimeAdvanceDriver`` owns host polling, elapsed-time remainder, pause/rebase policy, latest input capture, and conversion into exact batches. ``ManualAssembly`` proves the same Simulation Runtime can progress without a wall clock or Input Runtime. Drawing remains independent: a draw can occur with no new tick, and several ticks can complete before one draw.
+1. A caller supplies an optional expected ``SimulationCursor``, a positive
+   ``SimulationStepCount``, one immutable ``SimulationInputAssignment``, and an
+   optional orbit command.
+2. ``SimulationRuntime`` validates the expected cursor inside its serialized
+   mutation domain.
+3. The Runtime applies a rebase without replaying prior cumulative transients,
+   or assigns an ingest snapshot to the first requested step. A
+   `rebaseThenIngest` assignment performs both operations in the same accepted
+   request.
+4. ``Engine`` executes the complete ordered schedule exactly as many times as
+   requested.
+5. ``SimulationRuntime`` publishes the final completed presentation and returns
+   the initial cursor, final cursor, completed count, and exact final snapshot.
 
-``Engine`` now exposes only exact complete-step execution. New assemblies must not fabricate elapsed wall time or bypass ``SimulationRuntime`` by calling `Engine.step(inputSnapshot:)` directly.
+``SimulationRuntime/fixedTimeStep`` is the sole production definition of one
+tick and currently equals 1/60 second. Assembly policy may decide when to ask
+for work, but it cannot substitute another tick duration. Assemblies advance
+through ``SimulationAdvanceTarget``; direct ``Engine`` stepping remains a
+Runtime implementation detail and a focused integration-test seam.
+
+Drawing has an independent cadence. A draw may reuse the last completed
+snapshot, and several ticks may complete before the next draw.
+
 ## Current Limits
-The current engine is still early. Several important behaviors are intentionally simple or incomplete:
-- entity ID reservation is monotonic only; destruction, generation incrementing, and index reuse have not been added yet
-- world/entity translation at spawn time covers the current capability protocols, but lifecycle and reseeding semantics are still intentionally small
-- systems run in one ordered schedule with controlled Game Content insertion stages; dependency-derived ordering and safe parallelism remain future work
-- the real-time driver's catch-up cap and overflow treatment are static driver policy; production telemetry and adaptive overload handling remain future work
-- broader advance-authority arbitration and cursor-mismatch recovery remain App or assembly policy beyond the driver's initial fail-closed behavior
-- the latest completed general publication remains ``SimulationPresentationSnapshot``; the selected-entity source is a narrow in-process live view, while other semantic publications, retained publication history, and replay storage remain future work
+
+- ``EntityID`` reservation is monotonic with generation zero. Destruction,
+  component removal, dense compaction, generation incrementing, and index reuse
+  are not implemented.
+- Calling ``World/add(_:from:)`` again with the same live facade reseeds its
+  rows. Registering a different facade for that identity fails a precondition;
+  broader entity lifecycle APIs are not implemented.
+- ``World`` has a fixed store list and a fixed capability-to-seed translation.
+  External consumer-defined component storage is not supported.
+- Systems execute one flat ordered list with controlled Game Content insertion
+  stages. Dependency-derived ordering and safe parallel execution remain
+  proposed.
+- ``SimulationPresentationSnapshot`` is the only general completed Simulation
+  publication. The selected-entity source is a narrow in-process live view;
+  retained publication history and replay storage are not implemented.
+
 ## Topics
+
 ### Core Symbols
+
 - ``Engine``
 - ``SimulationConfiguration``
-- ``PSimulationBehavior``
+- ``SimulationBehavior``
 - ``SimulationSystemSchedule``
 - ``World``
-- ``PSystem``
+- ``System``
 - ``Entity``
 - ``ComponentStore``
+
 ### Related Architecture
+
 - <doc:Runtime-Architecture>
 - <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Runtime-Communication>

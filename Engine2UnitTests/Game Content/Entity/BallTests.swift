@@ -7,7 +7,7 @@ struct BallTests {
         let world = World()
         let expectedPosition = SIMD3<Double>(1, 2, 3)
         let expectedVelocity = SIMD3<Double>(4, 5, 6)
-        let expectedAccelerationIntent = CMotion.AccelerationIntent.accelerating(
+        let expectedAccelerationIntent = MotionComponent.AccelerationIntent.accelerating(
             SIMD3<Double>(1, 0, 0)
         )
         let expectedImpulse = SIMD3<Double>(-1, 0.5, 2)
@@ -15,7 +15,7 @@ struct BallTests {
         let expectedAngularVelocity = SIMD3<Float>(0.1, 0.2, 0.3)
         let expectedAngularAcceleration = SIMD3<Float>(0.4, 0.5, 0.6)
         let expectedAngularImpulse = SIMD3<Float>(0.7, 0.8, 0.9)
-        let expectedSelectionState = CSelectable.SelectionState.highlighted
+        let expectedSelectionState = SelectableComponent.SelectionState.highlighted
         let expectedSelectionRadius = 2.0
         let expectedMaterialID = MaterialID.goldMetal
 

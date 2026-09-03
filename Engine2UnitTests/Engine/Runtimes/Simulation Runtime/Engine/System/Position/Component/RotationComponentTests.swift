@@ -1,0 +1,39 @@
+import Foundation
+import Testing
+import simd
+@testable import Engine2
+
+struct RotationComponentTests {
+    @Test func identityUsesNeutralQuaternion() {
+        #expect(RotationComponent.identity.rotation.vector == SIMD4<Float>(0, 0, 0, 1))
+    }
+
+    @Test func codableRoundTripsQuaternion() throws {
+        let axis = SIMD3<Float>(1, 2, 3)
+        let normalizedAxis = simd_normalize(axis)
+        let rotation = simd_quatf(angle: .pi / 3, axis: normalizedAxis)
+        let original = RotationComponent(rotation: rotation)
+
+        let data = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(RotationComponent.self, from: data)
+
+        #expect(decoded == original)
+        #expect(decoded.rotation.vector == original.rotation.vector)
+    }
+
+    @Test func equalityUsesQuaternionVector() async throws {
+        let axis = SIMD3<Float>(0, 1, 1)
+        let normalizedAxis = simd_normalize(axis)
+        let rotation = simd_quatf(
+            angle: .pi / 4,
+            axis: normalizedAxis
+        )
+        let identical = RotationComponent(rotation: rotation)
+        let oppositeSignRotation = simd_quatf(vector: -rotation.vector)
+        let sameRotationOppositeSign = RotationComponent(rotation: oppositeSignRotation)
+        let equivalent = RotationComponent(rotation: rotation)
+
+        #expect(equivalent == identical)
+        #expect(equivalent != sameRotationOppositeSign)
+    }
+}

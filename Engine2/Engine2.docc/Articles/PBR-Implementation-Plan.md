@@ -20,22 +20,21 @@ exercises the ordinary Game Content-to-Simulation-to-Render path; semantic
 lighting is not yet a Simulation or snapshot concept.
 
 The production PBR/HDR encoding path now lives in view-independent
-``MetalFrameEncoder``. ``MetalOffscreenRenderRuntime`` now drives that encoder
-through a production exact async request/outcome boundary with dedicated
-one-slot resources, explicit residency and queue-feedback lifetime, and raw
-BGRA8-sRGB readback with no view or drawable. This establishes the production
-offscreen Runtime boundary, but not an HDR-master or accumulation workflow,
-artifact persistence, pooled targets, or dedicated Render worker. A separate
-asynchronous ``PImageArtifactEncoder`` boundary, implemented by the immutable,
-eagerly sRGB-configured CPU ``ImageIOArtifactEncoder``, now derives provenance-rich JPEG or PNG
-artifacts from the completed raw result, and ``OfflineCaptureAssembly``
-serially coordinates either an exact advance-and-capture or a cursor-checked
-capture of its retained current presentation through the same render and
-encoding workflow, without changing this PBR/GPU boundary.
+``MetalFrameEncoder``. ``MetalRenderer`` drives that encoder for the current
+onscreen path and owns drawable acquisition, residency, submission, and
+presentation policy.
 
-The plan deliberately stops short of specifying the eventual renderer in full.
-Each milestone introduces one observable capability and must leave the engine
-working without code from the next milestone.
+The current screen graph has no standalone `RenderRuntime` lifecycle type.
+`MetalSceneView.Coordinator` owns ``MetalRenderer`` for one view lifetime; the
+renderer owns ``MetalResourceStore``, and an in-flight submission extends the
+required resource lifetime until queue feedback. The Render Runtime remains the
+intended top-level owner of those responsibilities. The macOS 27 target uses
+Metal 4 directly and has no legacy Metal command-submission fallback.
+
+The completed milestone sections retain their acceptance-plan structure:
+**Change** describes the intended increment, **Checks** describes its evidence,
+and **Implemented Conventions** records the resulting source contract. The
+Forward+ scaling project and deferred decisions remain proposals.
 
 ## First Baseline
 
@@ -97,7 +96,7 @@ multiple times to distinguish materials.
 
 Simulation remains authoritative for semantic world state:
 
-- `CRenderable` stores `MeshID` and `MaterialID`. Snapshot capture iterates that
+- `RenderableComponent` stores `MeshID` and `MaterialID`. Presentation snapshot projection iterates that
   store and joins position, rotation, and scale from their separate components.
 - The validation spheres are ordinary renderable entities. This plan adds no
   light component, light capability, or light array to the presentation
@@ -107,16 +106,15 @@ The single validation light is deliberately not Simulation state. It is a
 fixed Render configuration used to prove the render pathway. Semantic gameplay
 lights require their own later ownership and snapshot design.
 
-### Render Runtime
+### Current Render Path and Proposed Render Runtime
 
-Render owns:
+The current render path owns, and a future Render Runtime would retain:
 
 - decoded vertex and index buffers
 - material GPU representations
 - the fixed directional-light validation input
 - depth and HDR targets
 - Metal pipelines, argument tables, synchronization, and residency
-- exact offscreen target, submission, cancellation, and raw-readback policy
 - the eventual Forward+ light-assignment data
 
 No Metal object, tile index, GPU address, or renderer capacity enters ECS or a
@@ -131,7 +129,7 @@ lighting equation is involved.
 
 ### Change
 
-- Extend the decoded vertex input to position, display color, and normal.
+- Extend the decoded vertex input to position and normal.
 - Preserve decoded normals. The packaged polygonal sphere authors smooth outward
   normals with its explicit geometry; Model I/O carries them into the renderer's
   vertex layout without introducing a general runtime normal-generation policy.
@@ -161,7 +159,7 @@ Content, Simulation, the drawable path, or the final GPU binding layout.
 
 ### Change
 
-- Render a controlled sphere into a small offscreen `rgba16Float` target.
+- Render a controlled sphere into a small direct Metal `rgba16Float` test target.
 - Supply one renderer-owned constant material and directional light.
 - Implement the shared direct-light BRDF in `float` precision:
   Lambert diffuse, GGX distribution, Smith visibility, and Schlick Fresnel.
@@ -180,7 +178,7 @@ argument-table ABI before material and light data exist.
 - Metallic response removes diffuse reflection.
 - Increasing roughness broadens the specular response.
 - Grazing-angle inputs remain finite.
-- The offscreen target contains linear values rather than gamma-encoded color.
+- The direct Metal test target contains linear values rather than gamma-encoded color.
 
 ### Implemented Conventions
 
@@ -250,14 +248,17 @@ implementation details.
 
 ### Implemented Conventions
 
-The visible pathway deliberately fixes its presentation and lifetime behavior
-before authored material identity is introduced:
+The visible pathway established its presentation and lifetime behavior before
+authored material identity was introduced. The current implementation preserves
+those contracts with the authored-material layout from Milestone 4:
 
-- `PBRSceneParameters` carries a fixed base color of `(0.5, 0.25, 0.125)`,
-  metallic `0`, and perceptual roughness `0.5`. Its directional light points
-  from the surface toward world-space `+Z`, has linear color `(1, 0.5, 0.25)`,
-  and uses validation intensity `8`. Render transforms the direction into view
-  space once per frame; camera translation never enters that transformation.
+- `warmDielectric` preserves the original proof factors: base color
+  `(0.5, 0.25, 0.125)`, metallic `0`, and perceptual roughness `0.5`. The
+  current `GPUInstance` carries those per-draw factors. The current light-only
+  `PBRSceneParameters` points from the surface toward world-space `+Z`, has
+  linear color `(1, 0.5, 0.25)`, and uses validation intensity `8`. Render
+  transforms the direction into view space once per frame; camera translation
+  never enters that transformation.
 - Each reusable `FrameResources` slot owns its parameter buffers and lazily
   owns one private, drawable-sized `rgba16Float` texture with
   `renderTarget` and `shaderRead` usage. A size change replaces that texture
@@ -303,7 +304,7 @@ material without exposing Metal resources or unnecessary presentation state.
   color, metallic, and roughness factors.
 - Let Game Content define `MaterialID` and supply the example material
   descriptions through `RenderAssetCatalog`.
-- Add `MaterialID` to `CRenderable`, renderable spawn seeding, snapshot capture,
+- Add `MaterialID` to `RenderableComponent`, renderable spawn seeding, presentation snapshot projection,
   and `RenderInstance` so the shared sphere mesh can represent several material
   appearances.
 - Resolve that description privately into whatever GPU representation is
@@ -323,7 +324,7 @@ material count or draw organization requires them.
   falling back.
 - Several entities share one decoded sphere mesh when their appearances differ.
 - Material factors and Metal resources never enter ECS or a Simulation
-  snapshot. Only `MaterialID` crosses that boundary.
+  snapshot. Of the material data, only `MaterialID` crosses that boundary.
 
 ### Implemented Conventions
 
@@ -344,9 +345,9 @@ system:
   material and therefore no partially drawn frame with a substituted surface.
   `MetalSceneView.Coordinator` retains a construction failure for App
   diagnostics instead of silently erasing it when no renderer is created.
-- With respect to authored materials, `CRenderable`,
+- With respect to authored materials, `RenderableComponent`,
   `EntityPresentationSnapshot`, and `RenderInstance` carry only `MaterialID`,
-  not factors, compact GPU indices, buffers, or Metal objects. Snapshot capture
+  not factors, compact GPU indices, buffers, or Metal objects. Presentation snapshot publication
   copies the identity by value, so a later ECS change cannot alter an already
   published presentation. `RenderInstance` separately retains its validated
   world, model-view, and normal-matrix projections for downstream reuse.
@@ -357,16 +358,6 @@ system:
   color plus metallic and roughness into each draw's existing `GPUInstance`.
   The 208-byte record remains stable through the caller's frame-completion rule;
   no separate material allocation or residency set exists.
-- Exact ``MetalOffscreenRenderRuntime`` requests additionally use strict frame
-  projection, prove complete model and drawable indexed-geometry coverage, and
-  reject more than 256 projected instances before allocator reset or target
-  mutation. Unlike the live screen, an offline request never silently omits a
-  malformed presented entity, missing model, unusable vertex slice, empty mesh
-  or submesh, or invalid index slice, and never truncates the encoder's bounded
-  prefix into a misleading partial image.
-- ``USDRenderModel`` computes and caches its complete drawable-indexed-geometry
-  proof once when immutable model meshes are constructed. Repeated exact
-  requests consume that proof without walking every mesh and submesh again.
 - `PBRSceneParameters` is now a 32-byte light-only record. Its fixed world-space
   directional light is transformed into view space once per frame, while the
   fragment stage reads the current draw's material from its instance record.
@@ -374,10 +365,9 @@ system:
   headers shared by Swift and Metal. See <doc:Rendering-Architecture> for the
   ABI, semantic construction, frame-lifetime, and validation policy around
   those records.
-- The model shader does not consume the decoded vertex display color or any
-  embedded USD material. The explicit authored description is the sole surface
-  authority even though the transitional vertex lane remains in the decoded
-  mesh layout.
+- The decoded vertex input carries position and normal only. The model shader
+  does not consume embedded USD materials. The explicit authored description is
+  the sole surface authority.
 
 `warmDielectric` preserves the Milestone 3 factors exactly: base color
 `(0.5, 0.25, 0.125)`, metallic `0`, and perceptual roughness `0.5`. It therefore
@@ -390,8 +380,10 @@ Milestone 5 sphere scene.
 
 ### Outcome
 
-The complete application render pathway displays a controlled set of material
-responses without adding gameplay-light architecture to the PBR bootstrap.
+The production Game Content-to-Simulation-to-Render pathway accepts a
+controlled material scene without adding gameplay-light architecture to the
+PBR bootstrap. ``BasicGameContent`` remains an example and test fixture; the
+App currently selects ``MiningGameContent``.
 
 ### Change
 
@@ -404,8 +396,9 @@ responses without adding gameplay-light architecture to the PBR bootstrap.
   BRDF's working space once per frame.
 - Draw every sphere through the ordinary Game Content to Simulation snapshot to
   `RenderFrame` to material-resolution path.
-- Use the normal, material-factor, diffuse, specular, HDR, and final-presented
-  diagnostic views to isolate failures without changing render paths.
+- Use the visible normal diagnostic plus test-only material-factor, diffuse,
+  specular, HDR, and final-presentation diagnostics to isolate failures without
+  changing the production material path.
 - Keep the scene and light values stable so later shader or resource-binding
   changes can be compared against the same reference.
 
@@ -500,6 +493,11 @@ resolutions, and representative local-light scenes. CPU reference assignment
 may validate the chosen list contract before its GPU producer exists. It is a
 test oracle and implementation step, not another production render path.
 
+Apple's Forward+ sample remains useful for the tile-lighting architecture, but
+its implementation predates Metal 4. Engine2's eventual implementation must
+translate that design into Metal 4 command buffers, argument tables, explicit
+barriers, and residency rather than copy the sample's legacy submission model.
+
 ## Decisions Intentionally Deferred
 
 These decisions are real, but they are not prerequisites for the material
@@ -512,8 +510,6 @@ sphere baseline:
 - semantic light components, snapshot publication, and local-light types
 - physically calibrated radiometric or photometric lights and camera exposure
 - pre-exposure, automatic exposure, and a final tone-mapping look
-- offline HDR-master formats, quality accumulation, temporal sampling, pooled
-  targets, additional artifact formats, and artifact persistence
 - reversed-Z, `Double` or sector-local world positions, and render-origin policy
 - atmosphere, clouds, rings, and transparency
 
@@ -525,6 +521,8 @@ that exceed the current `Float` model.
 
 - [Filament: Roughness remapping and clamping](https://google.github.io/filament/main/filament.html#materialsystem/parameterization/roughnessremappingandclamping)
 - [Understanding the Metal 4 core API](https://developer.apple.com/documentation/metal/understanding-the-metal-4-core-api)
+- [Drawing a triangle with Metal 4](https://developer.apple.com/documentation/metal/drawing-a-triangle-with-metal-4)
+- [Simplifying GPU resource management with residency sets](https://developer.apple.com/documentation/metal/simplifying-gpu-resource-management-with-residency-sets)
 - [Calculating primitive visibility using depth testing](https://developer.apple.com/documentation/metal/calculating-primitive-visibility-using-depth-testing)
 - [Processing HDR images with Metal](https://developer.apple.com/documentation/metal/processing-hdr-images-with-metal)
-- [Rendering a scene with Forward+ lighting using tile shaders](https://developer.apple.com/documentation/metal/rendering-a-scene-with-forward-plus-lighting-using-tile-shaders)
+- [Rendering a scene with Forward+ lighting using tile shaders (pre-Metal 4 sample)](https://developer.apple.com/documentation/metal/rendering-a-scene-with-forward-plus-lighting-using-tile-shaders)

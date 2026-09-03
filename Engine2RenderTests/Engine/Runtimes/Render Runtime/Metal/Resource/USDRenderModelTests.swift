@@ -1,0 +1,160 @@
+import Metal
+import MetalKit
+import ModelIO
+import simd
+import Testing
+@testable import Engine2
+
+struct USDRenderModelTests {
+    @Test func modelWithoutMeshesHasNoCompleteDrawableIndexedGeometry() {
+        let model = USDRenderModel(meshes: [])
+
+        #expect(!model.hasCompleteDrawableIndexedGeometry)
+    }
+
+    @Test func emptyCatalogResolvesToNoBackendModels() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+
+        let models = try USDRenderModel.load(
+            catalog: RenderAssetCatalog(models: [:], materials: [:]),
+            device: device
+        )
+
+        #expect(models.isEmpty)
+    }
+
+    @Test func missingPackagedModelReportsAnError() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let missingAsset = ModelAssetReference(
+            resourceName: "ModelThatDoesNotExist",
+            format: .usdz
+        )
+        let catalog = RenderAssetCatalog(
+            models: [.ball: missingAsset],
+            materials: [:]
+        )
+
+        do {
+            _ = try USDRenderModel.load(catalog: catalog, device: device)
+            Issue.record("Expected a missing packaged model to throw an error.")
+        } catch let error as MetalRendererError {
+            #expect(error == .missingModel(missingAsset))
+        } catch {
+            Issue.record("Unexpected model loading error: \(error)")
+        }
+    }
+
+    @Test func packagedSphereDecodesInterleavedUnitNormalsForEveryMesh() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let models = try USDRenderModel.load(
+            catalog: BasicGameContent().renderAssetCatalog,
+            device: device
+        )
+        let model = try #require(models[.ball])
+        try #require(!model.meshes.isEmpty)
+
+        // Production renders every mesh produced by the importer, so validate
+        // the complete decoded model rather than assuming the asset will remain
+        // a single mesh forever.
+        for mesh in model.meshes {
+            let position = try #require(
+                mesh.vertexDescriptor.attributes[0] as? MDLVertexAttribute
+            )
+            let normal = try #require(
+                mesh.vertexDescriptor.attributes[1] as? MDLVertexAttribute
+            )
+            let layout = try #require(
+                mesh.vertexDescriptor.layouts[0] as? MDLVertexBufferLayout
+            )
+            let vertexBuffer = try #require(mesh.vertexBuffers.first)
+
+            #expect(mesh.vertexCount > 0)
+            #expect(mesh.vertexBuffers.count == 1)
+            #expect(position.name == MDLVertexAttributePosition)
+            #expect(position.format == .float3)
+            #expect(
+                position.offset
+                    == MemoryLayout<ModelVertex>.offset(of: \.position)
+            )
+            #expect(position.bufferIndex == 0)
+            #expect(normal.name == MDLVertexAttributeNormal)
+            #expect(normal.format == .float3)
+            #expect(
+                normal.offset == MemoryLayout<ModelVertex>.offset(of: \.normal)
+            )
+            #expect(normal.bufferIndex == 0)
+            #expect(layout.stride == MemoryLayout<ModelVertex>.stride)
+
+            // Prove the imported MetalKit buffer is CPU-addressable, aligned
+            // for the shared record, and large enough before reading it;
+            // `MTLBuffer.contents()` is unavailable for private storage and
+            // must never be dereferenced in that case.
+            try #require(vertexBuffer.buffer.storageMode != .private)
+            let requiredByteCount = mesh.vertexCount * layout.stride
+            try #require(requiredByteCount <= vertexBuffer.length)
+            try #require(
+                vertexBuffer.offset + requiredByteCount
+                    <= vertexBuffer.buffer.length
+            )
+            try #require(
+                vertexBuffer.offset.isMultiple(
+                    of: MemoryLayout<ModelVertex>.alignment
+                )
+            )
+            let vertices = vertexBuffer.buffer.contents()
+                .advanced(by: vertexBuffer.offset)
+                .assumingMemoryBound(to: ModelVertex.self)
+
+            for vertexIndex in 0..<mesh.vertexCount {
+                let decodedPosition = vertices[vertexIndex].position
+                let decodedNormal = vertices[vertexIndex].normal
+                let normalLength = simd_length(decodedNormal)
+
+                #expect(decodedNormal.isFinite)
+                #expect(abs(normalLength - 1) < 0.0001)
+
+                // The explicit sphere authors smooth normals that must remain
+                // outward-facing through import, not merely unit length.
+                if simd_length(decodedPosition) > 0 {
+                    #expect(
+                        simd_dot(
+                            simd_normalize(decodedPosition),
+                            decodedNormal
+                        ) > 0.98
+                    )
+                }
+            }
+        }
+    }
+
+    @Test func packagedSphereMaintainsAuthoredGeometryDensity() throws {
+        let device = try #require(MTLCreateSystemDefaultDevice())
+        let models = try USDRenderModel.load(
+            catalog: BasicGameContent().renderAssetCatalog,
+            device: device
+        )
+        let model = try #require(models[.ball])
+
+        #expect(model.hasCompleteDrawableIndexedGeometry)
+
+        // Validate the renderer's decoded result rather than the source file.
+        // Model I/O may weld seam vertices or split a USD mesh while importing,
+        // but neither behavior should erase the asset's intended density.
+        let decodedVertexCount = model.meshes.reduce(0) {
+            $0 + $1.vertexCount
+        }
+        let submeshes = model.meshes.flatMap(\.submeshes)
+        try #require(!submeshes.isEmpty)
+        #expect(submeshes.allSatisfy { $0.primitiveType == .triangle })
+
+        let decodedTriangleCount = submeshes.reduce(0) {
+            $0 + $1.indexCount / 3
+        }
+
+        // Ball is authored as a 64 x 32 UV sphere. These floors tolerate
+        // importer-specific vertex welding while preventing a regression to
+        // the old low-density implicit sphere (92 vertices, 180 triangles).
+        #expect(decodedVertexCount >= 1_900)
+        #expect(decodedTriangleCount >= 3_800)
+    }
+}

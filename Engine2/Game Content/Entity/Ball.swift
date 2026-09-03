@@ -7,7 +7,7 @@ import simd
 /// facades over `World`; the object does not duplicate authoritative simulation
 /// state. Its mesh and material identities are backend-neutral and owned by
 /// Game Content.
-class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
+class Ball: Entity, Movable, Rotatable, Renderable, Selectable {
     /// Creates a Ball with an explicitly authored material identity.
     ///
     /// Position, motion, orientation, and selection defaults are neutral per-instance
@@ -19,13 +19,13 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
         selectionRadius: Double = 0.5,
         position: SIMD3<Double> = .zero,
         velocity: SIMD3<Double> = .zero,
-        accelerationIntent: CMotion.AccelerationIntent = .idle,
+        accelerationIntent: MotionComponent.AccelerationIntent = .idle,
         impulse: SIMD3<Double> = .zero,
         rotation: simd_quatf = .identity,
         angularVelocity: SIMD3<Float> = .zero,
         angularAcceleration: SIMD3<Float> = .zero,
         angularImpulse: SIMD3<Float> = .zero,
-        selectionState: CSelectable.SelectionState = .unselected
+        selectionState: SelectableComponent.SelectionState = .unselected
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
         let initialState = Entity.InitialState(
@@ -42,7 +42,7 @@ class Ball: Entity, PMovable, PRotatable, PRenderable, PSelectable {
                 meshID: .ball,
                 materialID: materialID
             ),
-            selectionBounds: CSelectionBounds(radius: selectionRadius)
+            selectionBounds: SelectionBoundsComponent(radius: selectionRadius)
         )
         world.add(self, from: initialState)
     }

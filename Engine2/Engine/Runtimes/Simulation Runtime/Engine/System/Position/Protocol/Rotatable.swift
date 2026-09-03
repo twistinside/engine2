@@ -1,0 +1,33 @@
+/// Capability for orientable entity facades backed by angular motion state.
+///
+/// The live accessors bridge to integrated angular velocity and the transient
+/// acceleration and impulse contributions consumed by `RotationSystem`. Systems
+/// should use the corresponding component stores for bulk mutation.
+protocol Rotatable: Orientable {
+    var angularAcceleration: SIMD3<Float> { get }
+    var angularImpulse: SIMD3<Float> { get }
+    var angularVelocity: SIMD3<Float> { get }
+}
+
+extension Rotatable {
+    var angularAcceleration: SIMD3<Float> {
+        guard let accumulator = world.angularMotionAccumulatorComponents[self.id] else {
+            fatalError("There is no angular motion accumulator for the rotating entity with ID: \(self.id)")
+        }
+        return accumulator.angularAcceleration
+    }
+
+    var angularImpulse: SIMD3<Float> {
+        guard let accumulator = world.angularMotionAccumulatorComponents[self.id] else {
+            fatalError("There is no angular motion accumulator for the rotating entity with ID: \(self.id)")
+        }
+        return accumulator.angularImpulse
+    }
+
+    var angularVelocity: SIMD3<Float> {
+        guard let angularVelocity = world.angularVelocityComponents[self.id]?.angularVelocity else {
+            fatalError("There is no angular velocity for the rotating entity with ID: \(self.id)")
+        }
+        return angularVelocity
+    }
+}

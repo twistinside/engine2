@@ -69,16 +69,3 @@ jobs:
             --form-string "title=${title}" \
             --form-string "message=${message}" \
             https://api.pushover.net/1/messages.json
-
-      # The preview runner hosts macOS 26, which cannot execute macOS 27 tests.
-      - name: Run Engine2 tests (requires macOS 27 runner)
-        if: ${{ false }}
-        run: |
-          xcodebuild \
-            -project Engine2.xcodeproj \
-            -scheme Engine2 \
-            -configuration Debug \
-            -destination 'platform=macOS' \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            CODE_SIGNING_ALLOWED=NO \
-            test

@@ -1,58 +1,38 @@
 # ``Engine2``
-Engine2 is a small ECS-first engine experiment with typed entity facades, per-type component stores, and an exact fixed-step simulation core.
+
+Engine2 is a compact ECS-first engine experiment with typed entity facades, per-type component stores, and exact fixed-step simulation.
+
 ## Overview
-The current codebase is intentionally small, but the core direction is already established:
-- The App constructs selected Game Content, injects it into one ``PRuntimeAssembly``, retains that assembly, and presents it as the SwiftUI root. The assembly constructs and connects independent top-level runtimes through explicit typed boundaries and owns any topology-specific presentation lifecycle in its body.
-- ``InputRuntime`` accepts physical platform input through `PInputEventSink`, maps it through Game Content's `InputMappingConfiguration`, and publishes context-free semantic intent in a revisioned latest `InputSnapshot` through `PInputSnapshotSource`.
-- The Simulation Runtime is authoritative for gameplay state and contains the engine, world, and ECS systems.
-- Game Content supplies consumer-defined entities, Input mapping, controlled Simulation behavior, world construction, presentation descriptions, and assets without becoming a runtime.
-- ``StarSystemGenerator`` performs finite, deterministic Game Content construction from a stable correlated disk through significance selection and atmosphere evolution. It returns a validated, serializable physical system with explicit retained, residual, and dynamical conservation destinations without starting a Runtime or mutating ECS state.
-- ``World`` owns authoritative simulation state.
-- ``Engine`` owns exact fixed-step execution and one complete ordered system schedule. ``PSimulationBehavior`` and ``SimulationSystemSchedule`` admit Game Content systems only at controlled stages around the Engine-owned foundation; cadence and pause policy remain in assembly-owned drivers.
-- ``PSystem`` implementations operate on component stores, not object facades, in hot paths.
-- ``Entity`` subclasses and capability protocols remain the ergonomic game-facing layer.
-- ``SimulationRuntime`` publishes its latest completed ``SimulationPresentationSnapshot``. The real-time screen uses that snapshot's camera exactly; it has no separately mutable viewpoint source.
-- `MetalSceneView` hosts one `MetalScenePlatformView`. That single `MTKView` supplies the drawable surface to ``MetalRenderer`` and forwards AppKit events to ``InputRuntime``; it performs neither semantic mapping nor rendering itself.
-- ``MetalFrameEncoder`` prepares and encodes the reusable Metal frame against caller-owned textures, frame resources, and a command buffer without depending on MetalKit view or drawable ownership.
-- ``POffscreenRenderTarget`` accepts an exact immutable snapshot, explicit viewpoint, and render settings asynchronously. ``MetalOffscreenRenderRuntime`` implements that capability with dedicated one-slot Metal resources and returns detached pixels with exact request, scene, viewpoint, and settings provenance.
-- ``RealtimeSnapshotCaptureConnection`` adapts the selected snapshot camera into the explicit viewpoint required by the offscreen contract. That value has one stable connection identity and revision zero; the connection owns no camera state and cannot diverge from its selected snapshot.
-- ``PImageArtifactEncoder`` is the asynchronous transformation boundary above completed raw offscreen results. ``ImageIOArtifactEncoder`` is its stateless production implementation; its `@concurrent` operation performs JPEG and PNG work on Swift's concurrent executor, preserves exact source and encoding provenance, and can be retried without advancing Simulation or rerendering.
-- ``OffscreenImageArtifactDeriver`` composes exact rendering, complete result and cancellation correlation, and the selected artifact encoding without sampling or advancing Simulation.
-- ``OfflineCaptureAssembly`` composes one closed serial exact-scene/render/encode topology. It exposes the initial cursor and ``POfflineCaptureTarget`` while its body presents static identity, keeping ``OfflineCaptureCoordinator`` as the sole effective advance authority. The coordinator retains exactly the initial or last completed presentation and supports at-most-once advance capture plus mandatory-cursor current capture through one gate. It awaits the encoder-owned CPU work while preserving busy backpressure.
-- ``AgentSessionAssembly`` privately wraps the closed offline assembly behind ``PAgentSessionTarget`` and presents static identity in its body without exposing lower-level capabilities; explicit hosts own drain-before-close lifecycle. ``AgentCaptureSource`` chooses bounded `.advance` or non-advancing `.current`, and the live-process coordinator places both complete payloads in one session-qualified monotonic at-most-once, exact-replay, typed-overlap, and drain-before-close lane without gaining a second advance or render capability.
-This documentation catalog serves two purposes:
-- document the behavior that already exists in the codebase
-- capture architectural direction that is intentionally not implemented yet
-At the moment, the codebase already includes:
-- an assembly-retained Input Runtime that maps physical bindings to held translation and interaction intent plus cumulative camera and selection values; ``RealtimeAdvanceDriver`` captures its immutable latest snapshot and independently staged generation-tagged orbit command in one exact Simulation request
-- one complete ordered system schedule in ``Engine`` with controlled Game Content stages, semantic input interpretation, camera control, input history/cleanup, and authoritative Simulation work
-- an assembly-owned real-time driver that translates wall time into cursor-qualified exact requests, plus a clock-free ``ManualAssembly``
-- an assembly-facing ``SimulationRuntime`` that owns session bootstrap, serialized exact advancement, world and behavior policy, and completed publication
-- a common ``PRuntimeAssembly`` App-hosting boundary whose potentially fallible Game Content injection produces a self-presenting SwiftUI root with compile-time selection and explicit App policy for construction failure
-- a current real-time assembly whose body connects the single `MetalScenePlatformView` to ``InputRuntime`` through `MetalSceneView`, while a separate driver owns Simulation advancement
-- a real-time screen path from ``SimulationPresentationSnapshot`` through `RenderFrame(projecting:)` and ``MetalSceneView`` that uses the published camera exactly, plus a separate exact request path through ``RenderViewpoint`` and `RenderFrame(exactlyProjecting:viewpoint:)`
-- a view-independent production ``MetalFrameEncoder`` shared by the thin MetalKit screen adapter, the exact offscreen Runtime, and their render integration coverage
-- a production exact offscreen request/outcome boundary with strict presentation/model/geometry preflight, configurable safety limits, single-flight backpressure, queue-feedback lifetime, cancellation semantics, and tightly packed top-left BGRA8-sRGB readback
-- an asynchronous Image I/O artifact layer supporting validated JPEG quality and lossless PNG, with detached encoded data and exact request/cursor/viewpoint/render/encoding provenance
-- a concrete serial offline capture assembly constructed from injected Game Content and direct limit and identity values, whose typed outcomes preserve either committed Simulation progress or the exact retained current presentation and, after rendering, the raw result needed for retryable artifact derivation
-- a transport-neutral agent-session assembly constructed from injected Game Content and direct limit and identity values, whose closed operational surface exposes starting identity, ``PAgentSessionTarget``, and explicit-host drain lifecycle while its body presents static initial identity without closing the live session on disappearance; focused coverage validates both capture sources through one admission/idempotency/cache/cursor/cancellation/lifecycle policy, and real integration advances to tick one, captures and replays an alternate view at tick one, then advances to tick two
-- a versioned core-accretion-lite star-system generator with named deterministic random domains, a stable mass-radius-correlated annular disk, fully funded embryos, supply- and gap-limited accretion and migration, bounded collision/scattering/ejection/stellar-loss outcomes, significant-planet selection with aggregate residual survivors, finite-budget atmosphere evolution, significant moon formation, orthogonal physical classifications, persistence provenance, and validated solid and hydrogen-helium ledgers
 
-The obsolete `SimulationLoop`, elapsed-time Engine adapter, partial-schedule pause gate, and presentation-side camera bypass have been removed. ``InputRuntime`` now owns physical-to-semantic mapping and publishes context-free translation, interaction, camera, and selection intent. Simulation derives interval deltas, resolves selection, and routes entity controls against authoritative ECS state; `World.camera` still changes only within a complete tick. The mining slice keeps the skiff dynamically integrated under gravity and thrust while the star is its gravity source and quiet asteroids and depot follow deterministic analytic rails. Its SwiftUI selected-entity inspector reads protocol-backed live capabilities, including circularization delta-velocity reserve and minimum burn duration, through a narrow Simulation-owned source rather than expanding ``SimulationPresentationSnapshot`` with gameplay state. A separate focused callback stages an exact-request ``OrbitCircularizationCommand``; ``SOrbitCircularization`` consumes it only on the request's first tick to engage per-entity Simulation-owned autopilot state. ``SOrbitCircularizationAutopilot`` then runs after gravity and before manual flight control, suppresses manual translation while engaged, and burns across later ticks under finite thrust, current fuel, live mass, and normal dynamic integration.
+The current release has one real-time interactive topology:
 
-Exact raw offscreen rendering, explicit request-carried viewpoints, CPU-side JPEG and PNG derivation, serial advance-or-current capture, and the live-process idempotent agent wrapper remain separate output paths. The agent layer has no automatic cadence and preserves the offline coordinator as the only advance authority. Its current-cursor image artifact is visual output, not structured observation. An actual MCP Runtime or transport, authentication, wire DTOs, restart-safe idempotency journal, agent gameplay controls, structured observations, persistence/sinks, dedicated render worker, pooled targets, atomic multi-view jobs, high-quality accumulation/HDR policy, additional artifact formats, typed routing, multi-window bindings, and observer anchors remain proposed; advancing agent requests currently assign `.none`.
+- ``Engine2App`` selects Game Content and constructs a ``RealtimeAssembly`` through ``RuntimeAssembly/init(using:)``. The assembly owns its Runtime graph, lifecycle policy, and root SwiftUI presentation.
+- ``InputRuntime`` maps platform input into context-free semantic intent and publishes immutable ``InputSnapshot`` values.
+- ``SimulationRuntime`` owns the authoritative ``World``, ``Engine``, ECS resources, and systems. ``Engine`` executes one complete ordered schedule at ``SimulationRuntime/fixedTimeStep``.
+- ``SimulationBehavior`` contributes Game Content systems only through the fixed stages in ``SimulationSystemSchedule``. The Engine retains its foundational input, camera, integration, and cleanup work.
+- ``SimulationRuntime`` publishes completed ``SimulationPresentationSnapshot`` values. The screen renderer consumes those values without reading live ECS state or maintaining a second camera.
+- ``MetalSceneView`` connects the platform view, Input Runtime, and ``MetalRenderer``. ``MetalFrameEncoder`` owns reusable view-independent frame encoding.
+
+Component stores remain the source of truth for Simulation. ``Entity`` subclasses and capability protocols provide a typed facade for Game Content, UI, and tooling. Game Content supplies authored entities, construction policy, behavior, backend-neutral presentation descriptions, and assets; each Runtime owns the resources and lifecycle needed to consume them.
+
+The articles in this catalog distinguish implemented behavior from proposed architecture. Offscreen output, replay, agent control, generalized routing, multi-window bindings, and additional top-level Runtimes remain future work.
+
 ## Topics
-### Architecture
+
+### Runtime and Application
+
 - <doc:Runtime-Architecture>
 - <doc:Runtime-Assemblies-and-Advancement>
 - <doc:Runtime-Communication>
-- <doc:Game-Content-Architecture>
+
+### Simulation and Game Content
+
 - <doc:Engine-Architecture>
-- <doc:Resource-Ownership-and-Presentation-Boundaries>
-- <doc:Rendering-Architecture>
-- <doc:PBR-Implementation-Plan>
-### Scheduling
 - <doc:System-Scheduling>
-### Generation
-- <doc:Star-System-Generation>
-- <doc:Star-System-Generation-Calibration>
+- <doc:Game-Content-Architecture>
+
+### Rendering
+
+- <doc:Rendering-Architecture>
+- <doc:Resource-Ownership-and-Presentation-Boundaries>
+- <doc:PBR-Implementation-Plan>

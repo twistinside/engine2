@@ -9,108 +9,106 @@ transition together; keep genuinely orthogonal operation, lifecycle, and cancell
 ## Avoid
 
 ```swift
-var isExporterPresented = false
-private(set) var exportDocument: JPEGArtifactDocument?
-private(set) var defaultFilename = "Engine2 Snapshot"
-var isFailurePresented = false
-private(set) var failureMessage = ""
-private(set) var failureAllowsExportRetry = false
+private(set) var isAdvancementEnabled = true
+private(set) var isPaused = false
+private(set) var authorityFault: RealtimeAdvanceDriverFault?
 ```
 
-These properties describe one modal presentation lane, but they permit combinations that have no meaning:
+These properties attempt to describe one advancement-policy state, but they permit combinations that have no meaning:
 
-- the exporter can be presented without a document;
-- export retry can be allowed without retaining the export;
-- the exporter and failure can both be presented;
-- a failure can be presented without a meaningful message;
-- the filename and document can outlive the state in which they are valid.
+- advancement can be both enabled and paused;
+- a fault can coexist with enabled advancement;
+- a driver can be neither enabled nor paused without carrying a fault;
+- clearing the fault can leave policy in an indeterminate state.
 
 Every transition must coordinate several assignments correctly:
 
 ```swift
-isExporterPresented = false
-exportDocument = nil
-failureAllowsExportRetry = false
-isFailurePresented = false
+isAdvancementEnabled = false
+isPaused = false
+authorityFault = .cursorMismatch(
+    expected: expectedCursor,
+    current: currentCursor
+)
 ```
 
 The compiler cannot detect a forgotten assignment or prevent another method from creating an impossible combination.
 
 ## Prefer
 
-Define the closed presentation value in its own file. Each case carries exactly the data valid in that state:
+Define the closed policy state in its own file. Each case carries exactly the data valid in that state:
 
 ```swift
-/// Mutually exclusive modal presentation owned by snapshot capture UI.
-enum SnapshotCapturePresentation {
-    case exporter(document: JPEGArtifactDocument, defaultFilename: String)
-    case captureFailure(message: String)
-    case exportFailure(message: String, document: JPEGArtifactDocument, defaultFilename: String)
+/// Mutually exclusive user policy and authority health for real-time advance.
+enum RealtimeAdvancementState {
+    case enabled
+    case paused
+    case faulted(RealtimeAdvanceDriverFault)
 }
 ```
 
-The view model stores one optional presentation:
+The driver stores one state:
 
 ```swift
-private(set) var presentedModal: SnapshotCapturePresentation?
+private(set) var advancementState: RealtimeAdvancementState
 ```
 
-The optional represents whether a modal is presented. The enum represents which modal it is. Associated values ensure
-an exporter always owns its document and filename, an export failure retains exactly what retry needs, and a capture
-failure cannot accidentally advertise export retry.
-
-Transitions become single assignments:
+The associated value ensures a faulted state always identifies the authority mismatch, while `.enabled` and `.paused`
+cannot retain a stale fault. Transitions become single assignments:
 
 ```swift
-let document = JPEGArtifactDocument(artifact: artifact)
-let defaultFilename = "Engine2-tick-\(sourceSnapshot.cursor.tick.rawValue)"
-presentedModal = .exporter(document: document, defaultFilename: defaultFilename)
-
-presentedModal = .exportFailure(
-    message: "The rendered JPEG could not be saved. \(error.localizedDescription)",
-    document: document,
-    defaultFilename: defaultFilename
+advancementState = .enabled
+advancementState = .paused
+advancementState = .faulted(
+    .cursorMismatch(
+        expected: expectedCursor,
+        current: currentCursor
+    )
 )
-
-presentedModal = .captureFailure(message: "Another snapshot capture is already in progress.")
-
-presentedModal = nil
 ```
 
-Code that handles the state must be exhaustive:
+Code that handles the policy state must be exhaustive:
 
 ```swift
-guard let presentedModal else {
-    return
-}
-
-switch presentedModal {
-case let .exporter(document, defaultFilename):
-    presentExporter(document: document, defaultFilename: defaultFilename)
-case let .captureFailure(message):
-    presentFailure(message, retryDocument: nil)
-case let .exportFailure(message, document, defaultFilename):
-    presentFailure(message, retryDocument: document, defaultFilename: defaultFilename)
+switch advancementState {
+case .enabled:
+    requestElapsedSteps()
+case .paused:
+    discardElapsedSteps()
+case let .faulted(fault):
+    reportAuthorityFault(fault)
 }
 ```
 
-SwiftUI or another UI framework may require a Boolean binding for presentation. Derive that adapter from the enum at the
-view boundary rather than storing another Boolean source of truth. A framework may write `false` before invoking its
-completion or cancellation callback; do not clear retained payloads in that binding setter when a later callback still
-needs them. Let completion, cancellation, retry, and discard operations own the authoritative transition, or model an
-explicit awaiting-result state when the framework requires it.
+Derive narrower projections without storing another source of truth:
+
+```swift
+var isAdvancementEnabled: Bool {
+    advancementState == .enabled
+}
+
+var fault: RealtimeAdvanceDriverFault? {
+    guard case let .faulted(fault) = advancementState else {
+        return nil
+    }
+    return fault
+}
+```
 
 ## Keep Independent State Independent
 
-An enum should encode exclusivity, not force unrelated facts into one combinatorial state machine. In the snapshot
-workflow, an in-progress capture, window-presentation activity, and a lifecycle generation protect different concerns
-from the modal being shown. They may remain separate:
+An enum should encode exclusivity, not force unrelated facts into one combinatorial state machine. In the real-time
+driver, playback policy, polling lifecycle, and in-flight work answer different questions. The latter two remain separate:
 
 ```swift
-private(set) var isCapturing = false
-private var isPresentationActive = false
-private var presentationGeneration: UInt64 = 0
+private(set) var advancementState: RealtimeAdvancementState
+private(set) var isRunning = false
+private(set) var isQuiescent = true
 ```
+
+A paused driver may continue polling so it can observe lifecycle policy, while a stopped driver may retain enabled policy
+for a later run. Either policy may temporarily coexist with unsettled accepted work while the driver drains. Combining all
+three dimensions into one enum would multiply cases without making an invariant clearer.
 
 Keep a `Bool` for a genuinely independent binary fact. Use separate enums for orthogonal state dimensions. Introduce one
 enum when multiple properties must change together and only a finite set of combinations is valid.

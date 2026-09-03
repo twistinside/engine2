@@ -5,152 +5,116 @@ value directly, and throw when it cannot complete. Do not invent request, respon
 merely to carry local control flow between adjacent calls.
 
 Here, "internal" describes an ownership boundary rather than Swift's `internal` access level. An internal protocol can
-still be a meaningful runtime, actor, persistence, or transport boundary.
+still be a meaningful Runtime, actor, persistence, or transport boundary.
 
 ## Avoid
 
-A value-shaped offscreen Metal implementation might turn queue feedback into a private two-case completion value:
+A caller might wrap the throwing construction of `MetalFrameEncodingInputs` in a private result enum:
 
 ```swift
-nonisolated enum MetalOffscreenCompletion: Equatable, Sendable {
-    case success
-    case failure(String)
-}
-```
-
-That value is awaited, switched only to recover the failure, and then passed into readback as a success token:
-
-```swift
-let completion = await commit(commandBuffer, frame: frame, sceneTarget: sceneTarget, targets: targets)
-
-switch completion {
-case .success:
-    break
-case let .failure(description):
-    let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: description)
-    renderingState = .failed(failure)
-    return .failed(failure)
+enum FrameInputConstructionResult {
+    case accepted(MetalFrameEncodingInputs)
+    case rejected(MetalFrameEncoderError)
 }
 
-let image = try targets.readback(after: completion)
-```
-
-Inside this implementation, `.success` carries no value and `.failure` is immediately converted into failure control
-flow. The completion enum, nonthrowing continuation payload, switch, and readback parameter all exist to manually encode
-what a successful return or thrown error already means. The success token is also freely constructible, so it does not
-provide a strong sequencing guarantee.
-
-Do not replace a custom response enum with `Result` when the caller will immediately switch and rethrow it. That changes
-the spelling without removing the local value-shaped error plumbing.
-
-## Prefer
-
-Make the private asynchronous commit operation return `Void` on success and use typed throws for its one closed failure
-domain:
-
-```swift
-private func commit(
-    _ commandBuffer: any MTL4CommandBuffer,
-    frame: FrameResources,
-    sceneTarget: MetalHDRSceneTarget,
-    targets: MetalOffscreenRenderTargets
-) async throws(MetalOffscreenSubmissionError) {
-    try await withCheckedThrowingContinuation { continuation in
-        // Retain the submission and resume on queue feedback.
+func makeEncodingInputs(...) -> FrameInputConstructionResult {
+    do {
+        return .accepted(
+            try MetalFrameEncodingInputs(
+                frameResources: frame,
+                sceneColorTexture: sceneTexture,
+                depthTexture: depthTexture,
+                destinationTexture: destinationTexture,
+                clearColor: clearColor,
+                outputMode: outputMode,
+                exposure: exposure
+            )
+        )
+    } catch {
+        return .rejected(error)
     }
 }
 ```
 
-Catch the error where the concrete Runtime translates backend failure into its public outcome:
+The adjacent call site must switch only to recover ordinary failure control flow:
 
 ```swift
-do {
-    try await commit(commandBuffer, frame: frame, sceneTarget: sceneTarget, targets: targets)
-} catch {
-    let failure = OffscreenRenderFailure(stage: .gpuExecution, backendDescription: error.backendDescription)
-    renderingState = .failed(failure)
-    return .failed(failure)
+switch makeEncodingInputs(...) {
+case let .accepted(inputs):
+    try frameEncoder.encode(preparedFrame, inputs: inputs, into: commandBuffer)
+case let .rejected(error):
+    throw error
 }
-
-let image = try targets.readback()
 ```
 
-The sequential call site now states the safety order directly: a successful `commit` return means queue feedback has
-arrived, so readback may begin. A throwing continuation can carry the asynchronous failure without constructing a
-parallel success/failure result vocabulary.
+The enum adds no durable state, alternate successful value, or boundary information. Replacing it with `Result` changes
+the spelling without removing the redundant value-shaped error plumbing.
 
-`MetalResourceStore` demonstrates this shape for synchronous internal work. Its construction boundary asks focused
-throwing operations to produce required resources and dynamic frame storage:
+## Prefer
+
+Let the validated value initializer return its useful value and propagate its typed error directly:
 
 ```swift
-let requiredResources = try MetalRequiredResources(device: device, compiler: compiler)
+let inputs = try MetalFrameEncodingInputs(
+    frameResources: frame,
+    sceneColorTexture: sceneTexture,
+    depthTexture: depthTexture,
+    destinationTexture: destinationTexture,
+    clearColor: clearColor,
+    outputMode: outputMode,
+    exposure: exposure
+)
+try frameEncoder.encode(preparedFrame, inputs: inputs, into: commandBuffer)
+```
+
+The sequential call site now states the safety order: construction proves the target dimensions and pixel formats agree,
+then encoding consumes that validated value. A thrown `MetalFrameEncoderError` carries the failure without a parallel
+success/failure vocabulary.
+
+`MetalResourceStore` uses the same shape for construction-time resource ownership. Its initializer asks focused
+throwing operations to produce the required resources and dynamic frame storage:
+
+```swift
+let residency = try MetalResidencyManager(
+    device: device,
+    commandQueue: commandQueue,
+    staticAssetCapacity: staticAssetCapacity,
+    frameResourceCapacity: frameResourceCapacity
+)
+let requiredResources = try MetalRequiredResources(
+    device: device,
+    compiler: compiler
+)
 try makeFrameResources(count: frameCount)
 try loadModels(from: renderAssetCatalog)
 ```
 
-Its helpers return only useful successful values or `Void`, while errors propagate naturally:
+Each operation returns one useful successful value or `Void`. Failure prevents publication of a partially usable store.
 
-```swift
-private func makeFrameResources(count: Int) throws {
-    for _ in 0..<count {
-        guard let commandAllocator = device.makeCommandAllocator(),
-              let instanceBuffer = device.makeBuffer(
-                length: MemoryLayout<GPUInstance>.stride * FrameResources.maximumInstanceCount,
-                options: [.storageModeShared]
-              )
-        else {
-            throw MetalResourceStoreError.missingFrameResource
-        }
-
-        // Retain the successfully created resources.
-    }
-}
-```
-
-Use a focused `Error` type when callers need to distinguish internal failure causes. Typed throws can further constrain
-that domain when all dependencies support it without extra wrapping. "Typed throws" is Swift's term for this language
-feature; do not describe it as checked exceptions. Catch only to recover, add meaningful context, translate at a
-boundary, or perform required policy; otherwise let the error propagate.
+Use a focused `Error` type when callers need to distinguish internal failure causes. Typed throws can constrain that
+domain when every dependency preserves it without artificial wrapping. Swift calls this feature "typed throws," not
+"checked exceptions." Catch only to recover, add meaningful context, translate at a boundary, or perform required
+policy; otherwise let the error propagate.
 
 ## Keep Values at Real Boundaries
 
-Throwing is not a reason to erase deliberate request and outcome contracts. `POffscreenRenderTarget` correctly exposes:
+Throwing is not a reason to erase deliberate request and outcome contracts. `SimulationAdvanceTarget` exposes:
 
 ```swift
-func render(_ request: OffscreenRenderRequest) async -> OffscreenRenderOutcome
+func advance(
+    _ request: SimulationAdvanceRequest
+) async -> SimulationAdvanceOutcome
 ```
 
-That call crosses a Runtime capability boundary. Its outcome represents expected admission refusal, accepted-request
-failure, post-submission cancellation, and exact request correlation. Those states are contract data that callers must
-handle exhaustively, not merely local implementation failures.
-
-Likewise, Agent Session outcomes carry idempotent replay, in-progress identity, sequence rejection, retained responses,
-and authoritative cursor knowledge. A thrown error alone would discard information that remains meaningful after the
-operation returns.
-
-That does not require manual failure return values between the actor's own
-methods. `AgentSessionCoordinator` uses typed throws for new-work admission,
-then converts the closed `AgentSessionRequestRejectionReason` into the public
-value-shaped submission outcome:
-
-```swift
-do {
-    try admitNewRequest(request)
-} catch {
-    return rejected(error)
-}
-
-let response = await executeAcceptedRequest(request)
-```
-
-The internal method communicates one success or one refusal through ordinary
-control flow. The protocol method still preserves that refusal as replay- and
-transport-relevant boundary data.
+That call crosses the Simulation Runtime's serialized mutation boundary. Its outcome distinguishes a completed batch
+from a request rejected before mutation because the expected and current cursors differ. The rejection retains both
+cursors so the caller can reconcile authority without treating expected admission refusal as an exceptional local
+failure.
 
 Keep an explicit value when it:
 
 - is stored, replayed, persisted, or sent onward as data;
-- crosses an actor, runtime, protocol, process, or transport boundary;
+- crosses an actor, Runtime, protocol, process, or transport boundary;
 - preserves request identity, provenance, partial commitment, or retry information;
 - represents expected admission, cancellation, or lifecycle states;
 - gives the caller multiple successful states rather than one success and one failure.

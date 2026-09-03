@@ -26,7 +26,7 @@ problem. The operations still have no enforced relationship.
 Name the shared capability and inject one conforming value:
 
 ```swift
-protocol PRealtimeClock: Sendable {
+protocol RealtimeClock: Sendable {
     var now: SuspendingClock.Instant { get }
 
     func sleep(until deadline: SuspendingClock.Instant) async throws
@@ -36,12 +36,12 @@ protocol PRealtimeClock: Sendable {
 The consumer then receives one dependency:
 
 ```swift
-init(clock: any PRealtimeClock) {
+init(clock: any RealtimeClock) {
     self.clock = clock
 }
 ```
 
-`PRealtimeClock` keeps sampling and absolute suspension in one monotonic instant domain.
+`RealtimeClock` keeps sampling and absolute suspension in one monotonic instant domain.
 `SuspendingRealtimeClock` is the production implementation, while deterministic tests substitute one conforming clock
 that owns both operations and their shared state.
 

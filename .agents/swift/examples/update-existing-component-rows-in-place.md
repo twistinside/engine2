@@ -8,15 +8,15 @@ communicates the system's invariant, and gives the store a focused mutation path
 
 ## Avoid
 
-`SRotation` has already read the required rows and derived their new values, but routes those established rows through
+`RotationSystem` has already read the required rows and derived their new values, but routes those established rows through
 insertion:
 
 ```swift
 world.angularVelocityComponents.insert(
-    CAngularVelocity(angularVelocity: updatedAngularVelocity),
+    AngularVelocityComponent(angularVelocity: updatedAngularVelocity),
     for: entity
 )
-world.rotationComponents.insert(CRotation(rotation: updatedRotation), for: entity)
+world.rotationComponents.insert(RotationComponent(rotation: updatedRotation), for: entity)
 
 if world.angularMotionAccumulatorComponents[entity] != nil {
     world.angularMotionAccumulatorComponents.insert(zeroAccumulator, for: entity)
@@ -34,10 +34,10 @@ must not change which components the entity owns.
 
 ```swift
 world.angularVelocityComponents.update(for: entity) { angularVelocity in
-    angularVelocity = CAngularVelocity(angularVelocity: updatedAngularVelocity)
+    angularVelocity = AngularVelocityComponent(angularVelocity: updatedAngularVelocity)
 }
 world.rotationComponents.update(for: entity) { rotation in
-    rotation = CRotation(rotation: updatedRotation)
+    rotation = RotationComponent(rotation: updatedRotation)
 }
 world.angularMotionAccumulatorComponents.update(for: entity) { accumulator in
     accumulator = zeroAccumulator

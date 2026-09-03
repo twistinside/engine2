@@ -36,46 +36,32 @@ syntax does not express, enables reuse or validation, or separates substantial
 construction from the operation that consumes it.
 
 A Runtime remains a separate ownership and debugging boundary even when an
-assembly immediately owns it:
+assembly immediately owns it. Bind each Runtime to a role-named local before
+constructing the connection that consumes it:
 
 ```swift
-// Avoid: the Simulation Runtime disappears inside assembly punctuation.
-ManualAssembly(
-    simulationRuntime: SimulationRuntime(
-        worldBuilder: gameContent.worldBuilder,
-        configuration: gameContent.simulationConfiguration,
-        inputBaseline: nil,
-        sessionID: sessionID
-    )
+let inputRuntime = InputRuntime(
+    mappingConfiguration: gameContent.inputMappingConfiguration
 )
-```
-
-Bind the inner value to a role-named local, then construct the owner:
-
-```swift
 let simulationRuntime = SimulationRuntime(
     worldBuilder: gameContent.worldBuilder,
     configuration: gameContent.simulationConfiguration,
-    inputBaseline: nil,
-    sessionID: sessionID
+    behavior: gameContent.simulationBehavior,
+    inputBaseline: inputRuntime.latestInputSnapshot
 )
-return ManualAssembly(simulationRuntime: simulationRuntime)
+let advanceDriver = RealtimeAdvanceDriver(
+    advanceTarget: simulationRuntime,
+    inputSource: inputRuntime,
+    initialCursor: simulationRuntime.currentCursor,
+    fixedTimeStep: SimulationRuntime.fixedTimeStep,
+    pollInterval: SimulationRuntime.fixedTimeStep,
+    catchUpPolicy: .interactive,
+    isAdvancementEnabled: true
+)
 ```
 
 This exposes both construction boundaries and gives later validation,
-configuration, or debugging a natural seam. A local also helps when a
-substantial value would otherwise pass through an unlabeled argument of a
-mutating operation:
-
-```swift
-let entry = InputHistoryEntry(
-    id: nextEntryID,
-    frameIndex: frameIndex,
-    frameCount: 1,
-    tokens: tokens
-)
-entries.insert(entry, at: 0)
-```
+configuration, or debugging a natural seam.
 
 When construction is not a separate ownership, validation, reuse, or
 substantial decision, keep it inline if the surrounding syntax already provides
@@ -92,7 +78,9 @@ static let interactive = Self(
     backlogTreatment: .discardOverflow
 )
 
-return .rejected(OffscreenRenderRejection(error))
+return .rejected(
+    .cursorMismatch(expected: expectedCursor, current: currentCursor)
+)
 ```
 
 In these examples, `rawValue`, `maximumStepsPerWake`, and `rejected` already
@@ -123,13 +111,13 @@ surface.
 Avoid an initializer that only repeats property names and assignments:
 
 ```swift
-struct AgentSessionRequestID {
-    let sessionID: AgentSessionID
-    let sequence: AgentSessionRequestSequence
+struct SimulationCursor {
+    let sessionID: SimulationSessionID
+    let tick: SimulationTick
 
-    init(sessionID: AgentSessionID, sequence: AgentSessionRequestSequence) {
+    init(sessionID: SimulationSessionID, tick: SimulationTick) {
         self.sessionID = sessionID
-        self.sequence = sequence
+        self.tick = tick
     }
 }
 ```
@@ -137,12 +125,12 @@ struct AgentSessionRequestID {
 Prefer the equivalent synthesized construction:
 
 ```swift
-struct AgentSessionRequestID {
-    let sessionID: AgentSessionID
-    let sequence: AgentSessionRequestSequence
+struct SimulationCursor {
+    let sessionID: SimulationSessionID
+    let tick: SimulationTick
 }
 
-let requestID = AgentSessionRequestID(sessionID: sessionID, sequence: sequence)
+let cursor = SimulationCursor(sessionID: sessionID, tick: tick)
 ```
 
 Write an explicit initializer when it validates or normalizes input, delegates,
@@ -168,7 +156,7 @@ The current `SimulationRuntime` uses this distinction directly:
 ```swift
 final class SimulationRuntime {
     init(
-        worldBuilder: any PWorldBuilder,
+        worldBuilder: any WorldBuilder,
         configuration: SimulationConfiguration,
         inputBaseline: InputSnapshot?,
         sessionID: SimulationSessionID
@@ -178,7 +166,7 @@ final class SimulationRuntime {
 
     /// Starts a fresh authoritative timeline.
     convenience init(
-        worldBuilder: any PWorldBuilder,
+        worldBuilder: any WorldBuilder,
         configuration: SimulationConfiguration,
         inputBaseline: InputSnapshot?
     ) {
@@ -212,7 +200,7 @@ another value that should remain consistent across instances:
 extension SimulationRuntime {
     // Avoid: this hypothetical overload silently selects Game Content policy.
     convenience init(
-        worldBuilder: any PWorldBuilder,
+        worldBuilder: any WorldBuilder,
         inputBaseline: InputSnapshot?
     ) {
         self.init(
@@ -339,7 +327,7 @@ merely to hide arguments, provide defaults, or make construction look more
 descriptive.
 
 ```swift
-extension SInputMapping {
+extension InputMappingConfiguration {
     /// Test-only camera binding with fixed values chosen for deterministic
     /// fixture setup. Production composition must inject shared configuration.
     static func testFixture() -> Self {
@@ -361,7 +349,7 @@ Swift convenience initializer. The wrapper is harmful because it:
 Prefer explicit construction:
 
 ```swift
-let inputMapping = SInputMapping(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04)
+let inputMapping = InputMappingConfiguration(pointerOrbitSensitivity: 0.01, scrollZoomSensitivity: 0.04)
 ```
 
 Keep fixture construction in the fixture setup so the selected values remain
@@ -419,7 +407,7 @@ policy, and behave differently from the rest of the application.
 
 ```swift
 // Avoid: these defaults can silently create inconsistent input behavior.
-struct SInputMapping {
+struct InputMappingConfiguration {
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
 
@@ -438,7 +426,7 @@ same deliberately selected values.
 Require the composition root to provide coordinated values:
 
 ```swift
-let inputMapping = SInputMapping(
+let inputMapping = InputMappingConfiguration(
     pointerOrbitSensitivity: simulationConfiguration.pointerOrbitSensitivity,
     scrollZoomSensitivity: simulationConfiguration.scrollZoomSensitivity
 )

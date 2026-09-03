@@ -6,9 +6,7 @@ import SwiftUI
 /// its complete topology, owns lifecycle policy, and supplies its root UI.
 @main
 struct Engine2App: App {
-    private let assembly: some PRuntimeAssembly = RealtimeAssembly(
-        gameContent: MiningGameContent()
-    )
+    private let assembly: some RuntimeAssembly = RealtimeAssembly(using: MiningGameContent())
 
     var body: some Scene {
         Window("Engine2", id: "main") {

@@ -1,16 +1,24 @@
 # Game Content Architecture
 
-This article defines the proposed boundary between reusable Engine2 machinery and the game-specific content supplied by an engine consumer.
+Game Content separates game-specific construction and assets from Runtime
+ownership. This article documents the implemented in-target seam and the public
+consumer boundary that remains proposed.
 
 ## Status
 
-Partially implemented direction.
+Partially implemented. ``GameContent`` supplies Input mapping, controlled
+Simulation behavior, world construction, Simulation configuration, and a Render
+asset catalog to the current ``RealtimeAssembly``. Engine code, example content,
+assets, and the App still compile into one application target. None of these
+contracts is currently a supported public API for an external consumer module.
 
-The current project still compiles engine code, example entities, world construction, rendering assets, and the application into one target. ``PGameContent`` now supplies Input mapping, controlled Simulation behavior, world construction, Simulation configuration, and Render assets through one assembly-construction seam. Other types and construction examples in this article remain proposed rather than implemented APIs.
+Audio content, Simulation event-presentation rules, separate engine products,
+and general consumer-defined component storage remain proposed.
 
 ## Game Content Is Not a Runtime
 
-**Game Content** is the immutable or declarative game-specific material used to construct and configure runtimes.
+**Game Content** is consumer-defined code, descriptions, catalogs, and packaged
+assets used to construct and configure runtimes.
 
 Game Content can include:
 
@@ -23,7 +31,10 @@ Game Content can include:
 - models, textures, sounds, animation data, levels, and other assets
 - catalogs that connect stable asset identities to packaged asset sources
 
-Game Content does not have its own cadence or autonomous lifecycle. It does not tick, render, collect input, or perform background work merely by existing. An App-owned Runtime Assembly supplies Game Content to the runtimes it constructs, and each runtime converts the relevant content into its own private operational state.
+Game Content has no cadence or autonomous lifecycle. It does not tick, render,
+collect input, or perform background work merely by existing. The App supplies
+it to a Runtime Assembly, which uses the relevant values while constructing its
+topology.
 
 This distinction keeps the top-level model clear:
 
@@ -38,7 +49,8 @@ Runtime                long-lived owner that executes using supplied content
 
 ## Assets Are Not ECS Resources
 
-Use **Asset** for source content shipped by a game, even though Swift Package Manager uses the term `resource` for bundled files.
+Use **Asset** for source content shipped by a game, even though Swift Package
+Manager uses the term `resource` for bundled files.
 
 Use **Resource** for long-lived mutable state owned by a runtime or world.
 
@@ -48,14 +60,18 @@ For example:
 | --- | --- | --- |
 | Asset | `spaceship.usdz`, `laser.wav`, a texture, or a level file | Game Content |
 | Asset identity | `MeshID.spaceship` or `SoundID.laser` | Game Content |
-| ECS resource | camera state or simulation configuration | Simulation Runtime or `World` |
+| World resource | camera state or ``InputState`` | ``World`` |
 | Runtime resource | `MTKMesh`, `MTLBuffer`, decoded audio, or a pipeline cache | Render or Audio Runtime |
 
-An asset is input to runtime construction or loading. A runtime resource is the runtime-owned operational representation produced from that asset.
+An asset is input to Runtime construction or loading. A Runtime resource is the
+operational representation produced from that asset.
 
 ## Content Uses Backend-Neutral Identities
 
-Game Content should describe presentation using strongly typed, backend-neutral identities rather than Metal or audio-framework objects.
+Game Content describes presentation with strongly typed, backend-neutral
+identities rather than Metal or audio-framework objects. The current project
+implements ``MeshID`` and ``MaterialID`` as exhaustive enums. A future audio
+surface should use a separate identity type such as `SoundID`.
 
 A game's content can own exhaustive identities such as:
 
@@ -74,42 +90,41 @@ enum SoundID: Hashable, Sendable {
 }
 ```
 
-Each asset category uses its own Game Content-owned enum. The Simulation and
-presentation runtimes may carry and resolve these immutable values, but Game
-Content owns the vocabulary because it defines the entities and assets that
-exist in the game. Do not replace a closed identity set with untyped `String`
+Each closed asset category uses its own Game Content-owned enum. Simulation may
+carry these immutable values, and the responsible presentation path may resolve
+them, but Game Content owns the vocabulary because it defines the entities and
+assets in the game. Do not replace a closed identity set with untyped `String`
 or `Int` values.
 
 ## Entities Carry Abstract Presentation Intent
 
-Consumer-defined entities should remain ergonomic typed facades over authoritative ECS state. Their presentation components contain stable asset identities and abstract presentation state, not loaded backend objects.
+Consumer-defined entities remain ergonomic typed facades over authoritative ECS
+state. Their presentation components contain stable asset identities and
+abstract presentation state, not loaded backend objects.
 
 The current render component and a possible continuous-audio component
 illustrate that split:
 
 ```swift
-struct CRenderable: PComponent {
+struct RenderableComponent: Component {
     var meshID: MeshID
     var materialID: MaterialID
 }
 
-struct CAudioEmitter: PComponent {
+struct AudioEmitterComponent: Component {
     var sound: SoundID
     var playback: AudioPlaybackState
 }
 ```
 
-The Simulation Runtime owns these component rows because they are authoritative abstract game state. A publisher-owned `SimulationPresentationSnapshot` carries completed abstract presentation state across the runtime boundary. The Render Runtime can project that source state into a private render-oriented value such as:
-
-```swift
-struct RenderInstance {
-    let transform: Transform
-    let meshID: MeshID
-    let materialID: MaterialID
-}
-```
-
-The Render Runtime owns that projection and resolves `MeshID` and `MaterialID` through the render assets supplied by Game Content. It privately owns the resulting meshes, textures, buffers, and pipelines.
+The Simulation Runtime owns the current ``RenderableComponent`` rows because
+they are authoritative abstract game state. A future audio component belongs
+there only when it represents authoritative continuous state.
+``SimulationPresentationSnapshot`` carries completed presentation facts across
+the Runtime boundary. The current screen path projects that value through
+``RenderFrame`` into ``RenderInstance`` values, then resolves ``MeshID`` and
+``MaterialID`` through the catalog supplied by Game Content. Render privately
+owns the resulting meshes, textures, buffers, and pipelines.
 
 ```text
 Game Content asset
@@ -127,16 +142,23 @@ Render-owned projection
 Runtime-owned backend resource
 ```
 
-## Continuous State and Ephemeral Presentation Differ
+## Snapshots Carry Continuous State
 
-Continuous presentation belongs naturally in state and snapshots. Examples include:
+Continuous presentation belongs naturally in state and snapshots. The current
+snapshot carries entity mesh and material identities plus the camera. Future
+audio state might similarly include a looping emitter, listener transform, or
+ambient context.
 
-- which mesh and material currently represent an entity
-- which looping sound an emitter currently uses
-- listener position and orientation
-- music or ambient context
+The current Render path is snapshot-only and may skip superseded Simulation
+publications. A visible occurrence such as a muzzle flash or explosion must
+therefore remain in snapshot state long enough for Render to observe it or
+converge past it correctly.
 
-Ephemeral occurrences may begin as Simulation Runtime events. For example, the Simulation Runtime can publish that a weapon fired without naming an Audio Runtime or a sound file.
+## Proposed Event-Presentation Rules
+
+General Simulation event publication and an Audio Runtime are not implemented.
+A future Simulation Runtime may publish a semantic event such as a weapon firing
+without naming a sound asset or Audio Runtime.
 
 Game Content can supply the presentation rule that gives the event a particular sound:
 
@@ -146,216 +168,153 @@ Game Content rule:         this weapon uses SoundID.laser
 Audio Runtime behavior:    resolve and play the matching asset
 ```
 
-This keeps gameplay semantic, presentation game-specific, and backend execution runtime-owned.
-
-A snapshot-only consumer needs any visible occurrence represented in durable snapshot state. Render does not consume simulation events, so a muzzle flash, explosion, or similar effect needs snapshot-visible identity and lifetime long enough for Render to observe it even when intermediate simulation snapshots are skipped.
+This proposed split would keep gameplay semantic, presentation rules
+game-specific, and backend execution Runtime-owned. Any event lane still needs
+explicit ordering, retention, and consumer-position semantics. See
+<doc:Runtime-Communication>.
 
 ## Runtime Assemblies Construct Runtimes From Game Content
 
-The App selects one ``PRuntimeAssembly`` implementation at compile time and retains the constructed value behind an opaque `some PRuntimeAssembly` property. The assembly is the concrete composition object for that topology: its required `init(gameContent:)` constructs the independently owned runtimes and supplies each relevant portion of the injected content. Explicit assembly initializers take focused policy, limit, and identity values directly for tests, tools, and specialized hosts.
+The App selects one ``RuntimeAssembly`` implementation at compile time and
+retains the constructed value behind `some RuntimeAssembly`. The required
+``RuntimeAssembly/init(using:)`` initializer receives Game Content and constructs
+the topology. A concrete assembly may also expose direct initializers for its
+focused policy. See <doc:Runtime-Assemblies-and-Advancement> for assembly
+ownership and lifecycle.
 
-The example `BasicGameContent` supplies `InputMappingConfiguration`,
-``PSimulationBehavior``, and `BasicWorldBuilder` to the relevant runtimes beside
-the complete `.basicGame` ``SimulationConfiguration``, and deliberately selects
-`RenderAssetCatalog.everything` for the current render paths. Its explicit
-`init(worldBuilder:)` keeps world construction injectable without hiding either
-behavior or catalog policy behind a default argument. Callers may still
-construct curated catalogs through
-`RenderAssetCatalog.init(models:materials:)`. Named Input, Simulation, and
-Render values remain with their owning types. Repository-owned types are
-extended only from their own files; `BasicGameContent.swift` selects those
-values without quietly declaring members of another type.
-``Ball`` advertises only the backend-neutral `MeshID.ball` plus a `MaterialID`;
-Game Content maps the mesh to `Ball.usdz` and maps each material identity to a
-`PBRMaterialDescription`. The renderer privately turns those descriptions and
-packaged source assets into per-draw data, Model I/O values, and Metal resources.
-Neither ``World`` nor ``Ball`` contains a filename, material factor, or backend
-object.
+``GameContent`` is the five-value construction seam consumed by the current
+``RealtimeAssembly``:
 
-`BasicWorldBuilder` currently uses that boundary to construct a deterministic
-six-sphere material grid. Every entity shares `MeshID.ball`, while its
-`MaterialID` selects one smooth, baseline, or rough warm dielectric or gold
-metal description. The scene adds no renderer object or light state to Game
-Content or Simulation.
+- ``InputMappingConfiguration``
+- ``SimulationBehavior``
+- ``WorldBuilder``
+- ``SimulationConfiguration``
+- ``RenderAssetCatalog``
+
+`RealtimeAssembly` constructs ``InputRuntime`` from the mapping policy and
+``SimulationRuntime`` from the builder, Simulation configuration, and behavior.
+It retains the Render catalog for the screen path. ``GameContent`` exposes no
+live Runtime, lifecycle operation, cadence, storage, or topology-specific
+capability bag.
+
+The Runtime that performs work owns the interface it consumes. Simulation owns
+``WorldBuilder``; Game Content supplies a conforming recipe. Simulation owns
+``SimulationPresentationSnapshot``; Render owns ``RenderFrame`` and the private
+resources derived from it. Game Content supplies values without owning Runtime
+protocols, publication schemas, or invariant scheduling.
+
+## Basic Example Content
+
+``BasicGameContent`` selects `.basicGame` Input and Simulation configuration,
+``StandardSimulationBehavior``, ``BasicWorldBuilder``, and
+`RenderAssetCatalog.everything`. Its `init(worldBuilder:)` keeps world
+construction injectable while retaining the other authored choices.
+
+For presentation, ``Ball`` registers `MeshID.ball` and one ``MaterialID``.
+`RenderAssetCatalog.everything` maps that mesh to `Ball.usdz` and maps every
+material identity to a ``PBRMaterialDescription``. Render privately converts
+those descriptions and the packaged model into backend resources. Neither
+``World`` nor ``Ball`` contains a filename, material factor, or Metal object.
+
+``BasicWorldBuilder`` constructs a deterministic six-ball material grid. Every
+entity shares `MeshID.ball`; material identity selects a smooth, baseline, or
+rough warm dielectric or gold metal. Neutral motion and rotation seeds keep the
+scene quiescent through the ordinary Simulation schedule.
 
 ## The Mining Slice Is Composed Game Content
 
-The hand-authored mining slice uses the same construction seam for one star, orbiting asteroids, one player skiff, and one depot. Game Content defines their entity facades, initial component values, semantic input mapping, controlled behavior systems, and abstract render identities. Each concrete constructor assembles one typed `Entity.InitialState`; ``World/add(_:from:)`` validates its agreement with the advertised capabilities and performs every construction-time component-store insert. The Simulation Runtime still owns the resulting component stores, schedule execution, selection state, and gameplay mutation.
+The mining slice uses the same seam for one star, six asteroids, one player
+skiff, and one depot. Game Content defines the entity facades, initial component
+values, mapping policy, behavior, and abstract render identities. Each concrete
+constructor assembles one `Entity.InitialState`; ``World/add(_:from:)`` validates
+its agreement with advertised capabilities and performs every construction-time
+component-store write. Simulation owns the resulting rows and all later
+gameplay mutation.
 
-``MiningWorldBuilder`` owns the slice's gravitational parameter, orbital radii, derived circular speeds, and more top-down initial camera framing. Those values tune this Game Content. ``SOrbitalRail`` remains a general Simulation policy, and Runtime cadence does not define the scenario's scale or orbital speed.
+``MiningWorldBuilder`` owns the gravitational parameter, orbital radii, derived
+circular speeds, and initial camera framing. ``OrbitalRailSystem`` remains a
+Simulation-owned policy supplied at a Game Content scheduling stage; Runtime
+cadence does not define scenario scale or orbital speed.
 
-The slice's `InputMappingConfiguration` maps keyboard and pointer input to context-free translation, interaction, camera, and selection intent. It cannot name the skiff or inspect selection. ``PInteractable`` owns the shared positioned proximity range; ``PMineable`` and ``PDepotServicing`` refine it with their action-specific state and rates. Systems supplied through ``PSimulationBehavior`` resolve intent against those ECS rows, advance deterministic asteroid and depot rails, contribute star gravity and skiff thrust, resolve collisions, and perform mining or depot service at the fixed ``SimulationSystemSchedule`` stages. The SwiftUI circularization action is deliberately outside that physical mapping: Mining Game Content contributes ``SOrbitCircularization`` at `inputConsumption`, while the one-shot engagement command reaches Simulation on an exact advance request. Mining Game Content also contributes ``SOrbitCircularizationAutopilot`` after gravity and before manual flight control in `forceContribution`, where Simulation-owned per-entity state carries the finite burn across later ticks under current thrust, fuel, live mass, gravity, and dynamic integration.
+The mining ``InputMappingConfiguration`` maps keyboard and pointer input to
+context-free translation, interaction, camera, and selection intent. It cannot
+name the skiff or inspect selection. ``Interactable`` owns the shared positioned
+proximity range; ``Mineable`` and ``DepotServicing`` add action-specific state
+and rates.
 
-This is a deliberate mixed-dynamics scenario. Quiet asteroids and the depot follow analytic circular rails; only the skiff dynamically integrates gravity, propulsion, fuel, cargo-dependent mass, and collision response. The generated physical model described later in this article does not implicitly become this gameplay world.
+``MiningSimulationBehavior`` supplies selection and control routing, circular
+rails, gravity and propulsion, collision response, mining and depot service,
+camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
+stages. The orbit-assist command arrives on an exact Simulation request rather
+than through physical input mapping. See <doc:System-Scheduling> for the exact
+system order.
 
-The selected-entity SwiftUI inspector renders only the capability protocols supported by the live facade from a narrow, read-only Simulation-owned source. Game Content supplies those typed capabilities, including ``POrbitCircularizable`` and its live delta-velocity reserve and minimum burn duration. A separate focused callback submits the displayed entity's full identity for orbit assistance through the real-time assembly; it does not make the facade mutable, route inspection through ``SimulationPresentationSnapshot``, or add renderer-specific state to ECS.
+This is a mixed-dynamics scenario. Six asteroids and the depot follow analytic
+circular rails. Only the skiff dynamically integrates gravity, propulsion,
+fuel, cargo-dependent mass, and collision response.
 
-A consumer assembly may use the same production-plus-injection shape:
+The selected-entity inspector renders only capabilities supported by the live
+facade obtained from a narrow, read-only Simulation-owned source. A separate
+callback submits the displayed entity's complete identity for orbit assistance.
+It does not make the facade mutable, route inspection through
+``SimulationPresentationSnapshot``, or add renderer-specific state to ECS.
 
-```swift
-struct MyGameAssembly: PRuntimeAssembly {
-    var body: some View {
-        MyGameAssemblyView(assembly: self)
-            .onAppear {
-                self.startVisibilityDependentWork()
-            }
-            .onDisappear {
-                self.stopVisibilityDependentWork()
-            }
-    }
+## Proposed Consumer Module Boundary
 
-    init(gameContent: any PGameContent) {
-        self.init(
-            gameContent: gameContent,
-            sessionID: SimulationSessionID()
-        )
-    }
+The current Xcode project has one application target, so the `Game Content`
+directory expresses logical ownership rather than a compiler-enforced module
+boundary. A future framework or package can expose reusable Engine2 contracts
+while consumer content remains independent of concrete Metal, AppKit, or audio
+backend implementations.
 
-    init(
-        gameContent: any PGameContent,
-        sessionID: SimulationSessionID
-    ) {
-        // Construct the complete runtime graph and retain its connections.
-    }
+Runtime and module boundaries answer different questions. Runtime boundaries
+describe state, lifecycle, and cadence. Targets and packages describe compilation
+and distribution. Engine2 does not need one package per Runtime.
 
-    private func startVisibilityDependentWork() {
-        // Start visibility-dependent work in dependency order.
-    }
+## Proposed Public Extension Surface
 
-    private func stopVisibilityDependentWork() {
-        // Stop visibility-dependent work in reverse dependency order.
-    }
-}
-```
+External consumers need a coherent public API before Engine2 can claim support
+for separately compiled Game Content. That surface must support:
 
-``PRuntimeAssembly`` refines SwiftUI `View`. `View` supplies an associated `Body` type and the `body` requirement, so each concrete assembly can satisfy that inherited requirement with `some View`. The opaque result resolves to one concrete body type for that conformer. An App can retain its compile-time-selected assembly behind `some PRuntimeAssembly`; the opaque property hides the underlying type from the surrounding App surface while preserving it for the compiler and SwiftUI. Runtime-dynamic selection among heterogeneous assemblies would instead require an explicit enum or type-erasing host.
+1. Strongly typed component storage, entity facades, spawning, and system access.
+2. Physical-to-semantic mappings and controlled Simulation behavior.
+3. World and session construction.
+4. Backend-neutral presentation descriptions and typed asset catalogs.
+5. Presentation rules for any supported Simulation events.
+6. Runtime construction without importing the example App.
 
-A Runtime Assembly is a value-type View because SwiftUI requires custom views to use value semantics. Its stored Runtime, driver, coordinator, and focused mutable-state references preserve one live graph when SwiftUI copies the assembly value. Calling an assembly initializer constructs a new graph; copying an existing assembly does not.
+The internal ``SimulationBehavior`` and ``SimulationSystemSchedule`` contracts
+already demonstrate controlled behavior insertion, but they are not public API.
+The Engine foundation remains camera input, acceleration intent, movement,
+rotation, and input cleanup; consumer behavior cannot replace or reorder it.
 
-A nonthrowing Game Content initializer such as this one satisfies the protocol's throwing initializer requirement. If construction can fail, the selecting App must choose an explicit launch policy; the common protocol does not manufacture fallback UI.
+``World`` still declares a fixed list of component stores, and
+``World/add(_:from:)`` translates a fixed set of capability protocols from
+`Entity.InitialState`. General external components therefore need a strongly
+typed extension path for storage, spawning, and system access. A closed
+component enum or process-global registry would not provide that boundary.
 
-SwiftUI appearance modifiers belong inside the body of an assembly that owns visibility-dependent work. Assemblies without that work add no lifecycle surface. View disappearance is not a common terminal-shutdown requirement. In particular, ordinary disappearance of an ``AgentSessionAssembly`` does not close the session; its explicit host still calls `stopAndDrain()` when that live session ends.
+## Current Logical Ownership
 
-`PGameContent` is the narrow assembly-construction substitution seam shared by the implemented topologies. It contains five construction values: `InputMappingConfiguration`, ``PSimulationBehavior``, ``PWorldBuilder``, ``SimulationConfiguration``, and ``RenderAssetCatalog``. It does not expose live runtimes, lifecycle operations, cadence, storage, or a topology-specific capability bag. A consumer may conform with one immutable composition value while retaining its own supporting namespaces and focused catalogs.
-
-The important ownership rules are:
-
-- Game Content does not start or stop runtimes.
-- Runtimes do not discover Game Content through global state.
-- Runtimes receive only the content relevant to their responsibility. Input receives mapping policy; Simulation receives world and behavior policy; Render receives the asset catalog.
-- A runtime may transform content into private caches or backend resources.
-- Game Content remains reusable across runtime reconstruction and new game sessions when practical.
-
-The runtime that performs work owns the construction interfaces it consumes. Simulation therefore owns ``PWorldBuilder`` because it defines what is required to construct a valid ``World``. Runtime publications follow a complementary ownership rule: a publisher owns the snapshot and event vocabulary describing its authority, while a consumer owns the projections and private operational models it derives. Simulation owns `SimulationPresentationSnapshot`; Render owns its transformation into a private render snapshot. Game Content supplies conforming values and descriptions without owning runtime protocols, publication schemas, or invariant scheduling. See <doc:Runtime-Communication>.
-
-## Procedural Systems Are Construction Content
-
-The implemented ``StarSystemGenerator`` is a finite, deterministic Game Content
-construction utility. It uses one ``StarSystemSeed`` and one complete versioned
-``StarSystemGenerationPolicy`` to produce a validated, immutable
-``GeneratedStarSystem``. It owns no cadence, lifecycle, task, Runtime resource,
-or ECS state, so procedural generation does not create a new Runtime boundary.
-
-Generation deliberately remains outside ``PGameContent`` for this first
-physical-model step. The common assembly seam remains limited to the
-runtime-construction concerns described above; it does not include a generated
-system value. Adding that value before Simulation has a coherent celestial-state
-contract would turn unresolved future integration into a placeholder common
-dependency.
-
-Generation also remains outside ``PWorldBuilder/buildWorld()``. That operation
-is a nonthrowing one-shot Simulation construction interface. Running the
-generator there would hide a generation failure and could repeat expensive
-formation when an assembly rebuilds its world. The intended future path is:
-
-```text
-seed + versioned policy
-        |
-        v
-StarSystemGenerator.generate(seed:)
-        |
-        v
-validated and persisted GeneratedStarSystem
-        |
-        v
-future GeneratedStarSystemWorldBuilder
-        |
-        v
-authoritative celestial ECS state
-```
-
-The resolved system retains star, disk, planet, moon, orbit, composition,
-environment, physical-state, determinism, and mass-ledger facts. A later
-gameplay layer may project scenario categories from those facts. A later Render
-catalog may project visual recipes from them. Neither projection should mutate
-formation history or make its consumer authoritative for physical generation.
-
-See <doc:Star-System-Generation> and
-<doc:Star-System-Generation-Calibration> for the implemented phases, equations,
-determinism contract, persistence requirements, calibration, and limitations.
-
-## Game Content Is a Natural Consumer Module
-
-The Engine2 package should provide reusable runtime contracts and implementations. A consumer can place its Game Content in an application target, a local SwiftPM target, or a separately distributed package.
-
-A likely dependency shape is:
-
-```text
-MyGameContent -------> Engine2Core
-Engine2Metal --------> Engine2Core
-Engine2Audio --------> Engine2Core
-Engine2AppKitInput --> Engine2Core
-
-MyGameApp -----------> MyGameContent
-MyGameApp -----------> Engine2Metal
-MyGameApp -----------> Engine2Audio
-MyGameApp -----------> Engine2AppKitInput
-```
-
-`MyGameContent` depends on public Engine2 contracts but not on concrete Metal, AppKit, or audio backend implementations. The App selects the assembly type; that assembly selects runtime implementations and supplies the consumer's content to them.
-
-Do not make every Runtime a separate Swift package by default. Runtime boundaries describe ownership and lifecycle. SwiftPM targets describe compilation modules, and packages describe distribution and versioning. One Engine2 package can vend a core product plus optional platform-runtime products.
-
-## Required Public Extension Surface
-
-For Engine2 to serve as a base engine, consumers will eventually need supported public APIs to:
-
-1. define component types
-2. define physical-to-semantic input mappings and optional behavior through controlled runtime extension points
-3. define typed entity facades
-4. spawn entities and seed component rows
-5. construct worlds and sessions
-6. attach abstract render and audio descriptions
-7. supply strongly typed asset catalogs
-8. provide presentation rules for relevant game events
-9. construct runtimes without importing the example application
-
-Do not respond by making every current type public. The package should expose the smallest coherent extension surface while keeping storage, scheduler, and backend implementation details internal where possible.
-
-The Simulation Runtime owns and schedules invariant systems required for valid position, orientation, input, and other core mechanics. The implemented ``PSimulationBehavior`` extension composes systems through the named ``SimulationSystemSchedule`` stages; it cannot move the simulation foundation into Game Content. Broader public access and consumer-defined component storage remain future work.
-
-The current ``World`` has a fixed list of component stores, and ``World/add(_:from:)`` translates a fixed list of capability protocols from `Entity.InitialState`. That is appropriate for the current experiment but is the largest structural limitation on external Game Content. Before claiming general consumer-defined components, Engine2 needs a strongly typed extension path for externally defined component storage, spawning, and system access without returning to a closed component enum or a global registry.
-
-## Current-to-Proposed Mapping
-
-Current project elements map onto Game Content as follows:
-
-| Current element | Emerging ownership |
+| Current element | Ownership |
 | --- | --- |
 | ``Ball`` | Example Game Content entity facade |
 | ``BasicWorldBuilder`` | Example Game Content world construction |
-| `Ball.usdz` and `Ball.usda` | Example render assets owned by Game Content and resolved privately by the current render path |
-| `BasicGameContent` | Example assembly-selected composition of Input mapping, controlled Simulation behavior, world construction, Simulation configuration, and Render asset mappings |
-| `InputMappingConfiguration` | Input-owned physical binding and context-free semantic mapping policy populated by Game Content |
-| ``PSimulationBehavior`` and ``SimulationSystemSchedule`` | Simulation-owned controlled behavior extension populated by Game Content without exposing replacement of the Engine foundation |
-| `MeshID` | Game Content-owned, backend-neutral mesh identity enum |
-| `MaterialID` | Game Content-owned, backend-neutral authored material identity enum |
-| `PBRMaterialDescription` | Render-owned, backend-neutral material contract populated by Game Content |
-| `RenderAssetCatalog` | Render-owned catalog input contract populated by Game Content |
-| `ModelShaders.metal` | Render Runtime backend implementation unless a future public material/shader extension point deliberately makes it content |
-| Debug panes and app commands | Example App tooling, not reusable Game Content or runtime core |
+| `Ball.usdz` | Packaged Game Content model resolved by the current Render path |
+| `Ball.usda` | Game Content source asset; the current catalog resolves the USDZ form |
+| ``BasicGameContent`` | Example composition of Input, Simulation, world, and Render construction values |
+| ``InputMappingConfiguration`` | Input-owned mapping policy selected by Game Content |
+| ``SimulationBehavior`` and ``SimulationSystemSchedule`` | Simulation-owned controlled behavior boundary populated by Game Content |
+| ``MeshID`` and ``MaterialID`` | Game Content-owned backend-neutral identity enums |
+| ``PBRMaterialDescription`` | Render-owned backend-neutral material contract supplied through the catalog |
+| ``RenderAssetCatalog`` | Render-owned catalog input selected by Game Content |
+| `ModelShaders.metal` | Render backend implementation |
+| Debug panes and App commands | Example App tooling |
 
-The first extraction should move example content out of reusable engine targets without forcing immediate redesign of every ECS API. The example application can continue to prove the public construction path as those APIs become deliberate.
+The existing directory split establishes the intended ownership vocabulary.
+A future module extraction should expose the smallest coherent public surface
+without moving backend resources into Game Content or making every internal
+type public.
 
 ## Related Direction
 
