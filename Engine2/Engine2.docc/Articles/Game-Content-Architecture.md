@@ -237,21 +237,23 @@ Simulation-owned policy supplied at a Game Content scheduling stage; Runtime
 cadence does not define scenario scale or orbital speed.
 
 The mining ``InputMappingConfiguration`` maps keyboard and pointer input to
-context-free translation, interaction, camera, and selection intent. It cannot
-name the skiff or inspect selection. ``Interactable`` owns the shared positioned
+context-free translation, interaction, fire, camera, and selection intent. It
+cannot name the skiff or inspect selection. A fire press requests an action;
+Simulation chooses the launcher, target, and resulting missile. ``Interactable`` owns the shared positioned
 proximity range; ``Mineable`` and ``DepotServicing`` add action-specific state
 and rates.
 
 ``MiningSimulationBehavior`` supplies selection and control routing, circular
-rails, gravity and propulsion, collision response, mining and depot service,
-camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
+rails, gravity and propulsion, missile launch and impact, collision response,
+mining and depot service, camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
 stages. The orbit-assist command arrives on an exact Simulation request rather
 than through physical input mapping. See <doc:System-Scheduling> for the exact
 system order.
 
-This is a mixed-dynamics scenario. Six asteroids and the depot follow analytic
-circular rails. Only the skiff dynamically integrates gravity, propulsion,
-fuel, cargo-dependent mass, and collision response.
+This is a mixed-dynamics scenario. Surviving asteroids and the depot follow
+analytic circular rails. The skiff dynamically integrates gravity, propulsion,
+fuel, cargo-dependent mass, and collision response. Its missiles integrate
+ballistic motion until impact or expiry.
 
 The selected-entity inspector renders only capabilities supported by the live
 facade obtained from a narrow, read-only Simulation-owned source. A separate

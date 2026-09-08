@@ -82,6 +82,19 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
+``World/destroy(_:)`` removes a registered facade and all its component rows,
+then clears selection, camera follow, and any pending orbit command targeting
+that identity. Unknown or stale identities leave the World unchanged.
+``ComponentStore/remove(for:)`` compacts dense storage and repairs the moved
+row's sparse lookup. Existing presentation snapshots remain unchanged; the next
+completed snapshot omits destroyed entities. First registration requires an
+outstanding World reservation, so a destroyed facade cannot register again.
+
+Systems collect structural work before applying it. A launch system constructs
+typed entities through ``World/add(_:from:)`` after collecting its launch
+requests; an impact system collects destruction identities before removing
+rows. Later systems in the same complete tick observe those changes.
+
 ### Systems
 
 ``System`` implementations receive mutable access to ``World`` for one step.
@@ -129,7 +142,15 @@ orbit assistance. ``MassComponent`` derives live mass from dry mass plus the
 current fuel and cargo rows; ``LiveMass`` exposes the same projection through a
 facade.
 
-Six asteroids and one depot follow deterministic circular rails. During
+The selected skiff can fire a missile with M. A cumulative semantic fire press
+becomes a one-tick control request. ``MissileLaunchSystem`` constructs a visible,
+dynamically integrated missile aimed at the nearest destructible asteroid,
+leading its current velocity. ``MissileImpactSystem`` tests relative swept
+motion, removes missiles on solid impacts, and destroys targets carrying
+``DestructibleComponent``. Missiles expire after their configured lifetime.
+The skiff retains its existing held Space action for mining and depot service.
+
+Six asteroids and one depot initially follow deterministic circular rails. During
 `worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep
 baselines and ``OrbitalRailSystem`` updates rail positions and velocities.
 ``OrbitCircularizationSystem`` consumes the one-shot command during
@@ -202,12 +223,12 @@ snapshot, and several ticks may complete before the next draw.
 
 ## Current Limits
 
-- ``EntityID`` reservation is monotonic with generation zero. Destruction,
-  component removal, dense compaction, generation incrementing, and index reuse
-  are not implemented.
+- ``EntityID`` reservation remains monotonic with generation zero. Destruction
+  and component removal compact dense storage; generation incrementing and index
+  reuse remain unimplemented.
 - Calling ``World/add(_:from:)`` again with the same live facade reseeds its
   rows. Registering a different facade for that identity fails a precondition;
-  broader entity lifecycle APIs are not implemented.
+  destroyed facades cannot be registered again.
 - ``World`` has a fixed store list and a fixed capability-to-seed translation.
   External consumer-defined component storage is not supported.
 - Systems execute one flat ordered list with controlled Game Content insertion

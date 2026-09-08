@@ -14,6 +14,7 @@ class World {
     var cargoComponents = ComponentStore<CargoComponent>()
     var collisionBodyComponents = ComponentStore<CollisionBodyComponent>()
     var depotServiceComponents = ComponentStore<DepotServiceComponent>()
+    var destructibleComponents = ComponentStore<DestructibleComponent>()
     var displayNameComponents = ComponentStore<DisplayNameComponent>()
     var fuelComponents = ComponentStore<FuelComponent>()
     var gravityReceiverComponents = ComponentStore<GravityReceiverComponent>()
@@ -21,6 +22,8 @@ class World {
     var interactionComponents = ComponentStore<InteractionComponent>()
     var massComponents = ComponentStore<MassComponent>()
     var mineableComponents = ComponentStore<MineableComponent>()
+    var missileComponents = ComponentStore<MissileComponent>()
+    var missileLauncherComponents = ComponentStore<MissileLauncherComponent>()
     var motionComponents = ComponentStore<MotionComponent>()
     var orbitCircularizationAutopilotComponents = ComponentStore<OrbitCircularizationAutopilotComponent>()
     var orbitPrimaryComponents = ComponentStore<OrbitPrimaryComponent>()
@@ -44,6 +47,7 @@ class World {
     private(set) var selectedEntityID: EntityID?
 
     private var entitiesByID: [EntityID: Entity] = [:]
+    private var reservedEntityIDs: Set<EntityID> = []
     private var nextEntityIndex = 0
     private let orbitCircularizationEstimateEvaluator = OrbitCircularizationEstimateEvaluator()
 
@@ -96,14 +100,20 @@ class World {
     /// keeps object APIs and ECS rows aligned instead of silently discarding
     /// caller intent.
     ///
+    /// First registration requires an identity reserved by this World.
     /// Calling this method again for the same live entity reseeds its component
-    /// rows. Treat registration as construction; mutate existing gameplay state
-    /// through the component stores instead.
+    /// rows. A destroyed identity cannot be registered again. Treat registration
+    /// as construction; mutate existing gameplay state through the stores instead.
     @discardableResult
     func add(
         _ entity: Entity,
         from state: Entity.InitialState = .empty
     ) -> EntityID {
+        precondition(entity.world === self, "An entity must register with its owning World.")
+        precondition(
+            entitiesByID[entity.id] === entity || reservedEntityIDs.contains(entity.id),
+            "An entity requires a reserved identity or its existing live registration."
+        )
         addPositionComponent(for: entity, from: state)
         addMotionComponent(for: entity, from: state)
         addRotationComponent(for: entity, from: state)
@@ -112,6 +122,7 @@ class World {
         addCargoComponent(for: entity, from: state)
         addCollisionComponents(for: entity, from: state)
         addDepotServiceComponent(for: entity, from: state)
+        addDestructibleComponent(for: entity, from: state)
         addDisplayNameComponent(for: entity, from: state)
         addFuelComponent(for: entity, from: state)
         addGravityReceiverComponent(for: entity, from: state)
@@ -119,6 +130,8 @@ class World {
         addInteractionComponent(for: entity, from: state)
         addMassComponent(for: entity, from: state)
         addMineableComponent(for: entity, from: state)
+        addMissileComponent(for: entity, from: state)
+        addMissileLauncherComponent(for: entity, from: state)
         addOrbitCircularizationComponents(for: entity, from: state)
         addOrbitalRailComponent(for: entity, from: state)
         addOreDepositComponent(for: entity, from: state)
@@ -131,6 +144,31 @@ class World {
             precondition(select(entity.id), "A selected seed requires a registered selectable entity")
         }
         return entity.id
+    }
+
+    /// Removes one registered entity and every component row it owns.
+    ///
+    /// Unknown or stale identities return `false` without changing live state.
+    /// Destruction clears resources targeting the entity and removes it from
+    /// subsequent presentations. Previously published snapshots remain valid.
+    /// Systems must collect identities before destruction can compact stores.
+    @discardableResult
+    func destroy(_ entity: EntityID) -> Bool {
+        guard entitiesByID.removeValue(forKey: entity) != nil else {
+            return false
+        }
+
+        removeComponents(for: entity)
+        if selectedEntityID == entity {
+            selectedEntityID = nil
+        }
+        if cameraFollowEntityID == entity {
+            cameraFollowEntityID = nil
+        }
+        if orbitCircularizationCommand?.entityID == entity {
+            orbitCircularizationCommand = nil
+        }
+        return true
     }
 
     /// Returns the facade registered for one complete generational identity.
@@ -161,6 +199,38 @@ class World {
         }
         selectedEntityID = entity
         return true
+    }
+
+    private func removeComponents(for entity: EntityID) {
+        angularMotionAccumulatorComponents.remove(for: entity)
+        angularVelocityComponents.remove(for: entity)
+        cargoComponents.remove(for: entity)
+        collisionBodyComponents.remove(for: entity)
+        depotServiceComponents.remove(for: entity)
+        destructibleComponents.remove(for: entity)
+        displayNameComponents.remove(for: entity)
+        fuelComponents.remove(for: entity)
+        gravityReceiverComponents.remove(for: entity)
+        gravitySourceComponents.remove(for: entity)
+        interactionComponents.remove(for: entity)
+        massComponents.remove(for: entity)
+        mineableComponents.remove(for: entity)
+        missileComponents.remove(for: entity)
+        missileLauncherComponents.remove(for: entity)
+        motionComponents.remove(for: entity)
+        orbitCircularizationAutopilotComponents.remove(for: entity)
+        orbitPrimaryComponents.remove(for: entity)
+        orbitalRailComponents.remove(for: entity)
+        oreDepositComponents.remove(for: entity)
+        playerControlComponents.remove(for: entity)
+        positionComponents.remove(for: entity)
+        previousPositionComponents.remove(for: entity)
+        propulsionComponents.remove(for: entity)
+        renderableComponents.remove(for: entity)
+        rotationComponents.remove(for: entity)
+        scaleComponents.remove(for: entity)
+        selectableComponents.remove(for: entity)
+        selectionBoundsComponents.remove(for: entity)
     }
 
     private func addPositionComponent(for entity: Entity, from state: Entity.InitialState) {
@@ -288,6 +358,17 @@ class World {
         depotServiceComponents.insert(depotService, for: entity.id)
     }
 
+    private func addDestructibleComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.destructible != nil) == (entity is Destructible),
+            "InitialState.destructible must be present exactly when the entity conforms to Destructible."
+        )
+        guard let destructible = state.destructible else {
+            return
+        }
+        destructibleComponents.insert(destructible, for: entity.id)
+    }
+
     private func addDisplayNameComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
             (state.displayName != nil) == (entity is DisplayNamed),
@@ -363,6 +444,28 @@ class World {
             return
         }
         mineableComponents.insert(mineable, for: entity.id)
+    }
+
+    private func addMissileComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.missile != nil) == (entity is MissileProjectile),
+            "InitialState.missile must be present exactly when the entity conforms to MissileProjectile."
+        )
+        guard let missile = state.missile else {
+            return
+        }
+        missileComponents.insert(missile, for: entity.id)
+    }
+
+    private func addMissileLauncherComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.missileLauncher != nil) == (entity is MissileLaunching),
+            "InitialState.missileLauncher must be present exactly when the entity conforms to MissileLaunching."
+        )
+        guard let missileLauncher = state.missileLauncher else {
+            return
+        }
+        missileLauncherComponents.insert(missileLauncher, for: entity.id)
     }
 
     private func addOrbitCircularizationComponents(for entity: Entity, from state: Entity.InitialState) {
@@ -468,13 +571,14 @@ class World {
             return
         }
         entitiesByID[entity.id] = entity
+        reservedEntityIDs.remove(entity.id)
     }
 
+    /// Reserves a fresh identity without reusing a destroyed entity's index.
     func reserveEntityID() -> EntityID {
-        // Until entity destruction exists, each reservation consumes a fresh
-        // index so entity identities never alias a previous live row.
         let entityID = EntityID(index: nextEntityIndex, generation: 0)
         nextEntityIndex += 1
+        reservedEntityIDs.insert(entityID)
         return entityID
     }
 }

@@ -11,7 +11,8 @@ struct SimulationInputAssignmentTests {
             cameraOrbitTotal: SIMD2<Float>(0.08, -0.02),
             cameraZoomTotal: 0.28,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         let ingest = SimulationInputAssignment.ingest(publication)
@@ -40,7 +41,8 @@ struct SimulationInputAssignmentTests {
             cameraOrbitTotal: SIMD2<Float>(0.04, 0.02),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
         let assignment = SimulationInputAssignment.rebaseThenIngest(
             baseline: baseline,

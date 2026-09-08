@@ -217,6 +217,94 @@ struct InputStateTests {
         #expect(input.cameraOrbitDelta == .zero)
     }
 
+    @Test func quickFireTapSurvivesSkippedPublicationsAndDoesNotRepeatOnCatchup() {
+        let runtime = InputRuntime()
+        runtime.start()
+        var input = InputState()
+        input.ingest(runtime.latestInputSnapshot)
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        runtime.receive(.keyUp(KeyboardKey(keyCode: 46)))
+        let releasedPublication = runtime.latestInputSnapshot
+        input.ingest(releasedPublication)
+        #expect(input.isFireRequested)
+
+        input.clearTransientInput()
+        input.ingest(releasedPublication)
+        #expect(input.isFireRequested == false)
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        input.ingest(runtime.latestInputSnapshot)
+        #expect(input.isFireRequested)
+
+        input.clearTransientInput()
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        input.ingest(runtime.latestInputSnapshot)
+        #expect(input.isFireRequested == false)
+    }
+
+    @Test func multipleFirePressesCoalesceAndRemainPendingUntilCleanup() {
+        var input = InputState()
+        input.ingest(snapshot(session: 1, sequence: 1, firePressCount: 1))
+        input.clearTransientInput()
+
+        input.ingest(snapshot(session: 1, sequence: 7, firePressCount: 4))
+        #expect(input.isFireRequested)
+        input.ingest(snapshot(session: 1, sequence: 8, firePressCount: 4))
+        #expect(input.isFireRequested)
+
+        input.clearTransientInput()
+        input.ingest(snapshot(session: 1, sequence: 9, firePressCount: 4))
+        #expect(input.isFireRequested == false)
+    }
+
+    @Test func rebaseConsumesHistoricalFireAndClearsAPendingRequest() {
+        var input = InputState()
+        input.ingest(snapshot(session: 1, sequence: 1, firePressCount: 1))
+        #expect(input.isFireRequested)
+
+        let baseline = snapshot(session: 1, sequence: 5, firePressCount: 3)
+        input.rebase(to: baseline)
+        #expect(input.isFireRequested == false)
+        input.ingest(baseline)
+        #expect(input.isFireRequested == false)
+
+        input.ingest(snapshot(session: 1, sequence: 6, firePressCount: 4))
+        #expect(input.isFireRequested)
+    }
+
+    @Test func newSessionFireCountsStartAtZeroAndOldSessionCannotReplay() {
+        var input = InputState()
+        let oldPublication = snapshot(session: 1, sequence: 9, firePressCount: 4)
+        input.ingest(oldPublication)
+        #expect(input.isFireRequested)
+        input.clearTransientInput()
+
+        input.ingest(snapshot(session: 2, sequence: 0, firePressCount: 0))
+        #expect(input.isFireRequested == false)
+        input.ingest(snapshot(session: 2, sequence: 1, firePressCount: 1))
+        #expect(input.isFireRequested)
+        input.clearTransientInput()
+
+        input.ingest(oldPublication)
+        #expect(input.isFireRequested == false)
+        input.ingest(snapshot(session: 3, sequence: 2, firePressCount: 1))
+        #expect(input.isFireRequested)
+    }
+
+    @Test func decreasingFireCountRejectsTheEntirePublication() {
+        var input = InputState()
+        input.ingest(snapshot(session: 1, sequence: 4, translation: SIMD2<Float>(0, 1), firePressCount: 2))
+        input.clearTransientInput()
+
+        input.ingest(snapshot(session: 1, sequence: 6, translation: SIMD2<Float>(1, 0), firePressCount: 1))
+        #expect(input.translation == SIMD2<Float>(0, 1))
+        #expect(input.isFireRequested == false)
+
+        input.ingest(snapshot(session: 1, sequence: 5, firePressCount: 3))
+        #expect(input.isFireRequested)
+    }
+
     private func snapshot(
         session: UInt64,
         sequence: UInt64,
@@ -225,7 +313,8 @@ struct InputStateTests {
         cameraOrbitTotal: SIMD2<Float> = .zero,
         cameraZoomTotal: Float = 0,
         latestSelectionPress: SelectionPress? = nil,
-        selectionPressCount: UInt64 = 0
+        selectionPressCount: UInt64 = 0,
+        firePressCount: UInt64 = 0
     ) -> InputSnapshot {
         InputSnapshot(
             revision: InputRevision(session: session, sequence: sequence),
@@ -234,7 +323,8 @@ struct InputStateTests {
             cameraOrbitTotal: cameraOrbitTotal,
             cameraZoomTotal: cameraZoomTotal,
             latestSelectionPress: latestSelectionPress,
-            selectionPressCount: selectionPressCount
+            selectionPressCount: selectionPressCount,
+            firePressCount: firePressCount
         )
     }
 }

@@ -12,6 +12,7 @@ struct InputSnapshotTests {
         #expect(snapshot.cameraZoomTotal == 0)
         #expect(snapshot.latestSelectionPress == nil)
         #expect(snapshot.selectionPressCount == 0)
+        #expect(snapshot.firePressCount == 0)
     }
 
     @Test func everySemanticFieldParticipatesInValueIdentity() throws {
@@ -28,7 +29,8 @@ struct InputSnapshotTests {
             cameraOrbitTotal: SIMD2<Float>(3, 4),
             cameraZoomTotal: 5,
             latestSelectionPress: selectionPress,
-            selectionPressCount: 6
+            selectionPressCount: 6,
+            firePressCount: 7
         )
 
         #expect(first != .empty)
@@ -39,7 +41,8 @@ struct InputSnapshotTests {
             cameraOrbitTotal: first.cameraOrbitTotal,
             cameraZoomTotal: first.cameraZoomTotal,
             latestSelectionPress: first.latestSelectionPress,
-            selectionPressCount: first.selectionPressCount
+            selectionPressCount: first.selectionPressCount,
+            firePressCount: first.firePressCount
         ) != first)
     }
 }

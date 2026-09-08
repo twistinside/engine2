@@ -56,9 +56,9 @@ mining behavior at `worldPreparation`.
 | Stage | Systems in declaration order |
 | --- | --- |
 | `inputConsumption` | ``PlanarSelectionSystem``, ``SelectedEntityControlSystem``, ``OrbitCircularizationSystem`` |
-| `worldPreparation` | ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
+| `worldPreparation` | ``MissileLaunchSystem``, ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
 | `forceContribution` | ``GravitySystem``, ``OrbitCircularizationAutopilotSystem``, ``FlightControlSystem`` |
-| `postMovement` | ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
+| `postMovement` | ``MissileImpactSystem``, ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
 | `prePresentation` | None |
 
 The circularization system consumes and clears the one-shot command before
@@ -71,10 +71,19 @@ contribution together instead of replacing velocity atomically.
 
 ``MiningInteractionSystem`` joins the shared ``InteractionComponent`` range
 with mining- or depot-specific component rows. The star is the sole gravity
-source, and only the skiff is dynamically integrated. The six asteroids and
-depot use analytic rails. Mining's camera policy orbits about the Z normal of
+source. The skiff and its missiles are dynamically integrated; surviving
+asteroids and the depot use analytic rails. Mining's camera policy orbits about the Z normal of
 the XY gameplay plane, and flight control normalizes the camera's projected
 planar axes before interpreting translation.
+
+``MissileLaunchSystem`` consumes each selected launcher's fire request and
+constructs missiles before collision baselines are captured. Missiles therefore
+move and participate in swept impact checks on their first tick.
+``MissileImpactSystem`` resolves the earliest solid impact per missile before
+ordinary bounce and mining interactions. It collects destroyed identities,
+removes each through ``World/destroy(_:)``, and expires misses after their
+configured lifetime. Missiles use their own impact policy and do not enter the
+ordinary bounce calculation.
 
 A future perturbation feature needs an explicit rail-to-dynamics transition. A
 body must not receive rail placement and dynamic integration in the same tick.

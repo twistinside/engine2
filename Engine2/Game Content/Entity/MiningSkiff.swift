@@ -1,8 +1,8 @@
 import simd
 
-/// Player-controlled dynamic craft for mining, hauling, and depot service.
+/// Player-controlled dynamic craft for mining, missile fire, hauling, and depot service.
 final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
-    CargoCarrying, PlayerControlled, OrbitCircularizable {
+    CargoCarrying, PlayerControlled, OrbitCircularizable, MissileLaunching {
     convenience init(
         in world: World,
         name: String,
@@ -15,6 +15,7 @@ final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
         cargoCapacity: Double,
         maximumThrust: Double,
         exhaustVelocity: Double,
+        missileLauncher: MissileLauncherComponent,
         materialID: MaterialID
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
@@ -29,8 +30,9 @@ final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
             fuel: FuelComponent(capacity: fuelCapacity, remaining: fuelCapacity),
             gravityReceiver: GravityReceiverComponent(),
             mass: MassComponent(dryMass: dryMass),
+            missileLauncher: missileLauncher,
             orbitPrimary: OrbitPrimaryComponent(primaryEntityID: primaryEntityID),
-            playerControl: PlayerControlComponent(),
+            playerControl: PlayerControlComponent(isFireRequested: false),
             previousPosition: PreviousPositionComponent(position: position),
             propulsion: PropulsionComponent(
                 maximumThrust: maximumThrust,

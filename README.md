@@ -35,6 +35,16 @@ The DocC pages distinguish between behavior that exists today and architecture p
 Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`Engine2/`](Engine2), direct unit coverage is under [`Engine2UnitTests/`](Engine2UnitTests), and renderer integration coverage is under [`Engine2RenderTests/`](Engine2RenderTests).
 
 
+## Demo controls
+
+The mining demo starts with the Prospector skiff selected. Use WASD or the arrow
+keys to fly, hold Space to mine nearby asteroids or use depot services, and press
+M to fire a missile toward the nearest asteroid. Each missile leads the target's
+current motion, destroys an asteroid on impact, and expires after 20 seconds if
+it misses. Click an entity to select it; flight, mining, and missile controls
+apply only while the skiff is selected. Drag to orbit the camera and scroll to
+zoom.
+
 ## Status
 
 Engine2 is an experimental, evolving codebase rather than a production-ready engine. The emphasis is on a coherent runtime model, strong domain types, explicit ownership boundaries, and a data-oriented simulation core.

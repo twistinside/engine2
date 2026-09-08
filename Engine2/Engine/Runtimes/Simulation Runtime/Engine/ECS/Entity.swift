@@ -6,7 +6,8 @@ import simd
 /// world that stores its authoritative data. Capability protocols add live,
 /// ergonomic accessors for game code and tooling; simulation systems should
 /// iterate component stores directly instead of using entity objects in hot
-/// paths.
+/// paths. After destruction, resolve the identity through `World.entity(for:)`
+/// before using a facade: its capability accessors require live component rows.
 class Entity {
     let id: EntityID
     unowned let world: World
@@ -45,6 +46,7 @@ class Entity {
         var cargo: CargoComponent? = nil
         var collisionBody: CollisionBodyComponent? = nil
         var depotService: DepotServiceComponent? = nil
+        var destructible: DestructibleComponent? = nil
         var displayName: DisplayNameComponent? = nil
         var fuel: FuelComponent? = nil
         var gravityReceiver: GravityReceiverComponent? = nil
@@ -52,6 +54,8 @@ class Entity {
         var interaction: InteractionComponent? = nil
         var mass: MassComponent? = nil
         var mineable: MineableComponent? = nil
+        var missile: MissileComponent? = nil
+        var missileLauncher: MissileLauncherComponent? = nil
         var orbitPrimary: OrbitPrimaryComponent? = nil
         var orbitalRail: OrbitalRailComponent? = nil
         var oreDeposit: OreDepositComponent? = nil

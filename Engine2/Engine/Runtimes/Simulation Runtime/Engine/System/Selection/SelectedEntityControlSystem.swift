@@ -1,6 +1,6 @@
 import simd
 
-/// Routes held semantic commands only to the selected controllable entity.
+/// Routes held commands and interval-local fire requests to the selected controllable entity.
 ///
 /// Clearing every control row first guarantees that changing selection to a
 /// non-controllable entity removes the previous skiff command on that tick.
@@ -10,6 +10,7 @@ struct SelectedEntityControlSystem: System {
             world.playerControlComponents.update(for: entity) { control in
                 control.translation = .zero
                 control.interactionState = .inactive
+                control.isFireRequested = false
             }
         }
 
@@ -19,9 +20,11 @@ struct SelectedEntityControlSystem: System {
 
         let translation = SIMD2<Double>(world.input.translation)
         let interactionState: PlayerInteractionState = world.input.isInteractionActive ? .active : .inactive
+        let isFireRequested = world.input.isFireRequested
         world.playerControlComponents.update(for: selectedEntityID) { control in
             control.translation = translation
             control.interactionState = interactionState
+            control.isFireRequested = isFireRequested
         }
     }
 }

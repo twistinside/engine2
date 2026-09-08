@@ -12,7 +12,8 @@ struct SweptCollisionSystem: System {
         }
 
         let dynamicEntities = world.motionComponents.entities
-        for entity in dynamicEntities where world.collisionBodyComponents[entity] != nil {
+        for entity in dynamicEntities where world.collisionBodyComponents[entity] != nil &&
+            world.missileComponents[entity] == nil {
             resolveEarliestCollision(for: entity, in: world)
         }
     }
@@ -28,7 +29,8 @@ struct SweptCollisionSystem: System {
         var hitFraction = Double.infinity
         var hitNormal = SIMD2<Double>.zero
 
-        for obstacle in world.collisionBodyComponents.entities where obstacle != entity {
+        for obstacle in world.collisionBodyComponents.entities where obstacle != entity &&
+            world.missileComponents[obstacle] == nil {
             guard let obstacleBody = world.collisionBodyComponents[obstacle],
                   let obstaclePrevious = world.previousPositionComponents[obstacle]?.position,
                   let obstacleCurrent = world.positionComponents[obstacle]?.position,

@@ -19,6 +19,7 @@ struct InputRuntimeTests {
         #expect(firstSession.cameraZoomTotal == 0)
         #expect(firstSession.latestSelectionPress == nil)
         #expect(firstSession.selectionPressCount == 0)
+        #expect(firstSession.firePressCount == 0)
 
         runtime.start()
         #expect(runtime.latestInputSnapshot == firstSession)
@@ -38,7 +39,8 @@ struct InputRuntimeTests {
             cameraOrbitTotal: .zero,
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         ))
     }
 
@@ -85,6 +87,59 @@ struct InputRuntimeTests {
 
         runtime.receive(.keyUp(KeyboardKey(keyCode: 49)))
         #expect(runtime.latestInputSnapshot.isInteractionActive == false)
+    }
+
+    @Test func firePressSurvivesReleaseAndIgnoresRepeatedKeyDown() {
+        let runtime = InputRuntime()
+        runtime.start()
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 1)
+
+        runtime.receive(.keyUp(KeyboardKey(keyCode: 46)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 1)
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 2)
+        #expect(runtime.latestInputSnapshot.isInteractionActive == false)
+    }
+
+    @Test func fireMappingUsesConfiguredKeys() {
+        let runtime = InputRuntime(
+            mappingConfiguration: configuration(
+                pointerOrbitSensitivity: 0.01,
+                scrollZoomSensitivity: 4,
+                fireKeyCodes: [12]
+            )
+        )
+        runtime.start()
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 0)
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 12)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 1)
+    }
+
+    @Test func fireCountSurvivesFocusLossAndStopButResetsForANewSession() {
+        let runtime = InputRuntime()
+        runtime.start()
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+
+        runtime.receive(.focusLost)
+        #expect(runtime.latestInputSnapshot.firePressCount == 1)
+
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 2)
+
+        runtime.stop()
+        #expect(runtime.latestInputSnapshot.firePressCount == 2)
+
+        runtime.start()
+        #expect(runtime.latestInputSnapshot.firePressCount == 0)
+        runtime.receive(.keyDown(KeyboardKey(keyCode: 46)))
+        #expect(runtime.latestInputSnapshot.firePressCount == 1)
     }
 
     @Test func focusLossClearsEveryHeldSemanticWithoutStoppingTheRuntime() {
@@ -271,7 +326,8 @@ struct InputRuntimeTests {
 
     private func configuration(
         pointerOrbitSensitivity: Float,
-        scrollZoomSensitivity: Float
+        scrollZoomSensitivity: Float,
+        fireKeyCodes: Set<UInt16> = [46]
     ) -> InputMappingConfiguration {
         InputMappingConfiguration(
             leftKeyCodes: [0, 123],
@@ -279,6 +335,7 @@ struct InputRuntimeTests {
             upwardKeyCodes: [13, 126],
             downwardKeyCodes: [1, 125],
             interactionKeyCodes: [49],
+            fireKeyCodes: fireKeyCodes,
             selectionButton: .left,
             pointerOrbitSensitivity: pointerOrbitSensitivity,
             scrollZoomSensitivity: scrollZoomSensitivity
