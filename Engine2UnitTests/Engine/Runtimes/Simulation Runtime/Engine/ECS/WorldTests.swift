@@ -3,56 +3,6 @@ import simd
 @testable import Engine2
 
 struct WorldTests {
-    private var completeInitialState: Entity.InitialState {
-        let primary = EntityID(index: 100, generation: 3)
-        return Entity.InitialState(
-            position: SIMD3<Double>(1, 2, 3),
-            velocity: SIMD3<Double>(4, 5, 6),
-            accelerationIntent: .accelerating(SIMD3<Double>(7, 8, 9)),
-            impulse: SIMD3<Double>(10, 11, 12),
-            rotation: simd_quatf(angle: 0.25, axis: SIMD3<Float>(0, 0, 1)),
-            angularVelocity: SIMD3<Float>(1, 2, 3),
-            angularAcceleration: SIMD3<Float>(4, 5, 6),
-            angularImpulse: SIMD3<Float>(7, 8, 9),
-            scale: SIMD3<Float>(repeating: 2),
-            selectionState: .selected,
-            cargo: CargoComponent(capacity: 20, ore: 3),
-            collisionBody: CollisionBodyComponent(radius: 2, restitution: 0.35),
-            depotService: DepotServiceComponent(
-                unloadingRate: 4,
-                refuelingRate: 5,
-                deliveredOre: 6
-            ),
-            destructible: DestructibleComponent(),
-            displayName: DisplayNameComponent(value: "Complete"),
-            fuel: FuelComponent(capacity: 30, remaining: 7),
-            gravityReceiver: GravityReceiverComponent(),
-            gravitySource: GravitySourceComponent(gravitationalParameter: 40),
-            interaction: InteractionComponent(interactionRange: 8),
-            mass: MassComponent(dryMass: 50),
-            mineable: MineableComponent(miningRate: 9),
-            missile: MissileComponent(ownerEntityID: primary, remainingLifetime: 12),
-            missileLauncher: MissileLauncherComponent(speed: 45, lifetime: 10, radius: 0.5),
-            orbitPrimary: OrbitPrimaryComponent(primaryEntityID: primary),
-            orbitalRail: OrbitalRailComponent(
-                primaryEntityID: primary,
-                radius: 60,
-                angularSpeed: 0.1,
-                phase: 0.2
-            ),
-            oreDeposit: OreDepositComponent(remainingOre: 70),
-            playerControl: PlayerControlComponent(
-                translation: SIMD2<Double>(0.5, -0.5),
-                interactionState: .active,
-                isFireRequested: false
-            ),
-            previousPosition: PreviousPositionComponent(position: SIMD3<Double>(-1, -2, -3)),
-            propulsion: PropulsionComponent(maximumThrust: 80, exhaustVelocity: 90),
-            renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal),
-            selectionBounds: SelectionBoundsComponent(radius: 10)
-        )
-    }
-
     @Test func addSeedsOnlyAdvertisedCapabilityComponents() async throws {
         let world = World()
         let entity = TestSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
@@ -99,7 +49,7 @@ struct WorldTests {
         let expectedState = SelectableComponent.SelectionState.selected
         let initialState = Entity.InitialState(
             selectionState: expectedState,
-            selectionBounds: SelectionBoundsComponent(radius: 2)
+            selectionRadius: 2
         )
 
         world.add(
@@ -142,61 +92,74 @@ struct WorldTests {
 
     @Test func addRegistersEveryAdvertisedComponentSeed() {
         let world = World()
+        let primary = TestSpawnEntity(in: world, from: Entity.InitialState(position: .zero))
         let entity = TestCompleteSpawnEntity(
             unregisteredID: world.reserveEntityID(),
             in: world
         )
-        let state = completeInitialState
+        let state = completeInitialState(primary: primary.id)
 
         world.add(entity, from: state)
 
         #expect(world.angularMotionAccumulatorComponents[entity.id] != nil)
         #expect(world.angularVelocityComponents[entity.id] != nil)
-        #expect(world.cargoComponents[entity.id] == state.cargo)
-        #expect(world.collisionBodyComponents[entity.id] == state.collisionBody)
-        #expect(world.depotServiceComponents[entity.id] == state.depotService)
-        #expect(world.destructibleComponents[entity.id] == state.destructible)
-        #expect(world.displayNameComponents[entity.id] == state.displayName)
-        #expect(world.fuelComponents[entity.id] == state.fuel)
-        #expect(world.gravityReceiverComponents[entity.id] == state.gravityReceiver)
-        #expect(world.gravitySourceComponents[entity.id] == state.gravitySource)
-        #expect(world.interactionComponents[entity.id] == state.interaction)
-        #expect(world.massComponents[entity.id] == state.mass)
-        #expect(world.mineableComponents[entity.id] == state.mineable)
-        #expect(world.missileComponents[entity.id] == state.missile)
-        #expect(world.missileLauncherComponents[entity.id] == state.missileLauncher)
+        #expect(world.cargoComponents[entity.id]?.capacity == state.cargo?.capacity)
+        #expect(world.cargoComponents[entity.id]?.ore == state.cargo?.ore)
+        #expect(world.collisionBodyComponents[entity.id]?.radius == state.collisionBody?.radius)
+        #expect(world.collisionBodyComponents[entity.id]?.restitution == state.collisionBody?.restitution)
+        #expect(world.depotServiceComponents[entity.id]?.unloadingRate == state.depotService?.unloadingRate)
+        #expect(world.depotServiceComponents[entity.id]?.refuelingRate == state.depotService?.refuelingRate)
+        #expect(world.depotServiceComponents[entity.id]?.deliveredOre == 0)
+        #expect(world.destructibleComponents[entity.id] != nil)
+        #expect(world.displayNameComponents[entity.id]?.value == state.displayName)
+        #expect(world.fuelComponents[entity.id]?.capacity == state.fuel?.capacity)
+        #expect(world.fuelComponents[entity.id]?.remaining == state.fuel?.remaining)
+        #expect(world.gravityReceiverComponents[entity.id] != nil)
+        #expect(world.gravitySourceComponents[entity.id]?.gravitationalParameter == state.gravitationalParameter)
+        #expect(world.interactionComponents[entity.id]?.interactionRange == state.interactionRange)
+        #expect(world.massComponents[entity.id]?.dryMass == state.dryMass)
+        #expect(world.mineableComponents[entity.id]?.miningRate == state.miningRate)
+        #expect(world.missileComponents[entity.id]?.ownerEntityID == state.missile?.ownerEntityID)
+        #expect(world.missileComponents[entity.id]?.remainingLifetime == state.missile?.lifetime)
+        #expect(world.missileLauncherComponents[entity.id]?.speed == state.missileLauncher?.speed)
+        #expect(world.missileLauncherComponents[entity.id]?.lifetime == state.missileLauncher?.lifetime)
+        #expect(world.missileLauncherComponents[entity.id]?.radius == state.missileLauncher?.radius)
         #expect(world.motionComponents[entity.id] != nil)
         #expect(world.orbitCircularizationAutopilotComponents[entity.id] == .idle)
-        #expect(world.orbitPrimaryComponents[entity.id] == state.orbitPrimary)
-        #expect(world.orbitalRailComponents[entity.id] == state.orbitalRail)
-        #expect(world.oreDepositComponents[entity.id] == state.oreDeposit)
-        #expect(world.playerControlComponents[entity.id] == state.playerControl)
+        #expect(world.orbitPrimaryComponents[entity.id]?.primaryEntityID == state.orbitPrimaryID)
+        #expect(world.orbitalRailComponents[entity.id] == nil)
+        #expect(world.oreDepositComponents[entity.id]?.remainingOre == state.remainingOre)
+        #expect(world.playerControlComponents[entity.id]?.translation == .zero)
+        #expect(world.playerControlComponents[entity.id]?.interactionState == .inactive)
+        #expect(world.playerControlComponents[entity.id]?.isFireRequested == false)
         #expect(world.positionComponents[entity.id]?.position == state.position)
-        #expect(world.previousPositionComponents[entity.id] == state.previousPosition)
-        #expect(world.propulsionComponents[entity.id] == state.propulsion)
+        #expect(world.previousPositionComponents[entity.id]?.position == state.position)
+        #expect(world.propulsionComponents[entity.id]?.maximumThrust == state.propulsion?.maximumThrust)
+        #expect(world.propulsionComponents[entity.id]?.exhaustVelocity == state.propulsion?.exhaustVelocity)
         #expect(world.renderableComponents[entity.id]?.meshID == state.renderable?.meshID)
         #expect(world.renderableComponents[entity.id]?.materialID == state.renderable?.materialID)
         #expect(world.rotationComponents[entity.id]?.rotation.vector == state.rotation?.vector)
         #expect(world.scaleComponents[entity.id]?.scale == state.scale)
         #expect(world.selectableComponents[entity.id]?.selectionState == .selected)
-        #expect(world.selectionBoundsComponents[entity.id] == state.selectionBounds)
+        #expect(world.selectionBoundsComponents[entity.id]?.radius == state.selectionRadius)
         #expect(world.selectedEntityID == entity.id)
     }
 
     @Test func destroyRemovesEveryComponentAndLiveResourceReference() {
         let world = World()
+        let primary = TestSpawnEntity(in: world, from: Entity.InitialState(position: .zero))
         let entity = TestCompleteSpawnEntity(
             unregisteredID: world.reserveEntityID(),
             in: world
         )
-        world.add(entity, from: completeInitialState)
+        world.add(entity, from: completeInitialState(primary: primary.id))
         world.cameraFollowEntityID = entity.id
         world.orbitCircularizationCommand = OrbitCircularizationCommand(entityID: entity.id)
 
         #expect(world.destroy(entity.id))
 
         #expect(world.entity(for: entity.id) == nil)
-        #expect(world.registeredEntities.isEmpty)
+        #expect(world.registeredEntities.map(\.id) == [primary.id])
         #expect(world.selectedEntityID == nil)
         #expect(world.cameraFollowEntityID == nil)
         #expect(world.orbitCircularizationCommand == nil)
@@ -233,6 +196,33 @@ struct WorldTests {
         #expect(world.destroy(entity.id) == false)
     }
 
+    @Test func destructionRemovesRailStateWithoutRemovingItsPrimary() {
+        let world = World()
+        let primary = TestSpawnEntity(in: world, from: Entity.InitialState(position: .zero))
+        let asteroid = Asteroid(
+            in: world,
+            name: "Orbiting target",
+            primaryEntityID: primary.id,
+            orbitalRadius: 60,
+            angularSpeed: 0.1,
+            phase: 0.2,
+            physicalRadius: 1,
+            ore: 10,
+            interactionRange: 2,
+            miningRate: 1,
+            materialID: .warmDielectric
+        )
+        #expect(world.orbitalRailComponents[asteroid.id] != nil)
+
+        #expect(world.destroy(asteroid.id))
+
+        #expect(world.orbitalRailComponents[asteroid.id] == nil)
+        #expect(world.positionComponents[asteroid.id] == nil)
+        #expect(world.previousPositionComponents[asteroid.id] == nil)
+        #expect(world.collisionBodyComponents[asteroid.id] == nil)
+        #expect(world.registeredEntities.map(\.id) == [primary.id])
+    }
+
     @Test func destroyRejectsStaleIdentityAndPreservesOtherLiveEntities() {
         let world = World()
         let removed = TestSelectableSpawnEntity(
@@ -243,7 +233,7 @@ struct WorldTests {
             unregisteredID: world.reserveEntityID(),
             in: world
         )
-        let state = Entity.InitialState(selectionBounds: SelectionBoundsComponent(radius: 1))
+        let state = Entity.InitialState(selectionRadius: 1)
         world.add(removed, from: state)
         world.add(survivor, from: state)
         world.select(survivor.id)
@@ -315,7 +305,7 @@ struct WorldTests {
         let world = World()
         let entity = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
         let state = Entity.InitialState(
-            selectionBounds: SelectionBoundsComponent(radius: 1)
+            selectionRadius: 1
         )
 
         world.add(entity, from: state)
@@ -332,14 +322,14 @@ struct WorldTests {
             entity,
             from: Entity.InitialState(
                 selectionState: .selected,
-                selectionBounds: SelectionBoundsComponent(radius: 1)
+                selectionRadius: 1
             )
         )
 
         world.add(
             entity,
             from: Entity.InitialState(
-                selectionBounds: SelectionBoundsComponent(radius: 1)
+                selectionRadius: 1
             )
         )
 
@@ -352,7 +342,7 @@ struct WorldTests {
         let first = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
         let second = TestSelectableSpawnEntity(unregisteredID: world.reserveEntityID(), in: world)
         let state = Entity.InitialState(
-            selectionBounds: SelectionBoundsComponent(radius: 1)
+            selectionRadius: 1
         )
         world.add(first, from: state)
         world.add(second, from: state)
@@ -366,6 +356,36 @@ struct WorldTests {
         #expect(world.selectedEntityID == nil)
         #expect(world.selectableComponents[second.id]?.selectionState == .unselected)
     }
+    private func completeInitialState(primary: EntityID) -> Entity.InitialState {
+        Entity.InitialState(
+            position: SIMD3<Double>(1, 2, 3),
+            velocity: SIMD3<Double>(4, 5, 6),
+            accelerationIntent: .accelerating(SIMD3<Double>(7, 8, 9)),
+            impulse: SIMD3<Double>(10, 11, 12),
+            rotation: simd_quatf(angle: 0.25, axis: SIMD3<Float>(0, 0, 1)),
+            angularVelocity: SIMD3<Float>(1, 2, 3),
+            angularAcceleration: SIMD3<Float>(4, 5, 6),
+            angularImpulse: SIMD3<Float>(7, 8, 9),
+            scale: SIMD3<Float>(repeating: 2),
+            selectionState: .selected,
+            cargo: CargoInitialState(capacity: 20, ore: 3),
+            collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
+            depotService: DepotServiceInitialState(unloadingRate: 4, refuelingRate: 5),
+            displayName: "Complete",
+            fuel: FuelInitialState(capacity: 30, remaining: 7),
+            gravitationalParameter: 40,
+            interactionRange: 8,
+            dryMass: 50,
+            miningRate: 9,
+            missile: MissileInitialState(ownerEntityID: primary, lifetime: 12),
+            missileLauncher: MissileLauncherInitialState(speed: 45, lifetime: 10, radius: 0.5),
+            orbitPrimaryID: primary,
+            remainingOre: 70,
+            propulsion: PropulsionInitialState(maximumThrust: 80, exhaustVelocity: 90),
+            renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal),
+            selectionRadius: 10
+        )
+    }
 }
 
 private extension WorldTests {
@@ -376,5 +396,5 @@ private extension WorldTests {
     private final class TestCompleteSpawnEntity: Entity, CargoCarrying, Collidable,
         DepotServicing, Destructible, DisplayNamed, Fueled, GravityAffected, GravitySource,
         LiveMass, Mineable, MissileLaunching, MissileProjectile, OrbitCircularizable,
-        Orbiting, PlayerControlled, Propelled, Renderable, Rotatable, Scalable, Selectable {}
+        PlayerControlled, Propelled, Renderable, Rotatable, Scalable, Selectable {}
 }

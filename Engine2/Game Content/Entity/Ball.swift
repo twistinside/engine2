@@ -42,7 +42,7 @@ class Ball: Entity, Movable, Rotatable, Renderable, Selectable {
                 meshID: .ball,
                 materialID: materialID
             ),
-            selectionBounds: SelectionBoundsComponent(radius: selectionRadius)
+            selectionRadius: selectionRadius
         )
         world.add(self, from: initialState)
     }

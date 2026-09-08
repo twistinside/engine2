@@ -16,16 +16,15 @@ final class Star: Entity, DisplayNamed, Scalable, Renderable, Selectable, Gravit
             position: .zero,
             scale: SIMD3<Float>(repeating: Float(radius)),
             selectionState: .unselected,
-            collisionBody: CollisionBodyComponent(radius: radius, restitution: 0.35),
-            displayName: DisplayNameComponent(value: name),
-            gravitySource: GravitySourceComponent(gravitationalParameter: gravitationalParameter),
-            mass: MassComponent(dryMass: mass),
-            previousPosition: PreviousPositionComponent(position: .zero),
+            collisionBody: CollisionBodyInitialState(radius: radius, restitution: 0.35),
+            displayName: name,
+            gravitationalParameter: gravitationalParameter,
+            dryMass: mass,
             renderable: RenderableInitialState(
                 meshID: .ball,
                 materialID: materialID
             ),
-            selectionBounds: SelectionBoundsComponent(radius: radius)
+            selectionRadius: radius
         )
         world.add(self, from: initialState)
     }

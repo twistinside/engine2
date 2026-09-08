@@ -8,7 +8,7 @@ struct MissileTestScene {
 
     init(velocity: SIMD3<Double>) {
         let world = World()
-        let primary = Entity(in: world, from: .empty)
+        let primary = MissileTestPrimary(in: world, from: Entity.InitialState(position: .zero))
         self.world = world
         skiff = MiningSkiff(
             in: world,
@@ -22,18 +22,21 @@ struct MissileTestScene {
             cargoCapacity: 1,
             maximumThrust: 1,
             exhaustVelocity: 1,
-            missileLauncher: MissileLauncherComponent(speed: 100, lifetime: 5, radius: 1),
+            missileLauncher: MissileLauncherInitialState(speed: 100, lifetime: 5, radius: 1),
             materialID: .goldMetal
         )
         world.select(skiff.id)
     }
 
     func asteroid(at position: SIMD3<Double>, velocity: SIMD3<Double>) -> Asteroid {
+        let primary = MissileTestPrimary(
+            in: world,
+            from: Entity.InitialState(position: position - SIMD3<Double>(1, 0, 0))
+        )
         let asteroid = Asteroid(
             in: world,
             name: "Target",
-            primaryEntityID: skiff.id,
-            primaryPosition: position - SIMD3<Double>(1, 0, 0),
+            primaryEntityID: primary.id,
             orbitalRadius: 1,
             angularSpeed: 0,
             phase: 0,
@@ -50,11 +53,14 @@ struct MissileTestScene {
     }
 
     func depot(at position: SIMD3<Double>) -> MiningDepot {
-        MiningDepot(
+        let primary = MissileTestPrimary(
+            in: world,
+            from: Entity.InitialState(position: position - SIMD3<Double>(1, 0, 0))
+        )
+        return MiningDepot(
             in: world,
             name: "Solid",
-            primaryEntityID: skiff.id,
-            primaryPosition: position - SIMD3<Double>(1, 0, 0),
+            primaryEntityID: primary.id,
             orbitalRadius: 1,
             angularSpeed: 0,
             phase: 0,

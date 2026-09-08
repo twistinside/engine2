@@ -224,12 +224,20 @@ scene quiescent through the ordinary Simulation schedule.
 ## The Mining Slice Is Composed Game Content
 
 The mining slice uses the same seam for one star, six asteroids, one player
-skiff, and one depot. Game Content defines the entity facades, initial component
-values, mapping policy, behavior, and abstract render identities. Each concrete
-constructor assembles one `Entity.InitialState`; ``World/add(_:from:)`` validates
-its agreement with advertised capabilities and performs every construction-time
-component-store write. Simulation owns the resulting rows and all later
-gameplay mutation.
+skiff, and one depot. Game Content defines entity facades, authored spawn facts,
+mapping policy, behavior, and abstract render identities. Each constructor
+assembles one component-free `Entity.InitialState` from values such as mass,
+ore, collision shape, propulsion, and missile-launch settings.
+``World/add(_:from:)`` validates capability agreement, constructs authoritative
+components, and initializes derived and transient state before returning.
+Simulation owns the resulting rows and all later gameplay mutation.
+
+Asteroid and depot constructors describe an ``OrbitalRailInitialState`` using
+the primary's complete identity, orbital radius, angular speed, and phase.
+The World resolves the primary's live position and creates consistent initial
+position, rail velocity, and collision history. Constructors do not receive a
+duplicate primary position or build a rail component. The world is ready for
+its tick-zero presentation without running a setup system.
 
 ``MiningWorldBuilder`` owns the gravitational parameter, orbital radii, derived
 circular speeds, and initial camera framing. ``OrbitalRailSystem`` remains a

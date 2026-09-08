@@ -23,9 +23,8 @@ final class Missile: Entity, MissileProjectile, Scalable, Renderable {
                 position: position,
                 velocity: velocity,
                 scale: SIMD3<Float>(repeating: renderRadius),
-                collisionBody: CollisionBodyComponent(radius: radius, restitution: 0),
-                missile: MissileComponent(ownerEntityID: ownerEntityID, remainingLifetime: lifetime),
-                previousPosition: PreviousPositionComponent(position: position),
+                collisionBody: CollisionBodyInitialState(radius: radius, restitution: 0),
+                missile: MissileInitialState(ownerEntityID: ownerEntityID, lifetime: lifetime),
                 renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetalSmooth)
             )
         )

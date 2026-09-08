@@ -48,7 +48,7 @@ struct MiningWorldBuilder: WorldBuilder {
             cargoCapacity: Self.cargoCapacity,
             maximumThrust: Self.maximumThrust,
             exhaustVelocity: Self.exhaustVelocity,
-            missileLauncher: MissileLauncherComponent(speed: 600, lifetime: 20, radius: 5),
+            missileLauncher: MissileLauncherInitialState(speed: 600, lifetime: 20, radius: 5),
             materialID: .goldMetal
         )
 
@@ -56,7 +56,6 @@ struct MiningWorldBuilder: WorldBuilder {
             in: world,
             name: "Waystation",
             primaryEntityID: star.id,
-            primaryPosition: star.position,
             orbitalRadius: Self.depotOrbitRadius,
             angularSpeed: circularAngularSpeed(radius: Self.depotOrbitRadius),
             phase: 0,
@@ -89,7 +88,6 @@ struct MiningWorldBuilder: WorldBuilder {
                 in: world,
                 name: "Asteroid \(index + 1)",
                 primaryEntityID: star.id,
-                primaryPosition: star.position,
                 orbitalRadius: orbitRadius,
                 angularSpeed: circularAngularSpeed(radius: orbitRadius),
                 phase: asteroidPhases[index],

@@ -66,11 +66,41 @@ builder; the Runtime does not discover content through a global registry. See
 ``EntityID`` allocation, and the live-facade registry. It is not the scheduler and
 does not decide when Simulation advances.
 
-Concrete entity constructors assemble one `Entity.InitialState` and call
-``World/add(_:from:)``. The World accepts foundational seeds only for advertised
-capabilities and requires each specialized seed exactly when its capability is
-advertised. It then performs every construction-time component-store write and
-registers the facade. Entity facades do not insert rows directly.
+Concrete entity constructors assemble one `Entity.InitialState` containing
+authored spawn facts: scalar and SIMD values, enums, typed identities, and
+grouped descriptions such as ``CollisionBodyInitialState`` and
+``OrbitalRailInitialState``. Initial state contains no component instances.
+``World/add(_:from:)`` validates the facts against advertised capabilities,
+constructs the components, and performs every construction-time store write.
+
+The World derives capability markers and neutral player control from the
+facade's conformances. Every collision body receives a previous position equal
+to its resolved spawn position. Depot delivery totals start at zero, and a
+missile's remaining lifetime starts from its authored flight duration.
+
+An ``Orbiting`` entity describes placement through one rail seed:
+
+```swift
+let initialState = Entity.InitialState(
+    orbitalRail: OrbitalRailInitialState(
+        primaryEntityID: star.id,
+        radius: 1_800,
+        angularSpeed: 0.001,
+        phase: 0.35
+    )
+)
+```
+
+The World resolves the complete primary identity to a live positioned entity,
+then derives the rail's initial position and velocity. A missing, stale, or
+nonfinite primary position fails registration. An orbital rail cannot be
+combined with explicit position or translational motion seeds. Game Content
+therefore supplies neither a duplicate primary position nor a calculated rail
+position.
+
+Registration returns a complete entity ready for the initial presentation.
+Systems evolve that state on later ticks; no bootstrap tick repairs an
+incomplete spawn.
 
 Capability composition supplies shared invariants. ``Renderable`` refines
 ``Positionable``. ``Selectable`` refines ``Positionable`` and requires a

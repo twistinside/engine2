@@ -12,11 +12,13 @@ class Entity {
     let id: EntityID
     unowned let world: World
 
-    /// Complete typed values used to seed authoritative component rows.
+    /// Authored spawn facts that `World.add` turns into authoritative component rows.
     ///
-    /// Foundational transform and motion values remain decomposed where neutral
-    /// defaults are useful. Specialized capabilities carry complete component
-    /// values so `World` can validate and perform every construction-time write.
+    /// Values describe content without containing components or resolving World state.
+    /// An orbital rail supplies the complete placement policy; omit explicit position
+    /// and motion when providing a rail. World resolves its live primary and seeds
+    /// position, rail velocity, and collision history before registration returns.
+    /// Capability markers and transient controls are initialized by World.
     struct InitialState {
         static let empty = InitialState()
 
@@ -43,27 +45,23 @@ class Entity {
         var selectionState: SelectableComponent.SelectionState? = nil
 
         // Specialized capabilities
-        var cargo: CargoComponent? = nil
-        var collisionBody: CollisionBodyComponent? = nil
-        var depotService: DepotServiceComponent? = nil
-        var destructible: DestructibleComponent? = nil
-        var displayName: DisplayNameComponent? = nil
-        var fuel: FuelComponent? = nil
-        var gravityReceiver: GravityReceiverComponent? = nil
-        var gravitySource: GravitySourceComponent? = nil
-        var interaction: InteractionComponent? = nil
-        var mass: MassComponent? = nil
-        var mineable: MineableComponent? = nil
-        var missile: MissileComponent? = nil
-        var missileLauncher: MissileLauncherComponent? = nil
-        var orbitPrimary: OrbitPrimaryComponent? = nil
-        var orbitalRail: OrbitalRailComponent? = nil
-        var oreDeposit: OreDepositComponent? = nil
-        var playerControl: PlayerControlComponent? = nil
-        var previousPosition: PreviousPositionComponent? = nil
-        var propulsion: PropulsionComponent? = nil
+        var cargo: CargoInitialState? = nil
+        var collisionBody: CollisionBodyInitialState? = nil
+        var depotService: DepotServiceInitialState? = nil
+        var displayName: String? = nil
+        var fuel: FuelInitialState? = nil
+        var gravitationalParameter: Double? = nil
+        var interactionRange: Double? = nil
+        var dryMass: Double? = nil
+        var miningRate: Double? = nil
+        var missile: MissileInitialState? = nil
+        var missileLauncher: MissileLauncherInitialState? = nil
+        var orbitPrimaryID: EntityID? = nil
+        var orbitalRail: OrbitalRailInitialState? = nil
+        var remainingOre: Double? = nil
+        var propulsion: PropulsionInitialState? = nil
         var renderable: RenderableInitialState? = nil
-        var selectionBounds: SelectionBoundsComponent? = nil
+        var selectionRadius: Double? = nil
     }
 
     /// Creates a live entity handle without registering it in the world.

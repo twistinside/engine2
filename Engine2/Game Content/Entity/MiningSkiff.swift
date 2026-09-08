@@ -15,7 +15,7 @@ final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
         cargoCapacity: Double,
         maximumThrust: Double,
         exhaustVelocity: Double,
-        missileLauncher: MissileLauncherComponent,
+        missileLauncher: MissileLauncherInitialState,
         materialID: MaterialID
     ) {
         self.init(unregisteredID: world.reserveEntityID(), in: world)
@@ -24,17 +24,14 @@ final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
             velocity: velocity,
             scale: SIMD3<Float>(repeating: Float(physicalRadius)),
             selectionState: .selected,
-            cargo: CargoComponent(capacity: cargoCapacity),
-            collisionBody: CollisionBodyComponent(radius: physicalRadius, restitution: 0.35),
-            displayName: DisplayNameComponent(value: name),
-            fuel: FuelComponent(capacity: fuelCapacity, remaining: fuelCapacity),
-            gravityReceiver: GravityReceiverComponent(),
-            mass: MassComponent(dryMass: dryMass),
+            cargo: CargoInitialState(capacity: cargoCapacity, ore: 0),
+            collisionBody: CollisionBodyInitialState(radius: physicalRadius, restitution: 0.35),
+            displayName: name,
+            fuel: FuelInitialState(capacity: fuelCapacity, remaining: fuelCapacity),
+            dryMass: dryMass,
             missileLauncher: missileLauncher,
-            orbitPrimary: OrbitPrimaryComponent(primaryEntityID: primaryEntityID),
-            playerControl: PlayerControlComponent(isFireRequested: false),
-            previousPosition: PreviousPositionComponent(position: position),
-            propulsion: PropulsionComponent(
+            orbitPrimaryID: primaryEntityID,
+            propulsion: PropulsionInitialState(
                 maximumThrust: maximumThrust,
                 exhaustVelocity: exhaustVelocity
             ),
@@ -42,7 +39,7 @@ final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
                 meshID: .ball,
                 materialID: materialID
             ),
-            selectionBounds: SelectionBoundsComponent(radius: physicalRadius)
+            selectionRadius: physicalRadius
         )
         world.add(self, from: initialState)
     }
