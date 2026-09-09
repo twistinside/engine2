@@ -252,7 +252,7 @@ proximity range; ``Mineable`` and ``DepotServicing`` add action-specific state
 and rates.
 
 ``MiningSimulationBehavior`` supplies selection and control routing, circular
-rails, gravity and propulsion, missile launch and impact, collision response,
+rails, gravity and propulsion, missile launch, fired-body impacts, expiry, collision response,
 mining and depot service, camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
 stages. The orbit-assist command arrives on an exact Simulation request rather
 than through physical input mapping. See <doc:System-Scheduling> for the exact
@@ -262,6 +262,15 @@ This is a mixed-dynamics scenario. Surviving asteroids and the depot follow
 analytic circular rails. The skiff dynamically integrates gravity, propulsion,
 fuel, cargo-dependent mass, and collision response. Its missiles integrate
 ballistic motion until impact or expiry.
+
+``Missile`` is a Game Content recipe that composes ``Ownable``, ``Expirable``,
+``Fireable``, and ``Destructible`` with movement, collision, scale, and rendering.
+``OwnershipComponent`` and ``LifetimeComponent`` are reusable independent state;
+``FireableComponent`` selects the fired-body impact policy. Destructibility is
+independent of collision. The shared impact and lifetime systems process these
+rows directly, so other entity types can reuse each behavior without becoming
+missiles. ``MissileLaunchSystem`` retains the content-specific launch recipe and
+targeting policy.
 
 The selected-entity inspector renders only capabilities supported by the live
 facade obtained from a narrow, read-only Simulation-owned source. A separate

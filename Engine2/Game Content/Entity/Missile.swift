@@ -1,7 +1,7 @@
 import simd
 
 /// A visible ballistic projectile registered by missile launch systems through the normal entity boundary.
-final class Missile: Entity, MissileProjectile, Scalable, Renderable {
+final class Missile: Entity, Fireable, Ownable, Expirable, Collidable, Destructible, Movable, Scalable, Renderable {
     convenience init(
         in world: World,
         ownerEntityID: EntityID,
@@ -24,7 +24,8 @@ final class Missile: Entity, MissileProjectile, Scalable, Renderable {
                 velocity: velocity,
                 scale: SIMD3<Float>(repeating: renderRadius),
                 collisionBody: CollisionBodyInitialState(radius: radius, restitution: 0),
-                missile: MissileInitialState(ownerEntityID: ownerEntityID, lifetime: lifetime),
+                ownerEntityID: ownerEntityID,
+                lifetime: lifetime,
                 renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetalSmooth)
             )
         )

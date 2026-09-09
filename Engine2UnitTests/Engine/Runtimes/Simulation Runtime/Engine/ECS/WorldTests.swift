@@ -119,8 +119,9 @@ struct WorldTests {
         #expect(world.interactionComponents[entity.id]?.interactionRange == state.interactionRange)
         #expect(world.massComponents[entity.id]?.dryMass == state.dryMass)
         #expect(world.mineableComponents[entity.id]?.miningRate == state.miningRate)
-        #expect(world.missileComponents[entity.id]?.ownerEntityID == state.missile?.ownerEntityID)
-        #expect(world.missileComponents[entity.id]?.remainingLifetime == state.missile?.lifetime)
+        #expect(world.fireableComponents[entity.id] != nil)
+        #expect(world.ownershipComponents[entity.id]?.ownerEntityID == state.ownerEntityID)
+        #expect(world.lifetimeComponents[entity.id]?.remainingLifetime == state.lifetime)
         #expect(world.missileLauncherComponents[entity.id]?.speed == state.missileLauncher?.speed)
         #expect(world.missileLauncherComponents[entity.id]?.lifetime == state.missileLauncher?.lifetime)
         #expect(world.missileLauncherComponents[entity.id]?.radius == state.missileLauncher?.radius)
@@ -176,7 +177,9 @@ struct WorldTests {
         #expect(world.interactionComponents[entity.id] == nil)
         #expect(world.massComponents[entity.id] == nil)
         #expect(world.mineableComponents[entity.id] == nil)
-        #expect(world.missileComponents[entity.id] == nil)
+        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.ownershipComponents[entity.id] == nil)
+        #expect(world.lifetimeComponents[entity.id] == nil)
         #expect(world.missileLauncherComponents[entity.id] == nil)
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.orbitCircularizationAutopilotComponents[entity.id] == nil)
@@ -377,7 +380,8 @@ struct WorldTests {
             interactionRange: 8,
             dryMass: 50,
             miningRate: 9,
-            missile: MissileInitialState(ownerEntityID: primary, lifetime: 12),
+            ownerEntityID: primary,
+            lifetime: 12,
             missileLauncher: MissileLauncherInitialState(speed: 45, lifetime: 10, radius: 0.5),
             orbitPrimaryID: primary,
             remainingOre: 70,
@@ -395,6 +399,6 @@ private extension WorldTests {
     private final class TestRenderableSpawnEntity: Entity, Renderable {}
     private final class TestCompleteSpawnEntity: Entity, CargoCarrying, Collidable,
         DepotServicing, Destructible, DisplayNamed, Fueled, GravityAffected, GravitySource,
-        LiveMass, Mineable, MissileLaunching, MissileProjectile, OrbitCircularizable,
+        LiveMass, Mineable, MissileLaunching, Ownable, Expirable, Fireable, OrbitCircularizable,
         PlayerControlled, Propelled, Renderable, Rotatable, Scalable, Selectable {}
 }

@@ -54,7 +54,8 @@ class Entity {
         var interactionRange: Double? = nil
         var dryMass: Double? = nil
         var miningRate: Double? = nil
-        var missile: MissileInitialState? = nil
+        var ownerEntityID: EntityID? = nil
+        var lifetime: Double? = nil
         var missileLauncher: MissileLauncherInitialState? = nil
         var orbitPrimaryID: EntityID? = nil
         var orbitalRail: OrbitalRailInitialState? = nil

@@ -75,8 +75,9 @@ constructs the components, and performs every construction-time store write.
 
 The World derives capability markers and neutral player control from the
 facade's conformances. Every collision body receives a previous position equal
-to its resolved spawn position. Depot delivery totals start at zero, and a
-missile's remaining lifetime starts from its authored flight duration.
+to its resolved spawn position. Depot delivery totals start at zero, and an
+expirable entity's remaining lifetime starts from its authored duration.
+Ownership and lifetime remain separate authored values.
 
 An ``Orbiting`` entity describes placement through one rail seed:
 
@@ -175,9 +176,18 @@ facade.
 The selected skiff can fire a missile with M. A cumulative semantic fire press
 becomes a one-tick control request. ``MissileLaunchSystem`` constructs a visible,
 dynamically integrated missile aimed at the nearest destructible asteroid,
-leading its current velocity. ``MissileImpactSystem`` tests relative swept
-motion, removes missiles on solid impacts, and destroys targets carrying
-``DestructibleComponent``. Missiles expire after their configured lifetime.
+leading its current velocity and excluding fired bodies from target selection.
+``Missile`` composes reusable ``Ownable``, ``Expirable``, ``Fireable``, and
+``Destructible`` capabilities with movement, collision, scale, and rendering.
+Ownership and lifetime have separate component rows; destructibility does not
+require collision capability.
+
+``FireableImpactSystem`` joins fired-body and collision rows with optional
+ownership and lifetime rows. It tests relative swept motion, ignores the owner
+and other fired bodies, and removes only participants marked destructible.
+``LifetimeSystem`` independently expires any entity with a lifetime row.
+Impact checks run first and clip both paths to the time both bodies still exist,
+preserving hits during the final partial interval before expiry removes either body.
 The skiff retains its existing held Space action for mining and depot service.
 
 Six asteroids and one depot initially follow deterministic circular rails. During

@@ -75,6 +75,10 @@ without a concrete consumer and explicit identity, delivery, ownership, and life
 second authoritative state model. Keep `Entity` as the common base class for live game objects and prefer capability
 protocols over deeper inheritance.
 
+Compose entity behavior from reusable components and capabilities. Ownership, lifetime, collision, and destructibility
+are independent properties; do not bundle them into one component named for a concrete entity type. Protocol inheritance
+should express a required invariant, not a combination that happens to occur in one Game Content entity.
+
 Systems that operate on component data must iterate or join stores directly rather than entity facades. Use
 `ComponentStore.update(for:_:)` for an existing row. Use `insert` for registration, adding a missing row, or an
 intentional full reset or reseed. Do not rebuild and reinsert rows for ordinary per-tick field changes.
