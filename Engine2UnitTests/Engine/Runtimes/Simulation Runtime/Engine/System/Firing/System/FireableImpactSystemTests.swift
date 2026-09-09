@@ -272,7 +272,8 @@ struct FireableImpactSystemTests {
             in: world,
             from: Entity.InitialState(
                 position: position,
-                collisionBody: CollisionBodyInitialState(radius: 1, restitution: 0),
+                collisionRadius: 1,
+                collisionRestitution: 0,
                 lifetime: lifetime
             )
         )
@@ -282,7 +283,8 @@ struct FireableImpactSystemTests {
         Entity.InitialState(
             position: SIMD3<Double>(10, 0, 0),
             velocity: SIMD3<Double>(100, 0, 0),
-            collisionBody: CollisionBodyInitialState(radius: 1, restitution: 0)
+            collisionRadius: 1,
+            collisionRestitution: 0
         )
     }
 }

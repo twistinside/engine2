@@ -225,15 +225,17 @@ scene quiescent through the ordinary Simulation schedule.
 
 The mining slice uses the same seam for one star, six asteroids, one player
 skiff, and one depot. Game Content defines entity facades, authored spawn facts,
-mapping policy, behavior, and abstract render identities. Each constructor
-assembles one component-free `Entity.InitialState` from values such as mass,
-ore, collision shape, propulsion, and missile-launch settings.
-``World/add(_:from:)`` validates capability agreement, constructs authoritative
-components, and initializes derived and transient state before returning.
+mapping policy, behavior, and abstract render identities. Each entity has a
+designated initializer with the authored values it needs, such as mass, ore,
+collision radius, thrust, and missile speed. The constructor assembles one
+flat `Entity.InitialState` and calls `super.init(in:from:)`. The base Entity
+initializer reserves the identity and calls ``World/add(_:from:)``.
+World validates capability agreement, constructs authoritative components,
+and initializes derived and transient state before returning.
 Simulation owns the resulting rows and all later gameplay mutation.
 
-Asteroid and depot constructors describe an ``OrbitalRailInitialState`` using
-the primary's complete identity, orbital radius, angular speed, and phase.
+Asteroid and depot constructors supply the primary's complete identity,
+orbital radius, angular speed, and phase directly in `Entity.InitialState`.
 The World resolves the primary's live position and creates consistent initial
 position, rail velocity, and collision history. Constructors do not receive a
 duplicate primary position or build a rail component. The world is ready for

@@ -9,11 +9,14 @@ struct WorldInitialStateTests {
         let primaryPosition = SIMD3<Double>(120, -30, 7)
         world.positionComponents.update(for: primary.id) { $0.position = primaryPosition }
         let entity = InitialStateRailEntity(in: world, from: Entity.InitialState(
-            collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-            orbitalRail: OrbitalRailInitialState(
-                primaryEntityID: primary.id, radius: 20, angularSpeed: -0.25, phase: .pi / 2
-            ),
-            renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+            collisionRadius: 2,
+            collisionRestitution: 0.35,
+            orbitalPrimaryID: primary.id,
+            orbitalRadius: 20,
+            orbitalAngularSpeed: -0.25,
+            orbitalPhase: .pi / 2,
+            meshID: .ball,
+            materialID: .goldMetal
         ))
 
         let expectedPosition = SIMD3<Double>(120, -10, 7)
@@ -37,11 +40,14 @@ struct WorldInitialStateTests {
         let world = World()
         let primary = Ball(in: world, materialID: .goldMetal)
         let state = Entity.InitialState(
-            collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-            orbitalRail: OrbitalRailInitialState(
-                primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-            ),
-            renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+            collisionRadius: 2,
+            collisionRestitution: 0.35,
+            orbitalPrimaryID: primary.id,
+            orbitalRadius: 20,
+            orbitalAngularSpeed: 0.25,
+            orbitalPhase: 0,
+            meshID: .ball,
+            materialID: .goldMetal
         )
         let entity = InitialStateRailEntity(in: world, from: state)
         world.orbitalRailComponents.update(for: entity.id) {
@@ -84,17 +90,72 @@ struct WorldInitialStateTests {
         }
     }
 
+    @Test func rejectsIncompleteRailParametersForOrbitingEntity() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                let world = World()
+                let primary = Ball(in: world, materialID: .goldMetal)
+                _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    meshID: .ball,
+                    materialID: .goldMetal
+                ))
+            }
+        }
+    }
+
+    @Test func rejectsMeshWithoutMaterialForRenderableEntity() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                let world = World()
+                let primary = Ball(in: world, materialID: .goldMetal)
+                _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball
+                ))
+            }
+        }
+    }
+
+    @Test func rejectsCollisionRestitutionWithoutCollidableCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = Entity(in: World(), from: Entity.InitialState(collisionRestitution: 0.35))
+            }
+        }
+    }
+
+    @Test func rejectsOrbitalPhaseWithoutOrbitingCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = Entity(in: World(), from: Entity.InitialState(orbitalPhase: 0))
+            }
+        }
+    }
+
     @Test func rejectsMissingPrimary() async {
         await #expect(processExitsWith: .failure) {
             await MainActor.run {
                 let world = World()
                 let primaryID = EntityID(index: 90, generation: 0)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primaryID, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primaryID,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -107,11 +168,14 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 let primaryID = EntityID(index: primary.id.index, generation: primary.id.generation + 1)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primaryID, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primaryID,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -124,11 +188,14 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 world.destroy(primary.id)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -141,11 +208,14 @@ struct WorldInitialStateTests {
                 let primaryID = world.reserveEntityID()
                 world.positionComponents.insert(PositionComponent(position: .zero), for: primaryID)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primaryID, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primaryID,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -157,11 +227,14 @@ struct WorldInitialStateTests {
                 let world = World()
                 let primary = Entity(in: world, from: .empty)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -174,11 +247,14 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 world.positionComponents.update(for: primary.id) { $0.position = SIMD3<Double>(.nan, 0, 0) }
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -191,11 +267,14 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     position: .zero,
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -208,11 +287,14 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     velocity: .zero,
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -224,11 +306,14 @@ struct WorldInitialStateTests {
                 let world = World()
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 1e200, angularSpeed: 1e200, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 1e200,
+                    orbitalAngularSpeed: 1e200,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -240,11 +325,14 @@ struct WorldInitialStateTests {
                 let world = World()
                 let entity = InitialStateRailEntity(unregisteredID: world.reserveEntityID(), in: world)
                 world.add(entity, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: entity.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: 2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: entity.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }
@@ -256,9 +344,10 @@ struct WorldInitialStateTests {
                 let world = World()
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateDynamicRailEntity(in: world, from: Entity.InitialState(
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    )
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0
                 ))
             }
         }
@@ -270,11 +359,14 @@ struct WorldInitialStateTests {
                 let world = World()
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
-                    collisionBody: CollisionBodyInitialState(radius: -2, restitution: 0.35),
-                    orbitalRail: OrbitalRailInitialState(
-                        primaryEntityID: primary.id, radius: 20, angularSpeed: 0.25, phase: 0
-                    ),
-                    renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                    collisionRadius: -2,
+                    collisionRestitution: 0.35,
+                    orbitalPrimaryID: primary.id,
+                    orbitalRadius: 20,
+                    orbitalAngularSpeed: 0.25,
+                    orbitalPhase: 0,
+                    meshID: .ball,
+                    materialID: .goldMetal
                 ))
             }
         }

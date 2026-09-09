@@ -48,7 +48,9 @@ struct MiningWorldBuilder: WorldBuilder {
             cargoCapacity: Self.cargoCapacity,
             maximumThrust: Self.maximumThrust,
             exhaustVelocity: Self.exhaustVelocity,
-            missileLauncher: MissileLauncherInitialState(speed: 600, lifetime: 20, radius: 5),
+            missileSpeed: 600,
+            missileLifetime: 20,
+            missileRadius: 5,
             materialID: .goldMetal
         )
 

@@ -334,49 +334,57 @@ class World {
     }
 
     private func addCargoComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isCargoCarrying = entity is CargoCarrying
         precondition(
-            (state.cargo != nil) == (entity is CargoCarrying),
-            "InitialState.cargo must be present exactly when the entity conforms to CargoCarrying."
+            (state.cargoCapacity != nil) == isCargoCarrying &&
+                (state.cargoOre != nil) == isCargoCarrying,
+            "CargoCarrying requires cargo capacity and ore; other entities must omit both."
         )
-        guard let cargo = state.cargo else {
+        guard let cargoCapacity = state.cargoCapacity, let cargoOre = state.cargoOre else {
             return
         }
         cargoComponents.insert(
-            CargoComponent(capacity: cargo.capacity, ore: cargo.ore),
+            CargoComponent(capacity: cargoCapacity, ore: cargoOre),
             for: entity.id
         )
     }
 
     private func addCollisionComponents(for entity: Entity, from state: Entity.InitialState) {
+        let isCollidable = entity is Collidable
         precondition(
-            (state.collisionBody != nil) == (entity is Collidable),
-            "InitialState.collisionBody must be present exactly when the entity conforms to Collidable."
+            (state.collisionRadius != nil) == isCollidable &&
+                (state.collisionRestitution != nil) == isCollidable,
+            "Collidable requires collision radius and restitution; other entities must omit both."
         )
-        guard let collisionBody = state.collisionBody else {
+        guard let collisionRadius = state.collisionRadius,
+              let collisionRestitution = state.collisionRestitution else {
             return
         }
         guard let position = positionComponents[entity.id]?.position else {
             preconditionFailure("A collidable entity requires its resolved position before collision registration.")
         }
         collisionBodyComponents.insert(
-            CollisionBodyComponent(radius: collisionBody.radius, restitution: collisionBody.restitution),
+            CollisionBodyComponent(radius: collisionRadius, restitution: collisionRestitution),
             for: entity.id
         )
         previousPositionComponents.insert(PreviousPositionComponent(position: position), for: entity.id)
     }
 
     private func addDepotServiceComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isDepotServicing = entity is DepotServicing
         precondition(
-            (state.depotService != nil) == (entity is DepotServicing),
-            "InitialState.depotService must be present exactly when the entity conforms to DepotServicing."
+            (state.depotUnloadingRate != nil) == isDepotServicing &&
+                (state.depotRefuelingRate != nil) == isDepotServicing,
+            "DepotServicing requires unloading and refueling rates; other entities must omit both."
         )
-        guard let depotService = state.depotService else {
+        guard let depotUnloadingRate = state.depotUnloadingRate,
+              let depotRefuelingRate = state.depotRefuelingRate else {
             return
         }
         depotServiceComponents.insert(
             DepotServiceComponent(
-                unloadingRate: depotService.unloadingRate,
-                refuelingRate: depotService.refuelingRate,
+                unloadingRate: depotUnloadingRate,
+                refuelingRate: depotRefuelingRate,
                 deliveredOre: 0
             ),
             for: entity.id
@@ -402,15 +410,17 @@ class World {
     }
 
     private func addFuelComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isFueled = entity is Fueled
         precondition(
-            (state.fuel != nil) == (entity is Fueled),
-            "InitialState.fuel must be present exactly when the entity conforms to Fueled."
+            (state.fuelCapacity != nil) == isFueled &&
+                (state.fuelRemaining != nil) == isFueled,
+            "Fueled requires fuel capacity and remaining fuel; other entities must omit both."
         )
-        guard let fuel = state.fuel else {
+        guard let fuelCapacity = state.fuelCapacity, let fuelRemaining = state.fuelRemaining else {
             return
         }
         fuelComponents.insert(
-            FuelComponent(capacity: fuel.capacity, remaining: fuel.remaining),
+            FuelComponent(capacity: fuelCapacity, remaining: fuelRemaining),
             for: entity.id
         )
     }
@@ -499,18 +509,23 @@ class World {
     }
 
     private func addMissileLauncherComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isMissileLaunching = entity is MissileLaunching
         precondition(
-            (state.missileLauncher != nil) == (entity is MissileLaunching),
-            "InitialState.missileLauncher must be present exactly when the entity conforms to MissileLaunching."
+            (state.missileSpeed != nil) == isMissileLaunching &&
+                (state.missileLifetime != nil) == isMissileLaunching &&
+                (state.missileRadius != nil) == isMissileLaunching,
+            "MissileLaunching requires missile speed, lifetime, and radius; other entities must omit all three."
         )
-        guard let missileLauncher = state.missileLauncher else {
+        guard let missileSpeed = state.missileSpeed,
+              let missileLifetime = state.missileLifetime,
+              let missileRadius = state.missileRadius else {
             return
         }
         missileLauncherComponents.insert(
             MissileLauncherComponent(
-                speed: missileLauncher.speed,
-                lifetime: missileLauncher.lifetime,
-                radius: missileLauncher.radius
+                speed: missileSpeed,
+                lifetime: missileLifetime,
+                radius: missileRadius
             ),
             for: entity.id
         )
@@ -532,11 +547,18 @@ class World {
         for entity: Entity,
         from state: Entity.InitialState
     ) -> (component: OrbitalRailComponent, position: SIMD3<Double>)? {
+        let isOrbiting = entity is Orbiting
         precondition(
-            (state.orbitalRail != nil) == (entity is Orbiting),
-            "InitialState.orbitalRail must be present exactly when the entity conforms to Orbiting."
+            (state.orbitalPrimaryID != nil) == isOrbiting &&
+                (state.orbitalRadius != nil) == isOrbiting &&
+                (state.orbitalAngularSpeed != nil) == isOrbiting &&
+                (state.orbitalPhase != nil) == isOrbiting,
+            "Orbiting requires primary identity, radius, angular speed, and phase; other entities must omit all four."
         )
-        guard let orbitalRail = state.orbitalRail else {
+        guard let orbitalPrimaryID = state.orbitalPrimaryID,
+              let orbitalRadius = state.orbitalRadius,
+              let orbitalAngularSpeed = state.orbitalAngularSpeed,
+              let orbitalPhase = state.orbitalPhase else {
             return nil
         }
         precondition(!(entity is Movable), "An orbital rail cannot also use dynamically integrated motion.")
@@ -548,20 +570,20 @@ class World {
             "An orbital rail derives its translational state; explicit position and motion seeds are not allowed."
         )
         precondition(
-            orbitalRail.primaryEntityID != entity.id,
+            orbitalPrimaryID != entity.id,
             "An orbital rail cannot use its own entity as its primary."
         )
-        guard entitiesByID[orbitalRail.primaryEntityID] != nil,
-              let primaryPosition = positionComponents[orbitalRail.primaryEntityID]?.position else {
+        guard entitiesByID[orbitalPrimaryID] != nil,
+              let primaryPosition = positionComponents[orbitalPrimaryID]?.position else {
             preconditionFailure("An orbital rail requires a registered primary with the complete supplied identity.")
         }
         precondition(primaryPosition.isFinite, "An orbital rail primary position must be finite.")
 
         var component = OrbitalRailComponent(
-            primaryEntityID: orbitalRail.primaryEntityID,
-            radius: orbitalRail.radius,
-            angularSpeed: orbitalRail.angularSpeed,
-            phase: orbitalRail.phase,
+            primaryEntityID: orbitalPrimaryID,
+            radius: orbitalRadius,
+            angularSpeed: orbitalAngularSpeed,
+            phase: orbitalPhase,
             elapsedTime: 0,
             velocity: .zero
         )
@@ -596,33 +618,35 @@ class World {
     }
 
     private func addPropulsionComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isPropelled = entity is Propelled
         precondition(
-            (state.propulsion != nil) == (entity is Propelled),
-            "InitialState.propulsion must be present exactly when the entity conforms to Propelled."
+            (state.maximumThrust != nil) == isPropelled &&
+                (state.exhaustVelocity != nil) == isPropelled,
+            "Propelled requires maximum thrust and exhaust velocity; other entities must omit both."
         )
-        guard let propulsion = state.propulsion else {
+        guard let maximumThrust = state.maximumThrust, let exhaustVelocity = state.exhaustVelocity else {
             return
         }
         propulsionComponents.insert(
-            PropulsionComponent(maximumThrust: propulsion.maximumThrust, exhaustVelocity: propulsion.exhaustVelocity),
+            PropulsionComponent(maximumThrust: maximumThrust, exhaustVelocity: exhaustVelocity),
             for: entity.id
         )
     }
 
     private func addRenderableComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isRenderable = entity is Renderable
         precondition(
-            (state.renderable != nil) == (entity is Renderable),
-            "InitialState.renderable must be present exactly when the entity conforms to Renderable."
+            (state.meshID != nil) == isRenderable &&
+                (state.materialID != nil) == isRenderable,
+            "Renderable requires mesh and material identities; other entities must omit both."
         )
-        guard let renderableState = state.renderable else {
+        guard let meshID = state.meshID, let materialID = state.materialID else {
             return
         }
-
-        let renderable = RenderableComponent(
-            meshID: renderableState.meshID,
-            materialID: renderableState.materialID
+        renderableComponents.insert(
+            RenderableComponent(meshID: meshID, materialID: materialID),
+            for: entity.id
         )
-        renderableComponents.insert(renderable, for: entity.id)
     }
 
     private func addSelectionComponents(for entity: Entity, from state: Entity.InitialState) {

@@ -70,14 +70,9 @@ struct WorldTests {
         )
         let expectedMeshID = MeshID.ball
         let expectedMaterialID = MaterialID.goldMetal
-        let renderableInitialState = RenderableInitialState(
-            meshID: expectedMeshID,
-            materialID: expectedMaterialID
-        )
-
         world.add(
             entity,
-            from: Entity.InitialState(renderable: renderableInitialState)
+            from: Entity.InitialState(meshID: expectedMeshID, materialID: expectedMaterialID)
         )
 
         #expect(world.renderableComponents[entity.id]?.meshID == expectedMeshID)
@@ -103,17 +98,17 @@ struct WorldTests {
 
         #expect(world.angularMotionAccumulatorComponents[entity.id] != nil)
         #expect(world.angularVelocityComponents[entity.id] != nil)
-        #expect(world.cargoComponents[entity.id]?.capacity == state.cargo?.capacity)
-        #expect(world.cargoComponents[entity.id]?.ore == state.cargo?.ore)
-        #expect(world.collisionBodyComponents[entity.id]?.radius == state.collisionBody?.radius)
-        #expect(world.collisionBodyComponents[entity.id]?.restitution == state.collisionBody?.restitution)
-        #expect(world.depotServiceComponents[entity.id]?.unloadingRate == state.depotService?.unloadingRate)
-        #expect(world.depotServiceComponents[entity.id]?.refuelingRate == state.depotService?.refuelingRate)
+        #expect(world.cargoComponents[entity.id]?.capacity == state.cargoCapacity)
+        #expect(world.cargoComponents[entity.id]?.ore == state.cargoOre)
+        #expect(world.collisionBodyComponents[entity.id]?.radius == state.collisionRadius)
+        #expect(world.collisionBodyComponents[entity.id]?.restitution == state.collisionRestitution)
+        #expect(world.depotServiceComponents[entity.id]?.unloadingRate == state.depotUnloadingRate)
+        #expect(world.depotServiceComponents[entity.id]?.refuelingRate == state.depotRefuelingRate)
         #expect(world.depotServiceComponents[entity.id]?.deliveredOre == 0)
         #expect(world.destructibleComponents[entity.id] != nil)
         #expect(world.displayNameComponents[entity.id]?.value == state.displayName)
-        #expect(world.fuelComponents[entity.id]?.capacity == state.fuel?.capacity)
-        #expect(world.fuelComponents[entity.id]?.remaining == state.fuel?.remaining)
+        #expect(world.fuelComponents[entity.id]?.capacity == state.fuelCapacity)
+        #expect(world.fuelComponents[entity.id]?.remaining == state.fuelRemaining)
         #expect(world.gravityReceiverComponents[entity.id] != nil)
         #expect(world.gravitySourceComponents[entity.id]?.gravitationalParameter == state.gravitationalParameter)
         #expect(world.interactionComponents[entity.id]?.interactionRange == state.interactionRange)
@@ -122,9 +117,9 @@ struct WorldTests {
         #expect(world.fireableComponents[entity.id] != nil)
         #expect(world.ownershipComponents[entity.id]?.ownerEntityID == state.ownerEntityID)
         #expect(world.lifetimeComponents[entity.id]?.remainingLifetime == state.lifetime)
-        #expect(world.missileLauncherComponents[entity.id]?.speed == state.missileLauncher?.speed)
-        #expect(world.missileLauncherComponents[entity.id]?.lifetime == state.missileLauncher?.lifetime)
-        #expect(world.missileLauncherComponents[entity.id]?.radius == state.missileLauncher?.radius)
+        #expect(world.missileLauncherComponents[entity.id]?.speed == state.missileSpeed)
+        #expect(world.missileLauncherComponents[entity.id]?.lifetime == state.missileLifetime)
+        #expect(world.missileLauncherComponents[entity.id]?.radius == state.missileRadius)
         #expect(world.motionComponents[entity.id] != nil)
         #expect(world.orbitCircularizationAutopilotComponents[entity.id] == .idle)
         #expect(world.orbitPrimaryComponents[entity.id]?.primaryEntityID == state.orbitPrimaryID)
@@ -135,10 +130,10 @@ struct WorldTests {
         #expect(world.playerControlComponents[entity.id]?.isFireRequested == false)
         #expect(world.positionComponents[entity.id]?.position == state.position)
         #expect(world.previousPositionComponents[entity.id]?.position == state.position)
-        #expect(world.propulsionComponents[entity.id]?.maximumThrust == state.propulsion?.maximumThrust)
-        #expect(world.propulsionComponents[entity.id]?.exhaustVelocity == state.propulsion?.exhaustVelocity)
-        #expect(world.renderableComponents[entity.id]?.meshID == state.renderable?.meshID)
-        #expect(world.renderableComponents[entity.id]?.materialID == state.renderable?.materialID)
+        #expect(world.propulsionComponents[entity.id]?.maximumThrust == state.maximumThrust)
+        #expect(world.propulsionComponents[entity.id]?.exhaustVelocity == state.exhaustVelocity)
+        #expect(world.renderableComponents[entity.id]?.meshID == state.meshID)
+        #expect(world.renderableComponents[entity.id]?.materialID == state.materialID)
         #expect(world.rotationComponents[entity.id]?.rotation.vector == state.rotation?.vector)
         #expect(world.scaleComponents[entity.id]?.scale == state.scale)
         #expect(world.selectableComponents[entity.id]?.selectionState == .selected)
@@ -265,7 +260,8 @@ struct WorldTests {
             entity,
             from: Entity.InitialState(
                 position: SIMD3<Double>(1, 2, 3),
-                renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal)
+                meshID: .ball,
+                materialID: .goldMetal
             )
         )
         let cursor = SimulationCursor(sessionID: SimulationSessionID(), tick: SimulationTick(rawValue: 0))
@@ -371,22 +367,30 @@ struct WorldTests {
             angularImpulse: SIMD3<Float>(7, 8, 9),
             scale: SIMD3<Float>(repeating: 2),
             selectionState: .selected,
-            cargo: CargoInitialState(capacity: 20, ore: 3),
-            collisionBody: CollisionBodyInitialState(radius: 2, restitution: 0.35),
-            depotService: DepotServiceInitialState(unloadingRate: 4, refuelingRate: 5),
+            cargoCapacity: 20,
+            cargoOre: 3,
+            collisionRadius: 2,
+            collisionRestitution: 0.35,
+            depotUnloadingRate: 4,
+            depotRefuelingRate: 5,
             displayName: "Complete",
-            fuel: FuelInitialState(capacity: 30, remaining: 7),
+            fuelCapacity: 30,
+            fuelRemaining: 7,
             gravitationalParameter: 40,
             interactionRange: 8,
             dryMass: 50,
             miningRate: 9,
             ownerEntityID: primary,
             lifetime: 12,
-            missileLauncher: MissileLauncherInitialState(speed: 45, lifetime: 10, radius: 0.5),
+            missileSpeed: 45,
+            missileLifetime: 10,
+            missileRadius: 0.5,
             orbitPrimaryID: primary,
             remainingOre: 70,
-            propulsion: PropulsionInitialState(maximumThrust: 80, exhaustVelocity: 90),
-            renderable: RenderableInitialState(meshID: .ball, materialID: .goldMetal),
+            maximumThrust: 80,
+            exhaustVelocity: 90,
+            meshID: .ball,
+            materialID: .goldMetal,
             selectionRadius: 10
         )
     }

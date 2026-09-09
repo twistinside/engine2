@@ -66,12 +66,15 @@ builder; the Runtime does not discover content through a global registry. See
 ``EntityID`` allocation, and the live-facade registry. It is not the scheduler and
 does not decide when Simulation advances.
 
-Concrete entity constructors assemble one `Entity.InitialState` containing
-authored spawn facts: scalar and SIMD values, enums, typed identities, and
-grouped descriptions such as ``CollisionBodyInitialState`` and
-``OrbitalRailInitialState``. Initial state contains no component instances.
-``World/add(_:from:)`` validates the facts against advertised capabilities,
-constructs the components, and performs every construction-time store write.
+Each concrete entity has a designated initializer for its authored spawn
+values. It assembles one flat `Entity.InitialState` from scalar and SIMD
+values, enums, and typed identities, then calls `super.init(in:from:)`.
+Initial state contains no intermediate seed structures or component instances.
+The base Entity initializer reserves the identity and calls
+``World/add(_:from:)``, which validates the facts against advertised
+capabilities, constructs the components, and performs every construction-time
+store write. Every specialized capability requires all of its authored fields;
+a renderable entity, for example, must supply both mesh and material identities.
 
 The World derives capability markers and neutral player control from the
 facade's conformances. Every collision body receives a previous position equal
@@ -79,16 +82,14 @@ to its resolved spawn position. Depot delivery totals start at zero, and an
 expirable entity's remaining lifetime starts from its authored duration.
 Ownership and lifetime remain separate authored values.
 
-An ``Orbiting`` entity describes placement through one rail seed:
+An ``Orbiting`` entity supplies its complete rail placement through four fields:
 
 ```swift
 let initialState = Entity.InitialState(
-    orbitalRail: OrbitalRailInitialState(
-        primaryEntityID: star.id,
-        radius: 1_800,
-        angularSpeed: 0.001,
-        phase: 0.35
-    )
+    orbitalPrimaryID: star.id,
+    orbitalRadius: 1_800,
+    orbitalAngularSpeed: 0.001,
+    orbitalPhase: 0.35
 )
 ```
 

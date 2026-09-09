@@ -83,9 +83,11 @@ Systems that operate on component data must iterate or join stores directly rath
 `ComponentStore.update(for:_:)` for an existing row. Use `insert` for registration, adding a missing row, or an
 intentional full reset or reseed. Do not rebuild and reinsert rows for ordinary per-tick field changes.
 
-`Entity.InitialState` describes authored spawn facts using scalars, SIMD values, enums, typed identities, and grouped
-seed values. It must not contain component instances or resolve live World state. Game Content may choose or calculate
-its authored parameters, but concrete entity initializers must not construct authoritative components.
+Each concrete entity has a designated initializer for the authored values it needs. It constructs one flat
+`Entity.InitialState` using scalar and SIMD values, enums, and typed identities, then calls `super.init(in:from:)`.
+The base Entity initializer owns identity reservation and registration. Initial state must not contain intermediate
+seed structures or component instances, or resolve live World state. Game Content may choose or calculate its authored
+parameters, but concrete entity initializers must not construct authoritative components.
 
 `World.add(_:from:)` validates those facts against the entity's advertised capabilities, constructs every component,
 and resolves World-dependent bootstrap state before registration returns. The World derives capability markers,

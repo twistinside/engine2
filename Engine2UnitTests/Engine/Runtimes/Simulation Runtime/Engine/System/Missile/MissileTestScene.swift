@@ -22,7 +22,9 @@ struct MissileTestScene {
             cargoCapacity: 1,
             maximumThrust: 1,
             exhaustVelocity: 1,
-            missileLauncher: MissileLauncherInitialState(speed: 100, lifetime: 5, radius: 1),
+            missileSpeed: 100,
+            missileLifetime: 5,
+            missileRadius: 1,
             materialID: .goldMetal
         )
         world.select(skiff.id)
