@@ -22,7 +22,9 @@ class World {
     var interactionComponents = ComponentStore<InteractionComponent>()
     var massComponents = ComponentStore<MassComponent>()
     var mineableComponents = ComponentStore<MineableComponent>()
-    var missileComponents = ComponentStore<MissileComponent>()
+    var fireableComponents = ComponentStore<FireableComponent>()
+    var ownershipComponents = ComponentStore<OwnershipComponent>()
+    var lifetimeComponents = ComponentStore<LifetimeComponent>()
     var missileLauncherComponents = ComponentStore<MissileLauncherComponent>()
     var motionComponents = ComponentStore<MotionComponent>()
     var orbitCircularizationAutopilotComponents = ComponentStore<OrbitCircularizationAutopilotComponent>()
@@ -130,7 +132,9 @@ class World {
         addInteractionComponent(for: entity, from: state)
         addMassComponent(for: entity, from: state)
         addMineableComponent(for: entity, from: state)
-        addMissileComponent(for: entity, from: state)
+        addFireableComponent(for: entity, from: state)
+        addOwnershipComponent(for: entity, from: state)
+        addLifetimeComponent(for: entity, from: state)
         addMissileLauncherComponent(for: entity, from: state)
         addOrbitCircularizationComponents(for: entity, from: state)
         addOrbitalRailComponent(for: entity, from: state)
@@ -215,7 +219,9 @@ class World {
         interactionComponents.remove(for: entity)
         massComponents.remove(for: entity)
         mineableComponents.remove(for: entity)
-        missileComponents.remove(for: entity)
+        fireableComponents.remove(for: entity)
+        ownershipComponents.remove(for: entity)
+        lifetimeComponents.remove(for: entity)
         missileLauncherComponents.remove(for: entity)
         motionComponents.remove(for: entity)
         orbitCircularizationAutopilotComponents.remove(for: entity)
@@ -446,15 +452,37 @@ class World {
         mineableComponents.insert(mineable, for: entity.id)
     }
 
-    private func addMissileComponent(for entity: Entity, from state: Entity.InitialState) {
+    private func addFireableComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.missile != nil) == (entity is MissileProjectile),
-            "InitialState.missile must be present exactly when the entity conforms to MissileProjectile."
+            (state.fireable != nil) == (entity is Fireable),
+            "InitialState.fireable must be present exactly when the entity conforms to Fireable."
         )
-        guard let missile = state.missile else {
+        guard let fireable = state.fireable else {
             return
         }
-        missileComponents.insert(missile, for: entity.id)
+        fireableComponents.insert(fireable, for: entity.id)
+    }
+
+    private func addOwnershipComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.ownership != nil) == (entity is Ownable),
+            "InitialState.ownership must be present exactly when the entity conforms to Ownable."
+        )
+        guard let ownership = state.ownership else {
+            return
+        }
+        ownershipComponents.insert(ownership, for: entity.id)
+    }
+
+    private func addLifetimeComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.lifetime != nil) == (entity is Expirable),
+            "InitialState.lifetime must be present exactly when the entity conforms to Expirable."
+        )
+        guard let lifetime = state.lifetime else {
+            return
+        }
+        lifetimeComponents.insert(lifetime, for: entity.id)
     }
 
     private func addMissileLauncherComponent(for entity: Entity, from state: Entity.InitialState) {

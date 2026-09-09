@@ -54,7 +54,9 @@ class Entity {
         var interaction: InteractionComponent? = nil
         var mass: MassComponent? = nil
         var mineable: MineableComponent? = nil
-        var missile: MissileComponent? = nil
+        var fireable: FireableComponent? = nil
+        var ownership: OwnershipComponent? = nil
+        var lifetime: LifetimeComponent? = nil
         var missileLauncher: MissileLauncherComponent? = nil
         var orbitPrimary: OrbitPrimaryComponent? = nil
         var orbitalRail: OrbitalRailComponent? = nil

@@ -2,7 +2,7 @@ import simd
 
 /// Finite-ore body that follows one deterministic circular rail.
 final class Asteroid: Entity, DisplayNamed, Scalable, Renderable, Selectable,
-    Orbiting, OreContaining, Mineable, Destructible {
+    Orbiting, Mineable, Collidable, Destructible {
     convenience init(
         in world: World,
         name: String,

@@ -89,7 +89,8 @@ struct MissileLaunchSystem: System {
     ) -> EntityID? {
         var target: EntityID?
         var nearestDistanceSquared = Double.infinity
-        for candidate in world.destructibleComponents.entities where candidate != actor {
+        for candidate in world.destructibleComponents.entities where candidate != actor &&
+            world.fireableComponents[candidate] == nil {
             guard world.collisionBodyComponents[candidate] != nil,
                   let candidatePosition = world.positionComponents[candidate]?.position else {
                 continue

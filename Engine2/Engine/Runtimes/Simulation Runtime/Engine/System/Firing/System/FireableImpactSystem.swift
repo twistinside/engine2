@@ -1,34 +1,33 @@
 import simd
 
-/// Removes missiles on their earliest solid impact and removes bodies marked destructible.
+/// Resolves the earliest solid contact for each fired collision body.
 ///
-/// Run after movement and before bounce or interaction systems. Contacts use relative swept motion,
-/// including a shortened final flight interval. Every sweep sees the bodies present before removal,
-/// so missiles that hit the same body in one tick are all consumed. Removal follows store traversal.
-struct MissileImpactSystem: System {
+/// Ownership optionally excludes the owner, and lifetimes clip contact sweeps to the time both bodies exist.
+/// Only Destructible participants are removed; other fired bodies survive their contacts.
+/// Fired bodies ignore one another. All sweeps see the bodies present before deferred removal.
+/// Run after movement and before LifetimeSystem, bounce, or interaction systems.
+struct FireableImpactSystem: System {
     mutating func update(world: inout World, deltaTime: Double) {
         guard deltaTime.isFinite, deltaTime > 0 else {
             return
         }
 
         var destroyedEntities: Set<EntityID> = []
-        for entity in world.missileComponents.entities {
-            guard let missile = world.missileComponents[entity] else {
+        for entity in world.fireableComponents.entities {
+            let travelFraction = world.lifetimeComponents[entity].map {
+                min(1, max(0, $0.remainingLifetime / deltaTime))
+            } ?? 1
+            guard travelFraction > 0,
+                  let target = firstImpact(
+                    of: entity, travelFraction: travelFraction, deltaTime: deltaTime, in: world
+                  ) else {
                 continue
             }
-            let travelFraction = min(1, max(0, missile.remainingLifetime / deltaTime))
-            if travelFraction > 0,
-               let target = firstImpact(of: entity, missile: missile, travelFraction: travelFraction, in: world) {
+            if world.destructibleComponents[entity] != nil {
                 destroyedEntities.insert(entity)
-                if world.destructibleComponents[target] != nil {
-                    destroyedEntities.insert(target)
-                }
-            } else if missile.remainingLifetime <= deltaTime {
-                destroyedEntities.insert(entity)
-            } else {
-                world.missileComponents.update(for: entity) { component in
-                    component.remainingLifetime -= deltaTime
-                }
+            }
+            if world.destructibleComponents[target] != nil {
+                destroyedEntities.insert(target)
             }
         }
 
@@ -39,8 +38,8 @@ struct MissileImpactSystem: System {
 
     private func firstImpact(
         of entity: EntityID,
-        missile: MissileComponent,
         travelFraction: Double,
+        deltaTime: Double,
         in world: World
     ) -> EntityID? {
         guard let body = world.collisionBodyComponents[entity],
@@ -49,20 +48,28 @@ struct MissileImpactSystem: System {
             return nil
         }
 
+        let owner = world.ownershipComponents[entity]?.ownerEntityID
         var hitEntity: EntityID?
         var hitFraction = Double.infinity
-        for target in world.collisionBodyComponents.entities where target != missile.ownerEntityID &&
-            world.missileComponents[target] == nil {
+        for target in world.collisionBodyComponents.entities where target != owner &&
+            world.fireableComponents[target] == nil {
             guard let targetBody = world.collisionBodyComponents[target],
                   let targetPrevious = world.previousPositionComponents[target]?.position,
                   let targetCurrent = world.positionComponents[target]?.position else {
+                continue
+            }
+            let targetTravelFraction = world.lifetimeComponents[target].map {
+                min(1, max(0, $0.remainingLifetime / deltaTime))
+            } ?? 1
+            let sharedTravelFraction = min(travelFraction, targetTravelFraction)
+            guard sharedTravelFraction > 0 else {
                 continue
             }
             let offset = SIMD2<Double>(previous.x - targetPrevious.x, previous.y - targetPrevious.y)
             let relativePath = SIMD2<Double>(
                 (current.x - previous.x) - (targetCurrent.x - targetPrevious.x),
                 (current.y - previous.y) - (targetCurrent.y - targetPrevious.y)
-            ) * travelFraction
+            ) * sharedTravelFraction
             guard let fraction = impactFraction(
                 offset: offset,
                 relativePath: relativePath,
@@ -71,10 +78,12 @@ struct MissileImpactSystem: System {
                 continue
             }
 
-            if fraction < hitFraction ||
-                (fraction == hitFraction && (hitEntity.map { target < $0 } ?? true)) {
+            // Targets may expire at different times; compare fractions of the complete tick.
+            let tickFraction = fraction * sharedTravelFraction
+            if tickFraction < hitFraction ||
+                (tickFraction == hitFraction && (hitEntity.map { target < $0 } ?? true)) {
                 hitEntity = target
-                hitFraction = fraction
+                hitFraction = tickFraction
             }
         }
         return hitEntity

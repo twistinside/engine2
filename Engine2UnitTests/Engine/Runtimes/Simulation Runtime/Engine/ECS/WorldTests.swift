@@ -31,7 +31,9 @@ struct WorldTests {
             interaction: InteractionComponent(interactionRange: 8),
             mass: MassComponent(dryMass: 50),
             mineable: MineableComponent(miningRate: 9),
-            missile: MissileComponent(ownerEntityID: primary, remainingLifetime: 12),
+            fireable: FireableComponent(),
+            ownership: OwnershipComponent(ownerEntityID: primary),
+            lifetime: LifetimeComponent(remainingLifetime: 12),
             missileLauncher: MissileLauncherComponent(speed: 45, lifetime: 10, radius: 0.5),
             orbitPrimary: OrbitPrimaryComponent(primaryEntityID: primary),
             orbitalRail: OrbitalRailComponent(
@@ -163,7 +165,9 @@ struct WorldTests {
         #expect(world.interactionComponents[entity.id] == state.interaction)
         #expect(world.massComponents[entity.id] == state.mass)
         #expect(world.mineableComponents[entity.id] == state.mineable)
-        #expect(world.missileComponents[entity.id] == state.missile)
+        #expect(world.fireableComponents[entity.id] == state.fireable)
+        #expect(world.ownershipComponents[entity.id] == state.ownership)
+        #expect(world.lifetimeComponents[entity.id] == state.lifetime)
         #expect(world.missileLauncherComponents[entity.id] == state.missileLauncher)
         #expect(world.motionComponents[entity.id] != nil)
         #expect(world.orbitCircularizationAutopilotComponents[entity.id] == .idle)
@@ -213,7 +217,9 @@ struct WorldTests {
         #expect(world.interactionComponents[entity.id] == nil)
         #expect(world.massComponents[entity.id] == nil)
         #expect(world.mineableComponents[entity.id] == nil)
-        #expect(world.missileComponents[entity.id] == nil)
+        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.ownershipComponents[entity.id] == nil)
+        #expect(world.lifetimeComponents[entity.id] == nil)
         #expect(world.missileLauncherComponents[entity.id] == nil)
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.orbitCircularizationAutopilotComponents[entity.id] == nil)
@@ -375,6 +381,6 @@ private extension WorldTests {
     private final class TestRenderableSpawnEntity: Entity, Renderable {}
     private final class TestCompleteSpawnEntity: Entity, CargoCarrying, Collidable,
         DepotServicing, Destructible, DisplayNamed, Fueled, GravityAffected, GravitySource,
-        LiveMass, Mineable, MissileLaunching, MissileProjectile, OrbitCircularizable,
+        LiveMass, Mineable, MissileLaunching, Ownable, Expirable, Fireable, OrbitCircularizable,
         Orbiting, PlayerControlled, Propelled, Renderable, Rotatable, Scalable, Selectable {}
 }

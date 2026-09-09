@@ -20,18 +20,18 @@ struct MiningSimulationBehaviorTests {
 
         engine.step(inputSnapshot: input.latestInputSnapshot)
 
-        let missile = try #require(world.missileComponents.entities.first)
-        #expect(world.missileComponents.entities.count == 1)
+        let missile = try #require(world.fireableComponents.entities.first)
+        #expect(world.fireableComponents.entities.count == 1)
         #expect(world.entity(for: missile) is Missile)
-        #expect(world.missileComponents[missile]?.ownerEntityID == skiff)
+        #expect(world.ownershipComponents[missile]?.ownerEntityID == skiff)
         #expect(world.renderableComponents[missile] != nil)
-        #expect(world.destructibleComponents.entities.count == 6)
+        #expect(world.destructibleComponents.entities.count == 7)
 
         for _ in 0..<300 {
             engine.step(inputSnapshot: input.latestInputSnapshot)
         }
 
-        #expect(world.missileComponents.entities.isEmpty)
+        #expect(world.fireableComponents.entities.isEmpty)
         #expect(world.entity(for: missile) == nil)
         #expect(world.destructibleComponents.entities.count == 5)
         let destroyed = try #require(originalAsteroids.subtracting(world.destructibleComponents.entities).first)
@@ -65,15 +65,15 @@ struct MiningSimulationBehaviorTests {
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
 
         engine.step(inputSnapshot: input.latestInputSnapshot)
-        #expect(world.missileComponents.entities.isEmpty)
+        #expect(world.fireableComponents.entities.isEmpty)
 
         #expect(world.select(skiff))
         engine.step()
-        #expect(world.missileComponents.entities.isEmpty)
+        #expect(world.fireableComponents.entities.isEmpty)
 
         input.receive(.keyUp(KeyboardKey(keyCode: 46)))
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
         engine.step(inputSnapshot: input.latestInputSnapshot)
-        #expect(world.missileComponents.entities.count == 1)
+        #expect(world.fireableComponents.entities.count == 1)
     }
 }
