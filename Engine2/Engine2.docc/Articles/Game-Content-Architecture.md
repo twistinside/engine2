@@ -224,12 +224,22 @@ scene quiescent through the ordinary Simulation schedule.
 ## The Mining Slice Is Composed Game Content
 
 The mining slice uses the same seam for one star, six asteroids, one player
-skiff, and one depot. Game Content defines the entity facades, initial component
-values, mapping policy, behavior, and abstract render identities. Each concrete
-constructor assembles one `Entity.InitialState`; ``World/add(_:from:)`` validates
-its agreement with advertised capabilities and performs every construction-time
-component-store write. Simulation owns the resulting rows and all later
-gameplay mutation.
+skiff, and one depot. Game Content defines entity facades, authored spawn facts,
+mapping policy, behavior, and abstract render identities. Each entity has a
+designated initializer with the authored values it needs, such as mass, ore,
+collision radius, thrust, and missile speed. The constructor assembles one
+flat `Entity.InitialState` and calls `super.init(in:from:)`. The base Entity
+initializer reserves the identity and calls ``World/add(_:from:)``.
+World validates capability agreement, constructs authoritative components,
+and initializes derived and transient state before returning.
+Simulation owns the resulting rows and all later gameplay mutation.
+
+Asteroid and depot constructors supply the primary's complete identity,
+orbital radius, angular speed, and phase directly in `Entity.InitialState`.
+The World resolves the primary's live position and creates consistent initial
+position, rail velocity, and collision history. Constructors do not receive a
+duplicate primary position or build a rail component. The world is ready for
+its tick-zero presentation without running a setup system.
 
 ``MiningWorldBuilder`` owns the gravitational parameter, orbital radii, derived
 circular speeds, and initial camera framing. ``OrbitalRailSystem`` remains a
@@ -237,21 +247,32 @@ Simulation-owned policy supplied at a Game Content scheduling stage; Runtime
 cadence does not define scenario scale or orbital speed.
 
 The mining ``InputMappingConfiguration`` maps keyboard and pointer input to
-context-free translation, interaction, camera, and selection intent. It cannot
-name the skiff or inspect selection. ``Interactable`` owns the shared positioned
+context-free translation, interaction, fire, camera, and selection intent. It
+cannot name the skiff or inspect selection. A fire press requests an action;
+Simulation chooses the launcher, target, and resulting missile. ``Interactable`` owns the shared positioned
 proximity range; ``Mineable`` and ``DepotServicing`` add action-specific state
 and rates.
 
 ``MiningSimulationBehavior`` supplies selection and control routing, circular
-rails, gravity and propulsion, collision response, mining and depot service,
-camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
+rails, gravity and propulsion, missile launch, fired-body impacts, expiry, collision response,
+mining and depot service, camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
 stages. The orbit-assist command arrives on an exact Simulation request rather
 than through physical input mapping. See <doc:System-Scheduling> for the exact
 system order.
 
-This is a mixed-dynamics scenario. Six asteroids and the depot follow analytic
-circular rails. Only the skiff dynamically integrates gravity, propulsion,
-fuel, cargo-dependent mass, and collision response.
+This is a mixed-dynamics scenario. Surviving asteroids and the depot follow
+analytic circular rails. The skiff dynamically integrates gravity, propulsion,
+fuel, cargo-dependent mass, and collision response. Its missiles integrate
+ballistic motion until impact or expiry.
+
+``Missile`` is a Game Content recipe that composes ``Ownable``, ``Expirable``,
+``Fireable``, and ``Destructible`` with movement, collision, scale, and rendering.
+``OwnershipComponent`` and ``LifetimeComponent`` are reusable independent state;
+``FireableComponent`` selects the fired-body impact policy. Destructibility is
+independent of collision. The shared impact and lifetime systems process these
+rows directly, so other entity types can reuse each behavior without becoming
+missiles. ``MissileLaunchSystem`` retains the content-specific launch recipe and
+targeting policy.
 
 The selected-entity inspector renders only capabilities supported by the live
 facade obtained from a narrow, read-only Simulation-owned source. A separate

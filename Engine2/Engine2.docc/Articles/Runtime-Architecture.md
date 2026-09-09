@@ -6,7 +6,7 @@ This article defines the intended top-level application architecture for Engine2
 
 Partially implemented direction.
 
-The current code implements ``InputRuntime`` as the platform-input lifecycle, physical-to-semantic mapper, and latest-snapshot publisher. Its injected `InputMappingConfiguration` maps physical bindings to context-free translation, interaction, camera, and selection intent without reading gameplay state. ``SimulationRuntime`` owns ``Engine`` and ``World`` but no wall-clock cadence or live Input source. Its session-qualified ``SimulationAdvanceTarget`` boundary accepts exact requests and returns correlated completed output.
+The current code implements ``InputRuntime`` as the platform-input lifecycle, physical-to-semantic mapper, and latest-snapshot publisher. Its injected `InputMappingConfiguration` maps physical bindings to context-free translation, interaction, fire, camera, and selection intent without reading gameplay state. ``SimulationRuntime`` owns ``Engine`` and ``World`` but no wall-clock cadence or live Input source. Its session-qualified ``SimulationAdvanceTarget`` boundary accepts exact requests and returns correlated completed output.
 
 Every concrete assembly conforms to ``RuntimeAssembly``, constructs its topology from injected Game Content, and implements `body: some View` as that topology's SwiftUI root. The current ``RealtimeAssembly`` connects Input and Simulation through an assembly-owned ``RealtimeAdvanceDriver`` with typed bounded catch-up and explicit overflow policy.
 
@@ -91,7 +91,7 @@ The mining slice keeps all gameplay state in the Simulation Runtime while using 
 
 Rails keep quiet bodies reproducible and inexpensive; they are not approximate output from the skiff's dynamic integrator. A future perturbation feature must define an explicit rail-to-dynamics transition instead of applying forces to a body while a rail system continues overwriting its state.
 
-Selection remains authoritative ECS state. ``InputRuntime`` publishes only context-free translation, interaction, camera, and selection intent. Simulation resolves the selected entity and routes held controls only when that entity advertises player-control capability. Selecting a non-controllable entity therefore leaves the skiff coasting without requiring Input to know which entity exists.
+Selection remains authoritative ECS state. ``InputRuntime`` publishes only context-free translation, interaction, fire, camera, and selection intent. Simulation resolves the selected entity and routes held controls only when that entity advertises player-control capability. Selecting a non-controllable entity therefore leaves the skiff coasting without requiring Input to know which entity exists.
 
 Orbit circularization starts with a separate one-shot command, not another context-free Input Runtime field. The real-time driver stages it behind a generation tag and carries it on the next cursor-qualified ``SimulationAdvanceRequest``. ``SimulationRuntime`` imports it only for that request's first tick, where ``OrbitCircularizationSystem`` consumes it during Mining Game Content's `inputConsumption` stage and may engage per-entity Simulation-owned autopilot state. During that tick and while the state remains engaged on later ticks, ``OrbitCircularizationAutopilotSystem`` runs after gravity and before manual flight control, suppresses manual translation for the engaged entity, and burns under finite thrust, current fuel, live mass, and normal integration. Its live ``OrbitCircularizable`` estimate exposes delta-velocity reserve and minimum burn duration to the protocol-backed inspector without adding gameplay state to ``SimulationPresentationSnapshot``.
 
@@ -240,7 +240,7 @@ The current implementation maps onto the proposed model as follows:
 | --- | --- |
 | ``InputRuntime`` | Implemented assembly-retained Input Runtime lifecycle, platform-event ingress, context-free physical-to-semantic mapping, and latest immutable input-snapshot publication |
 | `MetalScenePlatformView` | The single onscreen `MTKView`: supplies the drawable surface to `MetalRenderer` and submits physical `InputEvent` values to ``InputRuntime`` through `InputEventSink`; contains neither rendering nor semantic mapping logic |
-| `InputSnapshot`, `InputRevision`, and `InputSnapshotSource` | Implemented revisioned latest-value boundary containing held translation and interaction intent plus cumulative camera-orbit, camera-zoom, and selection-press values |
+| `InputSnapshot`, `InputRevision`, and `InputSnapshotSource` | Implemented revisioned latest-value boundary containing held translation and interaction intent plus cumulative camera-orbit, camera-zoom, selection-press, and fire-press values |
 | ``InputState`` and default Simulation input systems | Simulation-owned authoritative fixed-tick semantic input, interval-delta derivation, ECS selection/control interpretation, camera application, and transient cleanup |
 | ``SimulationSessionID`` and ``SimulationCursor`` | Implemented identity for one authoritative timeline and one committed position within it |
 | ``SimulationRuntime`` and ``SimulationAdvanceTarget`` | Implemented authoritative state, exact request serialization, expected-cursor validation, immutable first-step input and optional orbit-command assignment, and correlated completed publication without owning cadence |

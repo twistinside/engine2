@@ -14,6 +14,7 @@ class World {
     var cargoComponents = ComponentStore<CargoComponent>()
     var collisionBodyComponents = ComponentStore<CollisionBodyComponent>()
     var depotServiceComponents = ComponentStore<DepotServiceComponent>()
+    var destructibleComponents = ComponentStore<DestructibleComponent>()
     var displayNameComponents = ComponentStore<DisplayNameComponent>()
     var fuelComponents = ComponentStore<FuelComponent>()
     var gravityReceiverComponents = ComponentStore<GravityReceiverComponent>()
@@ -21,6 +22,10 @@ class World {
     var interactionComponents = ComponentStore<InteractionComponent>()
     var massComponents = ComponentStore<MassComponent>()
     var mineableComponents = ComponentStore<MineableComponent>()
+    var fireableComponents = ComponentStore<FireableComponent>()
+    var ownershipComponents = ComponentStore<OwnershipComponent>()
+    var lifetimeComponents = ComponentStore<LifetimeComponent>()
+    var missileLauncherComponents = ComponentStore<MissileLauncherComponent>()
     var motionComponents = ComponentStore<MotionComponent>()
     var orbitCircularizationAutopilotComponents = ComponentStore<OrbitCircularizationAutopilotComponent>()
     var orbitPrimaryComponents = ComponentStore<OrbitPrimaryComponent>()
@@ -44,6 +49,7 @@ class World {
     private(set) var selectedEntityID: EntityID?
 
     private var entitiesByID: [EntityID: Entity] = [:]
+    private var reservedEntityIDs: Set<EntityID> = []
     private var nextEntityIndex = 0
     private let orbitCircularizationEstimateEvaluator = OrbitCircularizationEstimateEvaluator()
 
@@ -87,24 +93,33 @@ class World {
 
     /// Creates the component rows implied by the entity's advertised capabilities.
     ///
-    /// Capability protocols decide which component stores receive rows; the
-    /// optional initial values only supply the seeds for those rows.
-    /// Seed the baseline transform rows first so higher-level capabilities
-    /// such as motion and rotation always have their backing state.
+    /// Capability protocols decide which component stores receive rows.
+    /// Authored values configure those components; the World supplies neutral
+    /// control state, marker rows, and collision baselines. Orbital rails resolve
+    /// their initial position and velocity from a registered primary before any
+    /// rows are written. Rails cannot also supply explicit translational state
+    /// or advertise dynamically integrated motion.
     ///
     /// Reject seed values for capabilities this entity does not expose. That
     /// keeps object APIs and ECS rows aligned instead of silently discarding
     /// caller intent.
     ///
+    /// First registration requires an identity reserved by this World.
     /// Calling this method again for the same live entity reseeds its component
-    /// rows. Treat registration as construction; mutate existing gameplay state
-    /// through the component stores instead.
+    /// rows. A destroyed identity cannot be registered again. Treat registration
+    /// as construction; mutate existing gameplay state through the stores instead.
     @discardableResult
     func add(
         _ entity: Entity,
         from state: Entity.InitialState = .empty
     ) -> EntityID {
-        addPositionComponent(for: entity, from: state)
+        precondition(entity.world === self, "An entity must register with its owning World.")
+        precondition(
+            entitiesByID[entity.id] === entity || reservedEntityIDs.contains(entity.id),
+            "An entity requires a reserved identity or its existing live registration."
+        )
+        let orbitalRail = resolveOrbitalRail(for: entity, from: state)
+        addPositionComponent(for: entity, from: state, orbitalPosition: orbitalRail?.position)
         addMotionComponent(for: entity, from: state)
         addRotationComponent(for: entity, from: state)
         addAngularMotionComponents(for: entity, from: state)
@@ -112,17 +127,24 @@ class World {
         addCargoComponent(for: entity, from: state)
         addCollisionComponents(for: entity, from: state)
         addDepotServiceComponent(for: entity, from: state)
+        addDestructibleComponent(for: entity)
         addDisplayNameComponent(for: entity, from: state)
         addFuelComponent(for: entity, from: state)
-        addGravityReceiverComponent(for: entity, from: state)
+        addGravityReceiverComponent(for: entity)
         addGravitySourceComponent(for: entity, from: state)
         addInteractionComponent(for: entity, from: state)
         addMassComponent(for: entity, from: state)
         addMineableComponent(for: entity, from: state)
+        addFireableComponent(for: entity)
+        addOwnershipComponent(for: entity, from: state)
+        addLifetimeComponent(for: entity, from: state)
+        addMissileLauncherComponent(for: entity, from: state)
         addOrbitCircularizationComponents(for: entity, from: state)
-        addOrbitalRailComponent(for: entity, from: state)
+        if let orbitalRail {
+            orbitalRailComponents.insert(orbitalRail.component, for: entity.id)
+        }
         addOreDepositComponent(for: entity, from: state)
-        addPlayerControlComponent(for: entity, from: state)
+        addPlayerControlComponent(for: entity)
         addPropulsionComponent(for: entity, from: state)
         addRenderableComponent(for: entity, from: state)
         addSelectionComponents(for: entity, from: state)
@@ -131,6 +153,31 @@ class World {
             precondition(select(entity.id), "A selected seed requires a registered selectable entity")
         }
         return entity.id
+    }
+
+    /// Removes one registered entity and every component row it owns.
+    ///
+    /// Unknown or stale identities return `false` without changing live state.
+    /// Destruction clears resources targeting the entity and removes it from
+    /// subsequent presentations. Previously published snapshots remain valid.
+    /// Systems must collect identities before destruction can compact stores.
+    @discardableResult
+    func destroy(_ entity: EntityID) -> Bool {
+        guard entitiesByID.removeValue(forKey: entity) != nil else {
+            return false
+        }
+
+        removeComponents(for: entity)
+        if selectedEntityID == entity {
+            selectedEntityID = nil
+        }
+        if cameraFollowEntityID == entity {
+            cameraFollowEntityID = nil
+        }
+        if orbitCircularizationCommand?.entityID == entity {
+            orbitCircularizationCommand = nil
+        }
+        return true
     }
 
     /// Returns the facade registered for one complete generational identity.
@@ -163,7 +210,45 @@ class World {
         return true
     }
 
-    private func addPositionComponent(for entity: Entity, from state: Entity.InitialState) {
+    private func removeComponents(for entity: EntityID) {
+        angularMotionAccumulatorComponents.remove(for: entity)
+        angularVelocityComponents.remove(for: entity)
+        cargoComponents.remove(for: entity)
+        collisionBodyComponents.remove(for: entity)
+        depotServiceComponents.remove(for: entity)
+        destructibleComponents.remove(for: entity)
+        displayNameComponents.remove(for: entity)
+        fuelComponents.remove(for: entity)
+        gravityReceiverComponents.remove(for: entity)
+        gravitySourceComponents.remove(for: entity)
+        interactionComponents.remove(for: entity)
+        massComponents.remove(for: entity)
+        mineableComponents.remove(for: entity)
+        fireableComponents.remove(for: entity)
+        ownershipComponents.remove(for: entity)
+        lifetimeComponents.remove(for: entity)
+        missileLauncherComponents.remove(for: entity)
+        motionComponents.remove(for: entity)
+        orbitCircularizationAutopilotComponents.remove(for: entity)
+        orbitPrimaryComponents.remove(for: entity)
+        orbitalRailComponents.remove(for: entity)
+        oreDepositComponents.remove(for: entity)
+        playerControlComponents.remove(for: entity)
+        positionComponents.remove(for: entity)
+        previousPositionComponents.remove(for: entity)
+        propulsionComponents.remove(for: entity)
+        renderableComponents.remove(for: entity)
+        rotationComponents.remove(for: entity)
+        scaleComponents.remove(for: entity)
+        selectableComponents.remove(for: entity)
+        selectionBoundsComponents.remove(for: entity)
+    }
+
+    private func addPositionComponent(
+        for entity: Entity,
+        from state: Entity.InitialState,
+        orbitalPosition: SIMD3<Double>?
+    ) {
         precondition(
             state.position == nil || entity is Positionable,
             "Initial state.position requires Positionable conformance"
@@ -172,7 +257,7 @@ class World {
             return
         }
 
-        let position = PositionComponent(position: state.position ?? .zero)
+        let position = PositionComponent(position: orbitalPosition ?? state.position ?? .zero)
         positionComponents.insert(position, for: entity.id)
     }
 
@@ -249,43 +334,68 @@ class World {
     }
 
     private func addCargoComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isCargoCarrying = entity is CargoCarrying
         precondition(
-            (state.cargo != nil) == (entity is CargoCarrying),
-            "InitialState.cargo must be present exactly when the entity conforms to CargoCarrying."
+            (state.cargoCapacity != nil) == isCargoCarrying &&
+                (state.cargoOre != nil) == isCargoCarrying,
+            "CargoCarrying requires cargo capacity and ore; other entities must omit both."
         )
-        guard let cargo = state.cargo else {
+        guard let cargoCapacity = state.cargoCapacity, let cargoOre = state.cargoOre else {
             return
         }
-        cargoComponents.insert(cargo, for: entity.id)
+        cargoComponents.insert(
+            CargoComponent(capacity: cargoCapacity, ore: cargoOre),
+            for: entity.id
+        )
     }
 
     private func addCollisionComponents(for entity: Entity, from state: Entity.InitialState) {
         let isCollidable = entity is Collidable
         precondition(
-            (state.collisionBody != nil) == isCollidable,
-            "InitialState.collisionBody must be present exactly when the entity conforms to Collidable."
+            (state.collisionRadius != nil) == isCollidable &&
+                (state.collisionRestitution != nil) == isCollidable,
+            "Collidable requires collision radius and restitution; other entities must omit both."
         )
-        precondition(
-            (state.previousPosition != nil) == isCollidable,
-            "InitialState.previousPosition must be present exactly when the entity conforms to Collidable."
-        )
-        guard let collisionBody = state.collisionBody,
-              let previousPosition = state.previousPosition else {
+        guard let collisionRadius = state.collisionRadius,
+              let collisionRestitution = state.collisionRestitution else {
             return
         }
-        collisionBodyComponents.insert(collisionBody, for: entity.id)
-        previousPositionComponents.insert(previousPosition, for: entity.id)
+        guard let position = positionComponents[entity.id]?.position else {
+            preconditionFailure("A collidable entity requires its resolved position before collision registration.")
+        }
+        collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: collisionRadius, restitution: collisionRestitution),
+            for: entity.id
+        )
+        previousPositionComponents.insert(PreviousPositionComponent(position: position), for: entity.id)
     }
 
     private func addDepotServiceComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isDepotServicing = entity is DepotServicing
         precondition(
-            (state.depotService != nil) == (entity is DepotServicing),
-            "InitialState.depotService must be present exactly when the entity conforms to DepotServicing."
+            (state.depotUnloadingRate != nil) == isDepotServicing &&
+                (state.depotRefuelingRate != nil) == isDepotServicing,
+            "DepotServicing requires unloading and refueling rates; other entities must omit both."
         )
-        guard let depotService = state.depotService else {
+        guard let depotUnloadingRate = state.depotUnloadingRate,
+              let depotRefuelingRate = state.depotRefuelingRate else {
             return
         }
-        depotServiceComponents.insert(depotService, for: entity.id)
+        depotServiceComponents.insert(
+            DepotServiceComponent(
+                unloadingRate: depotUnloadingRate,
+                refuelingRate: depotRefuelingRate,
+                deliveredOre: 0
+            ),
+            for: entity.id
+        )
+    }
+
+    private func addDestructibleComponent(for entity: Entity) {
+        guard entity is Destructible else {
+            return
+        }
+        destructibleComponents.insert(DestructibleComponent(), for: entity.id)
     }
 
     private func addDisplayNameComponent(for entity: Entity, from state: Entity.InitialState) {
@@ -296,145 +406,247 @@ class World {
         guard let displayName = state.displayName else {
             return
         }
-        displayNameComponents.insert(displayName, for: entity.id)
+        displayNameComponents.insert(DisplayNameComponent(value: displayName), for: entity.id)
     }
 
     private func addFuelComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isFueled = entity is Fueled
         precondition(
-            (state.fuel != nil) == (entity is Fueled),
-            "InitialState.fuel must be present exactly when the entity conforms to Fueled."
+            (state.fuelCapacity != nil) == isFueled &&
+                (state.fuelRemaining != nil) == isFueled,
+            "Fueled requires fuel capacity and remaining fuel; other entities must omit both."
         )
-        guard let fuel = state.fuel else {
+        guard let fuelCapacity = state.fuelCapacity, let fuelRemaining = state.fuelRemaining else {
             return
         }
-        fuelComponents.insert(fuel, for: entity.id)
+        fuelComponents.insert(
+            FuelComponent(capacity: fuelCapacity, remaining: fuelRemaining),
+            for: entity.id
+        )
     }
 
-    private func addGravityReceiverComponent(for entity: Entity, from state: Entity.InitialState) {
-        precondition(
-            (state.gravityReceiver != nil) == (entity is GravityAffected),
-            "InitialState.gravityReceiver must be present exactly when the entity conforms to GravityAffected."
-        )
-        guard let gravityReceiver = state.gravityReceiver else {
+    private func addGravityReceiverComponent(for entity: Entity) {
+        guard entity is GravityAffected else {
             return
         }
-        gravityReceiverComponents.insert(gravityReceiver, for: entity.id)
+        gravityReceiverComponents.insert(GravityReceiverComponent(), for: entity.id)
     }
 
     private func addGravitySourceComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.gravitySource != nil) == (entity is GravitySource),
-            "InitialState.gravitySource must be present exactly when the entity conforms to GravitySource."
+            (state.gravitationalParameter != nil) == (entity is GravitySource),
+            "InitialState.gravitationalParameter must be present exactly when the entity conforms to GravitySource."
         )
-        guard let gravitySource = state.gravitySource else {
+        guard let gravitationalParameter = state.gravitationalParameter else {
             return
         }
-        gravitySourceComponents.insert(gravitySource, for: entity.id)
+        gravitySourceComponents.insert(
+            GravitySourceComponent(gravitationalParameter: gravitationalParameter),
+            for: entity.id
+        )
     }
 
     private func addInteractionComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.interaction != nil) == (entity is Interactable),
-            "InitialState.interaction must be present exactly when the entity conforms to Interactable."
+            (state.interactionRange != nil) == (entity is Interactable),
+            "InitialState.interactionRange must be present exactly when the entity conforms to Interactable."
         )
-        guard let interaction = state.interaction else {
+        guard let interactionRange = state.interactionRange else {
             return
         }
-        interactionComponents.insert(interaction, for: entity.id)
+        interactionComponents.insert(InteractionComponent(interactionRange: interactionRange), for: entity.id)
     }
 
     private func addMassComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.mass != nil) == (entity is LiveMass),
-            "InitialState.mass must be present exactly when the entity conforms to LiveMass."
+            (state.dryMass != nil) == (entity is LiveMass),
+            "InitialState.dryMass must be present exactly when the entity conforms to LiveMass."
         )
-        guard let mass = state.mass else {
+        guard let dryMass = state.dryMass else {
             return
         }
-        massComponents.insert(mass, for: entity.id)
+        massComponents.insert(MassComponent(dryMass: dryMass), for: entity.id)
     }
 
     private func addMineableComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.mineable != nil) == (entity is Mineable),
-            "InitialState.mineable must be present exactly when the entity conforms to Mineable."
+            (state.miningRate != nil) == (entity is Mineable),
+            "InitialState.miningRate must be present exactly when the entity conforms to Mineable."
         )
-        guard let mineable = state.mineable else {
+        guard let miningRate = state.miningRate else {
             return
         }
-        mineableComponents.insert(mineable, for: entity.id)
+        mineableComponents.insert(MineableComponent(miningRate: miningRate), for: entity.id)
+    }
+
+    private func addFireableComponent(for entity: Entity) {
+        guard entity is Fireable else {
+            return
+        }
+        fireableComponents.insert(FireableComponent(), for: entity.id)
+    }
+
+    private func addOwnershipComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.ownerEntityID != nil) == (entity is Ownable),
+            "InitialState.ownerEntityID must be present exactly when the entity conforms to Ownable."
+        )
+        guard let ownerEntityID = state.ownerEntityID else {
+            return
+        }
+        ownershipComponents.insert(OwnershipComponent(ownerEntityID: ownerEntityID), for: entity.id)
+    }
+
+    private func addLifetimeComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.lifetime != nil) == (entity is Expirable),
+            "InitialState.lifetime must be present exactly when the entity conforms to Expirable."
+        )
+        guard let lifetime = state.lifetime else {
+            return
+        }
+        lifetimeComponents.insert(LifetimeComponent(remainingLifetime: lifetime), for: entity.id)
+    }
+
+    private func addMissileLauncherComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isMissileLaunching = entity is MissileLaunching
+        precondition(
+            (state.missileSpeed != nil) == isMissileLaunching &&
+                (state.missileLifetime != nil) == isMissileLaunching &&
+                (state.missileRadius != nil) == isMissileLaunching,
+            "MissileLaunching requires missile speed, lifetime, and radius; other entities must omit all three."
+        )
+        guard let missileSpeed = state.missileSpeed,
+              let missileLifetime = state.missileLifetime,
+              let missileRadius = state.missileRadius else {
+            return
+        }
+        missileLauncherComponents.insert(
+            MissileLauncherComponent(
+                speed: missileSpeed,
+                lifetime: missileLifetime,
+                radius: missileRadius
+            ),
+            for: entity.id
+        )
     }
 
     private func addOrbitCircularizationComponents(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.orbitPrimary != nil) == (entity is OrbitCircularizable),
-            "InitialState.orbitPrimary must be present exactly when the entity conforms to OrbitCircularizable."
+            (state.orbitPrimaryID != nil) == (entity is OrbitCircularizable),
+            "InitialState.orbitPrimaryID must be present exactly when the entity conforms to OrbitCircularizable."
         )
-        guard let orbitPrimary = state.orbitPrimary else {
+        guard let orbitPrimaryID = state.orbitPrimaryID else {
             return
         }
-        orbitPrimaryComponents.insert(orbitPrimary, for: entity.id)
+        orbitPrimaryComponents.insert(OrbitPrimaryComponent(primaryEntityID: orbitPrimaryID), for: entity.id)
         orbitCircularizationAutopilotComponents.insert(.idle, for: entity.id)
     }
 
-    private func addOrbitalRailComponent(for entity: Entity, from state: Entity.InitialState) {
+    private func resolveOrbitalRail(
+        for entity: Entity,
+        from state: Entity.InitialState
+    ) -> (component: OrbitalRailComponent, position: SIMD3<Double>)? {
+        let isOrbiting = entity is Orbiting
         precondition(
-            (state.orbitalRail != nil) == (entity is Orbiting),
-            "InitialState.orbitalRail must be present exactly when the entity conforms to Orbiting."
+            (state.orbitalPrimaryID != nil) == isOrbiting &&
+                (state.orbitalRadius != nil) == isOrbiting &&
+                (state.orbitalAngularSpeed != nil) == isOrbiting &&
+                (state.orbitalPhase != nil) == isOrbiting,
+            "Orbiting requires primary identity, radius, angular speed, and phase; other entities must omit all four."
         )
-        guard let orbitalRail = state.orbitalRail else {
-            return
+        guard let orbitalPrimaryID = state.orbitalPrimaryID,
+              let orbitalRadius = state.orbitalRadius,
+              let orbitalAngularSpeed = state.orbitalAngularSpeed,
+              let orbitalPhase = state.orbitalPhase else {
+            return nil
         }
-        orbitalRailComponents.insert(orbitalRail, for: entity.id)
+        precondition(!(entity is Movable), "An orbital rail cannot also use dynamically integrated motion.")
+        precondition(
+            state.position == nil &&
+                state.velocity == nil &&
+                state.accelerationIntent == nil &&
+                state.impulse == nil,
+            "An orbital rail derives its translational state; explicit position and motion seeds are not allowed."
+        )
+        precondition(
+            orbitalPrimaryID != entity.id,
+            "An orbital rail cannot use its own entity as its primary."
+        )
+        guard entitiesByID[orbitalPrimaryID] != nil,
+              let primaryPosition = positionComponents[orbitalPrimaryID]?.position else {
+            preconditionFailure("An orbital rail requires a registered primary with the complete supplied identity.")
+        }
+        precondition(primaryPosition.isFinite, "An orbital rail primary position must be finite.")
+
+        var component = OrbitalRailComponent(
+            primaryEntityID: orbitalPrimaryID,
+            radius: orbitalRadius,
+            angularSpeed: orbitalAngularSpeed,
+            phase: orbitalPhase,
+            elapsedTime: 0,
+            velocity: .zero
+        )
+        let initialOrbit = component.state(relativeTo: primaryPosition)
+        precondition(
+            initialOrbit.position.isFinite && initialOrbit.velocity.isFinite,
+            "An orbital rail must resolve a finite initial position and velocity."
+        )
+        component.velocity = initialOrbit.velocity
+        return (component, initialOrbit.position)
     }
 
     private func addOreDepositComponent(for entity: Entity, from state: Entity.InitialState) {
         precondition(
-            (state.oreDeposit != nil) == (entity is OreContaining),
-            "InitialState.oreDeposit must be present exactly when the entity conforms to OreContaining."
+            (state.remainingOre != nil) == (entity is OreContaining),
+            "InitialState.remainingOre must be present exactly when the entity conforms to OreContaining."
         )
-        guard let oreDeposit = state.oreDeposit else {
+        guard let remainingOre = state.remainingOre else {
             return
         }
-        oreDepositComponents.insert(oreDeposit, for: entity.id)
+        oreDepositComponents.insert(OreDepositComponent(remainingOre: remainingOre), for: entity.id)
     }
 
-    private func addPlayerControlComponent(for entity: Entity, from state: Entity.InitialState) {
-        precondition(
-            (state.playerControl != nil) == (entity is PlayerControlled),
-            "InitialState.playerControl must be present exactly when the entity conforms to PlayerControlled."
-        )
-        guard let playerControl = state.playerControl else {
+    private func addPlayerControlComponent(for entity: Entity) {
+        guard entity is PlayerControlled else {
             return
         }
-        playerControlComponents.insert(playerControl, for: entity.id)
+        playerControlComponents.insert(
+            PlayerControlComponent(translation: .zero, interactionState: .inactive, isFireRequested: false),
+            for: entity.id
+        )
     }
 
     private func addPropulsionComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isPropelled = entity is Propelled
         precondition(
-            (state.propulsion != nil) == (entity is Propelled),
-            "InitialState.propulsion must be present exactly when the entity conforms to Propelled."
+            (state.maximumThrust != nil) == isPropelled &&
+                (state.exhaustVelocity != nil) == isPropelled,
+            "Propelled requires maximum thrust and exhaust velocity; other entities must omit both."
         )
-        guard let propulsion = state.propulsion else {
+        guard let maximumThrust = state.maximumThrust, let exhaustVelocity = state.exhaustVelocity else {
             return
         }
-        propulsionComponents.insert(propulsion, for: entity.id)
+        propulsionComponents.insert(
+            PropulsionComponent(maximumThrust: maximumThrust, exhaustVelocity: exhaustVelocity),
+            for: entity.id
+        )
     }
 
     private func addRenderableComponent(for entity: Entity, from state: Entity.InitialState) {
+        let isRenderable = entity is Renderable
         precondition(
-            (state.renderable != nil) == (entity is Renderable),
-            "InitialState.renderable must be present exactly when the entity conforms to Renderable."
+            (state.meshID != nil) == isRenderable &&
+                (state.materialID != nil) == isRenderable,
+            "Renderable requires mesh and material identities; other entities must omit both."
         )
-        guard let renderableState = state.renderable else {
+        guard let meshID = state.meshID, let materialID = state.materialID else {
             return
         }
-
-        let renderable = RenderableComponent(
-            meshID: renderableState.meshID,
-            materialID: renderableState.materialID
+        renderableComponents.insert(
+            RenderableComponent(meshID: meshID, materialID: materialID),
+            for: entity.id
         )
-        renderableComponents.insert(renderable, for: entity.id)
     }
 
     private func addSelectionComponents(for entity: Entity, from state: Entity.InitialState) {
@@ -444,10 +656,10 @@ class World {
             "Initial state.selectionState requires Selectable conformance"
         )
         precondition(
-            (state.selectionBounds != nil) == isSelectable,
-            "InitialState.selectionBounds must be present exactly when the entity conforms to Selectable."
+            (state.selectionRadius != nil) == isSelectable,
+            "InitialState.selectionRadius must be present exactly when the entity conforms to Selectable."
         )
-        guard let selectionBounds = state.selectionBounds else {
+        guard let selectionRadius = state.selectionRadius else {
             return
         }
 
@@ -456,7 +668,7 @@ class World {
             : state.selectionState ?? .unselected
         let selectable = SelectableComponent(selectionState: selectionState)
         selectableComponents.insert(selectable, for: entity.id)
-        selectionBoundsComponents.insert(selectionBounds, for: entity.id)
+        selectionBoundsComponents.insert(SelectionBoundsComponent(radius: selectionRadius), for: entity.id)
     }
 
     private func register(_ entity: Entity) {
@@ -468,13 +680,14 @@ class World {
             return
         }
         entitiesByID[entity.id] = entity
+        reservedEntityIDs.remove(entity.id)
     }
 
+    /// Reserves a fresh identity without reusing a destroyed entity's index.
     func reserveEntityID() -> EntityID {
-        // Until entity destruction exists, each reservation consumes a fresh
-        // index so entity identities never alias a previous live row.
         let entityID = EntityID(index: nextEntityIndex, generation: 0)
         nextEntityIndex += 1
+        reservedEntityIDs.insert(entityID)
         return entityID
     }
 }

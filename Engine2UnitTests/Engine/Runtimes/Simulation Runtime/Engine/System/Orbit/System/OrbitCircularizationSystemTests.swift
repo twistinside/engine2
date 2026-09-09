@@ -125,7 +125,7 @@ struct OrbitCircularizationSystemTests {
             for: entity
         )
         world.playerControlComponents.insert(
-            PlayerControlComponent(translation: SIMD2<Double>(1, -1)),
+            PlayerControlComponent(translation: SIMD2<Double>(1, -1), isFireRequested: false),
             for: entity
         )
 

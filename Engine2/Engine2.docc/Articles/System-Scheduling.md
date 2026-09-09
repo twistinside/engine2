@@ -56,9 +56,9 @@ mining behavior at `worldPreparation`.
 | Stage | Systems in declaration order |
 | --- | --- |
 | `inputConsumption` | ``PlanarSelectionSystem``, ``SelectedEntityControlSystem``, ``OrbitCircularizationSystem`` |
-| `worldPreparation` | ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
+| `worldPreparation` | ``MissileLaunchSystem``, ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
 | `forceContribution` | ``GravitySystem``, ``OrbitCircularizationAutopilotSystem``, ``FlightControlSystem`` |
-| `postMovement` | ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
+| `postMovement` | ``FireableImpactSystem``, ``LifetimeSystem``, ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
 | `prePresentation` | None |
 
 The circularization system consumes and clears the one-shot command before
@@ -71,10 +71,27 @@ contribution together instead of replacing velocity atomically.
 
 ``MiningInteractionSystem`` joins the shared ``InteractionComponent`` range
 with mining- or depot-specific component rows. The star is the sole gravity
-source, and only the skiff is dynamically integrated. The six asteroids and
-depot use analytic rails. Mining's camera policy orbits about the Z normal of
+source. The skiff and its missiles are dynamically integrated; surviving
+asteroids and the depot use analytic rails. Mining's camera policy orbits about the Z normal of
 the XY gameplay plane, and flight control normalizes the camera's projected
 planar axes before interpreting translation.
+
+``MissileLaunchSystem`` consumes each selected launcher's fire request and
+constructs missiles before collision baselines are captured. Missiles therefore
+move and participate in swept impact checks on their first tick.
+``FireableImpactSystem`` resolves the earliest solid impact for each fired
+collision body, excluding its owner and other fired bodies. It collects the
+participants marked destructible and removes them through ``World/destroy(_:)``.
+Ownership, lifetime, and destructibility are independent rows; the impact system
+does not require a missile entity type.
+
+``LifetimeSystem`` then advances every lifetime row and removes expired entities,
+including entities without collision or fired-body capabilities. Impacts run
+before expiry, with both swept paths clipped to the shorter remaining lifetime
+when either participant expires. Contacts compare elapsed tick time, so different
+expiry times cannot change which contact occurs first. Fired bodies stay
+outside ordinary bounce handling. Bounce and mining interactions run after both
+impact removal and expiry.
 
 A future perturbation feature needs an explicit rail-to-dynamics transition. A
 body must not receive rail placement and dynamic integration in the same tick.

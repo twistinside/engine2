@@ -11,6 +11,7 @@ nonisolated enum InputConsumptionBaseline: Equatable, Sendable {
         revision: InputRevision,
         cameraOrbitTotal: SIMD2<Float>,
         cameraZoomTotal: Float,
-        selectionPressCount: UInt64
+        selectionPressCount: UInt64,
+        firePressCount: UInt64
     )
 }

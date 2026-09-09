@@ -2,12 +2,11 @@ import simd
 
 /// Finite-ore body that follows one deterministic circular rail.
 final class Asteroid: Entity, DisplayNamed, Scalable, Renderable, Selectable,
-    Orbiting, Collidable, OreContaining, Mineable {
-    convenience init(
+    Orbiting, Mineable, Collidable, Destructible {
+    init(
         in world: World,
         name: String,
         primaryEntityID: EntityID,
-        primaryPosition: SIMD3<Double>,
         orbitalRadius: Double,
         angularSpeed: Double,
         phase: Double,
@@ -17,33 +16,23 @@ final class Asteroid: Entity, DisplayNamed, Scalable, Renderable, Selectable,
         miningRate: Double,
         materialID: MaterialID
     ) {
-        var rail = OrbitalRailComponent(
-            primaryEntityID: primaryEntityID,
-            radius: orbitalRadius,
-            angularSpeed: angularSpeed,
-            phase: phase
-        )
-        let initialOrbitState = rail.state(relativeTo: primaryPosition)
-        rail.velocity = initialOrbitState.velocity
-
-        self.init(unregisteredID: world.reserveEntityID(), in: world)
         let initialState = Entity.InitialState(
-            position: initialOrbitState.position,
             scale: SIMD3<Float>(repeating: Float(physicalRadius)),
             selectionState: .unselected,
-            collisionBody: CollisionBodyComponent(radius: physicalRadius, restitution: 0.35),
-            displayName: DisplayNameComponent(value: name),
-            interaction: InteractionComponent(interactionRange: interactionRange),
-            mineable: MineableComponent(miningRate: miningRate),
-            orbitalRail: rail,
-            oreDeposit: OreDepositComponent(remainingOre: ore),
-            previousPosition: PreviousPositionComponent(position: initialOrbitState.position),
-            renderable: RenderableInitialState(
-                meshID: .ball,
-                materialID: materialID
-            ),
-            selectionBounds: SelectionBoundsComponent(radius: physicalRadius)
+            collisionRadius: physicalRadius,
+            collisionRestitution: 0.35,
+            displayName: name,
+            interactionRange: interactionRange,
+            miningRate: miningRate,
+            orbitalPrimaryID: primaryEntityID,
+            orbitalRadius: orbitalRadius,
+            orbitalAngularSpeed: angularSpeed,
+            orbitalPhase: phase,
+            remainingOre: ore,
+            meshID: .ball,
+            materialID: materialID,
+            selectionRadius: physicalRadius
         )
-        world.add(self, from: initialState)
+        super.init(in: world, from: initialState)
     }
 }

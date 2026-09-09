@@ -1,9 +1,9 @@
 import simd
 
-/// Player-controlled dynamic craft for mining, hauling, and depot service.
+/// Player-controlled dynamic craft for mining, missile fire, hauling, and depot service.
 final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
-    CargoCarrying, PlayerControlled, OrbitCircularizable {
-    convenience init(
+    CargoCarrying, PlayerControlled, OrbitCircularizable, MissileLaunching {
+    init(
         in world: World,
         name: String,
         primaryEntityID: EntityID,
@@ -15,33 +15,34 @@ final class MiningSkiff: Entity, DisplayNamed, Scalable, Renderable, Selectable,
         cargoCapacity: Double,
         maximumThrust: Double,
         exhaustVelocity: Double,
+        missileSpeed: Double,
+        missileLifetime: Double,
+        missileRadius: Double,
         materialID: MaterialID
     ) {
-        self.init(unregisteredID: world.reserveEntityID(), in: world)
         let initialState = Entity.InitialState(
             position: position,
             velocity: velocity,
             scale: SIMD3<Float>(repeating: Float(physicalRadius)),
             selectionState: .selected,
-            cargo: CargoComponent(capacity: cargoCapacity),
-            collisionBody: CollisionBodyComponent(radius: physicalRadius, restitution: 0.35),
-            displayName: DisplayNameComponent(value: name),
-            fuel: FuelComponent(capacity: fuelCapacity, remaining: fuelCapacity),
-            gravityReceiver: GravityReceiverComponent(),
-            mass: MassComponent(dryMass: dryMass),
-            orbitPrimary: OrbitPrimaryComponent(primaryEntityID: primaryEntityID),
-            playerControl: PlayerControlComponent(),
-            previousPosition: PreviousPositionComponent(position: position),
-            propulsion: PropulsionComponent(
-                maximumThrust: maximumThrust,
-                exhaustVelocity: exhaustVelocity
-            ),
-            renderable: RenderableInitialState(
-                meshID: .ball,
-                materialID: materialID
-            ),
-            selectionBounds: SelectionBoundsComponent(radius: physicalRadius)
+            cargoCapacity: cargoCapacity,
+            cargoOre: 0,
+            collisionRadius: physicalRadius,
+            collisionRestitution: 0.35,
+            displayName: name,
+            fuelCapacity: fuelCapacity,
+            fuelRemaining: fuelCapacity,
+            dryMass: dryMass,
+            missileSpeed: missileSpeed,
+            missileLifetime: missileLifetime,
+            missileRadius: missileRadius,
+            orbitPrimaryID: primaryEntityID,
+            maximumThrust: maximumThrust,
+            exhaustVelocity: exhaustVelocity,
+            meshID: .ball,
+            materialID: materialID,
+            selectionRadius: physicalRadius
         )
-        world.add(self, from: initialState)
+        super.init(in: world, from: initialState)
     }
 }

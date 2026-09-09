@@ -23,7 +23,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(0.4, 0),
             cameraZoomTotal: 1.2,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -62,7 +63,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(.nan, .infinity),
             cameraZoomTotal: -.infinity,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -136,7 +138,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(3, -2),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -161,7 +164,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(1, 0),
             cameraZoomTotal: 1.6,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.replaceWorld(with: replacement, inputBaseline: baseline)
@@ -187,7 +191,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(1, 0),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
         engine.step(inputSnapshot: initialSnapshot)
 
@@ -212,7 +217,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(0.1, 0),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
         engine.step(inputSnapshot: replacementSnapshot)
 

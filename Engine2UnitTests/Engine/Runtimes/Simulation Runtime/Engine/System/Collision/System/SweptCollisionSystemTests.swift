@@ -21,6 +21,20 @@ struct SweptCollisionSystemTests {
         #expect(world.motionComponents[skiff]?.velocity == SIMD3<Double>(-7, 0, 0))
     }
 
+    @Test func missilesDoNotBounceOrPushDynamicBodies() {
+        var scene = MissileTestScene(velocity: .zero)
+        let missile = scene.missile(at: SIMD3<Double>(-10, 0, 0), velocity: SIMD3<Double>(20, 0, 0), lifetime: 5)
+        scene.move(deltaTime: 1)
+
+        var system = SweptCollisionSystem()
+        system.update(world: &scene.world, deltaTime: 1)
+
+        #expect(scene.skiff.position == .zero)
+        #expect(scene.skiff.velocity == .zero)
+        #expect(missile.position == SIMD3<Double>(10, 0, 0))
+        #expect(missile.velocity == SIMD3<Double>(20, 0, 0))
+    }
+
     @Test func railVelocityParticipatesInRelativeBounce() {
         var world = World()
         let star = EntityID(index: 0, generation: 0)

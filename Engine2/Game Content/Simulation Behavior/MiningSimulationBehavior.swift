@@ -8,6 +8,7 @@ struct MiningSimulationBehavior: SimulationBehavior {
                 OrbitCircularizationSystem(),
             ],
             worldPreparation: [
+                MissileLaunchSystem(),
                 PreviousPositionCaptureSystem(),
                 OrbitalRailSystem(),
             ],
@@ -17,6 +18,8 @@ struct MiningSimulationBehavior: SimulationBehavior {
                 FlightControlSystem(targetSpeed: 90, responseTime: 2),
             ],
             postMovement: [
+                FireableImpactSystem(),
+                LifetimeSystem(),
                 SweptCollisionSystem(),
                 MiningInteractionSystem(),
                 CameraFollowSystem(),

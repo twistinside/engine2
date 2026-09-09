@@ -66,11 +66,43 @@ builder; the Runtime does not discover content through a global registry. See
 ``EntityID`` allocation, and the live-facade registry. It is not the scheduler and
 does not decide when Simulation advances.
 
-Concrete entity constructors assemble one `Entity.InitialState` and call
-``World/add(_:from:)``. The World accepts foundational seeds only for advertised
-capabilities and requires each specialized seed exactly when its capability is
-advertised. It then performs every construction-time component-store write and
-registers the facade. Entity facades do not insert rows directly.
+Each concrete entity has a designated initializer for its authored spawn
+values. It assembles one flat `Entity.InitialState` from scalar and SIMD
+values, enums, and typed identities, then calls `super.init(in:from:)`.
+Initial state contains no intermediate seed structures or component instances.
+The base Entity initializer reserves the identity and calls
+``World/add(_:from:)``, which validates the facts against advertised
+capabilities, constructs the components, and performs every construction-time
+store write. Every specialized capability requires all of its authored fields;
+a renderable entity, for example, must supply both mesh and material identities.
+
+The World derives capability markers and neutral player control from the
+facade's conformances. Every collision body receives a previous position equal
+to its resolved spawn position. Depot delivery totals start at zero, and an
+expirable entity's remaining lifetime starts from its authored duration.
+Ownership and lifetime remain separate authored values.
+
+An ``Orbiting`` entity supplies its complete rail placement through four fields:
+
+```swift
+let initialState = Entity.InitialState(
+    orbitalPrimaryID: star.id,
+    orbitalRadius: 1_800,
+    orbitalAngularSpeed: 0.001,
+    orbitalPhase: 0.35
+)
+```
+
+The World resolves the complete primary identity to a live positioned entity,
+then derives the rail's initial position and velocity. A missing, stale, or
+nonfinite primary position fails registration. An orbital rail cannot be
+combined with explicit position or translational motion seeds. Game Content
+therefore supplies neither a duplicate primary position nor a calculated rail
+position.
+
+Registration returns a complete entity ready for the initial presentation.
+Systems evolve that state on later ticks; no bootstrap tick repairs an
+incomplete spawn.
 
 Capability composition supplies shared invariants. ``Renderable`` refines
 ``Positionable``. ``Selectable`` refines ``Positionable`` and requires a
@@ -81,6 +113,19 @@ selection row plus a positive spherical hit bound. ``Interactable`` refines
 provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
+
+``World/destroy(_:)`` removes a registered facade and all its component rows,
+then clears selection, camera follow, and any pending orbit command targeting
+that identity. Unknown or stale identities leave the World unchanged.
+``ComponentStore/remove(for:)`` compacts dense storage and repairs the moved
+row's sparse lookup. Existing presentation snapshots remain unchanged; the next
+completed snapshot omits destroyed entities. First registration requires an
+outstanding World reservation, so a destroyed facade cannot register again.
+
+Systems collect structural work before applying it. A launch system constructs
+typed entities through ``World/add(_:from:)`` after collecting its launch
+requests; an impact system collects destruction identities before removing
+rows. Later systems in the same complete tick observe those changes.
 
 ### Systems
 
@@ -129,7 +174,24 @@ orbit assistance. ``MassComponent`` derives live mass from dry mass plus the
 current fuel and cargo rows; ``LiveMass`` exposes the same projection through a
 facade.
 
-Six asteroids and one depot follow deterministic circular rails. During
+The selected skiff can fire a missile with M. A cumulative semantic fire press
+becomes a one-tick control request. ``MissileLaunchSystem`` constructs a visible,
+dynamically integrated missile aimed at the nearest destructible asteroid,
+leading its current velocity and excluding fired bodies from target selection.
+``Missile`` composes reusable ``Ownable``, ``Expirable``, ``Fireable``, and
+``Destructible`` capabilities with movement, collision, scale, and rendering.
+Ownership and lifetime have separate component rows; destructibility does not
+require collision capability.
+
+``FireableImpactSystem`` joins fired-body and collision rows with optional
+ownership and lifetime rows. It tests relative swept motion, ignores the owner
+and other fired bodies, and removes only participants marked destructible.
+``LifetimeSystem`` independently expires any entity with a lifetime row.
+Impact checks run first and clip both paths to the time both bodies still exist,
+preserving hits during the final partial interval before expiry removes either body.
+The skiff retains its existing held Space action for mining and depot service.
+
+Six asteroids and one depot initially follow deterministic circular rails. During
 `worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep
 baselines and ``OrbitalRailSystem`` updates rail positions and velocities.
 ``OrbitCircularizationSystem`` consumes the one-shot command during
@@ -202,12 +264,12 @@ snapshot, and several ticks may complete before the next draw.
 
 ## Current Limits
 
-- ``EntityID`` reservation is monotonic with generation zero. Destruction,
-  component removal, dense compaction, generation incrementing, and index reuse
-  are not implemented.
+- ``EntityID`` reservation remains monotonic with generation zero. Destruction
+  and component removal compact dense storage; generation incrementing and index
+  reuse remain unimplemented.
 - Calling ``World/add(_:from:)`` again with the same live facade reseeds its
   rows. Registering a different facade for that identity fails a precondition;
-  broader entity lifecycle APIs are not implemented.
+  destroyed facades cannot be registered again.
 - ``World`` has a fixed store list and a fixed capability-to-seed translation.
   External consumer-defined component storage is not supported.
 - Systems execute one flat ordered list with controlled Game Content insertion

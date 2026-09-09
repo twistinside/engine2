@@ -1016,7 +1016,8 @@ struct RealtimeAdvanceDriverTests {
             cameraOrbitTotal: cameraOrbitTotal,
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
     }
 

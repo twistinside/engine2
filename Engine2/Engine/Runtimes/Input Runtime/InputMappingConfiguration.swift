@@ -13,6 +13,7 @@ nonisolated struct InputMappingConfiguration: Equatable, Sendable {
         upwardKeyCodes: [13, 126],
         downwardKeyCodes: [1, 125],
         interactionKeyCodes: [49],
+        fireKeyCodes: [46],
         selectionButton: .left,
         pointerOrbitSensitivity: 0.01,
         scrollZoomSensitivity: 0.04
@@ -25,6 +26,7 @@ nonisolated struct InputMappingConfiguration: Equatable, Sendable {
         upwardKeyCodes: [13, 126],
         downwardKeyCodes: [1, 125],
         interactionKeyCodes: [49],
+        fireKeyCodes: [46],
         selectionButton: .left,
         pointerOrbitSensitivity: 0.01,
         scrollZoomSensitivity: 4
@@ -35,6 +37,7 @@ nonisolated struct InputMappingConfiguration: Equatable, Sendable {
     let upwardKeyCodes: Set<UInt16>
     let downwardKeyCodes: Set<UInt16>
     let interactionKeyCodes: Set<UInt16>
+    let fireKeyCodes: Set<UInt16>
     let selectionButton: MouseButton
     let pointerOrbitSensitivity: Float
     let scrollZoomSensitivity: Float
@@ -45,6 +48,7 @@ nonisolated struct InputMappingConfiguration: Equatable, Sendable {
         upwardKeyCodes: Set<UInt16>,
         downwardKeyCodes: Set<UInt16>,
         interactionKeyCodes: Set<UInt16>,
+        fireKeyCodes: Set<UInt16>,
         selectionButton: MouseButton,
         pointerOrbitSensitivity: Float,
         scrollZoomSensitivity: Float
@@ -57,6 +61,7 @@ nonisolated struct InputMappingConfiguration: Equatable, Sendable {
         self.upwardKeyCodes = upwardKeyCodes
         self.downwardKeyCodes = downwardKeyCodes
         self.interactionKeyCodes = interactionKeyCodes
+        self.fireKeyCodes = fireKeyCodes
         self.selectionButton = selectionButton
         self.pointerOrbitSensitivity = pointerOrbitSensitivity
         self.scrollZoomSensitivity = scrollZoomSensitivity
