@@ -2,6 +2,53 @@ import Testing
 @testable import Engine2
 
 struct SweptCollisionSystemTests {
+    @Test func pendingRemovalBodyRetainsItsMotionWithoutBouncing() {
+        var world = World()
+        let body = EntityID(index: 0, generation: 0)
+        let obstacle = EntityID(index: 1, generation: 0)
+        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
+        world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
+        world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
+        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: body)
+        world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
+        world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
+        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: obstacle)
+        world.pendingRemovalComponents.insert(PendingRemovalComponent(), for: body)
+
+        var system = SweptCollisionSystem()
+        system.update(world: &world, deltaTime: 1)
+
+        #expect(world.positionComponents[body]?.position == SIMD3<Double>(10, 0, 0))
+        #expect(world.motionComponents[body]?.velocity == SIMD3<Double>(20, 0, 0))
+        #expect(world.collisionBodyComponents[body] != nil)
+        #expect(world.pendingRemovalComponents[body] != nil)
+    }
+
+    @Test func pendingRemovalObstacleDoesNotBlockALaterCollision() {
+        var world = World()
+        let body = EntityID(index: 0, generation: 0)
+        let pending = EntityID(index: 1, generation: 0)
+        let surviving = EntityID(index: 2, generation: 0)
+        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
+        world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
+        world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
+        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: body)
+        for (obstacle, position) in [(pending, SIMD3<Double>.zero), (surviving, SIMD3<Double>(5, 0, 0))] {
+            world.positionComponents.insert(PositionComponent(position: position), for: obstacle)
+            world.previousPositionComponents.insert(PreviousPositionComponent(position: position), for: obstacle)
+            world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: obstacle)
+        }
+        world.pendingRemovalComponents.insert(PendingRemovalComponent(), for: pending)
+
+        var system = SweptCollisionSystem()
+        system.update(world: &world, deltaTime: 1)
+
+        #expect(world.positionComponents[body]?.position == SIMD3<Double>(3, 0, 0))
+        #expect(world.motionComponents[body]?.velocity == SIMD3<Double>(-20, 0, 0))
+        #expect(world.collisionBodyComponents[pending] != nil)
+        #expect(world.pendingRemovalComponents[pending] != nil)
+    }
+
     @Test func detectsTunnelingAndBouncesWithConfiguredRestitution() {
         var world = World()
         let skiff = EntityID(index: 0, generation: 0)

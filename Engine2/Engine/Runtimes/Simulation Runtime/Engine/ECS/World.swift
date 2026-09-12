@@ -31,6 +31,7 @@ class World {
     var orbitPrimaryComponents = ComponentStore<OrbitPrimaryComponent>()
     var orbitalRailComponents = ComponentStore<OrbitalRailComponent>()
     var oreDepositComponents = ComponentStore<OreDepositComponent>()
+    var pendingRemovalComponents = ComponentStore<PendingRemovalComponent>()
     var playerControlComponents = ComponentStore<PlayerControlComponent>()
     var positionComponents = ComponentStore<PositionComponent>()
     var previousPositionComponents = ComponentStore<PreviousPositionComponent>()
@@ -45,6 +46,7 @@ class World {
     var camera = Camera.standard
     var cameraFollowEntityID: EntityID?
     var input = InputState()
+    var fireableCollisions: [FireableCollision] = []
     var orbitCircularizationCommand: OrbitCircularizationCommand?
     private(set) var selectedEntityID: EntityID?
 
@@ -118,8 +120,7 @@ class World {
             entitiesByID[entity.id] === entity || reservedEntityIDs.contains(entity.id),
             "An entity requires a reserved identity or its existing live registration."
         )
-        let orbitalRail = resolveOrbitalRail(for: entity, from: state)
-        addPositionComponent(for: entity, from: state, orbitalPosition: orbitalRail?.position)
+        addPositionComponent(for: entity, from: state)
         addMotionComponent(for: entity, from: state)
         addRotationComponent(for: entity, from: state)
         addAngularMotionComponents(for: entity, from: state)
@@ -140,9 +141,7 @@ class World {
         addLifetimeComponent(for: entity, from: state)
         addMissileLauncherComponent(for: entity, from: state)
         addOrbitCircularizationComponents(for: entity, from: state)
-        if let orbitalRail {
-            orbitalRailComponents.insert(orbitalRail.component, for: entity.id)
-        }
+        addOrbitalRailComponent(for: entity, from: state)
         addOreDepositComponent(for: entity, from: state)
         addPlayerControlComponent(for: entity)
         addPropulsionComponent(for: entity, from: state)
@@ -155,12 +154,28 @@ class World {
         return entity.id
     }
 
+    /// Marks one live entity for collection after all gameplay and effects systems finish.
+    ///
+    /// Repeated marks are harmless. Unknown or stale identities cannot mark a live generation.
+    /// Component rows and live references remain intact until EntityRemovalSystem collects them.
+    @discardableResult
+    func markForRemoval(_ entity: EntityID) -> Bool {
+        guard entitiesByID[entity] != nil else {
+            return false
+        }
+        if pendingRemovalComponents[entity] == nil {
+            pendingRemovalComponents.insert(PendingRemovalComponent(), for: entity)
+        }
+        return true
+    }
+
     /// Removes one registered entity and every component row it owns.
     ///
     /// Unknown or stale identities return `false` without changing live state.
     /// Destruction clears resources targeting the entity and removes it from
     /// subsequent presentations. Previously published snapshots remain valid.
-    /// Systems must collect identities before destruction can compact stores.
+    /// Scheduled gameplay marks entities with markForRemoval(_:); EntityRemovalSystem owns final collection.
+    /// Callers performing immediate destruction must collect identities before this operation compacts stores.
     @discardableResult
     func destroy(_ entity: EntityID) -> Bool {
         guard entitiesByID.removeValue(forKey: entity) != nil else {
@@ -233,6 +248,7 @@ class World {
         orbitPrimaryComponents.remove(for: entity)
         orbitalRailComponents.remove(for: entity)
         oreDepositComponents.remove(for: entity)
+        pendingRemovalComponents.remove(for: entity)
         playerControlComponents.remove(for: entity)
         positionComponents.remove(for: entity)
         previousPositionComponents.remove(for: entity)
@@ -244,11 +260,8 @@ class World {
         selectionBoundsComponents.remove(for: entity)
     }
 
-    private func addPositionComponent(
-        for entity: Entity,
-        from state: Entity.InitialState,
-        orbitalPosition: SIMD3<Double>?
-    ) {
+    private func addPositionComponent(for entity: Entity, from state: Entity.InitialState) {
+        let orbitalRail = resolveOrbitalRail(for: entity, from: state)
         precondition(
             state.position == nil || entity is Positionable,
             "Initial state.position requires Positionable conformance"
@@ -257,7 +270,7 @@ class World {
             return
         }
 
-        let position = PositionComponent(position: orbitalPosition ?? state.position ?? .zero)
+        let position = PositionComponent(position: orbitalRail?.position ?? state.position ?? .zero)
         positionComponents.insert(position, for: entity.id)
     }
 
@@ -541,6 +554,13 @@ class World {
         }
         orbitPrimaryComponents.insert(OrbitPrimaryComponent(primaryEntityID: orbitPrimaryID), for: entity.id)
         orbitCircularizationAutopilotComponents.insert(.idle, for: entity.id)
+    }
+
+    private func addOrbitalRailComponent(for entity: Entity, from state: Entity.InitialState) {
+        guard let orbitalRail = resolveOrbitalRail(for: entity, from: state) else {
+            return
+        }
+        orbitalRailComponents.insert(orbitalRail.component, for: entity.id)
     }
 
     private func resolveOrbitalRail(

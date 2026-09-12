@@ -8,8 +8,25 @@ struct FireableImpactSystemTests {
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        #expect(scene.world.entity(for: asteroid.id) === asteroid)
+        #expect(scene.world.entity(for: missile.id) === missile)
+        #expect(scene.world.pendingRemovalComponents.entities.isEmpty)
+
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        #expect(scene.world.entity(for: asteroid.id) === asteroid)
+        #expect(scene.world.entity(for: missile.id) === missile)
+        #expect(scene.world.pendingRemovalComponents[asteroid.id] != nil)
+        #expect(scene.world.pendingRemovalComponents[missile.id] != nil)
+        #expect(scene.world.renderableComponents[asteroid.id] != nil)
+        #expect(scene.world.renderableComponents[missile.id] != nil)
+        #expect(scene.world.collisionBodyComponents[asteroid.id] != nil)
+        #expect(scene.world.fireableComponents[missile.id] != nil)
+
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: missile.id) == nil)
@@ -27,8 +44,12 @@ struct FireableImpactSystemTests {
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: missile.id) == nil)
         #expect(scene.world.entity(for: depot.id) === depot)
@@ -44,8 +65,12 @@ struct FireableImpactSystemTests {
             position.position.y = -10
         }
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: missile.id) == nil)
@@ -58,8 +83,12 @@ struct FireableImpactSystemTests {
         _ = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: first.id) == nil)
         #expect(scene.world.entity(for: second.id) === second)
@@ -72,8 +101,12 @@ struct FireableImpactSystemTests {
         let second = scene.missile(at: .zero, velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: first.id) == nil)
@@ -86,8 +119,12 @@ struct FireableImpactSystemTests {
         let first = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
         let second = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: scene.skiff.id) === scene.skiff)
         #expect(scene.world.entity(for: first.id) === first)
@@ -102,8 +139,12 @@ struct FireableImpactSystemTests {
         let missile = scene.missile(at: .zero, velocity: SIMD3<Double>(100, 0, 0), lifetime: 0.5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: missile.id) == nil)
@@ -115,8 +156,12 @@ struct FireableImpactSystemTests {
         let missile = scene.missile(at: .zero, velocity: SIMD3<Double>(100, 0, 0), lifetime: 0.5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) === asteroid)
         #expect(scene.world.entity(for: missile.id) === missile)
@@ -124,6 +169,7 @@ struct FireableImpactSystemTests {
 
         var lifetimeSystem = LifetimeSystem()
         lifetimeSystem.update(world: &scene.world, deltaTime: 1)
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: missile.id) == nil)
     }
@@ -137,8 +183,12 @@ struct FireableImpactSystemTests {
             position.position.y = -50
         }
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: missile.id) == nil)
@@ -155,8 +205,12 @@ struct FireableImpactSystemTests {
         #expect(scene.world.ownershipComponents[fired.id] == nil)
         #expect(scene.world.lifetimeComponents[fired.id] == nil)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: fired.id) == nil)
@@ -171,8 +225,12 @@ struct FireableImpactSystemTests {
         )
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: fired.id) === fired)
@@ -189,8 +247,12 @@ struct FireableImpactSystemTests {
         )
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: fired.id) == nil)
         #expect(scene.world.entity(for: blocker.id) === blocker)
@@ -208,8 +270,12 @@ struct FireableImpactSystemTests {
             lifetime: 5
         )
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: missile.id) == nil)
         #expect(scene.world.entity(for: scene.skiff.id) === scene.skiff)
@@ -221,14 +287,19 @@ struct FireableImpactSystemTests {
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: target.id) === target)
         #expect(scene.world.entity(for: missile.id) === missile)
 
         var lifetimeSystem = LifetimeSystem()
         lifetimeSystem.update(world: &scene.world, deltaTime: 1)
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: target.id) == nil)
         #expect(scene.world.entity(for: missile.id) === missile)
@@ -241,8 +312,12 @@ struct FireableImpactSystemTests {
         let missile = scene.missile(at: .zero, velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: earlier.id) == nil)
         #expect(scene.world.entity(for: later.id) === later)
@@ -257,9 +332,58 @@ struct FireableImpactSystemTests {
             lifetime.remainingLifetime = 0
         }
 
-        var system = FireableImpactSystem()
-        system.update(world: &scene.world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &scene.world, deltaTime: 1)
 
+        #expect(scene.world.entity(for: missile.id) === missile)
+    }
+
+    @Test func responseUsesCapturedContactAfterParticipantsMoveApart() throws {
+        var scene = MissileTestScene(velocity: .zero)
+        let target = scene.asteroid(at: SIMD3<Double>(60, 0, 0), velocity: .zero)
+        let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
+        scene.move(deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &scene.world, deltaTime: 1)
+        let contact = try #require(scene.world.fireableCollisions.first)
+        scene.world.positionComponents.update(for: target.id) { position in
+            position.position = SIMD3<Double>(1_000, 1_000, 0)
+        }
+        scene.world.previousPositionComponents.update(for: target.id) { previous in
+            previous.position = SIMD3<Double>(1_000, 1_000, 0)
+        }
+        scene.world.lifetimeComponents.update(for: missile.id) { lifetime in
+            lifetime.remainingLifetime = 0
+        }
+
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+
+        #expect(scene.world.pendingRemovalComponents[target.id] != nil)
+        #expect(scene.world.pendingRemovalComponents[missile.id] != nil)
+        #expect(scene.world.entity(for: target.id) === target)
+        #expect(scene.world.entity(for: missile.id) === missile)
+        #expect(scene.world.fireableCollisions.count == 1)
+        #expect(scene.world.fireableCollisions.first?.entityID == contact.entityID)
+        #expect(scene.world.fireableCollisions.first?.targetEntityID == contact.targetEntityID)
+        #expect(scene.world.fireableCollisions.first?.tickFraction == contact.tickFraction)
+    }
+
+    @Test func responseDoesNotDiscoverUnrecordedOverlaps() {
+        var scene = MissileTestScene(velocity: .zero)
+        let target = scene.asteroid(at: SIMD3<Double>(10, 0, 0), velocity: .zero)
+        let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: .zero, lifetime: 5)
+
+        var response = FireableImpactSystem()
+        response.update(world: &scene.world, deltaTime: 1)
+
+        #expect(scene.world.fireableCollisions.isEmpty)
+        #expect(scene.world.pendingRemovalComponents.entities.isEmpty)
+        #expect(scene.world.entity(for: target.id) === target)
         #expect(scene.world.entity(for: missile.id) === missile)
     }
 

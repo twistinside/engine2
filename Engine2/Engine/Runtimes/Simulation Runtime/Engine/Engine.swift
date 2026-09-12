@@ -46,6 +46,7 @@ final class Engine {
             behaviorSchedule.prePresentation +
             [
                 InputCleanupSystem(),
+                EntityRemovalSystem(),
             ]
         )
     }

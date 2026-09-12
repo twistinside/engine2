@@ -44,6 +44,7 @@ Engine construction. The Engine flattens its systems into this fixed order:
 6. Game Content `postMovement`
 7. Game Content `prePresentation`
 8. Engine-owned input cleanup
+9. Engine-owned removal collection
 
 These stages are controlled extension points, not a replacement scheduler. Game
 Content cannot remove the foundation or move a system across a stage boundary
@@ -58,7 +59,7 @@ mining behavior at `worldPreparation`.
 | `inputConsumption` | ``PlanarSelectionSystem``, ``SelectedEntityControlSystem``, ``OrbitCircularizationSystem`` |
 | `worldPreparation` | ``MissileLaunchSystem``, ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
 | `forceContribution` | ``GravitySystem``, ``OrbitCircularizationAutopilotSystem``, ``FlightControlSystem`` |
-| `postMovement` | ``FireableImpactSystem``, ``LifetimeSystem``, ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
+| `postMovement` | ``FireableCollisionSystem``, ``FireableImpactSystem``, ``LifetimeSystem``, ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
 | `prePresentation` | None |
 
 The circularization system consumes and clears the one-shot command before
@@ -79,19 +80,33 @@ planar axes before interpreting translation.
 ``MissileLaunchSystem`` consumes each selected launcher's fire request and
 constructs missiles before collision baselines are captured. Missiles therefore
 move and participate in swept impact checks on their first tick.
-``FireableImpactSystem`` resolves the earliest solid impact for each fired
-collision body, excluding its owner and other fired bodies. It collects the
-participants marked destructible and removes them through ``World/destroy(_:)``.
-Ownership, lifetime, and destructibility are independent rows; the impact system
-does not require a missile entity type.
+``FireableCollisionSystem`` captures the earliest solid contact for each fired
+collision body, excluding its owner and other fired bodies. It stores immutable
+``FireableCollision`` values in the World for the current tick without removing
+participants. ``FireableImpactSystem`` then reads those contacts and marks
+destructible participants through ``World/markForRemoval(_:)``. Ownership,
+lifetime, and destructibility remain independent rows; neither system requires
+a missile entity type.
 
-``LifetimeSystem`` then advances every lifetime row and removes expired entities,
-including entities without collision or fired-body capabilities. Impacts run
-before expiry, with both swept paths clipped to the shorter remaining lifetime
-when either participant expires. Contacts compare elapsed tick time, so different
-expiry times cannot change which contact occurs first. Fired bodies stay
-outside ordinary bounce handling. Bounce and mining interactions run after both
-impact removal and expiry.
+``LifetimeSystem`` advances lifetime rows and marks expired entities, including
+entities without collision or fired-body capabilities. Detection runs before
+expiry, with both swept paths clipped to the shorter remaining lifetime when
+either participant expires. Contacts compare elapsed tick time, so different
+expiry times cannot change which contact occurs first. Fired bodies stay outside
+ordinary bounce handling. Bounce, mining interactions, and camera follow exclude
+entities already marked for removal.
+
+Marked entities retain their component rows and registered facades through
+`prePresentation`. After all Game Content systems and input cleanup,
+``EntityRemovalSystem`` collects those identities, removes them through
+``World/destroy(_:)``, and clears the current tick's contacts. The Engine
+completes the tick only after this collection, so the next completed presentation
+omits removed entities.
+
+This separation leaves room for future explosion propagation, collision-force
+contributions, and health-based damage decisions before final collection.
+Those responses remain proposed; current impact policy only marks destructible
+contact participants.
 
 A future perturbation feature needs an explicit rail-to-dynamics transition. A
 body must not receive rail placement and dynamic integration in the same tick.

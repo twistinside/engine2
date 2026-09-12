@@ -21,8 +21,8 @@ pause policy; neither concern enters ``Engine``.
 
 Production construction receives one validated ``SimulationConfiguration`` and
 one ``SimulationBehavior``. The Engine builds its invariant camera-input,
-acceleration-intent, movement, rotation, and input-cleanup systems. It inserts
-the behavior's ``SimulationSystemSchedule`` systems only at the named
+acceleration-intent, movement, rotation, input-cleanup, and entity-removal systems.
+It inserts the behavior's ``SimulationSystemSchedule`` systems only at the named
 `inputConsumption`, `worldPreparation`, `forceContribution`, `postMovement`,
 and `prePresentation` stages. ``SimulationConfiguration`` supplies the camera
 policy. Physical bindings and input sensitivity remain
@@ -114,18 +114,27 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
-``World/destroy(_:)`` removes a registered facade and all its component rows,
-then clears selection, camera follow, and any pending orbit command targeting
-that identity. Unknown or stale identities leave the World unchanged.
-``ComponentStore/remove(for:)`` compacts dense storage and repairs the moved
-row's sparse lookup. Existing presentation snapshots remain unchanged; the next
-completed snapshot omits destroyed entities. First registration requires an
-outstanding World reservation, so a destroyed facade cannot register again.
+Gameplay systems call ``World/markForRemoval(_:)`` to insert a
+``PendingRemovalComponent`` while preserving the registered facade and its
+component rows. Later systems can inspect those rows and add removal requests.
+Bounce, mining interactions, and camera follow exclude marked entities.
+
+The Engine's final ``EntityRemovalSystem`` collects marked identities after
+`prePresentation` and input cleanup. It calls ``World/destroy(_:)`` to remove
+each registered facade and all its component rows, then clears the current tick's
+collision contacts. Destruction clears selection, camera follow, and any pending
+orbit command targeting the identity. Unknown or stale identities leave the
+World unchanged. ``ComponentStore/remove(for:)`` compacts dense storage and
+repairs the moved row's sparse lookup.
+
+Existing presentation snapshots remain unchanged; the next completed snapshot
+omits removed entities. First registration requires an outstanding World
+reservation, so a destroyed facade cannot register again.
 
 Systems collect structural work before applying it. A launch system constructs
 typed entities through ``World/add(_:from:)`` after collecting its launch
-requests; an impact system collects destruction identities before removing
-rows. Later systems in the same complete tick observe those changes.
+requests. Impact and expiry systems mark entities during gameplay; only the
+final removal system compacts their stores during the production schedule.
 
 ### Systems
 
@@ -134,10 +143,10 @@ Systems that process components iterate or join stores directly instead of
 routing hot-path work through entity facades. Existing rows are mutated with
 ``ComponentStore/update(for:_:)``.
 
-The production Engine foundation is limited to camera input, acceleration
-intent, movement, rotation, and input cleanup. The current mining behavior
-supplies collision baselines, rail motion, forces, collision resolution,
-interaction, and camera follow at Game Content stages. Game Content can compose
+The production Engine foundation supplies camera input, acceleration intent,
+movement, rotation, input cleanup, and final entity removal. The current mining
+behavior supplies collision baselines, rail motion, forces, collision detection
+and response, expiry marking, interaction, and camera follow at Game Content stages. Game Content can compose
 these systems only through ``SimulationBehavior`` and
 ``SimulationSystemSchedule``; it cannot replace or reorder the Engine-owned
 foundation.
@@ -183,13 +192,21 @@ leading its current velocity and excluding fired bodies from target selection.
 Ownership and lifetime have separate component rows; destructibility does not
 require collision capability.
 
-``FireableImpactSystem`` joins fired-body and collision rows with optional
+``FireableCollisionSystem`` joins fired-body and collision rows with optional
 ownership and lifetime rows. It tests relative swept motion, ignores the owner
-and other fired bodies, and removes only participants marked destructible.
-``LifetimeSystem`` independently expires any entity with a lifetime row.
-Impact checks run first and clip both paths to the time both bodies still exist,
-preserving hits during the final partial interval before expiry removes either body.
-The skiff retains its existing held Space action for mining and depot service.
+and other fired bodies, and captures the earliest solid contact for each fired
+body in the World's current-tick ``FireableCollision`` values.
+``FireableImpactSystem`` reads those contacts and marks destructible
+participants for final removal. ``LifetimeSystem`` independently marks expired
+entities with lifetime rows. Detection runs first and clips both paths to the
+time both bodies still exist, preserving contacts during the final partial
+interval before expiry.
+
+These systems retain component rows for later responses until the Engine's final
+collection. Explosion propagation, collision-force contributions, and
+health-based damage remain future direction; the current response only marks
+destructible contact participants. The skiff retains its existing held Space
+action for mining and depot service.
 
 Six asteroids and one depot initially follow deterministic circular rails. During
 `worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep

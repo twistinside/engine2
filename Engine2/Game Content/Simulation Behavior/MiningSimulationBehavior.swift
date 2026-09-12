@@ -18,6 +18,7 @@ struct MiningSimulationBehavior: SimulationBehavior {
                 FlightControlSystem(targetSpeed: 90, responseTime: 2),
             ],
             postMovement: [
+                FireableCollisionSystem(),
                 FireableImpactSystem(),
                 LifetimeSystem(),
                 SweptCollisionSystem(),

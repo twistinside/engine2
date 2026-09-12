@@ -16,8 +16,14 @@ struct FireableTests {
         #expect(world.ownershipComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
 
-        var system = FireableImpactSystem()
-        system.update(world: &world, deltaTime: 1)
+        var detector = FireableCollisionSystem()
+        detector.update(world: &world, deltaTime: 1)
+        #expect(world.fireableCollisions.isEmpty)
+        var response = FireableImpactSystem()
+        response.update(world: &world, deltaTime: 1)
+        #expect(world.pendingRemovalComponents.entities.isEmpty)
+        var removal = EntityRemovalSystem()
+        removal.update(world: &world, deltaTime: 1)
 
         #expect(world.entity(for: entity.id) === entity)
     }
