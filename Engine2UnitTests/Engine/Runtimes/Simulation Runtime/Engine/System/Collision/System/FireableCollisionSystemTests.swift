@@ -68,14 +68,14 @@ struct FireableCollisionSystemTests {
         let target = scene.asteroid(at: SIMD3<Double>(60, 0, 0), velocity: .zero)
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
-        let pendingID = markFiredBody ? missile.id : target.id
-        #expect(scene.world.markForRemoval(pendingID))
+        let pendingEntity: Entity = markFiredBody ? missile : target
+        #expect(pendingEntity.markForRemoval())
 
         var detector = FireableCollisionSystem()
         detector.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.fireableCollisions.isEmpty)
-        #expect(scene.world.pendingRemovalComponents.entities == [pendingID])
+        #expect(scene.world.pendingRemovalComponents.entities == [pendingEntity.id])
         #expect(scene.world.entity(for: target.id) === target)
         #expect(scene.world.entity(for: missile.id) === missile)
     }

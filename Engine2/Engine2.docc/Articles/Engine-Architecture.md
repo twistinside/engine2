@@ -114,10 +114,18 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
-Gameplay systems call ``World/markForRemoval(_:)`` to insert a
-``PendingRemovalComponent`` while preserving the registered facade and its
-component rows. Later systems can inspect those rows and add removal requests.
-Bounce, mining interactions, and camera follow exclude marked entities.
+Every ``Entity`` exposes ``Entity/markForRemoval()`` as a base lifecycle
+operation; no separate removable capability is required. The method returns
+`false` unless this facade is still the registered instance for its complete
+identity. A valid call inserts a ``PendingRemovalComponent`` into
+``World/pendingRemovalComponents``; repeated calls return `true` without adding
+another row. The ECS store remains authoritative for pending removal.
+
+Gameplay systems iterate or join component stores, then resolve a chosen
+identity's live facade only to issue this lifecycle request. Marking preserves
+the registered facade and its component rows, so later systems can inspect them
+and add removal requests. Bounce, mining interactions, and camera follow exclude
+marked entities.
 
 The Engine's final ``EntityRemovalSystem`` collects marked identities after
 `prePresentation` and input cleanup. It calls ``World/destroy(_:)`` to remove

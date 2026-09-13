@@ -154,27 +154,12 @@ class World {
         return entity.id
     }
 
-    /// Marks one live entity for collection after all gameplay and effects systems finish.
-    ///
-    /// Repeated marks are harmless. Unknown or stale identities cannot mark a live generation.
-    /// Component rows and live references remain intact until EntityRemovalSystem collects them.
-    @discardableResult
-    func markForRemoval(_ entity: EntityID) -> Bool {
-        guard entitiesByID[entity] != nil else {
-            return false
-        }
-        if pendingRemovalComponents[entity] == nil {
-            pendingRemovalComponents.insert(PendingRemovalComponent(), for: entity)
-        }
-        return true
-    }
-
     /// Removes one registered entity and every component row it owns.
     ///
     /// Unknown or stale identities return `false` without changing live state.
     /// Destruction clears resources targeting the entity and removes it from
     /// subsequent presentations. Previously published snapshots remain valid.
-    /// Scheduled gameplay marks entities with markForRemoval(_:); EntityRemovalSystem owns final collection.
+    /// Scheduled gameplay calls Entity.markForRemoval(); EntityRemovalSystem owns final collection.
     /// Callers performing immediate destruction must collect identities before this operation compacts stores.
     @discardableResult
     func destroy(_ entity: EntityID) -> Bool {

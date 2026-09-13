@@ -84,9 +84,12 @@ move and participate in swept impact checks on their first tick.
 collision body, excluding its owner and other fired bodies. It stores immutable
 ``FireableCollision`` values in the World for the current tick without removing
 participants. ``FireableImpactSystem`` then reads those contacts and marks
-destructible participants through ``World/markForRemoval(_:)``. Ownership,
-lifetime, and destructibility remain independent rows; neither system requires
-a missile entity type.
+destructible participants through ``Entity/markForRemoval()``. This base Entity
+lifecycle operation requires no separate removable capability and records the
+request in the World's authoritative ``PendingRemovalComponent`` store.
+Systems continue to iterate component stores and resolve a live facade only to
+issue the removal request. Ownership, lifetime, and destructibility remain
+independent rows; neither system requires a missile entity type.
 
 ``LifetimeSystem`` advances lifetime rows and marks expired entities, including
 entities without collision or fired-body capabilities. Detection runs before

@@ -7,8 +7,8 @@ struct EntityRemovalSystemTests {
         let first = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
         let survivor = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
         let last = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
-        #expect(scene.world.markForRemoval(last.id))
-        #expect(scene.world.markForRemoval(first.id))
+        #expect(last.markForRemoval())
+        #expect(first.markForRemoval())
         #expect(scene.world.fireableComponents.entities == [first.id, survivor.id, last.id])
 
         var removal = EntityRemovalSystem()
@@ -24,45 +24,12 @@ struct EntityRemovalSystemTests {
         #expect(scene.world.pendingRemovalComponents.entities.isEmpty)
         #expect(scene.world.motionComponents[survivor.id]?.velocity == .zero)
         #expect(scene.world.selectedEntityID == scene.skiff.id)
-        #expect(scene.world.markForRemoval(first.id) == false)
-    }
-
-    @Test func markingRejectsUnregisteredAndDifferentGenerationalIdentities() {
-        var world = World()
-        let entity = Entity(in: world, from: .empty)
-        let otherGeneration = EntityID(index: entity.id.index, generation: entity.id.generation + 1)
-        let reserved = world.reserveEntityID()
-        #expect(world.markForRemoval(otherGeneration) == false)
-        #expect(world.markForRemoval(reserved) == false)
-
-        var removal = EntityRemovalSystem()
-        removal.update(world: &world, deltaTime: 1)
-
-        #expect(world.entity(for: entity.id) === entity)
-        #expect(world.registeredEntities.map(\.id) == [entity.id])
-        #expect(world.pendingRemovalComponents.entities.isEmpty)
-    }
-
-    @Test func repeatedMarkingIsIdempotentAndDoesNotRequireDestructibility() {
-        var world = World()
-        let entity = Entity(in: world, from: .empty)
-        #expect(world.markForRemoval(entity.id))
-        #expect(world.markForRemoval(entity.id))
-        #expect(world.pendingRemovalComponents.entities == [entity.id])
-        #expect(world.entity(for: entity.id) === entity)
-        #expect(world.destructibleComponents[entity.id] == nil)
-
-        var removal = EntityRemovalSystem()
-        removal.update(world: &world, deltaTime: 1)
-
-        #expect(world.entity(for: entity.id) == nil)
-        #expect(world.pendingRemovalComponents.entities.isEmpty)
     }
 
     @Test func immediateDestructionClearsItsPendingMarkerBeforeCollection() {
         var world = World()
         let entity = Entity(in: world, from: .empty)
-        #expect(world.markForRemoval(entity.id))
+        #expect(entity.markForRemoval())
 
         #expect(world.destroy(entity.id))
 

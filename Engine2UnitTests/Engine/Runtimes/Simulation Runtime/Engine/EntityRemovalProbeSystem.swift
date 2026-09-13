@@ -21,6 +21,6 @@ final class EntityRemovalProbeSystem: System {
         observedComponents = world.positionComponents[markedEntityID] != nil &&
             world.renderableComponents[markedEntityID] != nil &&
             world.lifetimeComponents[markedEntityID] != nil
-        markedAnotherEntity = world.markForRemoval(entityToMark)
+        markedAnotherEntity = world.entity(for: entityToMark)?.markForRemoval() ?? false
     }
 }

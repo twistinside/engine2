@@ -96,4 +96,20 @@ class Entity {
         self.world = world
         world.add(self, from: state)
     }
+
+    /// Marks this entity for collection after all gameplay and effects systems finish.
+    ///
+    /// Every live entity can be removed, regardless of its capabilities. The pending marker lives
+    /// in the World's component store; rows and live references remain intact until final collection.
+    /// Repeated marks are harmless. Unregistered, replaced, or destroyed facades return false.
+    @discardableResult
+    func markForRemoval() -> Bool {
+        guard world.entity(for: id) === self else {
+            return false
+        }
+        if world.pendingRemovalComponents[id] == nil {
+            world.pendingRemovalComponents.insert(PendingRemovalComponent(), for: id)
+        }
+        return true
+    }
 }

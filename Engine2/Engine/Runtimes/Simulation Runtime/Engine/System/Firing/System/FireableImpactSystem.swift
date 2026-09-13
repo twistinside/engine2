@@ -11,10 +11,10 @@ struct FireableImpactSystem: System {
 
         for contact in world.fireableCollisions {
             if world.destructibleComponents[contact.entityID] != nil {
-                world.markForRemoval(contact.entityID)
+                world.entity(for: contact.entityID)?.markForRemoval()
             }
             if world.destructibleComponents[contact.targetEntityID] != nil {
-                world.markForRemoval(contact.targetEntityID)
+                world.entity(for: contact.targetEntityID)?.markForRemoval()
             }
         }
     }
