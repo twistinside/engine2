@@ -114,26 +114,34 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
-Every ``Entity`` exposes ``Entity/markForRemoval()`` as a base lifecycle
-operation; no separate removable capability is required. The method returns
-`false` unless this facade is still the registered instance for its complete
-identity. A valid call inserts a ``PendingRemovalComponent`` into
-``World/pendingRemovalComponents``; repeated calls return `true` without adding
-another row. The ECS store remains authoritative for pending removal.
+The base ``Entity`` owns its identity and authoritative ``Entity/lifecycleState``.
+The ``EntityLifecycleState`` cases are `unregistered`, `active`, `pendingRemoval`,
+and `removed`. Registration activates the facade, ``Entity/markForRemoval()``
+requests final collection, and World teardown completes removal. Components
+retain authority over gameplay values; they do not duplicate lifecycle state.
 
-Gameplay systems iterate or join component stores, then resolve a chosen
-identity's live facade only to issue this lifecycle request. Marking preserves
-the registered facade and its component rows, so later systems can inspect them
-and add removal requests. Bounce, mining interactions, and camera follow exclude
-marked entities.
+Every Entity exposes this removal request without requiring a separate
+capability. The method returns `false` unless this facade is still the registered
+instance for its complete identity. An active facade becomes pending removal;
+repeated requests on that pending facade return `true`. Unregistered and
+removed facades cannot mark themselves. Marking preserves the registered facade
+and its component rows, so later systems can inspect them and issue further
+lifecycle requests.
 
-The Engine's final ``EntityRemovalSystem`` collects marked identities after
-`prePresentation` and input cleanup. It calls ``World/destroy(_:)`` to remove
-each registered facade and all its component rows, then clears the current tick's
-collision contacts. Destruction clears selection, camera follow, and any pending
-orbit command targeting the identity. Unknown or stale identities leave the
-World unchanged. ``ComponentStore/remove(for:)`` compacts dense storage and
-repairs the moved row's sparse lookup.
+Gameplay systems iterate or join component stores and consult Entity lifecycle
+when deciding whether a participant is active. Lifecycle systems may iterate the
+registry directly because Entity owns lifecycle state. Bounce, mining
+interactions, and camera follow exclude nonactive entities.
+
+The Engine's final ``EntityRemovalSystem`` scans a registry snapshot for pending
+entities after `prePresentation` and input cleanup. It calls
+``World/destroy(_:)`` in deterministic identity order. World teardown removes
+the facade from the registry and removes all its component rows. It also clears
+selection, camera follow, and any pending orbit command targeting that identity,
+then transitions the retained facade to `removed`. Unknown or stale
+identities leave the World unchanged. ``ComponentStore/remove(for:)`` compacts
+dense storage and repairs the moved row's sparse lookup. Final collection also
+clears the current tick's collision data.
 
 Existing presentation snapshots remain unchanged; the next completed snapshot
 omits removed entities. First registration requires an outstanding World
@@ -147,9 +155,9 @@ final removal system compacts their stores during the production schedule.
 ### Systems
 
 ``System`` implementations receive mutable access to ``World`` for one step.
-Systems that process components iterate or join stores directly instead of
-routing hot-path work through entity facades. Existing rows are mutated with
-``ComponentStore/update(for:_:)``.
+Systems that process components iterate or join stores directly and consult
+Entity lifecycle when needed. Lifecycle systems may iterate the entity registry.
+Existing component rows are mutated with ``ComponentStore/update(for:_:)``.
 
 The production Engine foundation supplies camera input, acceleration intent,
 movement, rotation, input cleanup, and final entity removal. The current mining
@@ -200,21 +208,34 @@ leading its current velocity and excluding fired bodies from target selection.
 Ownership and lifetime have separate component rows; destructibility does not
 require collision capability.
 
-``FireableCollisionSystem`` joins fired-body and collision rows with optional
-ownership and lifetime rows. It tests relative swept motion, ignores the owner
-and other fired bodies, and captures the earliest solid contact for each fired
-body in the World's current-tick ``FireableCollision`` values.
-``FireableImpactSystem`` reads those contacts and marks destructible
-participants for final removal. ``LifetimeSystem`` independently marks expired
-entities with lifetime rows. Detection runs first and clips both paths to the
-time both bodies still exist, preserving contacts during the final partial
-interval before expiry.
+``CollisionSystem`` joins collision and position rows for active entities and
+captures contacts before applying gameplay policy. Each ``CollisionContact``
+contains a canonical pair of complete entity identities, its contact fraction
+of the tick, and a normal directed from the second entity toward the first.
+``World/collisionContacts`` retains those original facts for the tick.
+``World/collisionSweeps`` retains each active body's ``CollisionSweep``:
+original start and end positions, radius, and start-of-tick lifetime fraction.
 
-These systems retain component rows for later responses until the Engine's final
-collection. Explosion propagation, collision-force contributions, and
-health-based damage remain future direction; the current response only marks
-destructible contact participants. The skiff retains its existing held Space
-action for mining and depot service.
+``FireableImpactSystem`` filters these contacts by fired-body and ownership
+policy, excludes owners and other fired bodies, and selects the earliest
+eligible contact for each fired body. It marks destructible participants for
+final removal. ``LifetimeSystem`` independently advances lifetime rows and
+marks expired entities. Detection runs first and clips both paths to the time
+both bodies still exist, preserving contacts during the final partial interval
+before expiry.
+
+``CollisionResponseSystem`` applies bounce policy to active, non-fired bodies
+in dynamic component-store order. An earlier positional response can change a
+later collision. The response re-evaluates affected pairs through the same
+``CollisionEvaluator`` used by detection, retaining the captured lifetime
+baseline. It refreshes its own working data and preserves the World's original
+contacts for other consumers.
+
+Component rows, registered facades, and collision data remain available until
+the Engine's final collection. Explosion propagation, collision-force
+contributions, and health-based damage remain future direction; the current
+impact response marks destructible contact participants. The skiff retains its
+existing held Space action for mining and depot service.
 
 Six asteroids and one depot initially follow deterministic circular rails. During
 `worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep
@@ -249,9 +270,9 @@ caches.
 
 ### Entity Facades
 
-``Entity`` subclasses such as ``Ball`` are typed, ergonomic views over live ECS
-state for Game Content, UI, and tooling. They are not a second authoritative
-state model.
+``Entity`` owns identity and lifecycle. Subclasses such as ``Ball`` provide
+typed, ergonomic views over live component values for Game Content, UI, and
+tooling. Gameplay values remain authoritative in their component stores.
 
 The selected-entity inspector receives a narrow Simulation-owned source that
 resolves the selected complete ``EntityID`` to its registered facade. It renders
@@ -315,6 +336,7 @@ snapshot, and several ticks may complete before the next draw.
 - ``World``
 - ``System``
 - ``Entity``
+- ``EntityLifecycleState``
 - ``ComponentStore``
 
 ### Related Architecture

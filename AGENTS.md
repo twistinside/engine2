@@ -4,8 +4,8 @@
 
 Engine2 is a Swift ECS experiment built around explicit ownership and typed boundaries. Preserve its core model:
 
-- ECS component stores are the authoritative simulation state.
-- Entity objects are ergonomic, typed facades over that state.
+- ECS component stores own authoritative gameplay values.
+- Entity objects own identity and lifecycle and provide ergonomic, typed facades over component values.
 - Capability protocols provide the Game Content, UI, and tooling API.
 - Systems that process component data operate directly on component stores.
 
@@ -71,15 +71,21 @@ without a concrete consumer and explicit identity, delivery, ownership, and life
 
 ## Simulation and ECS
 
-`World` and its component stores are the simulation source of truth. Entity subclasses are live typed facades, not a
-second authoritative state model. Keep `Entity` as the common base class for live game objects and prefer capability
-protocols over deeper inheritance.
+`World` owns the entity registry, identity allocation, component stores, and Simulation resources. Components own
+authoritative gameplay values. The base `Entity` owns its identity and `EntityLifecycleState`; subclasses provide live
+typed facades over component values. Do not duplicate gameplay values on facades or lifecycle state in components.
+Keep `Entity` as the common base class for live game objects and prefer capability protocols over deeper inheritance.
+
+`Entity.lifecycleState` distinguishes unregistered, active, pending-removal, and removed entities. Registration,
+`Entity.markForRemoval()`, and World teardown control its transitions. Marking is idempotent and retains the registered
+facade and component rows until the Engine's final `EntityRemovalSystem` collects pending entities. Lifecycle systems
+may iterate the entity registry because Entity owns this state.
 
 Compose entity behavior from reusable components and capabilities. Ownership, lifetime, collision, and destructibility
 are independent properties; do not bundle them into one component named for a concrete entity type. Protocol inheritance
 should express a required invariant, not a combination that happens to occur in one Game Content entity.
 
-Systems that operate on component data must iterate or join stores directly rather than entity facades. Use
+Systems that operate on component data must iterate or join stores directly, consulting Entity lifecycle when needed. Use
 `ComponentStore.update(for:_:)` for an existing row. Use `insert` for registration, adding a missing row, or an
 intentional full reset or reseed. Do not rebuild and reinsert rows for ordinary per-tick field changes.
 

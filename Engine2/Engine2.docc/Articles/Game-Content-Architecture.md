@@ -98,8 +98,9 @@ or `Int` values.
 
 ## Entities Carry Abstract Presentation Intent
 
-Consumer-defined entities remain ergonomic typed facades over authoritative ECS
-state. Their presentation components contain stable asset identities and
+Consumer-defined entities inherit identity and lifecycle from ``Entity`` and
+provide typed facades over component-owned gameplay values. Their presentation
+components contain stable asset identities and
 abstract presentation state, not loaded backend objects.
 
 The current render component and a possible continuous-audio component

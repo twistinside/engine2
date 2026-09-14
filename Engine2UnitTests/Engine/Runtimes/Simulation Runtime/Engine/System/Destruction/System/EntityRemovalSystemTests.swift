@@ -21,12 +21,30 @@ struct EntityRemovalSystemTests {
         #expect(scene.world.fireableComponents.entities == [survivor.id])
         #expect(scene.world.lifetimeComponents.entities == [survivor.id])
         #expect(scene.world.ownershipComponents.entities == [survivor.id])
-        #expect(scene.world.pendingRemovalComponents.entities.isEmpty)
+        #expect(first.lifecycleState == .removed)
+        #expect(last.lifecycleState == .removed)
+        #expect(survivor.lifecycleState == .active)
         #expect(scene.world.motionComponents[survivor.id]?.velocity == .zero)
         #expect(scene.world.selectedEntityID == scene.skiff.id)
     }
 
-    @Test func immediateDestructionClearsItsPendingMarkerBeforeCollection() {
+    @Test func collectionUsesEntityLifecycleWithoutAnyComponentRows() {
+        var world = World()
+        let removed = Entity(in: world, from: .empty)
+        let survivor = Entity(in: world, from: .empty)
+        #expect(removed.markForRemoval())
+
+        var removal = EntityRemovalSystem()
+        removal.update(world: &world, deltaTime: 1)
+
+        #expect(removed.lifecycleState == .removed)
+        #expect(survivor.lifecycleState == .active)
+        #expect(world.entity(for: removed.id) == nil)
+        #expect(world.entity(for: survivor.id) === survivor)
+        #expect(world.registeredEntities.map(\.id) == [survivor.id])
+    }
+
+    @Test func immediateDestructionCompletesLifecycleBeforeCollection() {
         var world = World()
         let entity = Entity(in: world, from: .empty)
         #expect(entity.markForRemoval())
@@ -34,11 +52,11 @@ struct EntityRemovalSystemTests {
         #expect(world.destroy(entity.id))
 
         #expect(world.entity(for: entity.id) == nil)
-        #expect(world.pendingRemovalComponents.entities.isEmpty)
+        #expect(entity.lifecycleState == .removed)
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1)
         #expect(world.registeredEntities.isEmpty)
-        #expect(world.pendingRemovalComponents.entities.isEmpty)
+        #expect(entity.lifecycleState == .removed)
     }
 
     @Test func collectionClearsContactFactsAfterResponse() {
@@ -46,17 +64,20 @@ struct EntityRemovalSystemTests {
         let target = scene.asteroid(at: SIMD3<Double>(60, 0, 0), velocity: .zero)
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
-        var detector = FireableCollisionSystem()
+        var detector = CollisionSystem()
         detector.update(world: &scene.world, deltaTime: 1)
         var response = FireableImpactSystem()
         response.update(world: &scene.world, deltaTime: 1)
-        #expect(scene.world.fireableCollisions.count == 1)
+        #expect(scene.world.collisionContacts.count == 1)
+        #expect(scene.world.collisionSweeps.isEmpty == false)
 
         var removal = EntityRemovalSystem()
         removal.update(world: &scene.world, deltaTime: 1)
 
-        #expect(scene.world.fireableCollisions.isEmpty)
-        #expect(scene.world.pendingRemovalComponents.entities.isEmpty)
+        #expect(scene.world.collisionContacts.isEmpty)
+        #expect(scene.world.collisionSweeps.isEmpty)
+        #expect(target.lifecycleState == .removed)
+        #expect(missile.lifecycleState == .removed)
         #expect(scene.world.entity(for: target.id) == nil)
         #expect(scene.world.entity(for: missile.id) == nil)
     }

@@ -16,12 +16,12 @@ struct FireableTests {
         #expect(world.ownershipComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
 
-        var detector = FireableCollisionSystem()
+        var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
-        #expect(world.fireableCollisions.isEmpty)
+        #expect(world.collisionContacts.isEmpty)
         var response = FireableImpactSystem()
         response.update(world: &world, deltaTime: 1)
-        #expect(world.pendingRemovalComponents.entities.isEmpty)
+        #expect(world.registeredEntities.allSatisfy { $0.lifecycleState == .active })
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1)
 

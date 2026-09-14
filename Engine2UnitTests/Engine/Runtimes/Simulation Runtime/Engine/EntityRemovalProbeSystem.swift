@@ -17,7 +17,7 @@ final class EntityRemovalProbeSystem: System {
 
     func update(world: inout World, deltaTime: Double) {
         observedRegisteredEntity = world.entity(for: markedEntityID) != nil
-        observedPendingRemoval = world.pendingRemovalComponents[markedEntityID] != nil
+        observedPendingRemoval = world.entity(for: markedEntityID)?.lifecycleState == .pendingRemoval
         observedComponents = world.positionComponents[markedEntityID] != nil &&
             world.renderableComponents[markedEntityID] != nil &&
             world.lifetimeComponents[markedEntityID] != nil

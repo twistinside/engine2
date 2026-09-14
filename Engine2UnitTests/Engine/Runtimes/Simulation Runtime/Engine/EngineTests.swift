@@ -81,7 +81,8 @@ struct EngineTests {
         #expect(world.positionComponents[owner.id] == nil)
         #expect(world.lifetimeComponents[missile.id] == nil)
         #expect(world.renderableComponents.entities.isEmpty)
-        #expect(world.pendingRemovalComponents.entities.isEmpty)
+        #expect(missile.lifecycleState == .removed)
+        #expect(owner.lifecycleState == .removed)
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
 
         let completed = world.presentationSnapshot(

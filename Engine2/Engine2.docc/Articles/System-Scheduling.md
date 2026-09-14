@@ -59,7 +59,7 @@ mining behavior at `worldPreparation`.
 | `inputConsumption` | ``PlanarSelectionSystem``, ``SelectedEntityControlSystem``, ``OrbitCircularizationSystem`` |
 | `worldPreparation` | ``MissileLaunchSystem``, ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
 | `forceContribution` | ``GravitySystem``, ``OrbitCircularizationAutopilotSystem``, ``FlightControlSystem`` |
-| `postMovement` | ``FireableCollisionSystem``, ``FireableImpactSystem``, ``LifetimeSystem``, ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
+| `postMovement` | ``CollisionSystem``, ``FireableImpactSystem``, ``LifetimeSystem``, ``CollisionResponseSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
 | `prePresentation` | None |
 
 The circularization system consumes and clears the one-shot command before
@@ -80,29 +80,41 @@ planar axes before interpreting translation.
 ``MissileLaunchSystem`` consumes each selected launcher's fire request and
 constructs missiles before collision baselines are captured. Missiles therefore
 move and participate in swept impact checks on their first tick.
-``FireableCollisionSystem`` captures the earliest solid contact for each fired
-collision body, excluding its owner and other fired bodies. It stores immutable
-``FireableCollision`` values in the World for the current tick without removing
-participants. ``FireableImpactSystem`` then reads those contacts and marks
-destructible participants through ``Entity/markForRemoval()``. This base Entity
-lifecycle operation requires no separate removable capability and records the
-request in the World's authoritative ``PendingRemovalComponent`` store.
-Systems continue to iterate component stores and resolve a live facade only to
-issue the removal request. Ownership, lifetime, and destructibility remain
-independent rows; neither system requires a missile entity type.
+``CollisionSystem`` captures geometric contacts between active collision bodies
+before gameplay response policies run. It stores immutable ``CollisionContact``
+values in ``World/collisionContacts`` and each body's original swept path in
+``World/collisionSweeps``. Contacts identify a canonical entity pair, a fraction
+of the complete tick, and a normal directed from the second entity toward the
+first. Detection includes owners and fired-body pairs; the response policy
+decides which contacts matter.
+
+``FireableImpactSystem`` selects the earliest eligible captured contact for each
+fired body, excluding its owner and other fired bodies. It marks destructible
+participants through ``Entity/markForRemoval()``, which transitions the base
+Entity's authoritative lifecycle from `active` to `pendingRemoval`. Repeated
+requests on the registered pending facade succeed without another transition.
+Ownership, lifetime, and destructibility remain independent component rows.
 
 ``LifetimeSystem`` advances lifetime rows and marks expired entities, including
 entities without collision or fired-body capabilities. Detection runs before
-expiry, with both swept paths clipped to the shorter remaining lifetime when
-either participant expires. Contacts compare elapsed tick time, so different
-expiry times cannot change which contact occurs first. Fired bodies stay outside
-ordinary bounce handling. Bounce, mining interactions, and camera follow exclude
-entities already marked for removal.
+expiry and captures each body's start-of-tick lifetime fraction in its
+``CollisionSweep``. Both paths are clipped to the shorter remaining lifetime.
+Contacts compare elapsed tick time, so different expiry times cannot change
+which eligible contact occurs first.
 
-Marked entities retain their component rows and registered facades through
+``CollisionResponseSystem`` applies bounce policy to active bodies and excludes
+fired bodies. It preserves dynamic component-store order. When an earlier
+positional response invalidates a later pair, it re-evaluates that pair through
+the shared ``CollisionEvaluator``, using the captured lifetime baseline. These
+updates affect the response's working data; the World's original contacts remain
+unchanged for other consumers. Mining interactions and camera follow also
+exclude nonactive entities.
+
+Pending entities retain their component rows and registered facades through
 `prePresentation`. After all Game Content systems and input cleanup,
-``EntityRemovalSystem`` collects those identities, removes them through
-``World/destroy(_:)``, and clears the current tick's contacts. The Engine
+``EntityRemovalSystem`` scans a registry snapshot and removes pending entities
+through ``World/destroy(_:)``. Teardown transitions each
+facade to `removed`. Final collection clears both collision buffers. The Engine
 completes the tick only after this collection, so the next completed presentation
 omits removed entities.
 

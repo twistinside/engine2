@@ -3,10 +3,11 @@ import simd
 /// Authoritative ECS state container for one Simulation Runtime session.
 ///
 /// `World` owns per-component sparse stores and simulation resources. Entity
-/// objects are only typed facades over these rows, while systems operate on the
-/// stores directly. Registration is capability-driven: `add(_:from:)` converts
-/// an entity's advertised protocols and validated seed values into component
-/// rows at the ECS boundary.
+/// objects own lifecycle state and expose typed facades over component rows.
+/// Gameplay component systems iterate stores directly; lifecycle systems may
+/// iterate the registered entities. Registration is capability-driven:
+/// `add(_:from:)` converts an entity's advertised protocols and validated seed
+/// values into component rows at the ECS boundary.
 class World {
     // MARK: Components
     var angularMotionAccumulatorComponents = ComponentStore<AngularMotionAccumulatorComponent>()
@@ -31,7 +32,6 @@ class World {
     var orbitPrimaryComponents = ComponentStore<OrbitPrimaryComponent>()
     var orbitalRailComponents = ComponentStore<OrbitalRailComponent>()
     var oreDepositComponents = ComponentStore<OreDepositComponent>()
-    var pendingRemovalComponents = ComponentStore<PendingRemovalComponent>()
     var playerControlComponents = ComponentStore<PlayerControlComponent>()
     var positionComponents = ComponentStore<PositionComponent>()
     var previousPositionComponents = ComponentStore<PreviousPositionComponent>()
@@ -46,7 +46,8 @@ class World {
     var camera = Camera.standard
     var cameraFollowEntityID: EntityID?
     var input = InputState()
-    var fireableCollisions: [FireableCollision] = []
+    var collisionContacts: [CollisionContact] = []
+    var collisionSweeps: [CollisionSweep] = []
     var orbitCircularizationCommand: OrbitCircularizationCommand?
     private(set) var selectedEntityID: EntityID?
 
@@ -55,11 +56,10 @@ class World {
     private var nextEntityIndex = 0
     private let orbitCircularizationEstimateEvaluator = OrbitCircularizationEstimateEvaluator()
 
-    /// Entity facades in deterministic identity order for UI and tooling.
+    /// Entity facades in deterministic identity order for lifecycle collection, UI, and tooling.
     ///
-    /// The returned objects project live component state. They are not a second
-    /// authoritative entity store and systems must not use them for hot-path
-    /// iteration.
+    /// Each entity owns its lifecycle state and projects gameplay component data from World.
+    /// Systems that process component data iterate component stores directly.
     var registeredEntities: [Entity] {
         entitiesByID.keys.sorted().compactMap {
             entitiesByID[$0]
@@ -108,14 +108,16 @@ class World {
     ///
     /// First registration requires an identity reserved by this World.
     /// Calling this method again for the same live entity reseeds its component
-    /// rows. A destroyed identity cannot be registered again. Treat registration
-    /// as construction; mutate existing gameplay state through the stores instead.
+    /// rows without clearing pending removal. A destroyed identity cannot be
+    /// registered again. Treat registration as construction; mutate existing
+    /// gameplay state through the stores instead.
     @discardableResult
     func add(
         _ entity: Entity,
         from state: Entity.InitialState = .empty
     ) -> EntityID {
         precondition(entity.world === self, "An entity must register with its owning World.")
+        precondition(entity.lifecycleState != .removed, "A removed entity cannot register again.")
         precondition(
             entitiesByID[entity.id] === entity || reservedEntityIDs.contains(entity.id),
             "An entity requires a reserved identity or its existing live registration."
@@ -163,7 +165,7 @@ class World {
     /// Callers performing immediate destruction must collect identities before this operation compacts stores.
     @discardableResult
     func destroy(_ entity: EntityID) -> Bool {
-        guard entitiesByID.removeValue(forKey: entity) != nil else {
+        guard let facade = entitiesByID.removeValue(forKey: entity) else {
             return false
         }
 
@@ -177,6 +179,7 @@ class World {
         if orbitCircularizationCommand?.entityID == entity {
             orbitCircularizationCommand = nil
         }
+        facade.finishRemoval()
         return true
     }
 
@@ -233,7 +236,6 @@ class World {
         orbitPrimaryComponents.remove(for: entity)
         orbitalRailComponents.remove(for: entity)
         oreDepositComponents.remove(for: entity)
-        pendingRemovalComponents.remove(for: entity)
         playerControlComponents.remove(for: entity)
         positionComponents.remove(for: entity)
         previousPositionComponents.remove(for: entity)
@@ -686,6 +688,7 @@ class World {
         }
         entitiesByID[entity.id] = entity
         reservedEntityIDs.remove(entity.id)
+        entity.activateAfterRegistration()
     }
 
     /// Reserves a fresh identity without reusing a destroyed entity's index.

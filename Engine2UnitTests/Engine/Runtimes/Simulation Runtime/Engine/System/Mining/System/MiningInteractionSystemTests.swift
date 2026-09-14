@@ -4,8 +4,8 @@ import Testing
 struct MiningInteractionSystemTests {
     @Test func pendingRemovalActorCannotMine() {
         var world = World()
-        let actor = EntityID(index: 0, generation: 0)
-        let asteroid = EntityID(index: 1, generation: 0)
+        let actor = Entity(in: world, from: .empty).id
+        let asteroid = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: actor)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),
@@ -16,7 +16,7 @@ struct MiningInteractionSystemTests {
         world.oreDepositComponents.insert(OreDepositComponent(remainingOre: 4_000), for: asteroid)
         world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: asteroid)
         world.mineableComponents.insert(MineableComponent(miningRate: 800), for: asteroid)
-        world.pendingRemovalComponents.insert(PendingRemovalComponent(), for: actor)
+        #expect(world.entity(for: actor)?.markForRemoval() == true)
 
         var system = MiningInteractionSystem()
         system.update(world: &world, deltaTime: 1)
@@ -24,14 +24,14 @@ struct MiningInteractionSystemTests {
         #expect(world.cargoComponents[actor]?.ore == 0)
         #expect(world.oreDepositComponents[asteroid]?.remainingOre == 4_000)
         #expect(world.playerControlComponents[actor]?.interactionState == .active)
-        #expect(world.pendingRemovalComponents[actor] != nil)
+        #expect(world.entity(for: actor)?.lifecycleState == .pendingRemoval)
     }
 
     @Test func pendingRemovalAsteroidDoesNotBlockMiningASurvivingTarget() {
         var world = World()
-        let actor = EntityID(index: 0, generation: 0)
-        let pending = EntityID(index: 1, generation: 0)
-        let surviving = EntityID(index: 2, generation: 0)
+        let actor = Entity(in: world, from: .empty).id
+        let pending = Entity(in: world, from: .empty).id
+        let surviving = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: actor)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),
@@ -44,7 +44,7 @@ struct MiningInteractionSystemTests {
             world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: asteroid)
             world.mineableComponents.insert(MineableComponent(miningRate: 800), for: asteroid)
         }
-        world.pendingRemovalComponents.insert(PendingRemovalComponent(), for: pending)
+        #expect(world.entity(for: pending)?.markForRemoval() == true)
 
         var system = MiningInteractionSystem()
         system.update(world: &world, deltaTime: 1)
@@ -52,14 +52,14 @@ struct MiningInteractionSystemTests {
         #expect(world.cargoComponents[actor]?.ore == 800)
         #expect(world.oreDepositComponents[pending]?.remainingOre == 4_000)
         #expect(world.oreDepositComponents[surviving]?.remainingOre == 3_200)
-        #expect(world.pendingRemovalComponents[pending] != nil)
+        #expect(world.entity(for: pending)?.lifecycleState == .pendingRemoval)
     }
 
     @Test func pendingRemovalDepotDoesNotBlockServiceAtASurvivingDepot() {
         var world = World()
-        let actor = EntityID(index: 0, generation: 0)
-        let pending = EntityID(index: 1, generation: 0)
-        let surviving = EntityID(index: 2, generation: 0)
+        let actor = Entity(in: world, from: .empty).id
+        let pending = Entity(in: world, from: .empty).id
+        let surviving = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: actor)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),
@@ -75,7 +75,7 @@ struct MiningInteractionSystemTests {
                 for: depot
             )
         }
-        world.pendingRemovalComponents.insert(PendingRemovalComponent(), for: pending)
+        #expect(world.entity(for: pending)?.markForRemoval() == true)
 
         var system = MiningInteractionSystem()
         system.update(world: &world, deltaTime: 1)
@@ -84,13 +84,13 @@ struct MiningInteractionSystemTests {
         #expect(world.fuelComponents[actor]?.remaining == 1_400)
         #expect(world.depotServiceComponents[pending]?.deliveredOre == 0)
         #expect(world.depotServiceComponents[surviving]?.deliveredOre == 1_000)
-        #expect(world.pendingRemovalComponents[pending] != nil)
+        #expect(world.entity(for: pending)?.lifecycleState == .pendingRemoval)
     }
 
     @Test func heldInteractionMinesFiniteOreIntoAvailableCargo() {
         var world = World()
-        let skiff = EntityID(index: 0, generation: 0)
-        let asteroid = EntityID(index: 1, generation: 0)
+        let skiff = Entity(in: world, from: .empty).id
+        let asteroid = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: skiff)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),
@@ -111,8 +111,8 @@ struct MiningInteractionSystemTests {
 
     @Test func depotUnloadsAndRefuelsDuringTheSameInterval() {
         var world = World()
-        let skiff = EntityID(index: 0, generation: 0)
-        let depot = EntityID(index: 1, generation: 0)
+        let skiff = Entity(in: world, from: .empty).id
+        let depot = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: skiff)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),
@@ -137,8 +137,8 @@ struct MiningInteractionSystemTests {
 
     @Test func depotCanRefuelAnActorWithoutCargoStorage() {
         var world = World()
-        let tug = EntityID(index: 0, generation: 0)
-        let depot = EntityID(index: 1, generation: 0)
+        let tug = Entity(in: world, from: .empty).id
+        let depot = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: tug)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),
@@ -161,8 +161,8 @@ struct MiningInteractionSystemTests {
 
     @Test func depotCanUnloadAnActorWithoutFuelStorage() {
         var world = World()
-        let hauler = EntityID(index: 0, generation: 0)
-        let depot = EntityID(index: 1, generation: 0)
+        let hauler = Entity(in: world, from: .empty).id
+        let depot = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: hauler)
         world.playerControlComponents.insert(
             PlayerControlComponent(interactionState: .active, isFireRequested: false),

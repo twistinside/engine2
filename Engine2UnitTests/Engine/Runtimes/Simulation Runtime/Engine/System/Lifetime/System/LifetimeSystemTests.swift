@@ -15,7 +15,7 @@ struct LifetimeSystemTests {
         for missile in [first, second, third] {
             #expect(scene.world.entity(for: missile.id) === missile)
             #expect(scene.world.lifetimeComponents[missile.id]?.remainingLifetime == 0)
-            #expect(scene.world.pendingRemovalComponents[missile.id] != nil)
+            #expect(missile.lifecycleState == .pendingRemoval)
             #expect(scene.world.motionComponents[missile.id] != nil)
             #expect(scene.world.collisionBodyComponents[missile.id] != nil)
             #expect(scene.world.renderableComponents[missile.id] != nil)
@@ -24,6 +24,9 @@ struct LifetimeSystemTests {
         var removal = EntityRemovalSystem()
         removal.update(world: &scene.world, deltaTime: 1)
 
+        #expect(first.lifecycleState == .removed)
+        #expect(second.lifecycleState == .removed)
+        #expect(third.lifecycleState == .removed)
         #expect(scene.world.entity(for: first.id) == nil)
         #expect(scene.world.entity(for: second.id) == nil)
         #expect(scene.world.entity(for: third.id) == nil)
@@ -31,7 +34,7 @@ struct LifetimeSystemTests {
         #expect(scene.world.motionComponents.entities == [scene.skiff.id])
     }
 
-    @Test func repeatedExpiryKeepsLifetimeAtZeroAndOnePendingMarker() {
+    @Test func repeatedExpiryKeepsLifetimeAtZeroAndPendingRemovalState() {
         var world = World()
         let entity = LifetimeTestEntity(in: world, from: Entity.InitialState(lifetime: 0.5))
         var system = LifetimeSystem()
@@ -41,7 +44,7 @@ struct LifetimeSystemTests {
 
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.lifetimeComponents[entity.id]?.remainingLifetime == 0)
-        #expect(world.pendingRemovalComponents.entities == [entity.id])
+        #expect(entity.lifecycleState == .pendingRemoval)
     }
 
     @Test func lifetimeOnlyEntityCountsDownAndExpiresWithoutPhysicsOrDestructibility() {
@@ -63,19 +66,20 @@ struct LifetimeSystemTests {
 
         #expect(world.entity(for: entity.id) === entity)
         #expect(entity.remainingLifetime == 1.5)
-        #expect(world.pendingRemovalComponents[entity.id] == nil)
+        #expect(entity.lifecycleState == .active)
 
         system.update(world: &world, deltaTime: 1.5)
 
         #expect(world.entity(for: entity.id) === entity)
         #expect(entity.remainingLifetime == 0)
-        #expect(world.pendingRemovalComponents[entity.id] != nil)
+        #expect(entity.lifecycleState == .pendingRemoval)
         #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.fireableComponents[entity.id] == nil)
 
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1.5)
 
+        #expect(entity.lifecycleState == .removed)
         #expect(world.entity(for: entity.id) == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
     }
