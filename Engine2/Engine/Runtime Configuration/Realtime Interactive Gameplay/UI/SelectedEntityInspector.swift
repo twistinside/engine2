@@ -175,7 +175,12 @@ struct SelectedEntityInspector: View {
         if let collidable = entity as? any Collidable {
             section("Collision", systemImage: "circle.hexagongrid") {
                 metric("Radius", meters(collidable.collisionRadius))
-                metric("Restitution", format(collidable.restitution))
+                switch collidable.collisionResponse {
+                case let .solid(restitution):
+                    metric("Restitution", format(restitution))
+                case .sensor:
+                    metric("Response", "Contact only")
+                }
             }
         }
     }

@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 struct MiningSimulationBehaviorTests {
-    @Test func missilePressSpawnsOnceAndDestroysTheNearestDepotInTheProductionSchedule() throws {
+    @Test func missilePressSpawnsOnceAndDestroysAnAsteroidInTheProductionSchedule() throws {
         let input = InputRuntime(mappingConfiguration: .miningGame)
         input.start()
         let world = MiningWorldBuilder().buildWorld()
@@ -21,8 +21,8 @@ struct MiningSimulationBehaviorTests {
 
         engine.step(inputSnapshot: input.latestInputSnapshot)
 
-        let missile = try #require(world.fireableComponents.entities.first)
-        #expect(world.fireableComponents.entities.count == 1)
+        let missile = try #require(world.contactConsumptionComponents.entities.first)
+        #expect(world.contactConsumptionComponents.entities.count == 1)
         #expect(world.entity(for: missile) is Missile)
         #expect(world.ownershipComponents[missile]?.ownerEntityID == skiff)
         #expect(world.renderableComponents[missile] != nil)
@@ -32,20 +32,22 @@ struct MiningSimulationBehaviorTests {
             engine.step(inputSnapshot: input.latestInputSnapshot)
         }
 
-        #expect(world.fireableComponents.entities.isEmpty)
+        #expect(world.contactConsumptionComponents.entities.isEmpty)
         #expect(world.entity(for: missile) == nil)
         #expect(world.registeredEntities.count == 8)
-        #expect(Set(world.oreDepositComponents.entities) == originalAsteroids)
-        #expect(world.entity(for: depot) == nil)
-        #expect(world.collisionBodyComponents[depot] == nil)
-        #expect(world.depotServiceComponents[depot] == nil)
-        #expect(world.orbitalRailComponents[depot] == nil)
+        let removedAsteroids = originalAsteroids.subtracting(world.oreDepositComponents.entities)
+        #expect(removedAsteroids.count == 1)
+        #expect(world.entity(for: depot) != nil)
+        #expect(world.collisionBodyComponents[depot] != nil)
+        #expect(world.depotServiceComponents[depot] != nil)
+        #expect(world.orbitalRailComponents[depot] != nil)
         #expect(world.selectedEntityID == skiff)
 
         let snapshot = world.presentationSnapshot(
             at: SimulationCursor(sessionID: SimulationSessionID(), tick: engine.completedTick)
         )
-        #expect(!snapshot.entityPresentations.contains { $0.id == missile || $0.id == depot })
+        #expect(!snapshot.entityPresentations.contains { $0.id == missile || removedAsteroids.contains($0.id) })
+        #expect(snapshot.entityPresentations.contains { $0.id == depot })
         #expect(snapshot.entityPresentations.count == 8)
     }
 
@@ -100,15 +102,15 @@ struct MiningSimulationBehaviorTests {
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
 
         engine.step(inputSnapshot: input.latestInputSnapshot)
-        #expect(world.fireableComponents.entities.isEmpty)
+        #expect(world.contactConsumptionComponents.entities.isEmpty)
 
         #expect(world.select(skiff))
         engine.step()
-        #expect(world.fireableComponents.entities.isEmpty)
+        #expect(world.contactConsumptionComponents.entities.isEmpty)
 
         input.receive(.keyUp(KeyboardKey(keyCode: 46)))
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
         engine.step(inputSnapshot: input.latestInputSnapshot)
-        #expect(world.fireableComponents.entities.count == 1)
+        #expect(world.contactConsumptionComponents.entities.count == 1)
     }
 }

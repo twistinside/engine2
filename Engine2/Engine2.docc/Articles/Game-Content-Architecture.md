@@ -255,7 +255,7 @@ proximity range; ``Mineable`` and ``DepotServicing`` add action-specific state
 and rates.
 
 ``MiningSimulationBehavior`` supplies selection and control routing, circular
-rails, gravity and propulsion, missile launch, fired-body impacts, expiry, collision response,
+rails, gravity and propulsion, missile launch, contact effects, expiry, collision response,
 mining and depot service, camera follow, and orbit assistance at fixed ``SimulationSystemSchedule``
 stages. The orbit-assist command arrives on an exact Simulation request rather
 than through physical input mapping. See <doc:System-Scheduling> for the exact
@@ -267,15 +267,21 @@ fuel, cargo-dependent mass, and collision response. Its missiles integrate
 ballistic motion until impact or expiry.
 
 ``Missile`` is a Game Content recipe that composes ``Ownable``, ``Expirable``,
-and ``Fireable`` with movement, collision, scale, and rendering.
+``ContactDamaging``, and ``ContactConsumable`` with movement, collision, scale, and rendering.
 ``OwnershipComponent`` and ``LifetimeComponent`` are reusable independent state;
-``FireableComponent`` selects the fired-body impact policy. Every entity inherits
-the standalone ``Destructible`` capability from ``Entity`` without a marker row.
-The shared impact and lifetime systems process component rows and request
-deferred removal through the entity. Other entity types can reuse each behavior
-without becoming missiles. ``MissileLaunchSystem`` retains the content-specific
-launch recipe and targets the nearest active collision body other than the
-launcher or a fired body.
+outgoing damage and source consumption also have separate component rows.
+The missile authors sensor collision response, owner exclusion, and one point
+of contact damage. ``Asteroid`` independently supplies ``Damageable`` health.
+The depot and star remain solid obstacles without health, so missiles are
+consumed by them without removing them.
+
+Every entity inherits the standalone ``Destructible`` capability from ``Entity``
+without a marker row. The generic contact-effect and lifetime systems process
+component rows and request deferred removal through that capability. Other
+entity types can reuse damage, consumption, collision, ownership, and lifetime
+independently. ``MissileLaunchSystem`` lives in Game Content and retains the
+missile construction recipe and nearest active ore-deposit targeting policy.
+Targetability is separate from health and removal.
 
 The selected-entity inspector renders only capabilities supported by the live
 facade obtained from a narrow, read-only Simulation-owned source. A separate

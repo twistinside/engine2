@@ -2,7 +2,7 @@ import simd
 
 /// Finite-ore body that follows one deterministic circular rail.
 final class Asteroid: Entity, DisplayNamed, Scalable, Renderable, Selectable,
-    Orbiting, Mineable, Collidable {
+    Orbiting, Mineable, Collidable, Damageable {
     init(
         in world: World,
         name: String,
@@ -20,7 +20,8 @@ final class Asteroid: Entity, DisplayNamed, Scalable, Renderable, Selectable,
             scale: SIMD3<Float>(repeating: Float(physicalRadius)),
             selectionState: .unselected,
             collisionRadius: physicalRadius,
-            collisionRestitution: 0.35,
+            collisionResponse: .solid(restitution: 0.35),
+            health: 1,
             displayName: name,
             interactionRange: interactionRange,
             miningRate: miningRate,

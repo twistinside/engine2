@@ -3,6 +3,76 @@ import simd
 @testable import Engine2
 
 struct WorldInitialStateTests {
+    @Test func rejectsHealthWithoutDamageableCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = Entity(in: World(), from: Entity.InitialState(health: 1))
+            }
+        }
+    }
+
+    @Test func rejectsMissingHealthForDamageableCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = NonphysicalDamageableTestEntity(in: World(), from: .empty)
+            }
+        }
+    }
+
+    @Test func rejectsZeroInitialHealth() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = NonphysicalDamageableTestEntity(in: World(), from: Entity.InitialState(health: 0))
+            }
+        }
+    }
+
+    @Test func rejectsContactDamageWithoutContactDamagingCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = Entity(in: World(), from: Entity.InitialState(contactDamage: 1))
+            }
+        }
+    }
+
+    @Test func rejectsMissingDamageForContactDamagingCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = PersistentContactDamageTestEntity(
+                    in: World(),
+                    from: Entity.InitialState(collisionRadius: 1, collisionResponse: .sensor)
+                )
+            }
+        }
+    }
+
+    @Test func rejectsZeroContactDamage() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = PersistentContactDamageTestEntity(
+                    in: World(),
+                    from: Entity.InitialState(collisionRadius: 1, collisionResponse: .sensor, contactDamage: 0)
+                )
+            }
+        }
+    }
+
+    @Test func rejectsCollisionOwnerPolicyWithoutCollidableCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = Entity(in: World(), from: Entity.InitialState(collisionOwnerPolicy: .exclude))
+            }
+        }
+    }
+
+    @Test func rejectsCollisionContactScopeWithoutCollidableCapability() async {
+        await #expect(processExitsWith: .failure) {
+            await MainActor.run {
+                _ = Entity(in: World(), from: Entity.InitialState(collisionContactScope: .solidBodies))
+            }
+        }
+    }
+
     @Test func railSpawnUsesThePrimarysLivePositionBeforeAnyTick() throws {
         let world = World()
         let primary = Ball(in: world, materialID: .goldMetal)
@@ -10,7 +80,7 @@ struct WorldInitialStateTests {
         world.positionComponents.update(for: primary.id) { $0.position = primaryPosition }
         let entity = InitialStateRailEntity(in: world, from: Entity.InitialState(
             collisionRadius: 2,
-            collisionRestitution: 0.35,
+            collisionResponse: .solid(restitution: 0.35),
             orbitalPrimaryID: primary.id,
             orbitalRadius: 20,
             orbitalAngularSpeed: -0.25,
@@ -41,7 +111,7 @@ struct WorldInitialStateTests {
         let primary = Ball(in: world, materialID: .goldMetal)
         let state = Entity.InitialState(
             collisionRadius: 2,
-            collisionRestitution: 0.35,
+            collisionResponse: .solid(restitution: 0.35),
             orbitalPrimaryID: primary.id,
             orbitalRadius: 20,
             orbitalAngularSpeed: 0.25,
@@ -97,7 +167,7 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -115,7 +185,7 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -126,10 +196,10 @@ struct WorldInitialStateTests {
         }
     }
 
-    @Test func rejectsCollisionRestitutionWithoutCollidableCapability() async {
+    @Test func rejectsCollisionResponseWithoutCollidableCapability() async {
         await #expect(processExitsWith: .failure) {
             await MainActor.run {
-                _ = Entity(in: World(), from: Entity.InitialState(collisionRestitution: 0.35))
+                _ = Entity(in: World(), from: Entity.InitialState(collisionResponse: .solid(restitution: 0.35)))
             }
         }
     }
@@ -149,7 +219,7 @@ struct WorldInitialStateTests {
                 let primaryID = EntityID(index: 90, generation: 0)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primaryID,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -169,7 +239,7 @@ struct WorldInitialStateTests {
                 let primaryID = EntityID(index: primary.id.index, generation: primary.id.generation + 1)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primaryID,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -189,7 +259,7 @@ struct WorldInitialStateTests {
                 world.destroy(primary.id)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -209,7 +279,7 @@ struct WorldInitialStateTests {
                 world.positionComponents.insert(PositionComponent(position: .zero), for: primaryID)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primaryID,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -228,7 +298,7 @@ struct WorldInitialStateTests {
                 let primary = Entity(in: world, from: .empty)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -248,7 +318,7 @@ struct WorldInitialStateTests {
                 world.positionComponents.update(for: primary.id) { $0.position = SIMD3<Double>(.nan, 0, 0) }
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -268,7 +338,7 @@ struct WorldInitialStateTests {
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     position: .zero,
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -288,7 +358,7 @@ struct WorldInitialStateTests {
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     velocity: .zero,
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -307,7 +377,7 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 1e200,
                     orbitalAngularSpeed: 1e200,
@@ -326,7 +396,7 @@ struct WorldInitialStateTests {
                 let entity = InitialStateRailEntity(unregisteredID: world.reserveEntityID(), in: world)
                 world.add(entity, from: Entity.InitialState(
                     collisionRadius: 2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: entity.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,
@@ -360,7 +430,7 @@ struct WorldInitialStateTests {
                 let primary = Ball(in: world, materialID: .goldMetal)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: -2,
-                    collisionRestitution: 0.35,
+                    collisionResponse: .solid(restitution: 0.35),
                     orbitalPrimaryID: primary.id,
                     orbitalRadius: 20,
                     orbitalAngularSpeed: 0.25,

@@ -14,7 +14,7 @@ struct MiningWorldBuilderTests {
         #expect(world.depotServiceComponents.dense.count == 1)
         #expect(world.playerControlComponents.dense.count == 1)
         #expect(world.missileLauncherComponents.dense.count == 1)
-        #expect(world.fireableComponents.entities.isEmpty)
+        #expect(world.contactConsumptionComponents.entities.isEmpty)
         #expect(world.orbitPrimaryComponents.dense.count == 1)
 
         let selectedID = world.selectedEntityID

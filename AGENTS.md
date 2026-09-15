@@ -85,6 +85,11 @@ may iterate the entity registry because Entity owns this state.
 so every subclass is destructible without a marker component or repeated conformance. Entity retains lifecycle state;
 the protocol exposes only `markForRemoval()`.
 
+Removal capability does not imply damage susceptibility or targetability. `Damageable` owns health;
+`ContactDamaging` supplies outgoing contact damage; `ContactConsumable` independently requests source removal after
+contact. `Collidable` supplies solid or sensor response and explicit owner-contact policy. Shared response systems
+must not infer these policies from a concrete projectile type or a firing marker. Game Content owns aim and launch recipes.
+
 Compose entity behavior from reusable components and capabilities. Ownership, lifetime, and collision
 are independent properties; do not bundle them into one component named for a concrete entity type. Protocol inheritance
 should express a required invariant, not a combination that happens to occur in one Game Content entity.

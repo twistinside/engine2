@@ -15,7 +15,7 @@ struct OwnableTests {
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.collisionBodyComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
-        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.contactConsumptionComponents[entity.id] == nil)
 
         world.ownershipComponents.update(for: entity.id) { ownership in
             ownership.ownerEntityID = nextOwner.id

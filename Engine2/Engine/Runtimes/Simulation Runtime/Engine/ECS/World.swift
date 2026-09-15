@@ -14,15 +14,17 @@ class World {
     var angularVelocityComponents = ComponentStore<AngularVelocityComponent>()
     var cargoComponents = ComponentStore<CargoComponent>()
     var collisionBodyComponents = ComponentStore<CollisionBodyComponent>()
+    var contactDamageComponents = ComponentStore<ContactDamageComponent>()
+    var contactConsumptionComponents = ComponentStore<ContactConsumptionComponent>()
     var depotServiceComponents = ComponentStore<DepotServiceComponent>()
     var displayNameComponents = ComponentStore<DisplayNameComponent>()
     var fuelComponents = ComponentStore<FuelComponent>()
     var gravityReceiverComponents = ComponentStore<GravityReceiverComponent>()
     var gravitySourceComponents = ComponentStore<GravitySourceComponent>()
+    var healthComponents = ComponentStore<HealthComponent>()
     var interactionComponents = ComponentStore<InteractionComponent>()
     var massComponents = ComponentStore<MassComponent>()
     var mineableComponents = ComponentStore<MineableComponent>()
-    var fireableComponents = ComponentStore<FireableComponent>()
     var ownershipComponents = ComponentStore<OwnershipComponent>()
     var lifetimeComponents = ComponentStore<LifetimeComponent>()
     var missileLauncherComponents = ComponentStore<MissileLauncherComponent>()
@@ -128,15 +130,17 @@ class World {
         addScaleComponent(for: entity, from: state)
         addCargoComponent(for: entity, from: state)
         addCollisionComponents(for: entity, from: state)
+        addContactDamageComponent(for: entity, from: state)
+        addContactConsumptionComponent(for: entity)
         addDepotServiceComponent(for: entity, from: state)
         addDisplayNameComponent(for: entity, from: state)
         addFuelComponent(for: entity, from: state)
         addGravityReceiverComponent(for: entity)
         addGravitySourceComponent(for: entity, from: state)
+        addHealthComponent(for: entity, from: state)
         addInteractionComponent(for: entity, from: state)
         addMassComponent(for: entity, from: state)
         addMineableComponent(for: entity, from: state)
-        addFireableComponent(for: entity)
         addOwnershipComponent(for: entity, from: state)
         addLifetimeComponent(for: entity, from: state)
         addMissileLauncherComponent(for: entity, from: state)
@@ -216,15 +220,17 @@ class World {
         angularVelocityComponents.remove(for: entity)
         cargoComponents.remove(for: entity)
         collisionBodyComponents.remove(for: entity)
+        contactDamageComponents.remove(for: entity)
+        contactConsumptionComponents.remove(for: entity)
         depotServiceComponents.remove(for: entity)
         displayNameComponents.remove(for: entity)
         fuelComponents.remove(for: entity)
         gravityReceiverComponents.remove(for: entity)
         gravitySourceComponents.remove(for: entity)
+        healthComponents.remove(for: entity)
         interactionComponents.remove(for: entity)
         massComponents.remove(for: entity)
         mineableComponents.remove(for: entity)
-        fireableComponents.remove(for: entity)
         ownershipComponents.remove(for: entity)
         lifetimeComponents.remove(for: entity)
         missileLauncherComponents.remove(for: entity)
@@ -350,18 +356,25 @@ class World {
         let isCollidable = entity is Collidable
         precondition(
             (state.collisionRadius != nil) == isCollidable &&
-                (state.collisionRestitution != nil) == isCollidable,
-            "Collidable requires collision radius and restitution; other entities must omit both."
+                (state.collisionResponse != nil) == isCollidable &&
+                (state.collisionOwnerPolicy == nil || isCollidable) &&
+                (state.collisionContactScope == nil || isCollidable),
+            "Collidable requires radius and response; other entities must omit all collision policy."
         )
         guard let collisionRadius = state.collisionRadius,
-              let collisionRestitution = state.collisionRestitution else {
+              let collisionResponse = state.collisionResponse else {
             return
         }
         guard let position = positionComponents[entity.id]?.position else {
             preconditionFailure("A collidable entity requires its resolved position before collision registration.")
         }
         collisionBodyComponents.insert(
-            CollisionBodyComponent(radius: collisionRadius, restitution: collisionRestitution),
+            CollisionBodyComponent(
+                radius: collisionRadius,
+                response: collisionResponse,
+                ownerPolicy: state.collisionOwnerPolicy ?? .include,
+                contactScope: state.collisionContactScope ?? .allBodies
+            ),
             for: entity.id
         )
         previousPositionComponents.insert(PreviousPositionComponent(position: position), for: entity.id)
@@ -469,11 +482,36 @@ class World {
         mineableComponents.insert(MineableComponent(miningRate: miningRate), for: entity.id)
     }
 
-    private func addFireableComponent(for entity: Entity) {
-        guard entity is Fireable else {
+    private func addContactDamageComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.contactDamage != nil) == (entity is ContactDamaging),
+            "ContactDamaging requires contact damage; other entities must omit it."
+        )
+        guard let contactDamage = state.contactDamage else {
             return
         }
-        fireableComponents.insert(FireableComponent(), for: entity.id)
+        contactDamageComponents.insert(
+            ContactDamageComponent(amount: HitPoints(rawValue: contactDamage)),
+            for: entity.id
+        )
+    }
+
+    private func addContactConsumptionComponent(for entity: Entity) {
+        guard entity is ContactConsumable else {
+            return
+        }
+        contactConsumptionComponents.insert(ContactConsumptionComponent(), for: entity.id)
+    }
+
+    private func addHealthComponent(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.health != nil) == (entity is Damageable),
+            "Damageable requires initial health; other entities must omit it."
+        )
+        guard let health = state.health else {
+            return
+        }
+        healthComponents.insert(HealthComponent(health: HitPoints(rawValue: health)), for: entity.id)
     }
 
     private func addOwnershipComponent(for entity: Entity, from state: Entity.InitialState) {

@@ -101,7 +101,9 @@ struct WorldTests {
         #expect(world.cargoComponents[entity.id]?.capacity == state.cargoCapacity)
         #expect(world.cargoComponents[entity.id]?.ore == state.cargoOre)
         #expect(world.collisionBodyComponents[entity.id]?.radius == state.collisionRadius)
-        #expect(world.collisionBodyComponents[entity.id]?.restitution == state.collisionRestitution)
+        #expect(world.collisionBodyComponents[entity.id]?.response == state.collisionResponse)
+        #expect(world.collisionBodyComponents[entity.id]?.ownerPolicy == state.collisionOwnerPolicy)
+        #expect(world.collisionBodyComponents[entity.id]?.contactScope == state.collisionContactScope)
         #expect(world.depotServiceComponents[entity.id]?.unloadingRate == state.depotUnloadingRate)
         #expect(world.depotServiceComponents[entity.id]?.refuelingRate == state.depotRefuelingRate)
         #expect(world.depotServiceComponents[entity.id]?.deliveredOre == 0)
@@ -113,7 +115,9 @@ struct WorldTests {
         #expect(world.interactionComponents[entity.id]?.interactionRange == state.interactionRange)
         #expect(world.massComponents[entity.id]?.dryMass == state.dryMass)
         #expect(world.mineableComponents[entity.id]?.miningRate == state.miningRate)
-        #expect(world.fireableComponents[entity.id] != nil)
+        #expect(world.contactConsumptionComponents[entity.id] != nil)
+        #expect(world.contactDamageComponents[entity.id]?.amount.rawValue == state.contactDamage)
+        #expect(world.healthComponents[entity.id]?.health.rawValue == state.health)
         #expect(world.ownershipComponents[entity.id]?.ownerEntityID == state.ownerEntityID)
         #expect(world.lifetimeComponents[entity.id]?.remainingLifetime == state.lifetime)
         #expect(world.missileLauncherComponents[entity.id]?.speed == state.missileSpeed)
@@ -170,7 +174,9 @@ struct WorldTests {
         #expect(world.interactionComponents[entity.id] == nil)
         #expect(world.massComponents[entity.id] == nil)
         #expect(world.mineableComponents[entity.id] == nil)
-        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.contactConsumptionComponents[entity.id] == nil)
+        #expect(world.contactDamageComponents[entity.id] == nil)
+        #expect(world.healthComponents[entity.id] == nil)
         #expect(world.ownershipComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
         #expect(world.missileLauncherComponents[entity.id] == nil)
@@ -368,7 +374,11 @@ struct WorldTests {
             cargoCapacity: 20,
             cargoOre: 3,
             collisionRadius: 2,
-            collisionRestitution: 0.35,
+            collisionResponse: .solid(restitution: 0.35),
+            collisionOwnerPolicy: .exclude,
+            collisionContactScope: .solidBodies,
+            contactDamage: 2,
+            health: 3,
             depotUnloadingRate: 4,
             depotRefuelingRate: 5,
             displayName: "Complete",
@@ -401,6 +411,6 @@ private extension WorldTests {
     private final class TestRenderableSpawnEntity: Entity, Renderable {}
     private final class TestCompleteSpawnEntity: Entity, CargoCarrying, Collidable,
         DepotServicing, DisplayNamed, Fueled, GravityAffected, GravitySource,
-        LiveMass, Mineable, MissileLaunching, Ownable, Expirable, Fireable, OrbitCircularizable,
+        LiveMass, Mineable, MissileLaunching, Ownable, Expirable, ContactDamaging, ContactConsumable, Damageable, OrbitCircularizable,
         PlayerControlled, Propelled, Renderable, Rotatable, Scalable, Selectable {}
 }

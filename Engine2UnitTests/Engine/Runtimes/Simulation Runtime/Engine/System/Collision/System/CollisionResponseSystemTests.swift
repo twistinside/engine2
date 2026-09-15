@@ -2,6 +2,31 @@ import Testing
 @testable import Engine2
 
 struct CollisionResponseSystemTests {
+    @Test func harmlessSensorsRecordContactWithoutBouncingOrPushingASolidBody() {
+        var world = World()
+        let solid = addCollisionBody(in: world, from: .zero, to: .zero, velocity: .zero)
+        let sensor = addCollisionBody(
+            in: world,
+            from: SIMD3<Double>(-10, 0, 0),
+            to: SIMD3<Double>(10, 0, 0),
+            velocity: SIMD3<Double>(20, 0, 0)
+        )
+        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, response: .sensor), for: sensor)
+        var detector = CollisionSystem()
+        detector.update(world: &world, deltaTime: 1)
+        #expect(world.collisionContacts.count == 1)
+        var response = CollisionResponseSystem()
+
+        response.update(world: &world, deltaTime: 1)
+
+        #expect(world.positionComponents[solid]?.position == .zero)
+        #expect(world.motionComponents[solid]?.velocity == .zero)
+        #expect(world.positionComponents[sensor]?.position == SIMD3<Double>(10, 0, 0))
+        #expect(world.motionComponents[sensor]?.velocity == SIMD3<Double>(20, 0, 0))
+        #expect(world.contactDamageComponents.entities.isEmpty)
+        #expect(world.contactConsumptionComponents.entities.isEmpty)
+    }
+
     @Test func pendingRemovalBodyRetainsItsMotionWithoutBouncing() {
         var world = World()
         let body = Entity(in: world, from: .empty).id
@@ -9,10 +34,16 @@ struct CollisionResponseSystemTests {
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
         world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: body)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
+            for: body
+        )
         world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: obstacle)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
+            for: obstacle
+        )
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
@@ -34,11 +65,17 @@ struct CollisionResponseSystemTests {
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
         world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: body)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
+            for: body
+        )
         for (obstacle, position) in [(pending, SIMD3<Double>.zero), (surviving, SIMD3<Double>(5, 0, 0))] {
             world.positionComponents.insert(PositionComponent(position: position), for: obstacle)
             world.previousPositionComponents.insert(PreviousPositionComponent(position: position), for: obstacle)
-            world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: obstacle)
+            world.collisionBodyComponents.insert(
+                CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
+                for: obstacle
+            )
         }
 
         var detector = CollisionSystem()
@@ -60,10 +97,16 @@ struct CollisionResponseSystemTests {
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: skiff)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: skiff)
         world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: skiff)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 0.35), for: skiff)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
+            for: skiff
+        )
         world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 0.35), for: obstacle)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
+            for: obstacle
+        )
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
@@ -99,10 +142,16 @@ struct CollisionResponseSystemTests {
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: skiff)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: skiff)
         world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 5, 0)), for: skiff)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 0.35), for: skiff)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
+            for: skiff
+        )
         world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 0.35), for: obstacle)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
+            for: obstacle
+        )
         world.orbitalRailComponents.insert(
             OrbitalRailComponent(
                 primaryEntityID: star,
@@ -229,7 +278,10 @@ struct CollisionResponseSystemTests {
             to: SIMD3<Double>(10, 0, 0),
             velocity: SIMD3<Double>(20, 0, 0)
         )
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 0), for: first)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 0)),
+            for: first
+        )
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
 
@@ -249,7 +301,10 @@ struct CollisionResponseSystemTests {
         let entity = Entity(in: world, from: .empty)
         world.positionComponents.insert(PositionComponent(position: position), for: entity.id)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: previousPosition), for: entity.id)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: entity.id)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
+            for: entity.id
+        )
         if let velocity {
             world.motionComponents.insert(MotionComponent(velocity: velocity), for: entity.id)
         }

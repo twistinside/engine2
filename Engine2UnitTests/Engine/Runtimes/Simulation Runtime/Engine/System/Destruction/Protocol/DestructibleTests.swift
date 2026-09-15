@@ -10,7 +10,7 @@ struct DestructibleTests {
         #expect(world.positionComponents[entity.id] == nil)
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.collisionBodyComponents[entity.id] == nil)
-        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.contactConsumptionComponents[entity.id] == nil)
         #expect(world.ownershipComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
 

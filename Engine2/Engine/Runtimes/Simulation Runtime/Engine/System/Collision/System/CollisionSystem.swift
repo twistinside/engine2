@@ -1,6 +1,6 @@
 /// Captures every intersecting pair of active planar collision bodies without applying gameplay policy.
 ///
-/// Ownership and fired-body capabilities do not affect geometric detection. Consumers select eligible
+/// Ownership and response policies do not affect geometric detection. Consumers select eligible
 /// contacts before choosing their earliest response. Every update replaces the World's collision data,
 /// including invalid-duration updates; final entity collection clears it after all consumers finish.
 struct CollisionSystem: System {

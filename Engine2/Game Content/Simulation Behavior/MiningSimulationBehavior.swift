@@ -19,7 +19,7 @@ struct MiningSimulationBehavior: SimulationBehavior {
             ],
             postMovement: [
                 CollisionSystem(),
-                FireableImpactSystem(),
+                ContactEffectSystem(),
                 LifetimeSystem(),
                 CollisionResponseSystem(),
                 MiningInteractionSystem(),

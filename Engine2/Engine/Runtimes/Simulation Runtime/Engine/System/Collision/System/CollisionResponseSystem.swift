@@ -2,12 +2,13 @@ import simd
 
 /// Applies bounce response to the earliest eligible contact for each active dynamic body.
 ///
-/// Fired bodies do not bounce or act as bounce obstacles. Dynamic component order preserves the
+/// Sensors do not bounce or act as bounce obstacles. Dynamic component order preserves the
 /// existing sequential response policy. Each positional correction updates local contact candidates
 /// involving that body, so later bodies see its corrected path and the original tick's lifetime bounds.
 /// World retains the initial detection facts for other consumers.
 struct CollisionResponseSystem: System {
     private let evaluator = CollisionEvaluator()
+    private let contactFilter = CollisionContactFilter()
 
     mutating func update(world: inout World, deltaTime: Double) {
         guard deltaTime.isFinite, deltaTime > 0 else {
@@ -18,7 +19,7 @@ struct CollisionResponseSystem: System {
         var sweeps = world.collisionSweeps
         for entity in world.motionComponents.entities {
             guard world.entity(for: entity)?.lifecycleState == .active,
-                  world.fireableComponents[entity] == nil,
+                  world.collisionBodyComponents[entity]?.response.isSolid == true,
                   let sweepIndex = sweeps.firstIndex(where: { $0.entityID == entity }),
                   let contact = earliestContact(for: entity, among: contacts, in: world),
                   let position = resolve(contact, for: entity, in: world) else {
@@ -41,8 +42,8 @@ struct CollisionResponseSystem: System {
         var earliestFraction = Double.infinity
         for contact in contacts where contact.firstEntityID == entity || contact.secondEntityID == entity {
             let obstacle = contact.firstEntityID == entity ? contact.secondEntityID : contact.firstEntityID
-            guard world.entity(for: obstacle)?.lifecycleState == .active,
-                  world.fireableComponents[obstacle] == nil else {
+            guard world.collisionBodyComponents[obstacle]?.response.isSolid == true,
+                  contactFilter.allowsResponse(from: entity, to: obstacle, in: world) else {
                 continue
             }
             if contact.tickFraction < earliestFraction ||
@@ -60,6 +61,8 @@ struct CollisionResponseSystem: System {
         let normal = contact.firstEntityID == entity ? contact.normal : -contact.normal
         guard let body = world.collisionBodyComponents[entity],
               let obstacleBody = world.collisionBodyComponents[obstacle],
+              let restitution = body.response.restitution,
+              let obstacleRestitution = obstacleBody.response.restitution,
               let obstaclePosition = world.positionComponents[obstacle]?.position,
               world.positionComponents[entity] != nil,
               let motion = world.motionComponents[entity] else {
@@ -82,8 +85,7 @@ struct CollisionResponseSystem: System {
             return position
         }
 
-        let restitution = min(body.restitution, obstacleBody.restitution)
-        let reflectedVelocity = relativeVelocity - (1 + restitution) * normalVelocity * normal
+        let reflectedVelocity = relativeVelocity - (1 + min(restitution, obstacleRestitution)) * normalVelocity * normal
         world.motionComponents.update(for: entity) { component in
             component.velocity.x = obstacleVelocity.x + reflectedVelocity.x
             component.velocity.y = obstacleVelocity.y + reflectedVelocity.y

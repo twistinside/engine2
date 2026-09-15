@@ -59,7 +59,7 @@ mining behavior at `worldPreparation`.
 | `inputConsumption` | ``PlanarSelectionSystem``, ``SelectedEntityControlSystem``, ``OrbitCircularizationSystem`` |
 | `worldPreparation` | ``MissileLaunchSystem``, ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
 | `forceContribution` | ``GravitySystem``, ``OrbitCircularizationAutopilotSystem``, ``FlightControlSystem`` |
-| `postMovement` | ``CollisionSystem``, ``FireableImpactSystem``, ``LifetimeSystem``, ``CollisionResponseSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
+| `postMovement` | ``CollisionSystem``, ``ContactEffectSystem``, ``LifetimeSystem``, ``CollisionResponseSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
 | `prePresentation` | None |
 
 The circularization system consumes and clears the one-shot command before
@@ -85,26 +85,31 @@ before gameplay response policies run. It stores immutable ``CollisionContact``
 values in ``World/collisionContacts`` and each body's original swept path in
 ``World/collisionSweeps``. Contacts identify a canonical entity pair, a fraction
 of the complete tick, and a normal directed from the second entity toward the
-first. Detection includes owners and fired-body pairs; the response policy
+first. Detection includes owners and sensor pairs; the response policy
 decides which contacts matter.
 
-``FireableImpactSystem`` selects the earliest eligible captured contact for each
-fired body, excluding its owner and other fired bodies. It marks both
-participants through ``Destructible/markForRemoval()``, which transitions the base
+``ContactEffectSystem`` selects the earliest eligible captured contact for each
+source carrying outgoing contact damage or contact consumption. The shared
+``CollisionContactFilter`` requires active participants, acceptance by the source's
+contact scope, and both participants' explicit owner-contact policies. It selects
+all contacts before any writes, applies each outgoing damage amount to a health
+row if present, then marks consumed sources and exhausted recipients through
+``Destructible/markForRemoval()``, which transitions the base
 Entity's authoritative lifecycle from `active` to `pendingRemoval`. Repeated
 requests on the registered pending facade succeed without another transition.
 Ownership and lifetime remain independent component rows. Every Entity conforms
 to the standalone Destructible protocol; destructibility has no component row.
 
 ``LifetimeSystem`` advances lifetime rows and marks expired entities, including
-entities without collision or fired-body capabilities. Detection runs before
+entities without collision or contact-effect capabilities. Detection runs before
 expiry and captures each body's start-of-tick lifetime fraction in its
 ``CollisionSweep``. Both paths are clipped to the shorter remaining lifetime.
 Contacts compare elapsed tick time, so different expiry times cannot change
 which eligible contact occurs first.
 
-``CollisionResponseSystem`` applies bounce policy to active bodies and excludes
-fired bodies. It preserves dynamic component-store order. When an earlier
+``CollisionResponseSystem`` applies bounce policy to active solid bodies using
+the same contact filter. Sensors neither bounce nor push solid bodies. It
+preserves dynamic component-store order. When an earlier
 positional response invalidates a later pair, it re-evaluates that pair through
 the shared ``CollisionEvaluator``, using the captured lifetime baseline. These
 updates affect the response's working data; the World's original contacts remain
@@ -119,10 +124,9 @@ facade to `removed`. Final collection clears both collision buffers. The Engine
 completes the tick only after this collection, so the next completed presentation
 omits removed entities.
 
-This separation leaves room for future explosion propagation, collision-force
-contributions, and health-based damage decisions before final collection.
-Those responses remain proposed; current impact policy marks both contact
-participants for deferred removal.
+Damage, consumption, and expiry independently decide which entities require
+removal. Targeting remains a Game Content decision. Explosion propagation and
+collision-force contributions remain proposed extensions before final collection.
 
 A future perturbation feature needs an explicit rail-to-dynamics transition. A
 body must not receive rail placement and dynamic integration in the same tick.

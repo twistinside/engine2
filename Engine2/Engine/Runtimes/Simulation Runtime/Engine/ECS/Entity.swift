@@ -53,7 +53,11 @@ class Entity {
         var cargoCapacity: Double? = nil
         var cargoOre: Double? = nil
         var collisionRadius: Double? = nil
-        var collisionRestitution: Double? = nil
+        var collisionResponse: CollisionResponse? = nil
+        var collisionOwnerPolicy: CollisionOwnerPolicy? = nil
+        var collisionContactScope: CollisionContactScope? = nil
+        var contactDamage: Double? = nil
+        var health: Double? = nil
         var depotUnloadingRate: Double? = nil
         var depotRefuelingRate: Double? = nil
         var displayName: String? = nil

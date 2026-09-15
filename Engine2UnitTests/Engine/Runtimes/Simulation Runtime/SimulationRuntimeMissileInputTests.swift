@@ -39,7 +39,7 @@ struct SimulationRuntimeMissileInputTests {
         }
         #expect(simulation.currentCursor == initialCursor)
         #expect(simulation.latestPresentationSnapshot == initialPresentation)
-        #expect(simulation.world.fireableComponents.entities.isEmpty)
+        #expect(simulation.world.contactConsumptionComponents.entities.isEmpty)
 
         let accepted = await simulation.advance(
             SimulationAdvanceRequest(
@@ -53,8 +53,8 @@ struct SimulationRuntimeMissileInputTests {
             Issue.record("The corrected cursor must accept the unconsumed fire press.")
             return
         }
-        let missile = try #require(simulation.world.fireableComponents.entities.first)
-        #expect(simulation.world.fireableComponents.entities == [missile])
+        let missile = try #require(simulation.world.contactConsumptionComponents.entities.first)
+        #expect(simulation.world.contactConsumptionComponents.entities == [missile])
         #expect(firstResult.completedStepCount.rawValue == 3)
         #expect(firstResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
         #expect(simulation.world.input.isFireRequested == false)
@@ -72,10 +72,10 @@ struct SimulationRuntimeMissileInputTests {
             return
         }
         #expect(secondResult.completedStepCount.rawValue == 3)
-        #expect(simulation.world.fireableComponents.entities.isEmpty)
-        #expect(simulation.world.entity(for: missile) == nil)
-        #expect(simulation.world.depotServiceComponents.entities.isEmpty)
-        #expect(!secondResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
+        #expect(simulation.world.contactConsumptionComponents.entities == [missile])
+        #expect(simulation.world.entity(for: missile) is Missile)
+        #expect(simulation.world.depotServiceComponents.entities.count == 1)
+        #expect(secondResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
         #expect(firstResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
     }
 
@@ -105,7 +105,7 @@ struct SimulationRuntimeMissileInputTests {
             return
         }
         #expect(rebaseResult.completedStepCount.rawValue == 3)
-        #expect(simulation.world.fireableComponents.entities.isEmpty)
+        #expect(simulation.world.contactConsumptionComponents.entities.isEmpty)
 
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
         input.receive(.keyUp(KeyboardKey(keyCode: 46)))
@@ -125,7 +125,7 @@ struct SimulationRuntimeMissileInputTests {
             Issue.record("The transition without subsequent input must complete.")
             return
         }
-        #expect(simulation.world.fireableComponents.entities.isEmpty)
+        #expect(simulation.world.contactConsumptionComponents.entities.isEmpty)
 
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
         input.receive(.keyUp(KeyboardKey(keyCode: 46)))
@@ -144,8 +144,8 @@ struct SimulationRuntimeMissileInputTests {
             Issue.record("The post-baseline fire press must advance with its exact request.")
             return
         }
-        let missile = try #require(simulation.world.fireableComponents.entities.first)
-        #expect(simulation.world.fireableComponents.entities == [missile])
+        let missile = try #require(simulation.world.contactConsumptionComponents.entities.first)
+        #expect(simulation.world.contactConsumptionComponents.entities == [missile])
         #expect(transitionResult.completedStepCount.rawValue == 3)
         #expect(transitionResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
         #expect(simulation.world.input.isFireRequested == false)

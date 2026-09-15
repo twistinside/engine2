@@ -1,7 +1,8 @@
 import simd
 
-/// A visible ballistic projectile registered by missile launch systems through the normal entity boundary.
-final class Missile: Entity, Fireable, Ownable, Expirable, Collidable, Movable, Scalable, Renderable {
+/// A ballistic contact sensor that deals one point of damage and consumes itself on eligible solid-body impact.
+/// Ownership exclusion, expiry, contact damage, and consumption are independently composed capabilities.
+final class Missile: Entity, ContactDamaging, ContactConsumable, Ownable, Expirable, Movable, Scalable, Renderable {
     init(
         in world: World,
         ownerEntityID: EntityID,
@@ -21,7 +22,10 @@ final class Missile: Entity, Fireable, Ownable, Expirable, Collidable, Movable, 
             velocity: velocity,
             scale: SIMD3<Float>(repeating: renderRadius),
             collisionRadius: radius,
-            collisionRestitution: 0,
+            collisionResponse: .sensor,
+            collisionOwnerPolicy: .exclude,
+            collisionContactScope: .solidBodies,
+            contactDamage: 1,
             ownerEntityID: ownerEntityID,
             lifetime: lifetime,
             meshID: .ball,

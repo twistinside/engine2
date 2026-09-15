@@ -95,7 +95,7 @@ struct OrbitCircularizationSystemTests {
             for: primary
         )
         world.collisionBodyComponents.insert(
-            CollisionBodyComponent(radius: 100, restitution: 0.35),
+            CollisionBodyComponent(radius: 100, response: .solid(restitution: 0.35)),
             for: primary
         )
         world.positionComponents.insert(
@@ -112,7 +112,7 @@ struct OrbitCircularizationSystemTests {
         )
         world.orbitCircularizationAutopilotComponents.insert(.idle, for: entity)
         world.collisionBodyComponents.insert(
-            CollisionBodyComponent(radius: 10, restitution: 0.35),
+            CollisionBodyComponent(radius: 10, response: .solid(restitution: 0.35)),
             for: entity
         )
         world.massComponents.insert(MassComponent(dryMass: 10_000), for: entity)

@@ -11,7 +11,7 @@ struct LifetimeSystemTests {
         var system = LifetimeSystem()
         system.update(world: &scene.world, deltaTime: 1)
 
-        #expect(scene.world.fireableComponents.entities == [first.id, second.id, third.id])
+        #expect(scene.world.contactConsumptionComponents.entities == [first.id, second.id, third.id])
         for missile in [first, second, third] {
             #expect(scene.world.entity(for: missile.id) === missile)
             #expect(scene.world.lifetimeComponents[missile.id]?.remainingLifetime == 0)
@@ -30,7 +30,7 @@ struct LifetimeSystemTests {
         #expect(scene.world.entity(for: first.id) == nil)
         #expect(scene.world.entity(for: second.id) == nil)
         #expect(scene.world.entity(for: third.id) == nil)
-        #expect(scene.world.fireableComponents.entities.isEmpty)
+        #expect(scene.world.contactConsumptionComponents.entities.isEmpty)
         #expect(scene.world.motionComponents.entities == [scene.skiff.id])
     }
 
@@ -58,7 +58,7 @@ struct LifetimeSystemTests {
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.collisionBodyComponents[entity.id] == nil)
         #expect(world.ownershipComponents[entity.id] == nil)
-        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.contactConsumptionComponents[entity.id] == nil)
 
         var system = LifetimeSystem()
         system.update(world: &world, deltaTime: 0.5)
@@ -72,7 +72,7 @@ struct LifetimeSystemTests {
         #expect(world.entity(for: entity.id) === entity)
         #expect(entity.remainingLifetime == 0)
         #expect(entity.lifecycleState == .pendingRemoval)
-        #expect(world.fireableComponents[entity.id] == nil)
+        #expect(world.contactConsumptionComponents[entity.id] == nil)
 
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1.5)

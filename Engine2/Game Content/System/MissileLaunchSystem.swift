@@ -2,7 +2,9 @@ import simd
 
 /// Consumes a selected launcher's fire press and registers one visible projectile before movement begins.
 ///
-/// Aim chooses the nearest active, non-fired collision body, breaking distance ties by complete entity identity.
+/// Mining Game Content aims at the nearest active solid body with an ore deposit, breaking ties by complete identity.
+/// Target choice is independent of an entity's removal capability or health.
+/// A depleted deposit remains eligible; mining and targeting have separate policies.
 /// The initial trajectory leads the target's current velocity and inherits the launcher's velocity.
 struct MissileLaunchSystem: System {
     mutating func update(world: inout World, deltaTime: Double) {
@@ -64,7 +66,7 @@ struct MissileLaunchSystem: System {
     ) -> SIMD3<Double> {
         let planarVelocity = SIMD2<Double>(velocity.x, velocity.y)
         let fallback = simd_length(planarVelocity) > 0 ? simd_normalize(planarVelocity) : SIMD2<Double>(1, 0)
-        guard let target = nearestTarget(to: position, excluding: actor, in: world),
+        guard let target = nearestOreDeposit(to: position, excluding: actor, in: world),
               let targetPosition = world.positionComponents[target]?.position else {
             return SIMD3<Double>(fallback.x, fallback.y, 0)
         }
@@ -82,16 +84,16 @@ struct MissileLaunchSystem: System {
         return SIMD3<Double>(lead.x / distance, lead.y / distance, 0)
     }
 
-    private func nearestTarget(
+    private func nearestOreDeposit(
         to position: SIMD3<Double>,
         excluding actor: EntityID,
         in world: World
     ) -> EntityID? {
         var target: EntityID?
         var nearestDistanceSquared = Double.infinity
-        for candidate in world.collisionBodyComponents.entities where candidate != actor &&
-            world.fireableComponents[candidate] == nil {
+        for candidate in world.oreDepositComponents.entities where candidate != actor {
             guard world.entity(for: candidate)?.lifecycleState == .active,
+                  world.collisionBodyComponents[candidate]?.response.isSolid == true,
                   let candidatePosition = world.positionComponents[candidate]?.position else {
                 continue
             }

@@ -16,7 +16,7 @@ final class Star: Entity, DisplayNamed, Scalable, Renderable, Selectable, Gravit
             scale: SIMD3<Float>(repeating: Float(radius)),
             selectionState: .unselected,
             collisionRadius: radius,
-            collisionRestitution: 0.35,
+            collisionResponse: .solid(restitution: 0.35),
             displayName: name,
             gravitationalParameter: gravitationalParameter,
             dryMass: mass,

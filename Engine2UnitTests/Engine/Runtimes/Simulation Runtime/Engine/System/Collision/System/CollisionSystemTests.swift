@@ -2,7 +2,7 @@ import Testing
 @testable import Engine2
 
 struct CollisionSystemTests {
-    @Test func nonfiredBodiesProduceEveryContactWithoutChangingParticipants() {
+    @Test func ordinaryBodiesProduceEveryContactWithoutChangingParticipants() {
         var world = World()
         let moving = addCollisionBody(in: world, from: SIMD3<Double>(-10, 0, 0), to: SIMD3<Double>(10, 0, 0))
         let near = addCollisionBody(in: world, from: .zero, to: .zero)
@@ -12,7 +12,7 @@ struct CollisionSystemTests {
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
 
-        #expect(world.fireableComponents.entities.isEmpty)
+        #expect(world.contactConsumptionComponents.entities.isEmpty)
         #expect(world.collisionContacts.count == 2)
         #expect(world.collisionContacts.map(\.firstEntityID) == [moving.id, moving.id])
         #expect(world.collisionContacts.map(\.secondEntityID) == [near.id, far.id])
@@ -25,7 +25,7 @@ struct CollisionSystemTests {
         #expect(world.previousPositionComponents[moving.id]?.position == SIMD3<Double>(-10, 0, 0))
     }
 
-    @Test func detectorRetainsOwnerAndFiredBodyPairsForConsumerPolicy() {
+    @Test func detectorRetainsOwnerAndSensorPairsForConsumerPolicy() {
         var scene = MissileTestScene(velocity: .zero)
         let first = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
         let second = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
@@ -153,7 +153,10 @@ struct CollisionSystemTests {
         let entity = Entity(in: world, from: .empty)
         world.positionComponents.insert(PositionComponent(position: position), for: entity.id)
         world.previousPositionComponents.insert(PreviousPositionComponent(position: previousPosition), for: entity.id)
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, restitution: 1), for: entity.id)
+        world.collisionBodyComponents.insert(
+            CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
+            for: entity.id
+        )
         if let lifetime {
             world.lifetimeComponents.insert(LifetimeComponent(remainingLifetime: lifetime), for: entity.id)
         }
