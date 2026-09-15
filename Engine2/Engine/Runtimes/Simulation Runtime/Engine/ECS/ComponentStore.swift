@@ -4,27 +4,52 @@
 /// `entities`, and `sparse` maps an entity index back to the dense slot when a
 /// live row exists for that entity generation.
 struct ComponentStore<C: Component> {
-    var dense: [C] = []
-    var entities: [EntityID] = []
-    var sparse: [Int: Int] = [:]
+    private(set) var dense: [C] = []
+    private(set) var entities: [EntityID] = []
+    private(set) var sparse: [Int: Int] = [:]
 
     /// Inserts or replaces the component row for an entity.
     ///
-    /// `sparse` is keyed by `entity.index`, but the dense slot is only valid if
-    /// the stored `EntityID` still matches exactly. That extra generation check
-    /// prevents a recycled index from aliasing a component that belonged to an
-    /// older entity instance.
+    /// Remove the current owner before inserting a different generation at the
+    /// same index. This keeps sparse lookup and dense iteration in agreement.
     mutating func insert(_ component: C, for entity: EntityID) {
-        // Update in place when this exact entity already owns a dense slot.
-        if let denseIndex = sparse[entity.index], entities.indices.contains(denseIndex), entities[denseIndex] == entity {
+        if let denseIndex = sparse[entity.index] {
+            precondition(
+                entities[denseIndex] == entity,
+                "Remove the existing component owner before inserting another generation at the same index."
+            )
             dense[denseIndex] = component
             return
         }
 
-        // Otherwise append a new dense row and point the sparse index at it.
         sparse[entity.index] = dense.count
         dense.append(component)
         entities.append(entity)
+    }
+
+    /// Removes the row owned by this complete identity, returning whether it existed.
+    ///
+    /// The last dense row fills the removed slot, so removal may change iteration
+    /// order. Collect identities before structurally mutating a store during a
+    /// system update; dense indices must not survive insertion or removal.
+    @discardableResult
+    mutating func remove(for entity: EntityID) -> Bool {
+        guard let denseIndex = sparse[entity.index],
+              entities[denseIndex] == entity else {
+            return false
+        }
+
+        let lastIndex = dense.count - 1
+        if denseIndex != lastIndex {
+            dense[denseIndex] = dense[lastIndex]
+            let movedEntity = entities[lastIndex]
+            entities[denseIndex] = movedEntity
+            sparse[movedEntity.index] = denseIndex
+        }
+        dense.removeLast()
+        entities.removeLast()
+        sparse.removeValue(forKey: entity.index)
+        return true
     }
 
     /// Mutates an existing component row in place.

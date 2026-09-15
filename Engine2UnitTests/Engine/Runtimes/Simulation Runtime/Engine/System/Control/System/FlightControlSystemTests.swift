@@ -50,7 +50,10 @@ struct FlightControlSystemTests {
     }
 
     private func addControlledSkiff(_ entity: EntityID, cargoOre: Double, to world: World) {
-        world.playerControlComponents.insert(PlayerControlComponent(translation: SIMD2<Double>(1, 0)), for: entity)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(translation: SIMD2<Double>(1, 0), isFireRequested: false),
+            for: entity
+        )
         world.propulsionComponents.insert(PropulsionComponent(maximumThrust: 300_000, exhaustVelocity: 20_000), for: entity)
         world.fuelComponents.insert(FuelComponent(capacity: 2_000, remaining: 2_000), for: entity)
         world.cargoComponents.insert(CargoComponent(capacity: 8_000, ore: cargoOre), for: entity)

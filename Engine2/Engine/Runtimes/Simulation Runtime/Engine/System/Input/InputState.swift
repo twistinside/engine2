@@ -3,11 +3,13 @@ import simd
 /// Authoritative Simulation-facing semantic input imported at fixed-step boundaries.
 ///
 /// Held translation and interaction state remain available on every catch-up
-/// step. Cumulative camera and selection publications become interval-local
-/// values that ordered systems consume at most once before cleanup.
+/// step. Cumulative camera, selection, and fire publications become interval-local
+/// values that ordered systems consume at most once before cleanup. Multiple fire
+/// presses between imports coalesce into one request.
 struct InputState {
     var translation = SIMD2<Float>.zero
     var isInteractionActive = false
+    var isFireRequested = false
     var cameraOrbitDelta = SIMD2<Float>.zero
     var cameraZoomDelta: Float = 0
     var selectionPress: SelectionPress?
@@ -26,23 +28,26 @@ struct InputState {
                 cameraOrbitDelta: snapshot.cameraOrbitTotal,
                 cameraZoomDelta: snapshot.cameraZoomTotal,
                 selectionPress: snapshot.latestSelectionPress,
-                hasNewSelectionPress: snapshot.selectionPressCount > 0
+                hasNewSelectionPress: snapshot.selectionPressCount > 0,
+                hasNewFirePress: snapshot.firePressCount > 0
             ) else {
                 return
             }
 
-        case let .consumed(consumedRevision, cameraOrbitTotal, cameraZoomTotal, selectionPressCount):
+        case let .consumed(consumedRevision, cameraOrbitTotal, cameraZoomTotal, selectionPressCount, firePressCount):
             guard snapshot.revision > consumedRevision else {
                 return
             }
 
             if snapshot.revision.session == consumedRevision.session {
                 guard snapshot.selectionPressCount >= selectionPressCount,
+                      snapshot.firePressCount >= firePressCount,
                       accumulateTransients(
                         cameraOrbitDelta: snapshot.cameraOrbitTotal - cameraOrbitTotal,
                         cameraZoomDelta: snapshot.cameraZoomTotal - cameraZoomTotal,
                         selectionPress: snapshot.latestSelectionPress,
-                        hasNewSelectionPress: snapshot.selectionPressCount > selectionPressCount
+                        hasNewSelectionPress: snapshot.selectionPressCount > selectionPressCount,
+                        hasNewFirePress: snapshot.firePressCount > firePressCount
                       ) else {
                     return
                 }
@@ -51,7 +56,8 @@ struct InputState {
                     cameraOrbitDelta: snapshot.cameraOrbitTotal,
                     cameraZoomDelta: snapshot.cameraZoomTotal,
                     selectionPress: snapshot.latestSelectionPress,
-                    hasNewSelectionPress: snapshot.selectionPressCount > 0
+                    hasNewSelectionPress: snapshot.selectionPressCount > 0,
+                    hasNewFirePress: snapshot.firePressCount > 0
                 ) else {
                     return
                 }
@@ -76,6 +82,7 @@ struct InputState {
         cameraOrbitDelta = .zero
         cameraZoomDelta = 0
         selectionPress = nil
+        isFireRequested = false
     }
 
     private func accepts(_ snapshot: InputSnapshot) -> Bool {
@@ -92,7 +99,8 @@ struct InputState {
         cameraOrbitDelta: SIMD2<Float>,
         cameraZoomDelta: Float,
         selectionPress: SelectionPress?,
-        hasNewSelectionPress: Bool
+        hasNewSelectionPress: Bool,
+        hasNewFirePress: Bool
     ) -> Bool {
         let nextCameraOrbitDelta = self.cameraOrbitDelta + cameraOrbitDelta
         let nextCameraZoomDelta = self.cameraZoomDelta + cameraZoomDelta
@@ -106,6 +114,7 @@ struct InputState {
 
         self.cameraOrbitDelta = nextCameraOrbitDelta
         self.cameraZoomDelta = nextCameraZoomDelta
+        isFireRequested = isFireRequested || hasNewFirePress
         if hasNewSelectionPress {
             self.selectionPress = selectionPress
         }
@@ -119,7 +128,8 @@ struct InputState {
             revision: snapshot.revision,
             cameraOrbitTotal: snapshot.cameraOrbitTotal,
             cameraZoomTotal: snapshot.cameraZoomTotal,
-            selectionPressCount: snapshot.selectionPressCount
+            selectionPressCount: snapshot.selectionPressCount,
+            firePressCount: snapshot.firePressCount
         )
     }
 }

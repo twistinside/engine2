@@ -4,8 +4,8 @@
 
 Engine2 is a Swift ECS experiment built around explicit ownership and typed boundaries. Preserve its core model:
 
-- ECS component stores are the authoritative simulation state.
-- Entity objects are ergonomic, typed facades over that state.
+- ECS component stores own authoritative gameplay values.
+- Entity objects own identity and lifecycle and provide ergonomic, typed facades over component values.
 - Capability protocols provide the Game Content, UI, and tooling API.
 - Systems that process component data operate directly on component stores.
 
@@ -71,18 +71,45 @@ without a concrete consumer and explicit identity, delivery, ownership, and life
 
 ## Simulation and ECS
 
-`World` and its component stores are the simulation source of truth. Entity subclasses are live typed facades, not a
-second authoritative state model. Keep `Entity` as the common base class for live game objects and prefer capability
-protocols over deeper inheritance.
+`World` owns the entity registry, identity allocation, component stores, and Simulation resources. Components own
+authoritative gameplay values. The base `Entity` owns its identity and `EntityLifecycleState`; subclasses provide live
+typed facades over component values. Do not duplicate gameplay values on facades or lifecycle state in components.
+Keep `Entity` as the common base class for live game objects and prefer capability protocols over deeper inheritance.
 
-Systems that operate on component data must iterate or join stores directly rather than entity facades. Use
+`Entity.lifecycleState` distinguishes unregistered, active, pending-removal, and removed entities. Registration,
+`Entity.markForRemoval()`, and World teardown control its transitions. Marking is idempotent and retains the registered
+facade and component rows until the Engine's final `EntityRemovalSystem` collects pending entities. Lifecycle systems
+may iterate the entity registry because Entity owns this state.
+
+`Destructible` is a standalone removal capability with no Entity superclass requirement. The base Entity conforms,
+so every subclass is destructible without a marker component or repeated conformance. Entity retains lifecycle state;
+the protocol exposes only `markForRemoval()`.
+
+Removal capability does not imply damage susceptibility or targetability. `Damageable` owns health;
+`ContactDamaging` supplies outgoing contact damage; `ContactConsumable` independently requests source removal after
+contact. `Collidable` supplies solid or sensor response and explicit owner-contact policy. Shared response systems
+must not infer these policies from a concrete projectile type or a firing marker. Game Content owns aim and launch recipes.
+
+Compose entity behavior from reusable components and capabilities. Ownership, lifetime, and collision
+are independent properties; do not bundle them into one component named for a concrete entity type. Protocol inheritance
+should express a required invariant, not a combination that happens to occur in one Game Content entity.
+
+Systems that operate on component data must iterate or join stores directly, consulting Entity lifecycle when needed. Use
 `ComponentStore.update(for:_:)` for an existing row. Use `insert` for registration, adding a missing row, or an
 intentional full reset or reseed. Do not rebuild and reinsert rows for ordinary per-tick field changes.
 
-`World.add(_:from:)` validates agreement between an entity's advertised capabilities and its complete
-`Entity.InitialState`, then creates the authoritative component rows. Concrete entity initializers assemble typed
-initial state and register through this boundary. Keep every construction-time component write inside
-`World.add(_:from:)`.
+Each concrete entity has a designated initializer for the authored values it needs. It constructs one flat
+`Entity.InitialState` using scalar and SIMD values, enums, and typed identities, then calls `super.init(in:from:)`.
+The base Entity initializer owns identity reservation and registration. Initial state must not contain intermediate
+seed structures or component instances, or resolve live World state. Game Content may choose or calculate its authored
+parameters, but concrete entity initializers must not construct authoritative components.
+
+`World.add(_:from:)` validates those facts against the entity's advertised capabilities, constructs every component,
+and resolves World-dependent bootstrap state before registration returns. The World derives capability markers,
+neutral transient controls, and previous collision positions. An orbital rail supplies the complete placement policy:
+resolve its live primary in World, reject explicit position or translational motion seeds, and derive initial rail
+position and velocity there. The entity must be ready for the initial presentation without a bootstrap tick. Systems
+own subsequent evolution. Keep every construction-time component write inside `World.add(_:from:)`.
 
 Preserve complete `EntityID` identity, including `generation`. Sparse lookup may start from the index, but validation,
 equality, enumeration, and tie-breaking must not regress to index-only semantics. Do not introduce index reuse until

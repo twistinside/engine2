@@ -2,9 +2,10 @@ import simd
 
 /// Immutable semantic intent published by `InputRuntime`.
 ///
-/// Camera commands and selection counts are cumulative within a Runtime
+/// Camera totals and press counts are cumulative within a Runtime
 /// session. A consumer can skip intermediate publications and still derive the
-/// complete interval from the last revision it consumed. Held translation and
+/// camera interval and detect new presses. Simulation coalesces multiple selection
+/// or fire presses into one request per import interval. Held translation and
 /// interaction state remain active until a later publication changes them.
 nonisolated struct InputSnapshot: Equatable, Sendable {
     let revision: InputRevision
@@ -14,6 +15,8 @@ nonisolated struct InputSnapshot: Equatable, Sendable {
     let cameraZoomTotal: Float
     let latestSelectionPress: SelectionPress?
     let selectionPressCount: UInt64
+    /// Cumulative requests; Simulation decides whether and how the selected entity acts.
+    let firePressCount: UInt64
 
     static let empty = InputSnapshot(
         revision: .initial,
@@ -22,6 +25,7 @@ nonisolated struct InputSnapshot: Equatable, Sendable {
         cameraOrbitTotal: .zero,
         cameraZoomTotal: 0,
         latestSelectionPress: nil,
-        selectionPressCount: 0
+        selectionPressCount: 0,
+        firePressCount: 0
     )
 }

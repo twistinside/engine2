@@ -5,6 +5,7 @@
 struct CameraFollowSystem: System {
     mutating func update(world: inout World, deltaTime _: Double) {
         guard let entity = world.cameraFollowEntityID,
+              world.entity(for: entity)?.lifecycleState == .active,
               let position = world.positionComponents[entity]?.position,
               let previousPosition = world.previousPositionComponents[entity]?.position,
               position.isFinite,
