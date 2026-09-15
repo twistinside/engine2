@@ -267,13 +267,15 @@ fuel, cargo-dependent mass, and collision response. Its missiles integrate
 ballistic motion until impact or expiry.
 
 ``Missile`` is a Game Content recipe that composes ``Ownable``, ``Expirable``,
-``Fireable``, and ``Destructible`` with movement, collision, scale, and rendering.
+and ``Fireable`` with movement, collision, scale, and rendering.
 ``OwnershipComponent`` and ``LifetimeComponent`` are reusable independent state;
-``FireableComponent`` selects the fired-body impact policy. Destructibility is
-independent of collision. The shared impact and lifetime systems process these
-rows directly, so other entity types can reuse each behavior without becoming
-missiles. ``MissileLaunchSystem`` retains the content-specific launch recipe and
-targeting policy.
+``FireableComponent`` selects the fired-body impact policy. Every entity inherits
+the standalone ``Destructible`` capability from ``Entity`` without a marker row.
+The shared impact and lifetime systems process component rows and request
+deferred removal through the entity. Other entity types can reuse each behavior
+without becoming missiles. ``MissileLaunchSystem`` retains the content-specific
+launch recipe and targets the nearest active collision body other than the
+launcher or a fired body.
 
 The selected-entity inspector renders only capabilities supported by the live
 facade obtained from a narrow, read-only Simulation-owned source. A separate

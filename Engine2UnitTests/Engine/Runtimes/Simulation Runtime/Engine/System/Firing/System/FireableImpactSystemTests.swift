@@ -37,7 +37,7 @@ struct FireableImpactSystemTests {
         #expect(scene.world.entity(for: scene.skiff.id) === scene.skiff)
     }
 
-    @Test func earliestSolidImpactBlocksADestructibleTarget() {
+    @Test func earliestImpactDestroysTheDepotAndPreservesALaterTarget() {
         var scene = MissileTestScene(velocity: .zero)
         let depot = scene.depot(at: SIMD3<Double>(40, 0, 0))
         let asteroid = scene.asteroid(at: SIMD3<Double>(60, 0, 0), velocity: .zero)
@@ -52,7 +52,7 @@ struct FireableImpactSystemTests {
         removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: missile.id) == nil)
-        #expect(scene.world.entity(for: depot.id) === depot)
+        #expect(scene.world.entity(for: depot.id) == nil)
         #expect(scene.world.entity(for: asteroid.id) === asteroid)
     }
 
@@ -197,7 +197,7 @@ struct FireableImpactSystemTests {
     @Test func unownedNonexpiringFiredBodyDestroysATarget() {
         var scene = MissileTestScene(velocity: .zero)
         let asteroid = scene.asteroid(at: SIMD3<Double>(60, 0, 0), velocity: .zero)
-        let fired = DestructibleFireableTestEntity(
+        let fired = PhysicalFireableTestEntity(
             in: scene.world,
             from: fireableState()
         )
@@ -216,32 +216,10 @@ struct FireableImpactSystemTests {
         #expect(scene.world.entity(for: fired.id) == nil)
     }
 
-    @Test func nondestructibleFiredBodySurvivesADestructibleTarget() {
-        var scene = MissileTestScene(velocity: .zero)
-        let asteroid = scene.asteroid(at: SIMD3<Double>(60, 0, 0), velocity: .zero)
-        let fired = IndestructibleFireableTestEntity(
-            in: scene.world,
-            from: fireableState()
-        )
-        scene.move(deltaTime: 1)
-
-        var detector = CollisionSystem()
-        detector.update(world: &scene.world, deltaTime: 1)
-        var response = FireableImpactSystem()
-        response.update(world: &scene.world, deltaTime: 1)
-        var removal = EntityRemovalSystem()
-        removal.update(world: &scene.world, deltaTime: 1)
-
-        #expect(scene.world.entity(for: asteroid.id) == nil)
-        #expect(scene.world.entity(for: fired.id) === fired)
-        #expect(scene.world.fireableComponents[fired.id] != nil)
-        #expect(scene.world.destructibleComponents[fired.id] == nil)
-    }
-
-    @Test func unownedDestructibleFiredBodyIsDestroyedByAnIndestructibleBlocker() {
+    @Test func unownedFiredBodyAndDepotAreBothDestroyedOnImpact() {
         var scene = MissileTestScene(velocity: .zero)
         let blocker = scene.depot(at: SIMD3<Double>(40, 0, 0))
-        let fired = DestructibleFireableTestEntity(
+        let fired = PhysicalFireableTestEntity(
             in: scene.world,
             from: fireableState()
         )
@@ -255,7 +233,7 @@ struct FireableImpactSystemTests {
         removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: fired.id) == nil)
-        #expect(scene.world.entity(for: blocker.id) === blocker)
+        #expect(scene.world.entity(for: blocker.id) == nil)
     }
 
     @Test func ownerExclusionRequiresTheCompleteGenerationalIdentity() {
@@ -278,7 +256,8 @@ struct FireableImpactSystemTests {
         removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: missile.id) == nil)
-        #expect(scene.world.entity(for: scene.skiff.id) === scene.skiff)
+        #expect(scene.world.entity(for: scene.skiff.id) == nil)
+        #expect(scene.world.selectedEntityID == nil)
     }
 
     @Test func targetExpiringBeforeContactDoesNotConsumeTheFiredBody() {

@@ -13,7 +13,7 @@ struct EntityTests {
         #expect(componentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
-    @Test func baseEntityRegistrationConsumesIdentityWithoutInventingCapabilities() {
+    @Test func baseEntityRegistrationConsumesIdentityWithoutComponentRows() {
         let world = World()
         let first = Entity(in: world, from: .empty)
         let second = Entity(in: world, from: .empty)
@@ -34,7 +34,6 @@ struct EntityTests {
 
         #expect(entity.lifecycleState == .pendingRemoval)
         #expect(world.entity(for: entity.id) === entity)
-        #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
         #expect(componentRowCounts(in: world).allSatisfy { $0 == 0 })
     }

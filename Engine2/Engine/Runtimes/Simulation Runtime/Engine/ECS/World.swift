@@ -15,7 +15,6 @@ class World {
     var cargoComponents = ComponentStore<CargoComponent>()
     var collisionBodyComponents = ComponentStore<CollisionBodyComponent>()
     var depotServiceComponents = ComponentStore<DepotServiceComponent>()
-    var destructibleComponents = ComponentStore<DestructibleComponent>()
     var displayNameComponents = ComponentStore<DisplayNameComponent>()
     var fuelComponents = ComponentStore<FuelComponent>()
     var gravityReceiverComponents = ComponentStore<GravityReceiverComponent>()
@@ -130,7 +129,6 @@ class World {
         addCargoComponent(for: entity, from: state)
         addCollisionComponents(for: entity, from: state)
         addDepotServiceComponent(for: entity, from: state)
-        addDestructibleComponent(for: entity)
         addDisplayNameComponent(for: entity, from: state)
         addFuelComponent(for: entity, from: state)
         addGravityReceiverComponent(for: entity)
@@ -219,7 +217,6 @@ class World {
         cargoComponents.remove(for: entity)
         collisionBodyComponents.remove(for: entity)
         depotServiceComponents.remove(for: entity)
-        destructibleComponents.remove(for: entity)
         displayNameComponents.remove(for: entity)
         fuelComponents.remove(for: entity)
         gravityReceiverComponents.remove(for: entity)
@@ -389,13 +386,6 @@ class World {
             ),
             for: entity.id
         )
-    }
-
-    private func addDestructibleComponent(for entity: Entity) {
-        guard entity is Destructible else {
-            return
-        }
-        destructibleComponents.insert(DestructibleComponent(), for: entity.id)
     }
 
     private func addDisplayNameComponent(for entity: Entity, from state: Entity.InitialState) {

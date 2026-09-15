@@ -1,4 +1,4 @@
 @testable import Engine2
 
-/// Isolates finite lifetime from physics, ownership, firing, and destructibility.
+/// Isolates finite lifetime from physics, ownership, and firing.
 final class LifetimeTestEntity: Entity, Expirable {}

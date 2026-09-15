@@ -47,7 +47,7 @@ struct LifetimeSystemTests {
         #expect(entity.lifecycleState == .pendingRemoval)
     }
 
-    @Test func lifetimeOnlyEntityCountsDownAndExpiresWithoutPhysicsOrDestructibility() {
+    @Test func lifetimeOnlyEntityCountsDownAndExpiresWithoutPhysicsOrFiring() {
         var world = World()
         let entity = LifetimeTestEntity(
             in: world,
@@ -57,7 +57,6 @@ struct LifetimeSystemTests {
         #expect(world.positionComponents[entity.id] == nil)
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.collisionBodyComponents[entity.id] == nil)
-        #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.ownershipComponents[entity.id] == nil)
         #expect(world.fireableComponents[entity.id] == nil)
 
@@ -73,7 +72,6 @@ struct LifetimeSystemTests {
         #expect(world.entity(for: entity.id) === entity)
         #expect(entity.remainingLifetime == 0)
         #expect(entity.lifecycleState == .pendingRemoval)
-        #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.fireableComponents[entity.id] == nil)
 
         var removal = EntityRemovalSystem()

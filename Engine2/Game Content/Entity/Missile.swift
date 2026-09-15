@@ -1,7 +1,7 @@
 import simd
 
 /// A visible ballistic projectile registered by missile launch systems through the normal entity boundary.
-final class Missile: Entity, Fireable, Ownable, Expirable, Collidable, Destructible, Movable, Scalable, Renderable {
+final class Missile: Entity, Fireable, Ownable, Expirable, Collidable, Movable, Scalable, Renderable {
     init(
         in world: World,
         ownerEntityID: EntityID,

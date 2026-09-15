@@ -2,7 +2,7 @@ import simd
 
 /// Consumes a selected launcher's fire press and registers one visible projectile before movement begins.
 ///
-/// Aim chooses the nearest destructible collision body, breaking distance ties by complete entity identity.
+/// Aim chooses the nearest active, non-fired collision body, breaking distance ties by complete entity identity.
 /// The initial trajectory leads the target's current velocity and inherits the launcher's velocity.
 struct MissileLaunchSystem: System {
     mutating func update(world: inout World, deltaTime: Double) {
@@ -89,9 +89,9 @@ struct MissileLaunchSystem: System {
     ) -> EntityID? {
         var target: EntityID?
         var nearestDistanceSquared = Double.infinity
-        for candidate in world.destructibleComponents.entities where candidate != actor &&
+        for candidate in world.collisionBodyComponents.entities where candidate != actor &&
             world.fireableComponents[candidate] == nil {
-            guard world.collisionBodyComponents[candidate] != nil,
+            guard world.entity(for: candidate)?.lifecycleState == .active,
                   let candidatePosition = world.positionComponents[candidate]?.position else {
                 continue
             }

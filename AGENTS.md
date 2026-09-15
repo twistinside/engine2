@@ -81,7 +81,11 @@ Keep `Entity` as the common base class for live game objects and prefer capabili
 facade and component rows until the Engine's final `EntityRemovalSystem` collects pending entities. Lifecycle systems
 may iterate the entity registry because Entity owns this state.
 
-Compose entity behavior from reusable components and capabilities. Ownership, lifetime, collision, and destructibility
+`Destructible` is a standalone removal capability with no Entity superclass requirement. The base Entity conforms,
+so every subclass is destructible without a marker component or repeated conformance. Entity retains lifecycle state;
+the protocol exposes only `markForRemoval()`.
+
+Compose entity behavior from reusable components and capabilities. Ownership, lifetime, and collision
 are independent properties; do not bundle them into one component named for a concrete entity type. Protocol inheritance
 should express a required invariant, not a combination that happens to occur in one Game Content entity.
 

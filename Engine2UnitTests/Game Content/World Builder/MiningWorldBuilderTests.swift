@@ -14,7 +14,6 @@ struct MiningWorldBuilderTests {
         #expect(world.depotServiceComponents.dense.count == 1)
         #expect(world.playerControlComponents.dense.count == 1)
         #expect(world.missileLauncherComponents.dense.count == 1)
-        #expect(world.destructibleComponents.dense.count == 6)
         #expect(world.fireableComponents.entities.isEmpty)
         #expect(world.orbitPrimaryComponents.dense.count == 1)
 

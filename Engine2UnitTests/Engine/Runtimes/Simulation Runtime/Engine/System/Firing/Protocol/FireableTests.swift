@@ -2,14 +2,13 @@ import Testing
 @testable import Engine2
 
 struct FireableTests {
-    @Test func firingAndDestructibilityDoNotRequireCollisionOrMovement() {
+    @Test func firingDoesNotRequireCollisionOrMovement() {
         var world = World()
         let entity = NonphysicalFireableTestEntity(
             in: world,
             from: .empty
         )
         #expect(world.fireableComponents[entity.id] != nil)
-        #expect(world.destructibleComponents[entity.id] != nil)
         #expect(world.positionComponents[entity.id] == nil)
         #expect(world.motionComponents[entity.id] == nil)
         #expect(world.collisionBodyComponents[entity.id] == nil)

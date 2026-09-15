@@ -201,12 +201,17 @@ facade.
 
 The selected skiff can fire a missile with M. A cumulative semantic fire press
 becomes a one-tick control request. ``MissileLaunchSystem`` constructs a visible,
-dynamically integrated missile aimed at the nearest destructible asteroid,
-leading its current velocity and excluding fired bodies from target selection.
-``Missile`` composes reusable ``Ownable``, ``Expirable``, ``Fireable``, and
-``Destructible`` capabilities with movement, collision, scale, and rendering.
-Ownership and lifetime have separate component rows; destructibility does not
-require collision capability.
+dynamically integrated missile aimed at the nearest active collision body,
+leading its current velocity and excluding the launcher and fired bodies from
+target selection. Asteroids, the depot, and the star are eligible targets.
+``Missile`` composes reusable ``Ownable``, ``Expirable``, and ``Fireable``
+capabilities with movement, collision, scale, and rendering. Ownership and
+lifetime have separate component rows.
+
+``Destructible`` is a standalone protocol exposing `markForRemoval()` without
+requiring Entity inheritance or component storage. The base ``Entity`` conforms,
+so every subclass inherits deferred removal. Entity owns lifecycle state; no
+destructibility marker row or per-subclass conformance is needed.
 
 ``CollisionSystem`` joins collision and position rows for active entities and
 captures contacts before applying gameplay policy. Each ``CollisionContact``
@@ -218,7 +223,7 @@ original start and end positions, radius, and start-of-tick lifetime fraction.
 
 ``FireableImpactSystem`` filters these contacts by fired-body and ownership
 policy, excludes owners and other fired bodies, and selects the earliest
-eligible contact for each fired body. It marks destructible participants for
+eligible contact for each fired body. It marks both participants for
 final removal. ``LifetimeSystem`` independently advances lifetime rows and
 marks expired entities. Detection runs first and clips both paths to the time
 both bodies still exist, preserving contacts during the final partial interval
@@ -234,12 +239,14 @@ contacts for other consumers.
 Component rows, registered facades, and collision data remain available until
 the Engine's final collection. Explosion propagation, collision-force
 contributions, and health-based damage remain future direction; the current
-impact response marks destructible contact participants. The skiff retains its
+impact response marks both contact participants. The skiff retains its
 existing held Space action for mining and depot service.
 
 Six asteroids and one depot initially follow deterministic circular rails. During
 `worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep
 baselines and ``OrbitalRailSystem`` updates rail positions and velocities.
+If a rail's primary is removed, the rail retains its last position and velocity;
+it does not switch to dynamic integration or remove its orbiting entity.
 ``OrbitCircularizationSystem`` consumes the one-shot command during
 `inputConsumption`. In `forceContribution`, gravity runs before
 ``OrbitCircularizationAutopilotSystem``, which runs before manual

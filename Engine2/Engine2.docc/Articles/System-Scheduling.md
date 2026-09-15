@@ -89,11 +89,12 @@ first. Detection includes owners and fired-body pairs; the response policy
 decides which contacts matter.
 
 ``FireableImpactSystem`` selects the earliest eligible captured contact for each
-fired body, excluding its owner and other fired bodies. It marks destructible
-participants through ``Entity/markForRemoval()``, which transitions the base
+fired body, excluding its owner and other fired bodies. It marks both
+participants through ``Destructible/markForRemoval()``, which transitions the base
 Entity's authoritative lifecycle from `active` to `pendingRemoval`. Repeated
 requests on the registered pending facade succeed without another transition.
-Ownership, lifetime, and destructibility remain independent component rows.
+Ownership and lifetime remain independent component rows. Every Entity conforms
+to the standalone Destructible protocol; destructibility has no component row.
 
 ``LifetimeSystem`` advances lifetime rows and marks expired entities, including
 entities without collision or fired-body capabilities. Detection runs before
@@ -120,8 +121,8 @@ omits removed entities.
 
 This separation leaves room for future explosion propagation, collision-force
 contributions, and health-based damage decisions before final collection.
-Those responses remain proposed; current impact policy only marks destructible
-contact participants.
+Those responses remain proposed; current impact policy marks both contact
+participants for deferred removal.
 
 A future perturbation feature needs an explicit rail-to-dynamics transition. A
 body must not receive rail placement and dynamic integration in the same tick.

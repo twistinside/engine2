@@ -39,9 +39,11 @@ Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`En
 
 The mining demo starts with the Prospector skiff selected. Use WASD or the arrow
 keys to fly, hold Space to mine nearby asteroids or use depot services, and press
-M to fire a missile toward the nearest asteroid. Each missile leads the target's
-current motion, destroys an asteroid on impact, and expires after 20 seconds if
-it misses. Click an entity to select it; flight, mining, and missile controls
+M to fire a missile toward the nearest active collision body other than the
+skiff or another missile. Each missile leads the target's current motion,
+destroys both itself and the body it hits, and expires after 20 seconds if
+it misses. All entities are destructible, including the depot and star.
+Click an entity to select it; flight, mining, and missile controls
 apply only while the skiff is selected. Drag to orbit the camera and scroll to
 zoom.
 

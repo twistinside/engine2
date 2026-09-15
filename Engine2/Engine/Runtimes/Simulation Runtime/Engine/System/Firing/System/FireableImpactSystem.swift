@@ -1,7 +1,7 @@
 /// Applies fired-body impact policy to generic contacts captured by CollisionSystem.
 ///
 /// Each active fired body selects its earliest eligible contact, excluding its owner and other
-/// fired bodies. Destructible participants are marked only after every fired body has selected,
+/// fired bodies. Both participants are marked only after every fired body has selected,
 /// so simultaneous hits against the same target all receive their response.
 struct FireableImpactSystem: System {
     mutating func update(world: inout World, deltaTime: Double) {
@@ -14,12 +14,8 @@ struct FireableImpactSystem: System {
             guard let target = firstImpact(of: entity, in: world) else {
                 continue
             }
-            if world.destructibleComponents[entity] != nil {
-                impactedEntities.insert(entity)
-            }
-            if world.destructibleComponents[target] != nil {
-                impactedEntities.insert(target)
-            }
+            impactedEntities.insert(entity)
+            impactedEntities.insert(target)
         }
         for entity in impactedEntities.sorted() {
             world.entity(for: entity)?.markForRemoval()

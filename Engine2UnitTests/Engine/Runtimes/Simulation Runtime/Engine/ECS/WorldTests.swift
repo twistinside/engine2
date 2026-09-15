@@ -105,7 +105,6 @@ struct WorldTests {
         #expect(world.depotServiceComponents[entity.id]?.unloadingRate == state.depotUnloadingRate)
         #expect(world.depotServiceComponents[entity.id]?.refuelingRate == state.depotRefuelingRate)
         #expect(world.depotServiceComponents[entity.id]?.deliveredOre == 0)
-        #expect(world.destructibleComponents[entity.id] != nil)
         #expect(world.displayNameComponents[entity.id]?.value == state.displayName)
         #expect(world.fuelComponents[entity.id]?.capacity == state.fuelCapacity)
         #expect(world.fuelComponents[entity.id]?.remaining == state.fuelRemaining)
@@ -164,7 +163,6 @@ struct WorldTests {
         #expect(world.cargoComponents[entity.id] == nil)
         #expect(world.collisionBodyComponents[entity.id] == nil)
         #expect(world.depotServiceComponents[entity.id] == nil)
-        #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.displayNameComponents[entity.id] == nil)
         #expect(world.fuelComponents[entity.id] == nil)
         #expect(world.gravityReceiverComponents[entity.id] == nil)
@@ -402,7 +400,7 @@ private extension WorldTests {
     private final class TestSelectableSpawnEntity: Entity, Selectable {}
     private final class TestRenderableSpawnEntity: Entity, Renderable {}
     private final class TestCompleteSpawnEntity: Entity, CargoCarrying, Collidable,
-        DepotServicing, Destructible, DisplayNamed, Fueled, GravityAffected, GravitySource,
+        DepotServicing, DisplayNamed, Fueled, GravityAffected, GravitySource,
         LiveMass, Mineable, MissileLaunching, Ownable, Expirable, Fireable, OrbitCircularizable,
         PlayerControlled, Propelled, Renderable, Rotatable, Scalable, Selectable {}
 }

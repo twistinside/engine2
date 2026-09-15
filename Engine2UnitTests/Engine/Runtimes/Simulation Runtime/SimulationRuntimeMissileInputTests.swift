@@ -72,7 +72,11 @@ struct SimulationRuntimeMissileInputTests {
             return
         }
         #expect(secondResult.completedStepCount.rawValue == 3)
-        #expect(simulation.world.fireableComponents.entities == [missile])
+        #expect(simulation.world.fireableComponents.entities.isEmpty)
+        #expect(simulation.world.entity(for: missile) == nil)
+        #expect(simulation.world.depotServiceComponents.entities.isEmpty)
+        #expect(!secondResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
+        #expect(firstResult.finalPresentationSnapshot.entityPresentations.contains { $0.id == missile })
     }
 
     @Test func rebaseSuppressesHistoricalFireAndTransitionPreservesOnlyTheNewPress() async throws {

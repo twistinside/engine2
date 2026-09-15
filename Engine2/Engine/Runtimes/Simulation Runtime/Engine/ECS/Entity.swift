@@ -4,8 +4,9 @@ import simd
 ///
 /// An entity retains its generational identity and an unowned reference to the
 /// world that stores its authoritative component data. The entity owns its lifecycle
-/// state from registration through final removal. Capability protocols add live,
-/// ergonomic accessors for game code and tooling. Systems that process gameplay
+/// state from registration through final removal and conforms to Destructible for every
+/// subclass. Capability protocols add live, ergonomic accessors for game code and tooling.
+/// Systems that process gameplay
 /// components iterate stores directly; lifecycle systems may iterate the World's
 /// registered entities. After destruction, resolve the identity through
 /// `World.entity(for:)` before using a facade: its capability accessors require live rows.
@@ -99,27 +100,6 @@ class Entity {
         world.add(self, from: state)
     }
 
-    /// Requests collection after all gameplay and effects systems finish.
-    ///
-    /// Every active entity can be removed, regardless of its capabilities. Rows and live
-    /// references remain intact while lifecycleState is pendingRemoval. Repeated requests
-    /// are harmless. Unregistered, replaced, or removed facades return false.
-    @discardableResult
-    final func markForRemoval() -> Bool {
-        guard world.entity(for: id) === self else {
-            return false
-        }
-        switch lifecycleState {
-        case .active:
-            lifecycleState = .pendingRemoval
-            return true
-        case .pendingRemoval:
-            return true
-        case .unregistered, .removed:
-            return false
-        }
-    }
-
     /// Completes the World's first registration after its component rows and facade are installed.
     final func activateAfterRegistration() {
         precondition(
@@ -136,5 +116,28 @@ class Entity {
             "Only an unregistered former live facade can finish removal."
         )
         lifecycleState = .removed
+    }
+}
+
+extension Entity: Destructible {
+    /// Requests collection after all gameplay and effects systems finish.
+    ///
+    /// Every active entity can be removed, regardless of its other capabilities. Rows and live
+    /// references remain intact while lifecycleState is pendingRemoval. Repeated requests
+    /// are harmless. Unregistered, replaced, or removed facades return false.
+    @discardableResult
+    final func markForRemoval() -> Bool {
+        guard world.entity(for: id) === self else {
+            return false
+        }
+        switch lifecycleState {
+        case .active:
+            lifecycleState = .pendingRemoval
+            return true
+        case .pendingRemoval:
+            return true
+        case .unregistered, .removed:
+            return false
+        }
     }
 }
