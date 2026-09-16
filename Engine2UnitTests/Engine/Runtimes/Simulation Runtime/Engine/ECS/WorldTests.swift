@@ -18,7 +18,7 @@ struct WorldTests {
             from: initialState
         )
 
-        #expect(world.lifecycleComponents[entity.id]?.state == .active)
+        #expect(world.destructibleComponents[entity.id]?.state == .active)
         #expect(world.positionComponents[entity.id]?.position == expectedPosition)
         #expect(world.scaleComponents[entity.id]?.scale == expectedScale)
         #expect(world.motionComponents[entity.id] == nil)
@@ -97,8 +97,8 @@ struct WorldTests {
 
         world.add(entity, from: state)
 
-        #expect(world.lifecycleComponents[entity.id]?.state == .active)
-        #expect(Set(world.lifecycleComponents.entities) == Set(world.registeredEntities.map(\.id)))
+        #expect(world.destructibleComponents[entity.id]?.state == .active)
+        #expect(Set(world.destructibleComponents.entities) == Set(world.registeredEntities.map(\.id)))
         #expect(world.angularMotionAccumulatorComponents[entity.id] != nil)
         #expect(world.angularVelocityComponents[entity.id] != nil)
         #expect(world.cargoComponents[entity.id]?.capacity == state.cargoCapacity)
@@ -165,8 +165,8 @@ struct WorldTests {
         #expect(world.selectedEntityID == nil)
         #expect(world.cameraFollowEntityID == nil)
         #expect(world.orbitCircularizationCommand == nil)
-        #expect(world.lifecycleComponents[entity.id] == nil)
-        #expect(world.lifecycleComponents.entities == [primary.id])
+        #expect(world.destructibleComponents[entity.id] == nil)
+        #expect(world.destructibleComponents.entities == [primary.id])
         #expect(world.angularMotionAccumulatorComponents[entity.id] == nil)
         #expect(world.angularVelocityComponents[entity.id] == nil)
         #expect(world.cargoComponents[entity.id] == nil)
@@ -252,8 +252,8 @@ struct WorldTests {
 
         #expect(world.registeredEntities.map(\.id) == [survivor.id])
         #expect(world.entity(for: survivor.id) === survivor)
-        #expect(world.lifecycleComponents.entities == [survivor.id])
-        #expect(world.lifecycleComponents[survivor.id]?.state == .active)
+        #expect(world.destructibleComponents.entities == [survivor.id])
+        #expect(world.destructibleComponents[survivor.id]?.state == .active)
         #expect(world.positionComponents.entities == [survivor.id])
         #expect(world.selectedEntityID == survivor.id)
         #expect(world.selectableComponents[survivor.id]?.selectionState == .selected)
@@ -322,8 +322,8 @@ struct WorldTests {
         world.add(entity, from: state)
 
         #expect(world.registeredEntities.count == 1)
-        #expect(world.lifecycleComponents.entities == [entity.id])
-        #expect(world.lifecycleComponents[entity.id]?.state == .active)
+        #expect(world.destructibleComponents.entities == [entity.id])
+        #expect(world.destructibleComponents[entity.id]?.state == .active)
         #expect(world.entity(for: entity.id) === entity)
     }
 

@@ -76,15 +76,15 @@ authoritative gameplay values, including lifecycle state. The base `Entity` owns
 typed facades over component values. Do not duplicate component state on facades.
 Keep `Entity` as the common base class for live game objects and prefer capability protocols over deeper inheritance.
 
-`EntityLifecycleComponent` stores `active` or `pendingRemoval` for every registered entity. World creates an active
+`DestructibleComponent` stores `active` or `pendingRemoval` for every registered entity. World creates an active
 row on first registration and preserves its state when reseeding. Systems request removal by updating that row to
 `pendingRemoval`; the registered facade and component rows remain available until the Engine's final
 `EntityRemovalSystem` collects pending identities from a sorted component-store snapshot.
 
 `Destructible` is a standalone protocol with no Entity superclass requirement. The base Entity declares conformance,
-so every subclass inherits read-only lifecycle visibility. `Entity.lifecycleState` projects the component state only
-for the exact registered facade; unregistered, removed, or alias facades return `nil`. Removal requests belong to
-system/component interaction rather than facade methods.
+so every subclass inherits read-only lifecycle visibility. The protocol's default `lifecycleState` getter projects
+component state only for the exact registered facade; unregistered, removed, or alias facades return `nil`.
+Removal requests belong to system/component interaction rather than facade methods.
 
 Removal capability does not imply damage susceptibility or targetability. `Damageable` owns health;
 `ContactDamaging` supplies outgoing contact damage; `ContactConsumable` independently requests source removal after

@@ -7,8 +7,8 @@ struct EntityRemovalSystemTests {
         let first = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
         let survivor = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
         let last = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
-        #expect(scene.world.lifecycleComponents.update(for: last.id) { $0.state = .pendingRemoval })
-        #expect(scene.world.lifecycleComponents.update(for: first.id) { $0.state = .pendingRemoval })
+        #expect(scene.world.destructibleComponents.update(for: last.id) { $0.state = .pendingRemoval })
+        #expect(scene.world.destructibleComponents.update(for: first.id) { $0.state = .pendingRemoval })
         #expect(scene.world.contactConsumptionComponents.entities == [first.id, survivor.id, last.id])
 
         var removal = EntityRemovalSystem()
@@ -18,10 +18,10 @@ struct EntityRemovalSystemTests {
         #expect(scene.world.entity(for: first.id) == nil)
         #expect(scene.world.entity(for: last.id) == nil)
         #expect(scene.world.entity(for: survivor.id) === survivor)
-        #expect(scene.world.lifecycleComponents[first.id] == nil)
-        #expect(scene.world.lifecycleComponents[last.id] == nil)
-        #expect(scene.world.lifecycleComponents[survivor.id]?.state == .active)
-        #expect(Set(scene.world.lifecycleComponents.entities) == Set(scene.world.registeredEntities.map(\.id)))
+        #expect(scene.world.destructibleComponents[first.id] == nil)
+        #expect(scene.world.destructibleComponents[last.id] == nil)
+        #expect(scene.world.destructibleComponents[survivor.id]?.state == .active)
+        #expect(Set(scene.world.destructibleComponents.entities) == Set(scene.world.registeredEntities.map(\.id)))
         #expect(scene.world.contactConsumptionComponents.entities == [survivor.id])
         #expect(scene.world.lifetimeComponents.entities == [survivor.id])
         #expect(scene.world.ownershipComponents.entities == [survivor.id])
@@ -36,7 +36,7 @@ struct EntityRemovalSystemTests {
         var world = World()
         let removed = Entity(in: world, from: .empty)
         let survivor = Entity(in: world, from: .empty)
-        #expect(world.lifecycleComponents.update(for: removed.id) { $0.state = .pendingRemoval })
+        #expect(world.destructibleComponents.update(for: removed.id) { $0.state = .pendingRemoval })
 
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1)
@@ -46,15 +46,15 @@ struct EntityRemovalSystemTests {
         #expect(world.entity(for: removed.id) == nil)
         #expect(world.entity(for: survivor.id) === survivor)
         #expect(world.registeredEntities.map(\.id) == [survivor.id])
-        #expect(world.lifecycleComponents.entities == [survivor.id])
-        #expect(world.lifecycleComponents[removed.id] == nil)
-        #expect(world.lifecycleComponents[survivor.id]?.state == .active)
+        #expect(world.destructibleComponents.entities == [survivor.id])
+        #expect(world.destructibleComponents[removed.id] == nil)
+        #expect(world.destructibleComponents[survivor.id]?.state == .active)
     }
 
     @Test func immediateDestructionRemovesTheLifecycleRowBeforeCollection() {
         var world = World()
         let entity = Entity(in: world, from: .empty)
-        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
 
         #expect(world.destroy(entity.id))
 
@@ -63,7 +63,7 @@ struct EntityRemovalSystemTests {
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1)
         #expect(world.registeredEntities.isEmpty)
-        #expect(world.lifecycleComponents.entities.isEmpty)
+        #expect(world.destructibleComponents.entities.isEmpty)
         #expect(entity.lifecycleState == nil)
     }
 

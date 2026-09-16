@@ -94,7 +94,7 @@ source carrying outgoing contact damage or contact consumption. The shared
 contact scope, and both participants' explicit owner-contact policies. It selects
 all contacts before any writes, applies each outgoing damage amount to a health
 row if present, then sets the consumed sources' and exhausted recipients'
-``EntityLifecycleComponent`` state to `pendingRemoval`. Repeated assignments
+``DestructibleComponent`` state to `pendingRemoval`. Repeated assignments
 preserve that state. Ownership and lifetime remain independent component rows.
 Every Entity receives a lifecycle row on registration and conforms to the
 standalone ``Destructible`` protocol for read-only visibility of that state.

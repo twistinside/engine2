@@ -12,14 +12,6 @@ class Entity: Destructible {
     let id: EntityID
     unowned let world: World
 
-    /// Current component state, or nil when this facade is not the registered instance.
-    final var lifecycleState: EntityLifecycleState? {
-        guard world.entity(for: id) === self else {
-            return nil
-        }
-        return world.lifecycleComponents[id]?.state
-    }
-
     /// Authored spawn facts that `World.add` turns into authoritative component rows.
     ///
     /// Scalar, SIMD, enum, and identity fields describe content directly, without

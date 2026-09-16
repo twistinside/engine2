@@ -85,7 +85,7 @@ struct CollisionSystemTests {
         let first = addCollisionBody(in: world, from: SIMD3<Double>(-10, 0, 0), to: SIMD3<Double>(10, 0, 0))
         let second = addCollisionBody(in: world, from: .zero, to: .zero)
         let pending = markFirst ? first : second
-        #expect(world.lifecycleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
+        #expect(world.destructibleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)

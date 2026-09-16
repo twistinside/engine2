@@ -14,7 +14,7 @@ struct DestructibleTests {
         #expect(world.ownershipComponents[entity.id] == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
 
-        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
 
         #expect(destructible.lifecycleState == .pendingRemoval)
         #expect(world.entity(for: entity.id) === entity)
@@ -23,7 +23,7 @@ struct DestructibleTests {
         removal.update(world: &world, deltaTime: 1)
 
         #expect(destructible.lifecycleState == nil)
-        #expect(world.lifecycleComponents[entity.id] == nil)
+        #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.entity(for: entity.id) == nil)
     }
 
@@ -33,7 +33,7 @@ struct DestructibleTests {
         let destructible: any Destructible = entity
         #expect(destructible.lifecycleState == .active)
 
-        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
 
         #expect(destructible.lifecycleState == .pendingRemoval)
         #expect(world.entity(for: entity.id) === entity)
@@ -42,7 +42,7 @@ struct DestructibleTests {
         removal.update(world: &world, deltaTime: 1)
 
         #expect(destructible.lifecycleState == nil)
-        #expect(world.lifecycleComponents[entity.id] == nil)
+        #expect(world.destructibleComponents[entity.id] == nil)
         #expect(world.entity(for: entity.id) == nil)
     }
 

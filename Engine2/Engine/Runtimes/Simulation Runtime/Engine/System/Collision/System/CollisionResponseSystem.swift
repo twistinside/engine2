@@ -18,7 +18,7 @@ struct CollisionResponseSystem: System {
         var contacts = world.collisionContacts
         var sweeps = world.collisionSweeps
         for entity in world.motionComponents.entities {
-            guard world.lifecycleComponents[entity]?.state == .active,
+            guard world.destructibleComponents[entity]?.state == .active,
                   world.collisionBodyComponents[entity]?.response.isSolid == true,
                   let sweepIndex = sweeps.firstIndex(where: { $0.entityID == entity }),
                   let contact = earliestContact(for: entity, among: contacts, in: world),
@@ -101,7 +101,7 @@ struct CollisionResponseSystem: System {
     ) {
         contacts.removeAll { $0.firstEntityID == changed.entityID || $0.secondEntityID == changed.entityID }
         for obstacle in sweeps where obstacle.entityID != changed.entityID {
-            guard world.lifecycleComponents[obstacle.entityID]?.state == .active else {
+            guard world.destructibleComponents[obstacle.entityID]?.state == .active else {
                 continue
             }
             if let contact = evaluator.contact(between: changed, and: obstacle) {

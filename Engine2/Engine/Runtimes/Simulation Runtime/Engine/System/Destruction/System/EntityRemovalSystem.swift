@@ -4,7 +4,7 @@
 /// are collected before removal compacts stores, then destroyed in complete identity order.
 struct EntityRemovalSystem: System {
     mutating func update(world: inout World, deltaTime _: Double) {
-        let pendingEntities = zip(world.lifecycleComponents.entities, world.lifecycleComponents.dense)
+        let pendingEntities = zip(world.destructibleComponents.entities, world.destructibleComponents.dense)
             .filter { $0.1.state == .pendingRemoval }
             .map { $0.0 }
             .sorted()

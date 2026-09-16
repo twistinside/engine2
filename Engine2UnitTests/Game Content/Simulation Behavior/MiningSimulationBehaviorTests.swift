@@ -13,8 +13,8 @@ struct MiningSimulationBehaviorTests {
             configuration: .miningGame,
             behavior: MiningSimulationBehavior()
         )
-        #expect(Set(world.lifecycleComponents.entities) == Set(world.registeredEntities.map(\.id)))
-        #expect(world.lifecycleComponents.dense.allSatisfy { $0.state == .active })
+        #expect(Set(world.destructibleComponents.entities) == Set(world.registeredEntities.map(\.id)))
+        #expect(world.destructibleComponents.dense.allSatisfy { $0.state == .active })
         let originalAsteroids = Set(world.oreDepositComponents.entities)
         let depot = try #require(world.depotServiceComponents.entities.first)
         let skiff = try #require(world.selectedEntityID)
@@ -29,7 +29,7 @@ struct MiningSimulationBehaviorTests {
         #expect(world.ownershipComponents[missile]?.ownerEntityID == skiff)
         #expect(world.renderableComponents[missile] != nil)
         #expect(world.registeredEntities.count == 10)
-        #expect(world.lifecycleComponents[missile]?.state == .active)
+        #expect(world.destructibleComponents[missile]?.state == .active)
 
         for _ in 0..<300 {
             engine.step(inputSnapshot: input.latestInputSnapshot)
@@ -38,8 +38,8 @@ struct MiningSimulationBehaviorTests {
         #expect(world.contactConsumptionComponents.entities.isEmpty)
         #expect(world.entity(for: missile) == nil)
         #expect(world.registeredEntities.count == 8)
-        #expect(world.lifecycleComponents[missile] == nil)
-        #expect(Set(world.lifecycleComponents.entities) == Set(world.registeredEntities.map(\.id)))
+        #expect(world.destructibleComponents[missile] == nil)
+        #expect(Set(world.destructibleComponents.entities) == Set(world.registeredEntities.map(\.id)))
         let removedAsteroids = originalAsteroids.subtracting(world.oreDepositComponents.entities)
         #expect(removedAsteroids.count == 1)
         #expect(world.entity(for: depot) != nil)
@@ -66,7 +66,7 @@ struct MiningSimulationBehaviorTests {
         )
         let starID = try #require(world.gravitySourceComponents.entities.first)
         let star = try #require(world.entity(for: starID))
-        #expect(world.lifecycleComponents.update(for: starID) { $0.state = .pendingRemoval })
+        #expect(world.destructibleComponents.update(for: starID) { $0.state = .pendingRemoval })
 
         engine.step()
 

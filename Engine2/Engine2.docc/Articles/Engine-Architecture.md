@@ -114,14 +114,14 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
-The base ``Entity`` owns its identity. ``EntityLifecycleComponent`` stores the
-authoritative ``EntityLifecycleState``: `active` or `pendingRemoval`. World creates
+The base ``Entity`` owns its identity. ``DestructibleComponent`` stores the
+authoritative ``DestructibleComponent/State``: `active` or `pendingRemoval`. World creates
 an active lifecycle row on first registration and preserves that state when
 reseeding component values. Systems request final collection by setting the row
 to `pendingRemoval`.
 
-The base Entity declares ``Destructible`` conformance and exposes a read-only
-``Entity/lifecycleState`` projection. It returns the component state only when
+The base Entity declares ``Destructible`` conformance and inherits its default
+read-only ``Destructible/lifecycleState`` projection. It returns the component state only when
 that facade is the registered instance for its complete identity; an unregistered,
 removed, or alias facade reports `nil`. Systems update the lifecycle component
 directly. Marking preserves the registered facade and its component rows, so later
@@ -211,7 +211,7 @@ remain separate component rows.
 
 ``Destructible`` is a standalone protocol exposing read-only lifecycle state
 without requiring Entity inheritance. The base ``Entity`` declares conformance,
-so every subclass inherits that view of its ``EntityLifecycleComponent``.
+so every subclass inherits that view of its ``DestructibleComponent``.
 Systems request deferred removal through the component store.
 
 ``Damageable`` exposes health stored in ``HealthComponent``. ``HitPoints`` keeps
@@ -359,8 +359,8 @@ snapshot, and several ticks may complete before the next draw.
 - ``World``
 - ``System``
 - ``Entity``
-- ``EntityLifecycleComponent``
-- ``EntityLifecycleState``
+- ``DestructibleComponent``
+- ``DestructibleComponent/State``
 - ``ComponentStore``
 
 ### Related Architecture

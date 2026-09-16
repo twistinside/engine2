@@ -26,7 +26,7 @@ class World {
     var mineableComponents = ComponentStore<MineableComponent>()
     var ownershipComponents = ComponentStore<OwnershipComponent>()
     var lifetimeComponents = ComponentStore<LifetimeComponent>()
-    var lifecycleComponents = ComponentStore<EntityLifecycleComponent>()
+    var destructibleComponents = ComponentStore<DestructibleComponent>()
     var missileLauncherComponents = ComponentStore<MissileLauncherComponent>()
     var motionComponents = ComponentStore<MotionComponent>()
     var orbitCircularizationAutopilotComponents = ComponentStore<OrbitCircularizationAutopilotComponent>()
@@ -230,7 +230,7 @@ class World {
         mineableComponents.remove(for: entity)
         ownershipComponents.remove(for: entity)
         lifetimeComponents.remove(for: entity)
-        lifecycleComponents.remove(for: entity)
+        destructibleComponents.remove(for: entity)
         missileLauncherComponents.remove(for: entity)
         motionComponents.remove(for: entity)
         orbitCircularizationAutopilotComponents.remove(for: entity)
@@ -714,7 +714,7 @@ class World {
         }
         entitiesByID[entity.id] = entity
         reservedEntityIDs.remove(entity.id)
-        lifecycleComponents.insert(EntityLifecycleComponent(), for: entity.id)
+        destructibleComponents.insert(DestructibleComponent(), for: entity.id)
     }
 
     /// Reserves a fresh identity without reusing a destroyed entity's index.

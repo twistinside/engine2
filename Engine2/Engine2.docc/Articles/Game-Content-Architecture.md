@@ -276,7 +276,7 @@ The depot and star remain solid obstacles without health, so missiles are
 consumed by them without removing them.
 
 Every entity inherits the standalone ``Destructible`` capability from ``Entity``
-and receives an ``EntityLifecycleComponent`` on registration. The capability exposes
+and receives an ``DestructibleComponent`` on registration. The capability exposes
 read-only lifecycle state. The generic contact-effect and lifetime systems request
 deferred removal by setting the lifecycle component to `pendingRemoval`. Other
 entity types can reuse damage, consumption, collision, ownership, and lifetime
