@@ -101,7 +101,7 @@ The same platform view receives AppKit focus, keyboard, pointer, drag, and scrol
 
 ## Simulation Owns Gameplay State
 
-Components own authoritative gameplay values, and Entity owns identity and lifecycle.
+Components own authoritative gameplay values and lifecycle state, and Entity owns identity.
 Render code consumes a completed `SimulationPresentationSnapshot`; it does not read or mutate live gameplay values or entity lifecycle during drawing.
 `World` currently owns abstract mesh and material identities plus the
 Simulation-authoritative camera. Future presentation state may add visibility

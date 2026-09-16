@@ -17,10 +17,10 @@ final class EntityRemovalProbeSystem: System {
 
     func update(world: inout World, deltaTime: Double) {
         observedRegisteredEntity = world.entity(for: markedEntityID) != nil
-        observedPendingRemoval = world.entity(for: markedEntityID)?.lifecycleState == .pendingRemoval
+        observedPendingRemoval = world.lifecycleComponents[markedEntityID]?.state == .pendingRemoval
         observedComponents = world.positionComponents[markedEntityID] != nil &&
             world.renderableComponents[markedEntityID] != nil &&
             world.lifetimeComponents[markedEntityID] != nil
-        markedAnotherEntity = world.entity(for: entityToMark)?.markForRemoval() ?? false
+        markedAnotherEntity = world.lifecycleComponents.update(for: entityToMark) { $0.state = .pendingRemoval }
     }
 }

@@ -10,7 +10,7 @@ struct CameraFollowSystemTests {
         world.cameraFollowEntityID = target
         world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: target)
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(30, 40, 0)), for: target)
-        #expect(world.entity(for: target)?.markForRemoval() == true)
+        #expect(world.lifecycleComponents.update(for: target) { $0.state = .pendingRemoval })
 
         var system = CameraFollowSystem()
         system.update(world: &world, deltaTime: 1)

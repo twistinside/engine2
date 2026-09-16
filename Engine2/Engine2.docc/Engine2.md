@@ -13,7 +13,7 @@ The current release has one real-time interactive topology:
 - ``SimulationRuntime`` publishes completed ``SimulationPresentationSnapshot`` values. The screen renderer consumes those values without reading live ECS state or maintaining a second camera.
 - ``MetalSceneView`` connects the platform view, Input Runtime, and ``MetalRenderer``. ``MetalFrameEncoder`` owns reusable view-independent frame encoding.
 
-Component stores own authoritative gameplay values, and ``Entity`` owns identity and lifecycle. Entity subclasses and capability protocols provide typed views over component values for Game Content, UI, and tooling. Game Content supplies authored entities, construction policy, behavior, backend-neutral presentation descriptions, and assets; each Runtime owns the resources and lifecycle needed to consume them.
+Component stores own authoritative gameplay values and lifecycle state, and ``Entity`` owns identity. Entity subclasses and capability protocols provide typed views over component values for Game Content, UI, and tooling. Game Content supplies authored entities, construction policy, behavior, backend-neutral presentation descriptions, and assets; each Runtime owns the resources and lifecycle needed to consume them.
 
 The articles in this catalog distinguish implemented behavior from proposed architecture. Offscreen output, replay, agent control, generalized routing, multi-window bindings, and additional top-level Runtimes remain future work.
 

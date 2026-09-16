@@ -12,7 +12,7 @@ struct MiningInteractionSystem: System {
         }
 
         let actors = world.playerControlComponents.entities
-        for actor in actors where world.entity(for: actor)?.lifecycleState == .active {
+        for actor in actors where world.lifecycleComponents[actor]?.state == .active {
             interact(actor: actor, in: world, deltaTime: deltaTime)
         }
     }
@@ -30,7 +30,7 @@ struct MiningInteractionSystem: System {
         var nearestDistance = Double.infinity
 
         if let cargo, cargo.ore < cargo.capacity {
-            for candidate in world.mineableComponents.entities where world.entity(for: candidate)?.lifecycleState == .active {
+            for candidate in world.mineableComponents.entities where world.lifecycleComponents[candidate]?.state == .active {
                 guard let interaction = world.interactionComponents[candidate],
                       let deposit = world.oreDepositComponents[candidate],
                       deposit.remainingOre > 0,
@@ -51,7 +51,7 @@ struct MiningInteractionSystem: System {
 
         if (cargo?.ore ?? 0) > 0 || (fuel.map { $0.remaining < $0.capacity } ?? false) {
             for candidate in world.depotServiceComponents.entities where
-                world.entity(for: candidate)?.lifecycleState == .active {
+                world.lifecycleComponents[candidate]?.state == .active {
                 guard let interaction = world.interactionComponents[candidate],
                       let position = world.positionComponents[candidate]?.position else {
                     continue

@@ -24,9 +24,9 @@ struct LifetimeSystemTests {
         var removal = EntityRemovalSystem()
         removal.update(world: &scene.world, deltaTime: 1)
 
-        #expect(first.lifecycleState == .removed)
-        #expect(second.lifecycleState == .removed)
-        #expect(third.lifecycleState == .removed)
+        #expect(first.lifecycleState == nil)
+        #expect(second.lifecycleState == nil)
+        #expect(third.lifecycleState == nil)
         #expect(scene.world.entity(for: first.id) == nil)
         #expect(scene.world.entity(for: second.id) == nil)
         #expect(scene.world.entity(for: third.id) == nil)
@@ -77,7 +77,7 @@ struct LifetimeSystemTests {
         var removal = EntityRemovalSystem()
         removal.update(world: &world, deltaTime: 1.5)
 
-        #expect(entity.lifecycleState == .removed)
+        #expect(entity.lifecycleState == nil)
         #expect(world.entity(for: entity.id) == nil)
         #expect(world.lifetimeComponents[entity.id] == nil)
     }

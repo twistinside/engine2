@@ -3,9 +3,8 @@ import simd
 /// Authoritative ECS state container for one Simulation Runtime session.
 ///
 /// `World` owns per-component sparse stores and simulation resources. Entity
-/// objects own lifecycle state and expose typed facades over component rows.
-/// Gameplay component systems iterate stores directly; lifecycle systems may
-/// iterate the registered entities. Registration is capability-driven:
+/// objects expose typed facades over component rows, including lifecycle state.
+/// Gameplay and lifecycle systems iterate stores directly. Registration is capability-driven:
 /// `add(_:from:)` converts an entity's advertised protocols and validated seed
 /// values into component rows at the ECS boundary.
 class World {
@@ -27,6 +26,7 @@ class World {
     var mineableComponents = ComponentStore<MineableComponent>()
     var ownershipComponents = ComponentStore<OwnershipComponent>()
     var lifetimeComponents = ComponentStore<LifetimeComponent>()
+    var lifecycleComponents = ComponentStore<EntityLifecycleComponent>()
     var missileLauncherComponents = ComponentStore<MissileLauncherComponent>()
     var motionComponents = ComponentStore<MotionComponent>()
     var orbitCircularizationAutopilotComponents = ComponentStore<OrbitCircularizationAutopilotComponent>()
@@ -57,10 +57,9 @@ class World {
     private var nextEntityIndex = 0
     private let orbitCircularizationEstimateEvaluator = OrbitCircularizationEstimateEvaluator()
 
-    /// Entity facades in deterministic identity order for lifecycle collection, UI, and tooling.
+    /// Entity facades in deterministic identity order for UI and tooling.
     ///
-    /// Each entity owns its lifecycle state and projects gameplay component data from World.
-    /// Systems that process component data iterate component stores directly.
+    /// Each entity projects component data from World. Systems iterate component stores directly.
     var registeredEntities: [Entity] {
         entitiesByID.keys.sorted().compactMap {
             entitiesByID[$0]
@@ -118,7 +117,6 @@ class World {
         from state: Entity.InitialState = .empty
     ) -> EntityID {
         precondition(entity.world === self, "An entity must register with its owning World.")
-        precondition(entity.lifecycleState != .removed, "A removed entity cannot register again.")
         precondition(
             entitiesByID[entity.id] === entity || reservedEntityIDs.contains(entity.id),
             "An entity requires a reserved identity or its existing live registration."
@@ -163,11 +161,11 @@ class World {
     /// Unknown or stale identities return `false` without changing live state.
     /// Destruction clears resources targeting the entity and removes it from
     /// subsequent presentations. Previously published snapshots remain valid.
-    /// Scheduled gameplay calls Entity.markForRemoval(); EntityRemovalSystem owns final collection.
+    /// Scheduled gameplay marks lifecycle components; EntityRemovalSystem owns final collection.
     /// Callers performing immediate destruction must collect identities before this operation compacts stores.
     @discardableResult
     func destroy(_ entity: EntityID) -> Bool {
-        guard let facade = entitiesByID.removeValue(forKey: entity) else {
+        guard entitiesByID.removeValue(forKey: entity) != nil else {
             return false
         }
 
@@ -181,7 +179,6 @@ class World {
         if orbitCircularizationCommand?.entityID == entity {
             orbitCircularizationCommand = nil
         }
-        facade.finishRemoval()
         return true
     }
 
@@ -233,6 +230,7 @@ class World {
         mineableComponents.remove(for: entity)
         ownershipComponents.remove(for: entity)
         lifetimeComponents.remove(for: entity)
+        lifecycleComponents.remove(for: entity)
         missileLauncherComponents.remove(for: entity)
         motionComponents.remove(for: entity)
         orbitCircularizationAutopilotComponents.remove(for: entity)
@@ -716,7 +714,7 @@ class World {
         }
         entitiesByID[entity.id] = entity
         reservedEntityIDs.remove(entity.id)
-        entity.activateAfterRegistration()
+        lifecycleComponents.insert(EntityLifecycleComponent(), for: entity.id)
     }
 
     /// Reserves a fresh identity without reusing a destroyed entity's index.

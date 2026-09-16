@@ -4,7 +4,7 @@ Engine2 is a compact Swift experiment in building an ECS-first game engine witho
 
 The project is exploring a hybrid architecture:
 
-- ECS component stores own authoritative gameplay values; `Entity` owns identity and lifecycle.
+- ECS component stores own authoritative gameplay values and lifecycle state; `Entity` owns identity.
 - Systems operate directly on component stores in hot paths.
 - Authoritative translation and fixed-step seconds use `Double`; completed presentation snapshots narrow positions to
   `Float` for rendering.

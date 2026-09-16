@@ -1,10 +1,8 @@
-/// A reference whose owner can defer removal until its current work finishes.
+/// Read-only lifecycle visibility for a reference that supports deferred removal.
 ///
-/// Conformance requires no Entity inheritance or component storage. Entity supplies this
-/// capability for every subclass and retains its rows until the Engine's final collection.
+/// Conformance requires no Entity inheritance. Entity projects its lifecycle component
+/// through this capability; systems request removal by updating that component directly.
 protocol Destructible: AnyObject {
-    /// Requests removal and reports whether it is pending, including an earlier accepted request.
-    /// Repeated requests are harmless; an unavailable or already removed object returns false.
-    @discardableResult
-    func markForRemoval() -> Bool
+    /// Current registered state, or nil when no live lifecycle is available.
+    var lifecycleState: EntityLifecycleState? { get }
 }

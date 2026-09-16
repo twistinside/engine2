@@ -100,7 +100,7 @@ struct MissileLaunchSystemTests {
         var scene = MissileTestScene(velocity: .zero)
         let pending = scene.asteroid(at: SIMD3<Double>(0, 10, 0), velocity: .zero)
         _ = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: .zero)
-        #expect(pending.markForRemoval())
+        #expect(scene.world.lifecycleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
         scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }

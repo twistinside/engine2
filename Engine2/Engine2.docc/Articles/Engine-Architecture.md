@@ -114,31 +114,29 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
-The base ``Entity`` owns its identity and authoritative ``Entity/lifecycleState``.
-The ``EntityLifecycleState`` cases are `unregistered`, `active`, `pendingRemoval`,
-and `removed`. Registration activates the facade, ``Entity/markForRemoval()``
-requests final collection, and World teardown completes removal. Components
-retain authority over gameplay values; they do not duplicate lifecycle state.
+The base ``Entity`` owns its identity. ``EntityLifecycleComponent`` stores the
+authoritative ``EntityLifecycleState``: `active` or `pendingRemoval`. World creates
+an active lifecycle row on first registration and preserves that state when
+reseeding component values. Systems request final collection by setting the row
+to `pendingRemoval`.
 
-Every Entity exposes this removal request without requiring a separate
-capability. The method returns `false` unless this facade is still the registered
-instance for its complete identity. An active facade becomes pending removal;
-repeated requests on that pending facade return `true`. Unregistered and
-removed facades cannot mark themselves. Marking preserves the registered facade
-and its component rows, so later systems can inspect them and issue further
-lifecycle requests.
+The base Entity declares ``Destructible`` conformance and exposes a read-only
+``Entity/lifecycleState`` projection. It returns the component state only when
+that facade is the registered instance for its complete identity; an unregistered,
+removed, or alias facade reports `nil`. Systems update the lifecycle component
+directly. Marking preserves the registered facade and its component rows, so later
+systems can inspect them before final collection.
 
-Gameplay systems iterate or join component stores and consult Entity lifecycle
-when deciding whether a participant is active. Lifecycle systems may iterate the
-registry directly because Entity owns lifecycle state. Bounce, mining
+Gameplay systems iterate or join component stores and consult lifecycle rows
+when deciding whether a participant is active. Bounce, mining
 interactions, and camera follow exclude nonactive entities.
 
-The Engine's final ``EntityRemovalSystem`` scans a registry snapshot for pending
-entities after `prePresentation` and input cleanup. It calls
+The Engine's final ``EntityRemovalSystem`` snapshots pending identities from the
+lifecycle store after `prePresentation` and input cleanup. It calls
 ``World/destroy(_:)`` in deterministic identity order. World teardown removes
 the facade from the registry and removes all its component rows. It also clears
-selection, camera follow, and any pending orbit command targeting that identity,
-then transitions the retained facade to `removed`. Unknown or stale
+selection, camera follow, and any pending orbit command targeting that identity.
+The retained facade then reports `nil` for lifecycle state. Unknown or stale
 identities leave the World unchanged. ``ComponentStore/remove(for:)`` compacts
 dense storage and repairs the moved row's sparse lookup. Final collection also
 clears the current tick's collision data.
@@ -155,8 +153,8 @@ final removal system compacts their stores during the production schedule.
 ### Systems
 
 ``System`` implementations receive mutable access to ``World`` for one step.
-Systems that process components iterate or join stores directly and consult
-Entity lifecycle when needed. Lifecycle systems may iterate the entity registry.
+Systems that process components iterate or join stores directly, including
+lifecycle rows when needed.
 Existing component rows are mutated with ``ComponentStore/update(for:_:)``.
 
 The production Engine foundation supplies camera input, acceleration intent,
@@ -211,10 +209,10 @@ response is a sensor with explicit owner exclusion and solid-body contact scope.
 damage and consumes itself on the first eligible contact. Ownership and lifetime
 remain separate component rows.
 
-``Destructible`` is a standalone protocol exposing `markForRemoval()` without
-requiring Entity inheritance or component storage. The base ``Entity`` conforms,
-so every subclass inherits deferred removal. Entity owns lifecycle state; no
-destructibility marker row or per-subclass conformance is needed.
+``Destructible`` is a standalone protocol exposing read-only lifecycle state
+without requiring Entity inheritance. The base ``Entity`` declares conformance,
+so every subclass inherits that view of its ``EntityLifecycleComponent``.
+Systems request deferred removal through the component store.
 
 ``Damageable`` exposes health stored in ``HealthComponent``. ``HitPoints`` keeps
 health and damage finite and nonnegative; initial health and outgoing contact
@@ -295,7 +293,7 @@ caches.
 
 ### Entity Facades
 
-``Entity`` owns identity and lifecycle. Subclasses such as ``Ball`` provide
+``Entity`` owns identity and projects lifecycle state. Subclasses such as ``Ball`` provide
 typed, ergonomic views over live component values for Game Content, UI, and
 tooling. Gameplay values remain authoritative in their component stores.
 
@@ -361,6 +359,7 @@ snapshot, and several ticks may complete before the next draw.
 - ``World``
 - ``System``
 - ``Entity``
+- ``EntityLifecycleComponent``
 - ``EntityLifecycleState``
 - ``ComponentStore``
 

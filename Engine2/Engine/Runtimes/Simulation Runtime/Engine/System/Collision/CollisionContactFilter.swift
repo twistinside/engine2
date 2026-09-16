@@ -6,8 +6,8 @@
 struct CollisionContactFilter {
     func allowsResponse(from source: EntityID, to target: EntityID, in world: World) -> Bool {
         guard source != target,
-              world.entity(for: source)?.lifecycleState == .active,
-              world.entity(for: target)?.lifecycleState == .active,
+              world.lifecycleComponents[source]?.state == .active,
+              world.lifecycleComponents[target]?.state == .active,
               let sourceBody = world.collisionBodyComponents[source],
               let targetBody = world.collisionBodyComponents[target] else {
             return false

@@ -98,7 +98,7 @@ or `Int` values.
 
 ## Entities Carry Abstract Presentation Intent
 
-Consumer-defined entities inherit identity and lifecycle from ``Entity`` and
+Consumer-defined entities inherit identity and lifecycle visibility from ``Entity`` and
 provide typed facades over component-owned gameplay values. Their presentation
 components contain stable asset identities and
 abstract presentation state, not loaded backend objects.
@@ -276,8 +276,9 @@ The depot and star remain solid obstacles without health, so missiles are
 consumed by them without removing them.
 
 Every entity inherits the standalone ``Destructible`` capability from ``Entity``
-without a marker row. The generic contact-effect and lifetime systems process
-component rows and request deferred removal through that capability. Other
+and receives an ``EntityLifecycleComponent`` on registration. The capability exposes
+read-only lifecycle state. The generic contact-effect and lifetime systems request
+deferred removal by setting the lifecycle component to `pendingRemoval`. Other
 entity types can reuse damage, consumption, collision, ownership, and lifetime
 independently. ``MissileLaunchSystem`` lives in Game Content and retains the
 missile construction recipe and nearest active ore-deposit targeting policy.

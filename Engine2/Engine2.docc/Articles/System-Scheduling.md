@@ -93,12 +93,11 @@ source carrying outgoing contact damage or contact consumption. The shared
 ``CollisionContactFilter`` requires active participants, acceptance by the source's
 contact scope, and both participants' explicit owner-contact policies. It selects
 all contacts before any writes, applies each outgoing damage amount to a health
-row if present, then marks consumed sources and exhausted recipients through
-``Destructible/markForRemoval()``, which transitions the base
-Entity's authoritative lifecycle from `active` to `pendingRemoval`. Repeated
-requests on the registered pending facade succeed without another transition.
-Ownership and lifetime remain independent component rows. Every Entity conforms
-to the standalone Destructible protocol; destructibility has no component row.
+row if present, then sets the consumed sources' and exhausted recipients'
+``EntityLifecycleComponent`` state to `pendingRemoval`. Repeated assignments
+preserve that state. Ownership and lifetime remain independent component rows.
+Every Entity receives a lifecycle row on registration and conforms to the
+standalone ``Destructible`` protocol for read-only visibility of that state.
 
 ``LifetimeSystem`` advances lifetime rows and marks expired entities, including
 entities without collision or contact-effect capabilities. Detection runs before
@@ -118,9 +117,10 @@ exclude nonactive entities.
 
 Pending entities retain their component rows and registered facades through
 `prePresentation`. After all Game Content systems and input cleanup,
-``EntityRemovalSystem`` scans a registry snapshot and removes pending entities
-through ``World/destroy(_:)``. Teardown transitions each
-facade to `removed`. Final collection clears both collision buffers. The Engine
+``EntityRemovalSystem`` snapshots pending identities from the lifecycle store,
+sorts them, and removes each through ``World/destroy(_:)``. Teardown removes the
+lifecycle row with the other components; retained facades then report `nil` for
+lifecycle state. Final collection clears both collision buffers. The Engine
 completes the tick only after this collection, so the next completed presentation
 omits removed entities.
 

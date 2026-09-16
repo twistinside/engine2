@@ -19,7 +19,7 @@ struct ContactEffectSystem: System {
     private func selectImpacts(in world: World) -> [(source: EntityID, target: EntityID)] {
         let sources = Set(world.contactDamageComponents.entities).union(world.contactConsumptionComponents.entities)
         var impacts: [(source: EntityID, target: EntityID)] = []
-        for source in sources.sorted() where world.entity(for: source)?.lifecycleState == .active {
+        for source in sources.sorted() where world.lifecycleComponents[source]?.state == .active {
             if let target = firstImpact(of: source, in: world) {
                 impacts.append((source: source, target: target))
             }
@@ -73,7 +73,9 @@ struct ContactEffectSystem: System {
             }
         }
         for entity in removals.sorted() {
-            world.entity(for: entity)?.markForRemoval()
+            world.lifecycleComponents.update(for: entity) {
+                $0.state = .pendingRemoval
+            }
         }
     }
 }

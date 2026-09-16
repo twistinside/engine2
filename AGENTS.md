@@ -5,7 +5,7 @@
 Engine2 is a Swift ECS experiment built around explicit ownership and typed boundaries. Preserve its core model:
 
 - ECS component stores own authoritative gameplay values.
-- Entity objects own identity and lifecycle and provide ergonomic, typed facades over component values.
+- Entity objects own identity and provide ergonomic, typed facades over component values, including lifecycle state.
 - Capability protocols provide the Game Content, UI, and tooling API.
 - Systems that process component data operate directly on component stores.
 
@@ -72,18 +72,19 @@ without a concrete consumer and explicit identity, delivery, ownership, and life
 ## Simulation and ECS
 
 `World` owns the entity registry, identity allocation, component stores, and Simulation resources. Components own
-authoritative gameplay values. The base `Entity` owns its identity and `EntityLifecycleState`; subclasses provide live
-typed facades over component values. Do not duplicate gameplay values on facades or lifecycle state in components.
+authoritative gameplay values, including lifecycle state. The base `Entity` owns its identity; subclasses provide live
+typed facades over component values. Do not duplicate component state on facades.
 Keep `Entity` as the common base class for live game objects and prefer capability protocols over deeper inheritance.
 
-`Entity.lifecycleState` distinguishes unregistered, active, pending-removal, and removed entities. Registration,
-`Entity.markForRemoval()`, and World teardown control its transitions. Marking is idempotent and retains the registered
-facade and component rows until the Engine's final `EntityRemovalSystem` collects pending entities. Lifecycle systems
-may iterate the entity registry because Entity owns this state.
+`EntityLifecycleComponent` stores `active` or `pendingRemoval` for every registered entity. World creates an active
+row on first registration and preserves its state when reseeding. Systems request removal by updating that row to
+`pendingRemoval`; the registered facade and component rows remain available until the Engine's final
+`EntityRemovalSystem` collects pending identities from a sorted component-store snapshot.
 
-`Destructible` is a standalone removal capability with no Entity superclass requirement. The base Entity conforms,
-so every subclass is destructible without a marker component or repeated conformance. Entity retains lifecycle state;
-the protocol exposes only `markForRemoval()`.
+`Destructible` is a standalone protocol with no Entity superclass requirement. The base Entity declares conformance,
+so every subclass inherits read-only lifecycle visibility. `Entity.lifecycleState` projects the component state only
+for the exact registered facade; unregistered, removed, or alias facades return `nil`. Removal requests belong to
+system/component interaction rather than facade methods.
 
 Removal capability does not imply damage susceptibility or targetability. `Damageable` owns health;
 `ContactDamaging` supplies outgoing contact damage; `ContactConsumable` independently requests source removal after
@@ -94,7 +95,7 @@ Compose entity behavior from reusable components and capabilities. Ownership, li
 are independent properties; do not bundle them into one component named for a concrete entity type. Protocol inheritance
 should express a required invariant, not a combination that happens to occur in one Game Content entity.
 
-Systems that operate on component data must iterate or join stores directly, consulting Entity lifecycle when needed. Use
+Systems that operate on component data must iterate or join stores directly, including lifecycle rows when needed. Use
 `ComponentStore.update(for:_:)` for an existing row. Use `insert` for registration, adding a missing row, or an
 intentional full reset or reseed. Do not rebuild and reinsert rows for ordinary per-tick field changes.
 

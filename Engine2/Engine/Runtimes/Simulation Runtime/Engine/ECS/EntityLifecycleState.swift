@@ -1,10 +1,8 @@
-/// Registration and removal state owned by one Entity facade for its entire lifetime.
+/// Lifecycle state stored while an entity remains registered in its World.
 ///
-/// Gameplay component data remains in World stores. Removal requests change this state
-/// until the Engine's final collection removes the registered facade and its rows.
-enum EntityLifecycleState: Equatable, Sendable {
-    case unregistered
+/// Systems mark pending removal before final collection. An absent lifecycle component
+/// represents an unregistered or removed identity; neither state needs a retained row.
+nonisolated enum EntityLifecycleState: Codable, Equatable, Sendable {
     case active
     case pendingRemoval
-    case removed
 }

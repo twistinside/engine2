@@ -18,7 +18,9 @@ struct LifetimeSystem: System {
                 $0.remainingLifetime = remainingLifetime
             }
             if remainingLifetime == 0 {
-                world.entity(for: entity)?.markForRemoval()
+                world.lifecycleComponents.update(for: entity) {
+                    $0.state = .pendingRemoval
+                }
             }
         }
     }

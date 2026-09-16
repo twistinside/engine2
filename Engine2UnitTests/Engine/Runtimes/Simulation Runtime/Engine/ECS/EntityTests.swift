@@ -9,11 +9,12 @@ struct EntityTests {
 
         #expect(entity.id == id)
         #expect(entity.world === world)
-        #expect(entity.lifecycleState == .unregistered)
-        #expect(componentRowCounts(in: world).allSatisfy { $0 == 0 })
+        #expect(entity.lifecycleState == nil)
+        #expect(world.lifecycleComponents[id] == nil)
+        #expect(capabilityComponentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
-    @Test func baseEntityRegistrationConsumesIdentityWithoutComponentRows() {
+    @Test func baseEntityRegistrationCreatesOneActiveLifecycleRowPerIdentity() {
         let world = World()
         let first = Entity(in: world, from: .empty)
         let second = Entity(in: world, from: .empty)
@@ -22,62 +23,69 @@ struct EntityTests {
         #expect(second.id == EntityID(index: 1, generation: 0))
         #expect(first.lifecycleState == .active)
         #expect(second.lifecycleState == .active)
-        #expect(componentRowCounts(in: world).allSatisfy { $0 == 0 })
+        #expect(world.lifecycleComponents.entities == [first.id, second.id])
+        #expect(world.lifecycleComponents.dense.allSatisfy { $0.state == .active })
+        #expect(capabilityComponentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
-    @Test func markingPlainEntityIsIdempotentAndRetainsItsLiveFacade() {
+    @Test func repeatedComponentMarkingIsIdempotentAndVisibleThroughTheLiveFacade() {
         let world = World()
         let entity = Entity(in: world, from: .empty)
 
-        #expect(entity.markForRemoval())
-        #expect(entity.markForRemoval())
+        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
 
         #expect(entity.lifecycleState == .pendingRemoval)
+        #expect(world.lifecycleComponents.entities == [entity.id])
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.lifetimeComponents[entity.id] == nil)
-        #expect(componentRowCounts(in: world).allSatisfy { $0 == 0 })
+        #expect(capabilityComponentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
     @Test func reseedingComponentsPreservesPendingRemoval() {
         let world = World()
         let entity = LifetimeTestEntity(in: world, from: Entity.InitialState(lifetime: 2))
-        #expect(entity.markForRemoval())
+        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
 
         world.add(entity, from: Entity.InitialState(lifetime: 5))
 
         #expect(entity.lifecycleState == .pendingRemoval)
+        #expect(world.lifecycleComponents[entity.id]?.state == .pendingRemoval)
+        #expect(world.lifecycleComponents.entities == [entity.id])
         #expect(entity.remainingLifetime == 5)
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.registeredEntities.map(\.id) == [entity.id])
     }
 
-    @Test func markingRejectsAnUnregisteredAliasWithTheLiveIdentity() {
+    @Test func unregisteredAliasDoesNotExposeTheLiveIdentityLifecycle() {
         let world = World()
         let entity = Entity(in: world, from: .empty)
         let alias = Entity(unregisteredID: entity.id, in: world)
 
-        #expect(alias.markForRemoval() == false)
-
-        #expect(alias.lifecycleState == .unregistered)
+        #expect(alias.lifecycleState == nil)
         #expect(entity.lifecycleState == .active)
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.registeredEntities.map(\.id) == [entity.id])
-        #expect(entity.markForRemoval())
+
+        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+
         #expect(entity.lifecycleState == .pendingRemoval)
-        #expect(alias.lifecycleState == .unregistered)
+        #expect(alias.lifecycleState == nil)
     }
 
-    @Test func markingRejectsADifferentGenerationAtTheLiveIndex() {
+    @Test func componentUpdateRejectsADifferentGenerationAtTheLiveIndex() {
         let world = World()
         let entity = Entity(in: world, from: .empty)
         let otherGeneration = EntityID(index: entity.id.index, generation: entity.id.generation + 1)
         let alias = Entity(unregisteredID: otherGeneration, in: world)
 
-        #expect(alias.markForRemoval() == false)
+        #expect(world.lifecycleComponents.update(for: otherGeneration) { $0.state = .pendingRemoval } == false)
         #expect(world.destroy(otherGeneration) == false)
 
-        #expect(alias.lifecycleState == .unregistered)
+        #expect(alias.lifecycleState == nil)
         #expect(entity.lifecycleState == .active)
+        #expect(world.lifecycleComponents[otherGeneration] == nil)
+        #expect(world.lifecycleComponents[entity.id]?.state == .active)
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.entity(for: otherGeneration) == nil)
         #expect(world.registeredEntities.map(\.id) == [entity.id])
@@ -87,30 +95,34 @@ struct EntityTests {
         let world = World()
         let entity = Entity(unregisteredID: world.reserveEntityID(), in: world)
 
-        #expect(entity.markForRemoval() == false)
-        #expect(entity.lifecycleState == .unregistered)
+        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval } == false)
+        #expect(entity.lifecycleState == nil)
+        #expect(world.lifecycleComponents[entity.id] == nil)
         #expect(world.entity(for: entity.id) == nil)
         #expect(world.registeredEntities.isEmpty)
 
         world.add(entity)
 
         #expect(entity.lifecycleState == .active)
+        #expect(world.lifecycleComponents[entity.id]?.state == .active)
         #expect(world.entity(for: entity.id) === entity)
     }
 
     @Test(arguments: [false, true])
-    func retainedFacadeCannotMarkItselfAfterDestruction(wasMarked: Bool) {
+    func removedFacadeHasNoLifecycleRow(wasMarked: Bool) {
         let world = World()
         let entity = Entity(in: world, from: .empty)
         if wasMarked {
-            #expect(entity.markForRemoval())
+            #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
         }
         #expect(world.destroy(entity.id))
 
-        #expect(entity.markForRemoval() == false)
+        #expect(world.lifecycleComponents.update(for: entity.id) { $0.state = .pendingRemoval } == false)
         #expect(world.destroy(entity.id) == false)
 
-        #expect(entity.lifecycleState == .removed)
+        #expect(entity.lifecycleState == nil)
+        #expect(world.lifecycleComponents[entity.id] == nil)
+        #expect(world.lifecycleComponents.entities.isEmpty)
         #expect(world.entity(for: entity.id) == nil)
         #expect(world.registeredEntities.isEmpty)
     }
@@ -139,7 +151,7 @@ struct EntityTests {
         }
     }
 
-    private func componentRowCounts(in world: World) -> [Int] {
+    private func capabilityComponentRowCounts(in world: World) -> [Int] {
         [
             world.angularMotionAccumulatorComponents.dense.count,
             world.angularVelocityComponents.dense.count,

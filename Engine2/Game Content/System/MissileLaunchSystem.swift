@@ -92,7 +92,7 @@ struct MissileLaunchSystem: System {
         var target: EntityID?
         var nearestDistanceSquared = Double.infinity
         for candidate in world.oreDepositComponents.entities where candidate != actor {
-            guard world.entity(for: candidate)?.lifecycleState == .active,
+            guard world.lifecycleComponents[candidate]?.state == .active,
                   world.collisionBodyComponents[candidate]?.response.isSolid == true,
                   let candidatePosition = world.positionComponents[candidate]?.position else {
                 continue

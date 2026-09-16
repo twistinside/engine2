@@ -26,7 +26,7 @@ struct CollisionSystem: System {
 
     private func captureSweeps(in world: World, deltaTime: Double) {
         for entity in world.collisionBodyComponents.entities.sorted() {
-            guard world.entity(for: entity)?.lifecycleState == .active,
+            guard world.lifecycleComponents[entity]?.state == .active,
                   let body = world.collisionBodyComponents[entity],
                   let previous = world.previousPositionComponents[entity]?.position,
                   let current = world.positionComponents[entity]?.position,

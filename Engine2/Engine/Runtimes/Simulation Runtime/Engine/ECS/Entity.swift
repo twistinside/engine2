@@ -3,17 +3,22 @@ import simd
 /// Stable, typed game-object facade over component state owned by a `World`.
 ///
 /// An entity retains its generational identity and an unowned reference to the
-/// world that stores its authoritative component data. The entity owns its lifecycle
-/// state from registration through final removal and conforms to Destructible for every
-/// subclass. Capability protocols add live, ergonomic accessors for game code and tooling.
-/// Systems that process gameplay
-/// components iterate stores directly; lifecycle systems may iterate the World's
-/// registered entities. After destruction, resolve the identity through
+/// world that stores its authoritative component data, including lifecycle state.
+/// Every subclass inherits Destructible. Capability protocols add live, ergonomic
+/// accessors for game code and tooling; systems read and update component stores directly.
+/// After destruction, resolve the identity through
 /// `World.entity(for:)` before using a facade: its capability accessors require live rows.
-class Entity {
+class Entity: Destructible {
     let id: EntityID
     unowned let world: World
-    private(set) final var lifecycleState: EntityLifecycleState = .unregistered
+
+    /// Current component state, or nil when this facade is not the registered instance.
+    final var lifecycleState: EntityLifecycleState? {
+        guard world.entity(for: id) === self else {
+            return nil
+        }
+        return world.lifecycleComponents[id]?.state
+    }
 
     /// Authored spawn facts that `World.add` turns into authoritative component rows.
     ///
@@ -102,46 +107,5 @@ class Entity {
         self.id = world.reserveEntityID()
         self.world = world
         world.add(self, from: state)
-    }
-
-    /// Completes the World's first registration after its component rows and facade are installed.
-    final func activateAfterRegistration() {
-        precondition(
-            lifecycleState == .unregistered && world.entity(for: id) === self,
-            "Only a newly registered facade can become active."
-        )
-        lifecycleState = .active
-    }
-
-    /// Completes World destruction after the facade, component rows, and live references are removed.
-    final func finishRemoval() {
-        precondition(
-            (lifecycleState == .active || lifecycleState == .pendingRemoval) && world.entity(for: id) == nil,
-            "Only an unregistered former live facade can finish removal."
-        )
-        lifecycleState = .removed
-    }
-}
-
-extension Entity: Destructible {
-    /// Requests collection after all gameplay and effects systems finish.
-    ///
-    /// Every active entity can be removed, regardless of its other capabilities. Rows and live
-    /// references remain intact while lifecycleState is pendingRemoval. Repeated requests
-    /// are harmless. Unregistered, replaced, or removed facades return false.
-    @discardableResult
-    final func markForRemoval() -> Bool {
-        guard world.entity(for: id) === self else {
-            return false
-        }
-        switch lifecycleState {
-        case .active:
-            lifecycleState = .pendingRemoval
-            return true
-        case .pendingRemoval:
-            return true
-        case .unregistered, .removed:
-            return false
-        }
     }
 }

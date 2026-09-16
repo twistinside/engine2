@@ -47,7 +47,7 @@ struct CollisionResponseSystemTests {
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
-        #expect(world.entity(for: body)?.markForRemoval() == true)
+        #expect(world.lifecycleComponents.update(for: body) { $0.state = .pendingRemoval })
         var system = CollisionResponseSystem()
         system.update(world: &world, deltaTime: 1)
 
@@ -80,7 +80,7 @@ struct CollisionResponseSystemTests {
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
-        #expect(world.entity(for: pending)?.markForRemoval() == true)
+        #expect(world.lifecycleComponents.update(for: pending) { $0.state = .pendingRemoval })
         var system = CollisionResponseSystem()
         system.update(world: &world, deltaTime: 1)
 

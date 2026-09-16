@@ -474,7 +474,7 @@ struct ContactEffectSystemTests {
         #expect(star.lifecycleState == .active)
         #expect(world.healthComponents[star.id] == nil)
         #expect(world.entity(for: star.id) === star)
-        #expect(star.markForRemoval())
+        #expect(world.lifecycleComponents.update(for: star.id) { $0.state = .pendingRemoval })
         #expect(star.lifecycleState == .pendingRemoval)
     }
 
@@ -611,7 +611,7 @@ struct ContactEffectSystemTests {
         scene.move(deltaTime: 1)
         var detector = CollisionSystem()
         detector.update(world: &scene.world, deltaTime: 1)
-        #expect(pending.markForRemoval())
+        #expect(scene.world.lifecycleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
 
         var response = ContactEffectSystem()
         response.update(world: &scene.world, deltaTime: 1)

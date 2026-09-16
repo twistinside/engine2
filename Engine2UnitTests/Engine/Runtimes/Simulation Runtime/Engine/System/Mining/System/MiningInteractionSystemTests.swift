@@ -16,7 +16,7 @@ struct MiningInteractionSystemTests {
         world.oreDepositComponents.insert(OreDepositComponent(remainingOre: 4_000), for: asteroid)
         world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: asteroid)
         world.mineableComponents.insert(MineableComponent(miningRate: 800), for: asteroid)
-        #expect(world.entity(for: actor)?.markForRemoval() == true)
+        #expect(world.lifecycleComponents.update(for: actor) { $0.state = .pendingRemoval })
 
         var system = MiningInteractionSystem()
         system.update(world: &world, deltaTime: 1)
@@ -44,7 +44,7 @@ struct MiningInteractionSystemTests {
             world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: asteroid)
             world.mineableComponents.insert(MineableComponent(miningRate: 800), for: asteroid)
         }
-        #expect(world.entity(for: pending)?.markForRemoval() == true)
+        #expect(world.lifecycleComponents.update(for: pending) { $0.state = .pendingRemoval })
 
         var system = MiningInteractionSystem()
         system.update(world: &world, deltaTime: 1)
@@ -75,7 +75,7 @@ struct MiningInteractionSystemTests {
                 for: depot
             )
         }
-        #expect(world.entity(for: pending)?.markForRemoval() == true)
+        #expect(world.lifecycleComponents.update(for: pending) { $0.state = .pendingRemoval })
 
         var system = MiningInteractionSystem()
         system.update(world: &world, deltaTime: 1)
