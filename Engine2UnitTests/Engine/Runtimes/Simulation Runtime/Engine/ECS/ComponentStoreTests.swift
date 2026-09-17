@@ -4,6 +4,7 @@ import Testing
 struct ComponentStoreTests {
     @Test func insertAppendsAlignedDenseAndSparseStorage() {
         let store = ComponentStore<PositionComponent>()
+        let mutations: any ComponentStoring<PositionComponent> = store
         let first = EntityID(index: 4, generation: 0)
         let second = EntityID(index: 9, generation: 2)
         let firstPositionValue = SIMD3<Double>(1, 2, 3)
@@ -11,8 +12,8 @@ struct ComponentStoreTests {
         let firstPosition = PositionComponent(position: firstPositionValue)
         let secondPosition = PositionComponent(position: secondPositionValue)
 
-        store.insert(firstPosition, for: first)
-        store.insert(secondPosition, for: second)
+        mutations.insert(firstPosition, for: first)
+        mutations.insert(secondPosition, for: second)
 
         let expectedPositions = [firstPositionValue, secondPositionValue]
 
@@ -25,13 +26,14 @@ struct ComponentStoreTests {
 
     @Test func insertForExistingEntityReplacesWithoutAppending() {
         let store = ComponentStore<PositionComponent>()
+        let mutations: any ComponentStoring<PositionComponent> = store
         let entity = EntityID(index: 3, generation: 1)
         let replacementPositionValue = SIMD3<Double>(7, 8, 9)
         let initialPosition = PositionComponent(position: SIMD3<Double>(1, 2, 3))
         let replacementPosition = PositionComponent(position: replacementPositionValue)
 
-        store.insert(initialPosition, for: entity)
-        store.insert(replacementPosition, for: entity)
+        mutations.insert(initialPosition, for: entity)
+        mutations.insert(replacementPosition, for: entity)
 
         #expect(store.dense.count == 1)
         #expect(store.entities == [entity])
@@ -41,12 +43,13 @@ struct ComponentStoreTests {
 
     @Test func updateMutatesExistingDenseRowAndReportsSuccess() {
         let store = ComponentStore<PositionComponent>()
+        let mutations: any ComponentStoring<PositionComponent> = store
         let entity = EntityID(index: 1, generation: 0)
         let position = PositionComponent(position: .zero)
-        store.insert(position, for: entity)
+        mutations.insert(position, for: entity)
 
         let expectedPosition = SIMD3<Double>(3, 4, 5)
-        let didUpdate = store.update(for: entity) { position in
+        let didUpdate = mutations.update(for: entity) { position in
             position.position = expectedPosition
         }
 
