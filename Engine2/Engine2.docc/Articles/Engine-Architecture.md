@@ -78,6 +78,11 @@ initializer validates its own capability and seeds; default protocol removal
 delegates to the corresponding store. Every specialized capability requires all of its authored fields;
 a renderable entity, for example, must supply both mesh and material identities.
 
+Each World owns distinct ``ComponentStore`` instances. Typed container access
+returns the live store reference, so retaining a store preserves access to later
+mutations. Reading its arrays or individual component values produces independent
+values suitable for collecting structural work before changing the store.
+
 Component initializers derive capability markers and neutral player control
 from the facade's conformances. Every collision body receives a previous position equal
 to its resolved spawn position. Depot delivery totals start at zero, and an

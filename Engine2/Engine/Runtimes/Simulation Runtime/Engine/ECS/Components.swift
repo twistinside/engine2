@@ -41,7 +41,7 @@ final class Components {
         SelectionBoundsComponent.self
     ]
 
-    private var stores: [ObjectIdentifier: AnyObject] = [:]
+    private var stores: [ObjectIdentifier: any ComponentStoring] = [:]
 
     init() {
         for type in Self.types {
@@ -49,16 +49,12 @@ final class Components {
         }
     }
 
-    /// Borrows the registered typed store without copying it during mutation.
+    /// Returns the World's live store for the requested component type.
     subscript<C: Component>(_ type: C.Type) -> ComponentStore<C> {
-        _read {
-            let storage = storage(for: type)
-            yield storage.value
+        guard let store = stores[ObjectIdentifier(type)] as? ComponentStore<C> else {
+            preconditionFailure("Component type is not registered")
         }
-        _modify {
-            let storage = storage(for: type)
-            yield &storage.value
-        }
+        return store
     }
 
     /// Creates only rows supported by the entity's capabilities.
@@ -79,14 +75,7 @@ final class Components {
     private func register<C: Component>(_ type: C.Type) {
         let key = ObjectIdentifier(type)
         precondition(stores[key] == nil, "Component type is already registered")
-        stores[key] = ComponentStorage<C>()
-    }
-
-    private func storage<C: Component>(for type: C.Type) -> ComponentStorage<C> {
-        guard let storage = stores[ObjectIdentifier(type)] as? ComponentStorage<C> else {
-            preconditionFailure("Component type is not registered")
-        }
-        return storage
+        stores[key] = ComponentStore<C>()
     }
 
     private func add<C: Component>(_ type: C.Type, for entity: Entity, from state: Entity.InitialState) {

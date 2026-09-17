@@ -3,7 +3,7 @@ import Testing
 
 struct ComponentStoreTests {
     @Test func insertAppendsAlignedDenseAndSparseStorage() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let first = EntityID(index: 4, generation: 0)
         let second = EntityID(index: 9, generation: 2)
         let firstPositionValue = SIMD3<Double>(1, 2, 3)
@@ -24,7 +24,7 @@ struct ComponentStoreTests {
     }
 
     @Test func insertForExistingEntityReplacesWithoutAppending() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let entity = EntityID(index: 3, generation: 1)
         let replacementPositionValue = SIMD3<Double>(7, 8, 9)
         let initialPosition = PositionComponent(position: SIMD3<Double>(1, 2, 3))
@@ -40,7 +40,7 @@ struct ComponentStoreTests {
     }
 
     @Test func updateMutatesExistingDenseRowAndReportsSuccess() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let entity = EntityID(index: 1, generation: 0)
         let position = PositionComponent(position: .zero)
         store.insert(position, for: entity)
@@ -55,7 +55,7 @@ struct ComponentStoreTests {
     }
 
     @Test func fullEntityIdentityProtectsLookupAndUpdateFromStaleGeneration() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let liveEntity = EntityID(index: 7, generation: 3)
         let staleEntity = EntityID(index: 7, generation: 2)
         let livePositionValue = SIMD3<Double>(1, 2, 3)
@@ -72,7 +72,7 @@ struct ComponentStoreTests {
     }
 
     @Test func updateReportsFailureForMissingEntity() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let missingEntity = EntityID(index: 42, generation: 0)
 
         let didUpdate = store.update(
@@ -86,7 +86,7 @@ struct ComponentStoreTests {
     }
 
     @Test func largeSparseIndexDoesNotAllocateDensePadding() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let entity = EntityID(index: Int.max, generation: 0)
         let positionValue = SIMD3<Double>(1, 2, 3)
         let position = PositionComponent(position: positionValue)
@@ -100,7 +100,7 @@ struct ComponentStoreTests {
     }
 
     @Test func failedUpdateNeverExecutesMutationBody() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let live = EntityID(index: 3, generation: 2)
         let stale = EntityID(index: 3, generation: 1)
         let position = PositionComponent(position: .zero)
@@ -116,7 +116,7 @@ struct ComponentStoreTests {
     }
 
     @Test func removeCompactsTheMiddleRowAndRepairsMovedLookup() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let first = EntityID(index: 4, generation: 2)
         let removed = EntityID(index: 8, generation: 3)
         let moved = EntityID(index: 12, generation: 4)
@@ -139,7 +139,7 @@ struct ComponentStoreTests {
     }
 
     @Test func removeRejectsStaleAndMissingIdentitiesWithoutChangingLiveRows() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let live = EntityID(index: 3, generation: 2)
         let stale = EntityID(index: 3, generation: 1)
         store.insert(PositionComponent(position: SIMD3<Double>(1, 2, 3)), for: live)
@@ -156,7 +156,7 @@ struct ComponentStoreTests {
     }
 
     @Test func removeLastRowAndRepeatedRemovalLeaveEmptyStorage() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let entity = EntityID(index: 3, generation: 2)
         store.insert(PositionComponent(position: .zero), for: entity)
 
@@ -171,7 +171,7 @@ struct ComponentStoreTests {
     }
 
     @Test func laterGenerationCanOccupyAnExplicitlyRemovedIndex() {
-        var store = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let old = EntityID(index: 3, generation: 2)
         let replacement = EntityID(index: 3, generation: 3)
         store.insert(PositionComponent(position: .zero), for: old)
@@ -187,33 +187,42 @@ struct ComponentStoreTests {
         #expect(store[replacement]?.position == SIMD3<Double>(4, 5, 6))
     }
 
-    @Test func removingFromACopiedStorePreservesTheOriginal() {
-        var original = ComponentStore<PositionComponent>()
+    @Test func retainedStoreReferenceObservesUpdatesAndRemoval() {
+        let store = ComponentStore<PositionComponent>()
         let entity = EntityID(index: 3, generation: 2)
-        original.insert(PositionComponent(position: .zero), for: entity)
-        var copy = original
+        store.insert(PositionComponent(position: .zero), for: entity)
+        let retained = store
 
-        copy.remove(for: entity)
+        #expect(retained === store)
+        retained.update(for: entity) { $0.position = SIMD3<Double>(9, 8, 7) }
+        #expect(store[entity]?.position == SIMD3<Double>(9, 8, 7))
 
-        #expect(original[entity]?.position == .zero)
-        #expect(original.entities == [entity])
-        #expect(copy[entity] == nil)
-        #expect(copy.entities.isEmpty)
+        store.remove(for: entity)
+
+        #expect(retained[entity] == nil)
+        #expect(retained.entities.isEmpty)
     }
 
-    @Test func copiedStoreHasIndependentValueSemantics() {
+    @Test func detachedArraysAndComponentRemainValueSnapshots() {
         let entity = EntityID(index: 1, generation: 0)
-        var original = ComponentStore<PositionComponent>()
+        let store = ComponentStore<PositionComponent>()
         let position = PositionComponent(position: .zero)
-        original.insert(position, for: entity)
-        var copy = original
+        store.insert(position, for: entity)
+        let dense = store.dense
+        let entities = store.entities
+        let component = store[entity]
 
         let updatedPosition = SIMD3<Double>(9, 8, 7)
-        copy.update(for: entity) { position in
+        store.update(for: entity) { position in
             position.position = updatedPosition
         }
+        #expect(store[entity]?.position == updatedPosition)
+        store.remove(for: entity)
 
-        #expect(original[entity]?.position == .zero)
-        #expect(copy[entity]?.position == updatedPosition)
+        #expect(store.dense.isEmpty)
+        #expect(store.entities.isEmpty)
+        #expect(dense == [position])
+        #expect(entities == [entity])
+        #expect(component == position)
     }
 }

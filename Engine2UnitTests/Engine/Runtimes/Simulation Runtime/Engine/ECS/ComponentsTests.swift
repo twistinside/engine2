@@ -11,14 +11,17 @@ struct ComponentsTests {
         }
     }
 
-    @Test func typedMutationPersistsAcrossAccessesAndStoresRemainIndependent() {
+    @Test func retainedTypedStoreStaysLiveAndWorldsRemainIndependent() {
         let first = World()
         let second = World()
         let entity = Entity(in: first, from: .empty)
-        first.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: entity.id)
+        let positions = first.components[PositionComponent.self]
+        #expect(positions === first.components[PositionComponent.self])
+        #expect(positions !== second.components[PositionComponent.self])
+        positions.insert(PositionComponent(position: .zero), for: entity.id)
         first.components[MotionComponent.self].insert(MotionComponent(), for: entity.id)
 
-        let didUpdate = first.components[PositionComponent.self].update(for: entity.id) { position in
+        let didUpdate = positions.update(for: entity.id) { position in
             first.components[MotionComponent.self].update(for: entity.id) { motion in
                 motion.velocity = SIMD3<Double>(1, 2, 3)
                 position.position = motion.velocity
@@ -29,10 +32,10 @@ struct ComponentsTests {
         #expect(first.components[MotionComponent.self][entity.id]?.velocity == SIMD3<Double>(1, 2, 3))
         #expect(second.components[PositionComponent.self][entity.id] == nil)
 
-        var copy = first.components[PositionComponent.self]
-        copy.remove(for: entity.id)
-        #expect(first.components[PositionComponent.self][entity.id] != nil)
-        #expect(copy[entity.id] == nil)
+        positions.remove(for: entity.id)
+        #expect(first.components[PositionComponent.self][entity.id] == nil)
+        #expect(first.components[MotionComponent.self][entity.id]?.velocity == SIMD3<Double>(1, 2, 3))
+        #expect(second.components[PositionComponent.self].dense.isEmpty)
     }
 
     @Test func bareEntityGetsOnlyItsInheritedLifecycleComponent() {
@@ -86,19 +89,20 @@ struct ComponentsTests {
     }
 
     private func checkDefaultRemoval<C: Component>(_ type: C.Type, in components: Components) {
-        let before = components[type]
-        guard let entity = before.entities.first else { return }
+        let entities = components[type].entities
+        let dense = components[type].dense
+        guard let entity = entities.first else { return }
         let erasedType: any Component.Type = type
         erasedType.remove(for: EntityID(index: entity.index, generation: entity.generation + 1), from: components)
-        #expect(components[type].entities == before.entities)
-        #expect(components[type].dense == before.dense)
+        #expect(components[type].entities == entities)
+        #expect(components[type].dense == dense)
 
         erasedType.remove(for: entity, from: components)
         erasedType.remove(for: entity, from: components)
         #expect(components[type][entity] == nil)
-        #expect(components[type].dense.count == before.dense.count - 1)
-        for survivor in before.entities where survivor != entity {
-            #expect(components[type][survivor] == before[survivor])
+        #expect(components[type].dense.count == dense.count - 1)
+        for (survivor, component) in zip(entities, dense) where survivor != entity {
+            #expect(components[type][survivor] == component)
         }
     }
 }
