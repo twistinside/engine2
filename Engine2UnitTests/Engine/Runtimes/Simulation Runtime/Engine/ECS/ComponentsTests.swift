@@ -61,10 +61,10 @@ struct ComponentsTests {
         }
     }
 
-    @Test func protocolDefaultRemovalPreservesOtherRowsAndRejectsStaleIdentities() {
+    @Test func storeProtocolRemovalPreservesOtherRowsAndRejectsStaleIdentities() {
         let world = MiningWorldBuilder().buildWorld()
         for type in Components.types {
-            checkDefaultRemoval(type, in: world.components)
+            checkStoreRemoval(type, in: world.components)
         }
     }
 
@@ -88,17 +88,20 @@ struct ComponentsTests {
         #expect(components[type].sparse.isEmpty)
     }
 
-    private func checkDefaultRemoval<C: Component>(_ type: C.Type, in components: Components) {
+    private func checkStoreRemoval<C: Component>(_ type: C.Type, in components: Components) {
         let entities = components[type].entities
         let dense = components[type].dense
         guard let entity = entities.first else { return }
-        let erasedType: any Component.Type = type
-        erasedType.remove(for: EntityID(index: entity.index, generation: entity.generation + 1), from: components)
+        let store: any ComponentStoring = components[type]
+        let removedStaleIdentity = store.remove(for: EntityID(index: entity.index, generation: entity.generation + 1))
+        #expect(!removedStaleIdentity)
         #expect(components[type].entities == entities)
         #expect(components[type].dense == dense)
 
-        erasedType.remove(for: entity, from: components)
-        erasedType.remove(for: entity, from: components)
+        let removedEntity = store.remove(for: entity)
+        #expect(removedEntity)
+        let removedEntityAgain = store.remove(for: entity)
+        #expect(!removedEntityAgain)
         #expect(components[type][entity] == nil)
         #expect(components[type].dense.count == dense.count - 1)
         for (survivor, component) in zip(entities, dense) where survivor != entity {

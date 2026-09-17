@@ -74,9 +74,11 @@ The base Entity initializer reserves the identity and calls
 ``World/add(_:from:)``, which delegates component registration to its
 ``Components`` container. One engine-owned metatype list allocates every typed
 store and drives component initialization and removal. Each ``Component``
-initializer validates its own capability and seeds; default protocol removal
-delegates to the corresponding store. Every specialized capability requires all of its authored fields;
-a renderable entity, for example, must supply both mesh and material identities.
+initializer validates its own capability and seeds. Removal calls
+``ComponentStoring/remove(for:)`` on each registered store, with the shared
+implementation in ``ComponentStore``. Every specialized capability requires all
+of its authored fields; a renderable entity, for example, must supply both mesh
+and material identities.
 
 Each World owns distinct ``ComponentStore`` instances. Typed container access
 returns the live store reference, so retaining a store preserves access to later

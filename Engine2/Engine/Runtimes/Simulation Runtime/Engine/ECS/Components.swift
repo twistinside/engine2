@@ -68,7 +68,10 @@ final class Components {
     /// Removes this exact identity from every registered store.
     func remove(_ entity: EntityID) {
         for type in Self.types {
-            type.remove(for: entity, from: self)
+            guard let store = stores[ObjectIdentifier(type)] else {
+                preconditionFailure("Component type is not registered")
+            }
+            store.remove(for: entity)
         }
     }
 

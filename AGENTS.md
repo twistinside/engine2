@@ -106,8 +106,9 @@ seed structures or component instances, or resolve live World state. Game Conten
 parameters, but concrete entity initializers must not construct authoritative components.
 
 `World.add(_:from:)` delegates component construction to its `Components` container. One engine-owned metatype list
-drives store allocation, capability-based initialization, and removal through the `Component` protocol. Each component
-implements `init?(for:from:)` and owns its seed validation and defaults; the protocol supplies default typed removal.
+drives store allocation, capability-based initialization, and removal. Each component implements the `Component`
+protocol's `init?(for:from:)` and owns its seed validation and defaults. Removal calls `ComponentStoring.remove(for:)`
+on each registered store; `ComponentStore` supplies the shared implementation.
 Construction order resolves orbital rails before position and position before collision history. Initializers must not
 read their own live capability accessors before the row exists. All World-dependent bootstrap state is resolved before
 registration returns, including markers, neutral controls, and previous collision positions. An orbital rail supplies the complete placement policy:
