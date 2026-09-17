@@ -6,14 +6,14 @@ protocol Orbiting: Positionable {
 
 extension Orbiting {
     var orbitalRadius: Double {
-        guard let rail = world.orbitalRailComponents[id] else {
+        guard let rail = world.components[OrbitalRailComponent.self][id] else {
             fatalError("There is no orbital rail for the orbiting entity with ID: \(id)")
         }
         return rail.radius
     }
 
     var orbitalVelocity: SIMD3<Double> {
-        guard let rail = world.orbitalRailComponents[id] else {
+        guard let rail = world.components[OrbitalRailComponent.self][id] else {
             fatalError("There is no orbital rail for the orbiting entity with ID: \(id)")
         }
         return rail.velocity

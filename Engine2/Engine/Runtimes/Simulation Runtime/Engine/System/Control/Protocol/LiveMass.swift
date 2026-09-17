@@ -6,19 +6,19 @@ protocol LiveMass: Entity {
 
 extension LiveMass {
     var dryMass: Double {
-        guard let mass = world.massComponents[id] else {
+        guard let mass = world.components[MassComponent.self][id] else {
             fatalError("There is no mass component for the massive entity with ID: \(id)")
         }
         return mass.dryMass
     }
 
     var mass: Double {
-        guard let mass = world.massComponents[id] else {
+        guard let mass = world.components[MassComponent.self][id] else {
             fatalError("There is no live mass for the massive entity with ID: \(id)")
         }
         return mass.totalMass(
-            fuel: world.fuelComponents[id],
-            cargo: world.cargoComponents[id]
+            fuel: world.components[FuelComponent.self][id],
+            cargo: world.components[CargoComponent.self][id]
         )
     }
 }

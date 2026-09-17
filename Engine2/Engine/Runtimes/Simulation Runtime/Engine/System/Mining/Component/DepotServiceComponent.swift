@@ -13,3 +13,23 @@ struct DepotServiceComponent: Component {
         self.deliveredOre = deliveredOre
     }
 }
+
+extension DepotServiceComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isDepotServicing = entity is DepotServicing
+        precondition(
+            (state.depotUnloadingRate != nil) == isDepotServicing &&
+                (state.depotRefuelingRate != nil) == isDepotServicing,
+            "DepotServicing requires unloading and refueling rates; other entities must omit both."
+        )
+        guard let depotUnloadingRate = state.depotUnloadingRate,
+              let depotRefuelingRate = state.depotRefuelingRate else {
+            return nil
+        }
+        self.init(
+            unloadingRate: depotUnloadingRate,
+            refuelingRate: depotRefuelingRate,
+            deliveredOre: 0
+        )
+    }
+}

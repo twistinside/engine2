@@ -10,3 +10,16 @@ struct DisplayNameComponent: Component {
         self.value = value
     }
 }
+
+extension DisplayNameComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.displayName != nil) == (entity is DisplayNamed),
+            "InitialState.displayName must be present exactly when the entity conforms to DisplayNamed."
+        )
+        guard let displayName = state.displayName else {
+            return nil
+        }
+        self.init(value: displayName)
+    }
+}

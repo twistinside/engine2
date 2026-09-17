@@ -12,9 +12,9 @@ struct SelectableTests {
         let expectedRadius = 3.5
         let selectable = SelectableComponent(selectionState: expectedState)
 
-        world.positionComponents.insert(PositionComponent(position: .zero), for: entity.id)
-        world.selectionBoundsComponents.insert(SelectionBoundsComponent(radius: expectedRadius), for: entity.id)
-        world.selectableComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: entity.id)
+        world.components[SelectionBoundsComponent.self].insert(SelectionBoundsComponent(radius: expectedRadius), for: entity.id)
+        world.components[SelectableComponent.self].insert(
             selectable,
             for: entity.id
         )

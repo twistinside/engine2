@@ -6,3 +6,16 @@
 struct OrbitPrimaryComponent: Component {
     let primaryEntityID: EntityID
 }
+
+extension OrbitPrimaryComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.orbitPrimaryID != nil) == (entity is OrbitCircularizable),
+            "InitialState.orbitPrimaryID must be present exactly when the entity conforms to OrbitCircularizable."
+        )
+        guard let orbitPrimaryID = state.orbitPrimaryID else {
+            return nil
+        }
+        self.init(primaryEntityID: orbitPrimaryID)
+    }
+}

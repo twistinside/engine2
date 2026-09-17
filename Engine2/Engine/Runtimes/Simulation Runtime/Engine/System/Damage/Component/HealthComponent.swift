@@ -15,3 +15,16 @@ struct HealthComponent: Component {
         health = HitPoints(rawValue: max(0, health.rawValue - amount.rawValue))
     }
 }
+
+extension HealthComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.health != nil) == (entity is Damageable),
+            "Damageable requires initial health; other entities must omit it."
+        )
+        guard let health = state.health else {
+            return nil
+        }
+        self.init(health: HitPoints(rawValue: health))
+    }
+}

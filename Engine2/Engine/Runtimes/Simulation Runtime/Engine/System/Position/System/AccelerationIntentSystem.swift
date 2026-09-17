@@ -4,10 +4,10 @@
 /// from the transient accumulator fields consumed and cleared by `MovementSystem`.
 struct AccelerationIntentSystem: System {
     mutating func update(world: inout World, deltaTime: Double) {
-        let entities = world.motionComponents.entities
+        let entities = world.components[MotionComponent.self].entities
 
         for entity in entities {
-            world.motionComponents.update(for: entity) { motion in
+            world.components[MotionComponent.self].update(for: entity) { motion in
                 switch motion.accelerationIntent {
                 case .idle:
                     return

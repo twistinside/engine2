@@ -7,27 +7,27 @@ struct MissileLaunchSystemTests {
         var scene = MissileTestScene(velocity: .zero)
         _ = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: .zero)
         _ = scene.asteroid(at: SIMD3<Double>(0, 200, 0), velocity: .zero)
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let missileID = try #require(scene.world.contactConsumptionComponents.entities.first)
+        let missileID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first)
         let missile = try #require(scene.world.entity(for: missileID) as? Missile)
-        #expect(scene.world.contactConsumptionComponents.entities.count == 1)
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities.count == 1)
         #expect(missile.ownerEntityID == scene.skiff.id)
         #expect(missile.position == SIMD3<Double>(2, 0, 0))
         #expect(missile.velocity == SIMD3<Double>(100, 0, 0))
         #expect(missile.remainingLifetime == 5)
-        #expect(scene.world.previousPositionComponents[missileID]?.position == missile.position)
-        #expect(scene.world.renderableComponents[missileID]?.meshID == .ball)
-        #expect(scene.world.playerControlComponents[scene.skiff.id]?.isFireRequested == false)
+        #expect(scene.world.components[PreviousPositionComponent.self][missileID]?.position == missile.position)
+        #expect(scene.world.components[RenderableComponent.self][missileID]?.meshID == .ball)
+        #expect(scene.world.components[PlayerControlComponent.self][scene.skiff.id]?.isFireRequested == false)
 
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        #expect(scene.world.contactConsumptionComponents.entities == [missileID])
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities == [missileID])
     }
 
     @Test func selectedLauncherIsRequiredAndAnIgnoredPressIsConsumed() {
@@ -35,30 +35,30 @@ struct MissileLaunchSystemTests {
         let target = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: .zero)
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
-        #expect(scene.world.contactConsumptionComponents.entities.isEmpty)
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities.isEmpty)
 
         scene.world.select(target.id)
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        #expect(scene.world.contactConsumptionComponents.entities.isEmpty)
-        #expect(scene.world.playerControlComponents[scene.skiff.id]?.isFireRequested == false)
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities.isEmpty)
+        #expect(scene.world.components[PlayerControlComponent.self][scene.skiff.id]?.isFireRequested == false)
     }
 
     @Test func leadsMovingTargetAndInheritsLauncherVelocity() throws {
         var scene = MissileTestScene(velocity: SIMD3<Double>(10, 0, 0))
         _ = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: SIMD3<Double>(0, 10, 0))
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let missileID = try #require(scene.world.contactConsumptionComponents.entities.first)
-        let velocity = try #require(scene.world.motionComponents[missileID]?.velocity)
+        let missileID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first)
+        let velocity = try #require(scene.world.components[MotionComponent.self][missileID]?.velocity)
         #expect(velocity.x > 100)
         #expect(velocity.y > 0)
         #expect(abs(simd_length(velocity - scene.skiff.velocity) - 100) < 1e-10)
@@ -68,16 +68,16 @@ struct MissileLaunchSystemTests {
         var scene = MissileTestScene(velocity: .zero)
         let existing = scene.missile(at: SIMD3<Double>(0, 10, 0), velocity: .zero, lifetime: 5)
         _ = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: .zero)
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let launchedID = try #require(scene.world.contactConsumptionComponents.entities.first { $0 != existing.id })
-        #expect(scene.world.contactConsumptionComponents.entities.count == 2)
-        #expect(scene.world.motionComponents[launchedID]?.velocity == SIMD3<Double>(100, 0, 0))
+        let launchedID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first { $0 != existing.id })
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities.count == 2)
+        #expect(scene.world.components[MotionComponent.self][launchedID]?.velocity == SIMD3<Double>(100, 0, 0))
     }
 
     @Test func nearestAsteroidIsTargetedWhileCloserDepotAndNoncollidingEntitiesAreIgnored() throws {
@@ -85,31 +85,31 @@ struct MissileLaunchSystemTests {
         _ = scene.depot(at: SIMD3<Double>(0, 100, 0))
         _ = scene.asteroid(at: SIMD3<Double>(200, 0, 0), velocity: .zero)
         _ = MissileTestPrimary(in: scene.world, from: Entity.InitialState(position: SIMD3<Double>(10, 0, 0)))
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let missileID = try #require(scene.world.contactConsumptionComponents.entities.first)
-        #expect(scene.world.motionComponents[missileID]?.velocity == SIMD3<Double>(100, 0, 0))
+        let missileID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first)
+        #expect(scene.world.components[MotionComponent.self][missileID]?.velocity == SIMD3<Double>(100, 0, 0))
     }
 
     @Test func pendingRemovalTargetDoesNotAttractTheNextLaunch() throws {
         var scene = MissileTestScene(velocity: .zero)
         let pending = scene.asteroid(at: SIMD3<Double>(0, 10, 0), velocity: .zero)
         _ = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: .zero)
-        #expect(scene.world.destructibleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        #expect(scene.world.components[DestructibleComponent.self].update(for: pending.id) { $0.state = .pendingRemoval })
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let missileID = try #require(scene.world.contactConsumptionComponents.entities.first)
-        #expect(scene.world.motionComponents[missileID]?.velocity == SIMD3<Double>(100, 0, 0))
+        let missileID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first)
+        #expect(scene.world.components[MotionComponent.self][missileID]?.velocity == SIMD3<Double>(100, 0, 0))
         #expect(scene.world.entity(for: pending.id) === pending)
         #expect(pending.lifecycleState == .pendingRemoval)
     }
@@ -118,27 +118,27 @@ struct MissileLaunchSystemTests {
         var scene = MissileTestScene(velocity: .zero)
         _ = scene.asteroid(at: SIMD3<Double>(0, 100, 0), velocity: .zero)
         _ = scene.asteroid(at: SIMD3<Double>(100, 0, 0), velocity: .zero)
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let missileID = try #require(scene.world.contactConsumptionComponents.entities.first)
-        #expect(scene.world.motionComponents[missileID]?.velocity == SIMD3<Double>(0, 100, 0))
+        let missileID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first)
+        #expect(scene.world.components[MotionComponent.self][missileID]?.velocity == SIMD3<Double>(0, 100, 0))
     }
 
     @Test func withoutTargetsLaunchesAlongCurrentTravel() throws {
         var scene = MissileTestScene(velocity: SIMD3<Double>(0, 10, 0))
-        scene.world.playerControlComponents.update(for: scene.skiff.id) { control in
+        scene.world.components[PlayerControlComponent.self].update(for: scene.skiff.id) { control in
             control.isFireRequested = true
         }
 
         var system = MissileLaunchSystem()
         system.update(world: &scene.world, deltaTime: 1 / 60)
 
-        let missileID = try #require(scene.world.contactConsumptionComponents.entities.first)
-        #expect(scene.world.motionComponents[missileID]?.velocity == SIMD3<Double>(0, 110, 0))
+        let missileID = try #require(scene.world.components[ContactConsumptionComponent.self].entities.first)
+        #expect(scene.world.components[MotionComponent.self][missileID]?.velocity == SIMD3<Double>(0, 110, 0))
     }
 }

@@ -11,30 +11,30 @@ struct MiningInteractionSystem: System {
             return
         }
 
-        let actors = world.playerControlComponents.entities
-        for actor in actors where world.destructibleComponents[actor]?.state == .active {
+        let actors = world.components[PlayerControlComponent.self].entities
+        for actor in actors where world.components[DestructibleComponent.self][actor]?.state == .active {
             interact(actor: actor, in: world, deltaTime: deltaTime)
         }
     }
 
     private func interact(actor: EntityID, in world: World, deltaTime: Double) {
-        guard world.playerControlComponents[actor]?.interactionState == .active,
-              let actorPosition = world.positionComponents[actor]?.position else {
+        guard world.components[PlayerControlComponent.self][actor]?.interactionState == .active,
+              let actorPosition = world.components[PositionComponent.self][actor]?.position else {
             return
         }
 
-        let cargo = world.cargoComponents[actor]
-        let fuel = world.fuelComponents[actor]
+        let cargo = world.components[CargoComponent.self][actor]
+        let fuel = world.components[FuelComponent.self][actor]
         var target: EntityID?
         var targetIsMineable = false
         var nearestDistance = Double.infinity
 
         if let cargo, cargo.ore < cargo.capacity {
-            for candidate in world.mineableComponents.entities where world.destructibleComponents[candidate]?.state == .active {
-                guard let interaction = world.interactionComponents[candidate],
-                      let deposit = world.oreDepositComponents[candidate],
+            for candidate in world.components[MineableComponent.self].entities where world.components[DestructibleComponent.self][candidate]?.state == .active {
+                guard let interaction = world.components[InteractionComponent.self][candidate],
+                      let deposit = world.components[OreDepositComponent.self][candidate],
                       deposit.remainingOre > 0,
-                      let position = world.positionComponents[candidate]?.position else {
+                      let position = world.components[PositionComponent.self][candidate]?.position else {
                     continue
                 }
                 let distance = planarDistance(from: actorPosition, to: position)
@@ -50,10 +50,10 @@ struct MiningInteractionSystem: System {
         }
 
         if (cargo?.ore ?? 0) > 0 || (fuel.map { $0.remaining < $0.capacity } ?? false) {
-            for candidate in world.depotServiceComponents.entities where
-                world.destructibleComponents[candidate]?.state == .active {
-                guard let interaction = world.interactionComponents[candidate],
-                      let position = world.positionComponents[candidate]?.position else {
+            for candidate in world.components[DepotServiceComponent.self].entities where
+                world.components[DestructibleComponent.self][candidate]?.state == .active {
+                guard let interaction = world.components[InteractionComponent.self][candidate],
+                      let position = world.components[PositionComponent.self][candidate]?.position else {
                     continue
                 }
                 let distance = planarDistance(from: actorPosition, to: position)
@@ -79,9 +79,9 @@ struct MiningInteractionSystem: System {
     }
 
     private func mine(_ source: EntityID, into actor: EntityID, in world: World, deltaTime: Double) {
-        guard let mineable = world.mineableComponents[source],
-              let deposit = world.oreDepositComponents[source],
-              let cargo = world.cargoComponents[actor] else {
+        guard let mineable = world.components[MineableComponent.self][source],
+              let deposit = world.components[OreDepositComponent.self][source],
+              let cargo = world.components[CargoComponent.self][actor] else {
             return
         }
 
@@ -92,37 +92,37 @@ struct MiningInteractionSystem: System {
         guard amount > 0 else {
             return
         }
-        world.oreDepositComponents.update(for: source) { component in
+        world.components[OreDepositComponent.self].update(for: source) { component in
             component.remainingOre -= amount
         }
-        world.cargoComponents.update(for: actor) { component in
+        world.components[CargoComponent.self].update(for: actor) { component in
             component.ore += amount
         }
     }
 
     private func service(_ actor: EntityID, at depot: EntityID, in world: World, deltaTime: Double) {
-        guard let service = world.depotServiceComponents[depot] else {
+        guard let service = world.components[DepotServiceComponent.self][depot] else {
             return
         }
 
-        let unloadedOre = world.cargoComponents[actor].map {
+        let unloadedOre = world.components[CargoComponent.self][actor].map {
             min(service.unloadingRate * deltaTime, $0.ore)
         } ?? 0
-        let suppliedFuel = world.fuelComponents[actor].map {
+        let suppliedFuel = world.components[FuelComponent.self][actor].map {
             min(service.refuelingRate * deltaTime, $0.capacity - $0.remaining)
         } ?? 0
 
         if unloadedOre > 0 {
-            world.cargoComponents.update(for: actor) { component in
+            world.components[CargoComponent.self].update(for: actor) { component in
                 component.ore -= unloadedOre
             }
-            world.depotServiceComponents.update(for: depot) { component in
+            world.components[DepotServiceComponent.self].update(for: depot) { component in
                 component.deliveredOre += unloadedOre
             }
         }
 
         if suppliedFuel > 0 {
-            world.fuelComponents.update(for: actor) { component in
+            world.components[FuelComponent.self].update(for: actor) { component in
                 component.remaining += suppliedFuel
             }
         }

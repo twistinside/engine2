@@ -5,7 +5,7 @@ protocol Expirable: Entity {
 
 extension Expirable {
     var remainingLifetime: Double {
-        guard let lifetime = world.lifetimeComponents[id] else {
+        guard let lifetime = world.components[LifetimeComponent.self][id] else {
             fatalError("There is no lifetime component for the expirable entity with ID: \(id)")
         }
         return lifetime.remainingLifetime

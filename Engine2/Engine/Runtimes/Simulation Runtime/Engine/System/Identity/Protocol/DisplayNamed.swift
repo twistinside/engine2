@@ -5,7 +5,7 @@ protocol DisplayNamed: Entity {
 
 extension DisplayNamed {
     var displayName: String {
-        guard let name = world.displayNameComponents[id] else {
+        guard let name = world.components[DisplayNameComponent.self][id] else {
             fatalError("There is no display name for the named entity with ID: \(id)")
         }
         return name.value

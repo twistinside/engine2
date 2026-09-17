@@ -5,7 +5,7 @@ protocol OreContaining: Entity {
 
 extension OreContaining {
     var remainingOre: Double {
-        guard let deposit = world.oreDepositComponents[id] else {
+        guard let deposit = world.components[OreDepositComponent.self][id] else {
             fatalError("There is no ore deposit for the resource entity with ID: \(id)")
         }
         return deposit.remainingOre

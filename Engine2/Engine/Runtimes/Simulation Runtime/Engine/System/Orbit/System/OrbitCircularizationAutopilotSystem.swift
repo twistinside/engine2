@@ -20,9 +20,9 @@ struct OrbitCircularizationAutopilotSystem: System {
             return
         }
 
-        let entities = world.orbitCircularizationAutopilotComponents.entities
+        let entities = world.components[OrbitCircularizationAutopilotComponent.self].entities
         for entity in entities {
-            guard world.orbitCircularizationAutopilotComponents[entity]?.isEngaged == true else {
+            guard world.components[OrbitCircularizationAutopilotComponent.self][entity]?.isEngaged == true else {
                 continue
             }
             suppressTranslation(for: entity, in: world)
@@ -44,17 +44,17 @@ struct OrbitCircularizationAutopilotSystem: System {
             return
         }
         guard estimate.hasSufficientFuel,
-              let propulsion = world.propulsionComponents[entity],
-              let fuel = world.fuelComponents[entity],
-              let massComponent = world.massComponents[entity],
-              let motion = world.motionComponents[entity] else {
+              let propulsion = world.components[PropulsionComponent.self][entity],
+              let fuel = world.components[FuelComponent.self][entity],
+              let massComponent = world.components[MassComponent.self][entity],
+              let motion = world.components[MotionComponent.self][entity] else {
             disengage(entity, in: world)
             return
         }
 
         let mass = massComponent.totalMass(
             fuel: fuel,
-            cargo: world.cargoComponents[entity]
+            cargo: world.components[CargoComponent.self][entity]
         )
         guard let burn = propulsion.burn(
             toward: estimate.deltaVelocity,
@@ -75,22 +75,22 @@ struct OrbitCircularizationAutopilotSystem: System {
             return
         }
 
-        world.motionComponents.update(for: entity) { component in
+        world.components[MotionComponent.self].update(for: entity) { component in
             component.accumulator.acceleration = acceleration
         }
-        world.fuelComponents.update(for: entity) { component in
+        world.components[FuelComponent.self].update(for: entity) { component in
             component.remaining = remainingFuel
         }
     }
 
     private func disengage(_ entity: EntityID, in world: World) {
-        world.orbitCircularizationAutopilotComponents.update(for: entity) { component in
+        world.components[OrbitCircularizationAutopilotComponent.self].update(for: entity) { component in
             component = .idle
         }
     }
 
     private func suppressTranslation(for entity: EntityID, in world: World) {
-        world.playerControlComponents.update(for: entity) { component in
+        world.components[PlayerControlComponent.self].update(for: entity) { component in
             component.translation = .zero
         }
     }

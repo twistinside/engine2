@@ -30,14 +30,14 @@ struct RealtimeAssemblyConstructionTests {
             catchUpPolicy: catchUpPolicy
         )
         let entity = try #require(
-            assembly.simulationRuntime.world.positionComponents.entities.first
+            assembly.simulationRuntime.world.components[PositionComponent.self].entities.first
         )
 
         #expect(assembly.advanceDriver.fixedTimeStep == SimulationRuntime.fixedTimeStep)
         #expect(assembly.advanceDriver.pollInterval == .seconds(60))
         #expect(assembly.advanceDriver.catchUpPolicy == catchUpPolicy)
         #expect(
-            assembly.simulationRuntime.world.positionComponents[entity]?.position ==
+            assembly.simulationRuntime.world.components[PositionComponent.self][entity]?.position ==
             expectedPosition
         )
         #expect(assembly.inputRuntime.isRunning == false)

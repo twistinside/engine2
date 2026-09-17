@@ -48,7 +48,7 @@ struct MissileTestScene {
             miningRate: 1,
             materialID: .warmDielectric
         )
-        world.orbitalRailComponents.update(for: asteroid.id) { rail in
+        world.components[OrbitalRailComponent.self].update(for: asteroid.id) { rail in
             rail.velocity = velocity
         }
         return asteroid

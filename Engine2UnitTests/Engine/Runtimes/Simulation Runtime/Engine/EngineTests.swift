@@ -77,10 +77,10 @@ struct EngineTests {
         #expect(probe.markedAnotherEntity)
         #expect(world.entity(for: missile.id) == nil)
         #expect(world.entity(for: owner.id) == nil)
-        #expect(world.positionComponents[missile.id] == nil)
-        #expect(world.positionComponents[owner.id] == nil)
-        #expect(world.lifetimeComponents[missile.id] == nil)
-        #expect(world.renderableComponents.entities.isEmpty)
+        #expect(world.components[PositionComponent.self][missile.id] == nil)
+        #expect(world.components[PositionComponent.self][owner.id] == nil)
+        #expect(world.components[LifetimeComponent.self][missile.id] == nil)
+        #expect(world.components[RenderableComponent.self].entities.isEmpty)
         #expect(missile.lifecycleState == nil)
         #expect(owner.lifecycleState == nil)
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
@@ -129,11 +129,11 @@ struct EngineTests {
         motion.accumulator.acceleration = SIMD3<Double>(2, 0, -2)
 
         let initialPosition = PositionComponent(position: SIMD3<Double>(1, 2, 3))
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             initialPosition,
             for: entity
         )
-        world.motionComponents.insert(motion, for: entity)
+        world.components[MotionComponent.self].insert(motion, for: entity)
         let engine = Engine(
             world: world,
             fixedTimeStep: .milliseconds(500),
@@ -143,10 +143,10 @@ struct EngineTests {
         engine.step()
 
         #expect(
-            world.motionComponents[entity]?.velocity == SIMD3<Double>(6, 4, 5.5)
+            world.components[MotionComponent.self][entity]?.velocity == SIMD3<Double>(6, 4, 5.5)
         )
         #expect(
-            world.positionComponents[entity]?.position == SIMD3<Double>(4, 4, 5.75)
+            world.components[PositionComponent.self][entity]?.position == SIMD3<Double>(4, 4, 5.75)
         )
         #expect(engine.completedTick == SimulationTick(rawValue: 1))
     }

@@ -6,19 +6,19 @@
 struct CollisionContactFilter {
     func allowsResponse(from source: EntityID, to target: EntityID, in world: World) -> Bool {
         guard source != target,
-              world.destructibleComponents[source]?.state == .active,
-              world.destructibleComponents[target]?.state == .active,
-              let sourceBody = world.collisionBodyComponents[source],
-              let targetBody = world.collisionBodyComponents[target] else {
+              world.components[DestructibleComponent.self][source]?.state == .active,
+              world.components[DestructibleComponent.self][target]?.state == .active,
+              let sourceBody = world.components[CollisionBodyComponent.self][source],
+              let targetBody = world.components[CollisionBodyComponent.self][target] else {
             return false
         }
         if sourceBody.contactScope == .solidBodies && !targetBody.response.isSolid {
             return false
         }
-        if sourceBody.ownerPolicy == .exclude && world.ownershipComponents[source]?.ownerEntityID == target {
+        if sourceBody.ownerPolicy == .exclude && world.components[OwnershipComponent.self][source]?.ownerEntityID == target {
             return false
         }
-        if targetBody.ownerPolicy == .exclude && world.ownershipComponents[target]?.ownerEntityID == source {
+        if targetBody.ownerPolicy == .exclude && world.components[OwnershipComponent.self][target]?.ownerEntityID == source {
             return false
         }
         return true

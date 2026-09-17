@@ -6,14 +6,14 @@ protocol CargoCarrying: Entity {
 
 extension CargoCarrying {
     var cargoCapacity: Double {
-        guard let cargo = world.cargoComponents[id] else {
+        guard let cargo = world.components[CargoComponent.self][id] else {
             fatalError("There is no cargo component for the carrying entity with ID: \(id)")
         }
         return cargo.capacity
     }
 
     var cargoOre: Double {
-        guard let cargo = world.cargoComponents[id] else {
+        guard let cargo = world.components[CargoComponent.self][id] else {
             fatalError("There is no cargo component for the carrying entity with ID: \(id)")
         }
         return cargo.ore

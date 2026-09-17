@@ -10,9 +10,9 @@ struct ContactDamagingTests {
         )
 
         #expect(entity.contactDamage == HitPoints(rawValue: 2))
-        #expect(world.contactConsumptionComponents[entity.id] == nil)
-        #expect(world.healthComponents[entity.id] == nil)
-        world.contactDamageComponents.update(for: entity.id) {
+        #expect(world.components[ContactConsumptionComponent.self][entity.id] == nil)
+        #expect(world.components[HealthComponent.self][entity.id] == nil)
+        world.components[ContactDamageComponent.self].update(for: entity.id) {
             $0 = ContactDamageComponent(amount: HitPoints(rawValue: 4))
         }
 

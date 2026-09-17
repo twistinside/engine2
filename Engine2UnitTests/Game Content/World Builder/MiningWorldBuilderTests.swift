@@ -6,27 +6,27 @@ struct MiningWorldBuilderTests {
         let world = MiningWorldBuilder().buildWorld()
 
         #expect(world.registeredEntities.count == 9)
-        #expect(world.renderableComponents.dense.count == 9)
-        #expect(world.gravitySourceComponents.dense.count == 1)
-        #expect(world.gravityReceiverComponents.dense.count == 1)
-        #expect(world.orbitalRailComponents.dense.count == 7)
-        #expect(world.oreDepositComponents.dense.count == 6)
-        #expect(world.depotServiceComponents.dense.count == 1)
-        #expect(world.playerControlComponents.dense.count == 1)
-        #expect(world.missileLauncherComponents.dense.count == 1)
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
-        #expect(world.orbitPrimaryComponents.dense.count == 1)
+        #expect(world.components[RenderableComponent.self].dense.count == 9)
+        #expect(world.components[GravitySourceComponent.self].dense.count == 1)
+        #expect(world.components[GravityReceiverComponent.self].dense.count == 1)
+        #expect(world.components[OrbitalRailComponent.self].dense.count == 7)
+        #expect(world.components[OreDepositComponent.self].dense.count == 6)
+        #expect(world.components[DepotServiceComponent.self].dense.count == 1)
+        #expect(world.components[PlayerControlComponent.self].dense.count == 1)
+        #expect(world.components[MissileLauncherComponent.self].dense.count == 1)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
+        #expect(world.components[OrbitPrimaryComponent.self].dense.count == 1)
 
         let selectedID = world.selectedEntityID
         #expect(selectedID != nil)
         #expect(selectedID == world.cameraFollowEntityID)
         #expect(selectedID.map { world.entity(for: $0) is MiningSkiff } == true)
-        #expect(selectedID.flatMap { world.selectableComponents[$0]?.selectionState } == .selected)
+        #expect(selectedID.flatMap { world.components[SelectableComponent.self][$0]?.selectionState } == .selected)
     }
 
     @Test func registryUsesCompleteEntityIdentityAndLiveFacadeState() {
         let world = MiningWorldBuilder().buildWorld()
-        let skiffID = world.playerControlComponents.entities[0]
+        let skiffID = world.components[PlayerControlComponent.self].entities[0]
         let skiff = world.entity(for: skiffID) as? MiningSkiff
         let staleID = EntityID(index: skiffID.index, generation: skiffID.generation + 1)
 
@@ -38,8 +38,8 @@ struct MiningWorldBuilderTests {
 
     @Test func cameraStartsMoreTopDownFromTheSkiffWithLongRangePerspective() {
         let world = MiningWorldBuilder().buildWorld()
-        let skiffID = world.playerControlComponents.entities[0]
-        let skiffPosition = world.positionComponents[skiffID]?.position
+        let skiffID = world.components[PlayerControlComponent.self].entities[0]
+        let skiffPosition = world.components[PositionComponent.self][skiffID]?.position
 
         #expect(
             MiningWorldBuilder.cameraHeight
@@ -62,8 +62,8 @@ struct MiningWorldBuilderTests {
 
     @Test func authorsExpandedCircularRailsAndDesignatesTheSkiffPrimary() throws {
         let world = MiningWorldBuilder().buildWorld()
-        let starID = try #require(world.gravitySourceComponents.entities.first)
-        let skiffID = try #require(world.playerControlComponents.entities.first)
+        let starID = try #require(world.components[GravitySourceComponent.self].entities.first)
+        let skiffID = try #require(world.components[PlayerControlComponent.self].entities.first)
         let asteroidRadii = world.registeredEntities.compactMap { entity in
             (entity as? Asteroid)?.orbitalRadius
         }.sorted()
@@ -72,14 +72,14 @@ struct MiningWorldBuilderTests {
         }.first
 
         #expect(
-            world.gravitySourceComponents[starID]?.gravitationalParameter
+            world.components[GravitySourceComponent.self][starID]?.gravitationalParameter
                 == MiningWorldBuilder.gravitationalParameter
         )
-        #expect(world.orbitPrimaryComponents[skiffID]?.primaryEntityID == starID)
+        #expect(world.components[OrbitPrimaryComponent.self][skiffID]?.primaryEntityID == starID)
         #expect(asteroidRadii == [1_800, 2_400, 3_000, 3_600, 4_300, 5_000])
         #expect(depotRadius == MiningWorldBuilder.depotOrbitRadius)
 
-        for rail in world.orbitalRailComponents.dense {
+        for rail in world.components[OrbitalRailComponent.self].dense {
             let expectedAngularSpeed = sqrt(
                 MiningWorldBuilder.gravitationalParameter
                     / (rail.radius * rail.radius * rail.radius)

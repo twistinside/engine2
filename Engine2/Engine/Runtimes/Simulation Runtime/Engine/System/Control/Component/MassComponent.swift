@@ -12,3 +12,16 @@ struct MassComponent: Component {
         dryMass + (fuel?.remaining ?? 0) + (cargo?.ore ?? 0)
     }
 }
+
+extension MassComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.dryMass != nil) == (entity is LiveMass),
+            "InitialState.dryMass must be present exactly when the entity conforms to LiveMass."
+        )
+        guard let dryMass = state.dryMass else {
+            return nil
+        }
+        self.init(dryMass: dryMass)
+    }
+}

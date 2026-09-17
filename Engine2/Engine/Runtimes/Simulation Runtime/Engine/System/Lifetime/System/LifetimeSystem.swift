@@ -9,16 +9,16 @@ struct LifetimeSystem: System {
             return
         }
 
-        for entity in world.lifetimeComponents.entities {
-            guard let lifetime = world.lifetimeComponents[entity] else {
+        for entity in world.components[LifetimeComponent.self].entities {
+            guard let lifetime = world.components[LifetimeComponent.self][entity] else {
                 continue
             }
             let remainingLifetime = max(0, lifetime.remainingLifetime - deltaTime)
-            world.lifetimeComponents.update(for: entity) {
+            world.components[LifetimeComponent.self].update(for: entity) {
                 $0.remainingLifetime = remainingLifetime
             }
             if remainingLifetime == 0 {
-                world.destructibleComponents.update(for: entity) {
+                world.components[DestructibleComponent.self].update(for: entity) {
                     $0.state = .pendingRemoval
                 }
             }

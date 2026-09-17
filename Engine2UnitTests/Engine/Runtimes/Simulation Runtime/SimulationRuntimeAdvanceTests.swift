@@ -30,7 +30,7 @@ struct SimulationRuntimeAdvanceTests {
         let outcome = await simulation.advance(request)
         let result = try completedResult(from: outcome)
         let entity = try #require(
-            simulation.world.positionComponents.entities.first
+            simulation.world.components[PositionComponent.self].entities.first
         )
         #expect(result.initialCursor == initialCursor)
         #expect(result.finalCursor.sessionID == initialCursor.sessionID)
@@ -39,7 +39,7 @@ struct SimulationRuntimeAdvanceTests {
         #expect(result.finalPresentationSnapshot.cursor == result.finalCursor)
         #expect(simulation.latestPresentationSnapshot == result.finalPresentationSnapshot)
         #expect(simulation.currentCursor == result.finalCursor)
-        #expect(simulation.world.positionComponents[entity]?.position == SIMD3<Double>(3, 0, 0))
+        #expect(simulation.world.components[PositionComponent.self][entity]?.position == SIMD3<Double>(3, 0, 0))
     }
 
     @Test func tenThousandTickBatchMutatesECSAndPublishesTheExactFinalPresentation() async throws {
@@ -56,10 +56,10 @@ struct SimulationRuntimeAdvanceTests {
             from: await simulation.advance(request)
         )
         let entity = try #require(
-            simulation.world.positionComponents.entities.first
+            simulation.world.components[PositionComponent.self].entities.first
         )
         let worldPosition = try #require(
-            simulation.world.positionComponents[entity]?.position
+            simulation.world.components[PositionComponent.self][entity]?.position
         )
         let presentation = try #require(
             result.finalPresentationSnapshot.entityPresentations.first {
@@ -342,7 +342,7 @@ struct SimulationRuntimeAdvanceTests {
             behavior: OrbitCommandProbeBehavior()
         )
         let entityID = try #require(
-            simulation.world.positionComponents.entities.first
+            simulation.world.components[PositionComponent.self].entities.first
         )
         let request = SimulationAdvanceRequest(
             expectedCursor: simulation.currentCursor,
@@ -356,7 +356,7 @@ struct SimulationRuntimeAdvanceTests {
         _ = try completedResult(from: await simulation.advance(request))
 
         #expect(
-            simulation.world.positionComponents[entityID]?.position
+            simulation.world.components[PositionComponent.self][entityID]?.position
                 == SIMD3<Double>(3, 1, 0)
         )
         #expect(simulation.world.orbitCircularizationCommand == nil)
@@ -367,7 +367,7 @@ struct SimulationRuntimeAdvanceTests {
             behavior: OrbitCommandProbeBehavior()
         )
         let entityID = try #require(
-            simulation.world.positionComponents.entities.first
+            simulation.world.components[PositionComponent.self].entities.first
         )
         let staleCursor = SimulationCursor(
             sessionID: simulation.currentCursor.sessionID,
@@ -385,7 +385,7 @@ struct SimulationRuntimeAdvanceTests {
         _ = await simulation.advance(request)
 
         #expect(
-            simulation.world.positionComponents[entityID]?.position == .zero
+            simulation.world.components[PositionComponent.self][entityID]?.position == .zero
         )
         #expect(simulation.world.orbitCircularizationCommand == nil)
     }
@@ -486,7 +486,7 @@ struct SimulationRuntimeAdvanceTests {
                 return
             }
 
-            world.positionComponents.update(for: command.entityID) { position in
+            world.components[PositionComponent.self].update(for: command.entityID) { position in
                 position.position.y += 1
             }
         }

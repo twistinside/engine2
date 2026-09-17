@@ -9,14 +9,14 @@ struct RotationSystemTests {
 
         let initialRotationAxis = SIMD3<Float>(0, 0, 1)
         let initialRotation = RotationComponent(rotation: .identity)
-        world.rotationComponents.insert(
+        world.components[RotationComponent.self].insert(
             initialRotation,
             for: entity
         )
         let initialAngularVelocity = AngularVelocityComponent(
             angularVelocity: SIMD3<Float>(0, 0, 1)
         )
-        world.angularVelocityComponents.insert(
+        world.components[AngularVelocityComponent.self].insert(
             initialAngularVelocity,
             for: entity
         )
@@ -24,19 +24,19 @@ struct RotationSystemTests {
             angularAcceleration: SIMD3<Float>(0, 0, 2),
             angularImpulse: SIMD3<Float>(0, 0, 0.5)
         )
-        world.angularMotionAccumulatorComponents.insert(
+        world.components[AngularMotionAccumulatorComponent.self].insert(
             initialAccumulator,
             for: entity
         )
-        let expectedRotationEntities = world.rotationComponents.entities
-        let expectedRotationSparse = world.rotationComponents.sparse
-        let expectedRotationCount = world.rotationComponents.dense.count
-        let expectedAngularVelocityEntities = world.angularVelocityComponents.entities
-        let expectedAngularVelocitySparse = world.angularVelocityComponents.sparse
-        let expectedAngularVelocityCount = world.angularVelocityComponents.dense.count
-        let expectedAccumulatorEntities = world.angularMotionAccumulatorComponents.entities
-        let expectedAccumulatorSparse = world.angularMotionAccumulatorComponents.sparse
-        let expectedAccumulatorCount = world.angularMotionAccumulatorComponents.dense.count
+        let expectedRotationEntities = world.components[RotationComponent.self].entities
+        let expectedRotationSparse = world.components[RotationComponent.self].sparse
+        let expectedRotationCount = world.components[RotationComponent.self].dense.count
+        let expectedAngularVelocityEntities = world.components[AngularVelocityComponent.self].entities
+        let expectedAngularVelocitySparse = world.components[AngularVelocityComponent.self].sparse
+        let expectedAngularVelocityCount = world.components[AngularVelocityComponent.self].dense.count
+        let expectedAccumulatorEntities = world.components[AngularMotionAccumulatorComponent.self].entities
+        let expectedAccumulatorSparse = world.components[AngularMotionAccumulatorComponent.self].sparse
+        let expectedAccumulatorCount = world.components[AngularMotionAccumulatorComponent.self].dense.count
 
         var system = RotationSystem()
         system.update(world: &world, deltaTime: 0.5)
@@ -47,22 +47,22 @@ struct RotationSystemTests {
             axis: initialRotationAxis
         )
 
-        #expect(world.angularVelocityComponents[entity]?.angularVelocity == expectedAngularVelocity)
+        #expect(world.components[AngularVelocityComponent.self][entity]?.angularVelocity == expectedAngularVelocity)
         #expect(quaternionVectorsApproximatelyEqual(
-            world.rotationComponents[entity]?.rotation.vector,
+            world.components[RotationComponent.self][entity]?.rotation.vector,
             expectedRotation.vector
         ))
-        #expect(world.angularMotionAccumulatorComponents[entity]?.angularAcceleration == .zero)
-        #expect(world.angularMotionAccumulatorComponents[entity]?.angularImpulse == .zero)
-        #expect(world.rotationComponents.entities == expectedRotationEntities)
-        #expect(world.rotationComponents.sparse == expectedRotationSparse)
-        #expect(world.rotationComponents.dense.count == expectedRotationCount)
-        #expect(world.angularVelocityComponents.entities == expectedAngularVelocityEntities)
-        #expect(world.angularVelocityComponents.sparse == expectedAngularVelocitySparse)
-        #expect(world.angularVelocityComponents.dense.count == expectedAngularVelocityCount)
-        #expect(world.angularMotionAccumulatorComponents.entities == expectedAccumulatorEntities)
-        #expect(world.angularMotionAccumulatorComponents.sparse == expectedAccumulatorSparse)
-        #expect(world.angularMotionAccumulatorComponents.dense.count == expectedAccumulatorCount)
+        #expect(world.components[AngularMotionAccumulatorComponent.self][entity]?.angularAcceleration == .zero)
+        #expect(world.components[AngularMotionAccumulatorComponent.self][entity]?.angularImpulse == .zero)
+        #expect(world.components[RotationComponent.self].entities == expectedRotationEntities)
+        #expect(world.components[RotationComponent.self].sparse == expectedRotationSparse)
+        #expect(world.components[RotationComponent.self].dense.count == expectedRotationCount)
+        #expect(world.components[AngularVelocityComponent.self].entities == expectedAngularVelocityEntities)
+        #expect(world.components[AngularVelocityComponent.self].sparse == expectedAngularVelocitySparse)
+        #expect(world.components[AngularVelocityComponent.self].dense.count == expectedAngularVelocityCount)
+        #expect(world.components[AngularMotionAccumulatorComponent.self].entities == expectedAccumulatorEntities)
+        #expect(world.components[AngularMotionAccumulatorComponent.self].sparse == expectedAccumulatorSparse)
+        #expect(world.components[AngularMotionAccumulatorComponent.self].dense.count == expectedAccumulatorCount)
     }
 
     @Test func integratesRotationWithoutAccumulatorComponent() async throws {
@@ -75,7 +75,7 @@ struct RotationSystemTests {
             axis: rotationAxis
         )
         let initialRotation = RotationComponent(rotation: initialRotationValue)
-        world.rotationComponents.insert(
+        world.components[RotationComponent.self].insert(
             initialRotation,
             for: entity
         )
@@ -83,7 +83,7 @@ struct RotationSystemTests {
         let angularVelocity = AngularVelocityComponent(
             angularVelocity: angularVelocityValue
         )
-        world.angularVelocityComponents.insert(
+        world.components[AngularVelocityComponent.self].insert(
             angularVelocity,
             for: entity
         )
@@ -96,15 +96,15 @@ struct RotationSystemTests {
             axis: rotationAxis
         )
 
-        #expect(world.angularVelocityComponents[entity]?.angularVelocity == angularVelocityValue)
+        #expect(world.components[AngularVelocityComponent.self][entity]?.angularVelocity == angularVelocityValue)
         #expect(quaternionVectorsApproximatelyEqual(
-            world.rotationComponents[entity]?.rotation.vector,
+            world.components[RotationComponent.self][entity]?.rotation.vector,
             expectedRotation.vector
         ))
-        #expect(world.angularMotionAccumulatorComponents[entity] == nil)
-        #expect(world.angularMotionAccumulatorComponents.dense.isEmpty)
-        #expect(world.angularMotionAccumulatorComponents.entities.isEmpty)
-        #expect(world.angularMotionAccumulatorComponents.sparse.isEmpty)
+        #expect(world.components[AngularMotionAccumulatorComponent.self][entity] == nil)
+        #expect(world.components[AngularMotionAccumulatorComponent.self].dense.isEmpty)
+        #expect(world.components[AngularMotionAccumulatorComponent.self].entities.isEmpty)
+        #expect(world.components[AngularMotionAccumulatorComponent.self].sparse.isEmpty)
     }
 
     @Test func incompleteEntityWithoutRotationIsLeftUnchanged() {
@@ -117,8 +117,8 @@ struct RotationSystemTests {
             angularAcceleration: SIMD3<Float>(4, 5, 6),
             angularImpulse: SIMD3<Float>(7, 8, 9)
         )
-        world.angularVelocityComponents.insert(expectedVelocity, for: entity)
-        world.angularMotionAccumulatorComponents.insert(
+        world.components[AngularVelocityComponent.self].insert(expectedVelocity, for: entity)
+        world.components[AngularMotionAccumulatorComponent.self].insert(
             expectedAccumulator,
             for: entity
         )
@@ -126,11 +126,11 @@ struct RotationSystemTests {
         var system = RotationSystem()
         system.update(world: &world, deltaTime: 0.5)
 
-        #expect(world.angularVelocityComponents[entity] == expectedVelocity)
+        #expect(world.components[AngularVelocityComponent.self][entity] == expectedVelocity)
         #expect(
-            world.angularMotionAccumulatorComponents[entity] == expectedAccumulator
+            world.components[AngularMotionAccumulatorComponent.self][entity] == expectedAccumulator
         )
-        #expect(world.rotationComponents[entity] == nil)
+        #expect(world.components[RotationComponent.self][entity] == nil)
     }
 }
 

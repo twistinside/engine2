@@ -231,14 +231,15 @@ designated initializer with the authored values it needs, such as mass, ore,
 collision radius, thrust, and missile speed. The constructor assembles one
 flat `Entity.InitialState` and calls `super.init(in:from:)`. The base Entity
 initializer reserves the identity and calls ``World/add(_:from:)``.
-World validates capability agreement, constructs authoritative components,
-and initializes derived and transient state before returning.
+World delegates to ``Components``, which iterates its metatype list. Component
+initializers validate capability agreement and initialize authored, derived,
+and transient state before registration returns.
 Simulation owns the resulting rows and all later gameplay mutation.
 
 Asteroid and depot constructors supply the primary's complete identity,
 orbital radius, angular speed, and phase directly in `Entity.InitialState`.
-The World resolves the primary's live position and creates consistent initial
-position, rail velocity, and collision history. Constructors do not receive a
+The component initialization order resolves the primary's live position and
+creates the rail, position, and collision history before dependent rows are used. Constructors do not receive a
 duplicate primary position or build a rail component. The world is ready for
 its tick-zero presentation without running a setup system.
 
@@ -319,9 +320,11 @@ already demonstrate controlled behavior insertion, but they are not public API.
 The Engine foundation remains camera input, acceleration intent, movement,
 rotation, and input cleanup; consumer behavior cannot replace or reorder it.
 
-``World`` still declares a fixed list of component stores, and
-``World/add(_:from:)`` translates a fixed set of capability protocols from
-`Entity.InitialState`. General external components therefore need a strongly
+``World`` owns one ``Components`` container with typed access such as
+`world.components[PositionComponent.self]`. Its engine-owned metatype list drives
+allocation, initialization, and removal. Component initializers translate
+capabilities and the flat `Entity.InitialState` into rows; ``Component`` supplies
+default removal through its protocol extension. General external components therefore need a strongly
 typed extension path for storage, spawning, and system access. A closed
 component enum or process-global registry would not provide that boundary.
 

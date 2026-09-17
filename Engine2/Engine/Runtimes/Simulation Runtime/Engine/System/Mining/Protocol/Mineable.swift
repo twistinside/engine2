@@ -5,7 +5,7 @@ protocol Mineable: OreContaining, Interactable {
 
 extension Mineable {
     var miningRate: Double {
-        guard let mineable = world.mineableComponents[id] else {
+        guard let mineable = world.components[MineableComponent.self][id] else {
             fatalError("There is no mineable component for the mineable entity with ID: \(id)")
         }
         return mineable.miningRate

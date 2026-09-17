@@ -9,14 +9,14 @@ protocol Renderable: Positionable {
 
 extension Renderable {
     var meshID: MeshID {
-        guard let renderable = world.renderableComponents[self.id] else {
+        guard let renderable = world.components[RenderableComponent.self][self.id] else {
             fatalError("There is no renderable component for the renderable entity with ID: \(self.id)")
         }
         return renderable.meshID
     }
 
     var materialID: MaterialID {
-        guard let renderable = world.renderableComponents[self.id] else {
+        guard let renderable = world.components[RenderableComponent.self][self.id] else {
             fatalError("There is no renderable component for the renderable entity with ID: \(self.id)")
         }
         return renderable.materialID

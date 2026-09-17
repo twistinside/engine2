@@ -19,11 +19,11 @@ struct RotatableTests {
             angularVelocity: expectedAngularVelocity
         )
 
-        world.angularMotionAccumulatorComponents.insert(
+        world.components[AngularMotionAccumulatorComponent.self].insert(
             accumulator,
             for: entity.id
         )
-        world.angularVelocityComponents.insert(
+        world.components[AngularVelocityComponent.self].insert(
             velocity,
             for: entity.id
         )

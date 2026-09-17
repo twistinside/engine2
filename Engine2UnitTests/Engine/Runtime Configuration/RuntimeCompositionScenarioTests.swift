@@ -12,10 +12,10 @@ struct RuntimeCompositionScenarioTests {
         )
 
         let entityID = try #require(
-            runtime.world.positionComponents.entities.first
+            runtime.world.components[PositionComponent.self].entities.first
         )
         let position = try #require(
-            runtime.world.positionComponents[entityID]?.position
+            runtime.world.components[PositionComponent.self][entityID]?.position
         )
 
         #expect(abs(position.x - 1) < 0.0001)

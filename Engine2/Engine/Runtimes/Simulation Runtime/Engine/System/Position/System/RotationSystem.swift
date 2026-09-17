@@ -23,17 +23,17 @@ struct RotationSystem: System {
         )
 
         // Drive iteration from the angular-velocity store and skip incomplete angular rows.
-        let entities = world.angularVelocityComponents.entities
+        let entities = world.components[AngularVelocityComponent.self].entities
 
         for entity in entities {
             guard
-                let rotation = world.rotationComponents[entity],
-                let angularVelocity = world.angularVelocityComponents[entity]
+                let rotation = world.components[RotationComponent.self][entity],
+                let angularVelocity = world.components[AngularVelocityComponent.self][entity]
             else {
                 continue
             }
 
-            let accumulator = world.angularMotionAccumulatorComponents[entity] ?? zeroAccumulator
+            let accumulator = world.components[AngularMotionAccumulatorComponent.self][entity] ?? zeroAccumulator
 
             // Continuous angular acceleration scales with `deltaTime`; impulse is an
             // immediate angular velocity delta. Orientation then advances from the
@@ -49,16 +49,16 @@ struct RotationSystem: System {
             let accumulatedRotation = rotationDelta * rotation.rotation
             let updatedRotation = simd_quatf(vector: simd_normalize(accumulatedRotation.vector))
 
-            world.angularVelocityComponents.update(for: entity) { angularVelocity in
+            world.components[AngularVelocityComponent.self].update(for: entity) { angularVelocity in
                 angularVelocity = AngularVelocityComponent(angularVelocity: updatedAngularVelocity)
             }
-            world.rotationComponents.update(for: entity) { rotation in
+            world.components[RotationComponent.self].update(for: entity) { rotation in
                 rotation = RotationComponent(rotation: updatedRotation)
             }
 
             // Angular motion contributions are interval-local inputs, so clear the
             // accumulator after they have been consumed.
-            world.angularMotionAccumulatorComponents.update(for: entity) { accumulator in
+            world.components[AngularMotionAccumulatorComponent.self].update(for: entity) { accumulator in
                 accumulator = zeroAccumulator
             }
         }

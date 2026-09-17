@@ -8,7 +8,7 @@ protocol Damageable: Entity {
 
 extension Damageable {
     var health: HitPoints {
-        guard let component = world.healthComponents[id] else {
+        guard let component = world.components[HealthComponent.self][id] else {
             fatalError("There is no health component for the damageable entity with ID: \(id)")
         }
         return component.health

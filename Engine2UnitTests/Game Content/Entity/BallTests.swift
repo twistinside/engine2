@@ -46,11 +46,11 @@ struct BallTests {
         #expect(ball.meshID == .ball)
         #expect(ball.materialID == expectedMaterialID)
         #expect(
-            world.renderableComponents[ball.id]?.materialID == expectedMaterialID
+            world.components[RenderableComponent.self][ball.id]?.materialID == expectedMaterialID
         )
         #expect(ball.selectionState == expectedSelectionState)
         #expect(ball.selectionRadius == expectedSelectionRadius)
-        #expect(world.scaleComponents[ball.id] == nil)
+        #expect(world.components[ScaleComponent.self][ball.id] == nil)
     }
 
     @Test func initDefaultsMissingStateToZeroAndIdentity() async throws {

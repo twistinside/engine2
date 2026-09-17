@@ -5,10 +5,10 @@ struct OrbitalRailSystem: System {
             return
         }
 
-        let entities = world.orbitalRailComponents.entities
+        let entities = world.components[OrbitalRailComponent.self].entities
         for entity in entities {
-            guard var rail = world.orbitalRailComponents[entity],
-                  let primaryPosition = world.positionComponents[rail.primaryEntityID]?.position else {
+            guard var rail = world.components[OrbitalRailComponent.self][entity],
+                  let primaryPosition = world.components[PositionComponent.self][rail.primaryEntityID]?.position else {
                 continue
             }
 
@@ -21,10 +21,10 @@ struct OrbitalRailSystem: System {
             }
 
             rail.velocity = state.velocity
-            world.orbitalRailComponents.update(for: entity) { component in
+            world.components[OrbitalRailComponent.self].update(for: entity) { component in
                 component = rail
             }
-            world.positionComponents.update(for: entity) { position in
+            world.components[PositionComponent.self].update(for: entity) { position in
                 position.position = state.position
             }
         }

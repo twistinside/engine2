@@ -11,21 +11,21 @@ protocol Rotatable: Orientable {
 
 extension Rotatable {
     var angularAcceleration: SIMD3<Float> {
-        guard let accumulator = world.angularMotionAccumulatorComponents[self.id] else {
+        guard let accumulator = world.components[AngularMotionAccumulatorComponent.self][self.id] else {
             fatalError("There is no angular motion accumulator for the rotating entity with ID: \(self.id)")
         }
         return accumulator.angularAcceleration
     }
 
     var angularImpulse: SIMD3<Float> {
-        guard let accumulator = world.angularMotionAccumulatorComponents[self.id] else {
+        guard let accumulator = world.components[AngularMotionAccumulatorComponent.self][self.id] else {
             fatalError("There is no angular motion accumulator for the rotating entity with ID: \(self.id)")
         }
         return accumulator.angularImpulse
     }
 
     var angularVelocity: SIMD3<Float> {
-        guard let angularVelocity = world.angularVelocityComponents[self.id]?.angularVelocity else {
+        guard let angularVelocity = world.components[AngularVelocityComponent.self][self.id]?.angularVelocity else {
             fatalError("There is no angular velocity for the rotating entity with ID: \(self.id)")
         }
         return angularVelocity

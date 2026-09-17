@@ -5,7 +5,7 @@ protocol Ownable: Entity {
 
 extension Ownable {
     var ownerEntityID: EntityID {
-        guard let ownership = world.ownershipComponents[id] else {
+        guard let ownership = world.components[OwnershipComponent.self][id] else {
             fatalError("There is no ownership component for the ownable entity with ID: \(id)")
         }
         return ownership.ownerEntityID

@@ -14,3 +14,14 @@ struct DestructibleComponent: Component {
         case pendingRemoval
     }
 }
+
+extension DestructibleComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        if entity.world.entity(for: entity.id) === entity,
+           let existing = entity.world.components[Self.self][entity.id] {
+            self = existing
+        } else {
+            self.init()
+        }
+    }
+}

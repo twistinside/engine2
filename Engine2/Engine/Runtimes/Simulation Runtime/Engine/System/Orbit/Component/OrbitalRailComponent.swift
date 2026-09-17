@@ -50,3 +50,55 @@ struct OrbitalRailComponent: Component {
         return (primaryPosition + radialOffset, tangentialVelocity)
     }
 }
+
+extension OrbitalRailComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isOrbiting = entity is Orbiting
+        precondition(
+            (state.orbitalPrimaryID != nil) == isOrbiting &&
+                (state.orbitalRadius != nil) == isOrbiting &&
+                (state.orbitalAngularSpeed != nil) == isOrbiting &&
+                (state.orbitalPhase != nil) == isOrbiting,
+            "Orbiting requires primary identity, radius, angular speed, and phase; other entities must omit all four."
+        )
+        guard let orbitalPrimaryID = state.orbitalPrimaryID,
+              let orbitalRadius = state.orbitalRadius,
+              let orbitalAngularSpeed = state.orbitalAngularSpeed,
+              let orbitalPhase = state.orbitalPhase else {
+            return nil
+        }
+        precondition(!(entity is Movable), "An orbital rail cannot also use dynamically integrated motion.")
+        precondition(
+            state.position == nil &&
+                state.velocity == nil &&
+                state.accelerationIntent == nil &&
+                state.impulse == nil,
+            "An orbital rail derives its translational state; explicit position and motion seeds are not allowed."
+        )
+        precondition(
+            orbitalPrimaryID != entity.id,
+            "An orbital rail cannot use its own entity as its primary."
+        )
+        guard entity.world.entity(for: orbitalPrimaryID) != nil,
+              let primaryPosition = entity.world.components[PositionComponent.self][orbitalPrimaryID]?.position else {
+            preconditionFailure("An orbital rail requires a registered primary with the complete supplied identity.")
+        }
+        precondition(primaryPosition.isFinite, "An orbital rail primary position must be finite.")
+
+        var component = OrbitalRailComponent(
+            primaryEntityID: orbitalPrimaryID,
+            radius: orbitalRadius,
+            angularSpeed: orbitalAngularSpeed,
+            phase: orbitalPhase,
+            elapsedTime: 0,
+            velocity: .zero
+        )
+        let initialOrbit = component.state(relativeTo: primaryPosition)
+        precondition(
+            initialOrbit.position.isFinite && initialOrbit.velocity.isFinite,
+            "An orbital rail must resolve a finite initial position and velocity."
+        )
+        component.velocity = initialOrbit.velocity
+        self = component
+    }
+}

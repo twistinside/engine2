@@ -105,7 +105,7 @@ struct CameraInputSystem: System {
 
     private func resolvedTarget(in world: World) -> SIMD3<Float> {
         guard let entity = world.cameraFollowEntityID,
-              let position = world.positionComponents[entity]?.position,
+              let position = world.components[PositionComponent.self][entity]?.position,
               position.isFinite else {
             return target
         }

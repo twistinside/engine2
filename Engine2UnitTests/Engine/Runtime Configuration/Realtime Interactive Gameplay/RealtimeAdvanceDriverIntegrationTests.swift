@@ -53,10 +53,10 @@ struct RealtimeAdvanceDriverIntegrationTests {
         inputRuntime.stop()
 
         let entity = try #require(
-            simulationRuntime.world.positionComponents.entities.first
+            simulationRuntime.world.components[PositionComponent.self].entities.first
         )
         let position = try #require(
-            simulationRuntime.world.positionComponents[entity]?.position
+            simulationRuntime.world.components[PositionComponent.self][entity]?.position
         )
 
         #expect(didAdvance)

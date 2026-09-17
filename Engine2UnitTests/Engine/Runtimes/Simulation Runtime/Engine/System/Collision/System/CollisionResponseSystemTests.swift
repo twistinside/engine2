@@ -11,7 +11,7 @@ struct CollisionResponseSystemTests {
             to: SIMD3<Double>(10, 0, 0),
             velocity: SIMD3<Double>(20, 0, 0)
         )
-        world.collisionBodyComponents.insert(CollisionBodyComponent(radius: 1, response: .sensor), for: sensor)
+        world.components[CollisionBodyComponent.self].insert(CollisionBodyComponent(radius: 1, response: .sensor), for: sensor)
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
         #expect(world.collisionContacts.count == 1)
@@ -19,41 +19,41 @@ struct CollisionResponseSystemTests {
 
         response.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[solid]?.position == .zero)
-        #expect(world.motionComponents[solid]?.velocity == .zero)
-        #expect(world.positionComponents[sensor]?.position == SIMD3<Double>(10, 0, 0))
-        #expect(world.motionComponents[sensor]?.velocity == SIMD3<Double>(20, 0, 0))
-        #expect(world.contactDamageComponents.entities.isEmpty)
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
+        #expect(world.components[PositionComponent.self][solid]?.position == .zero)
+        #expect(world.components[MotionComponent.self][solid]?.velocity == .zero)
+        #expect(world.components[PositionComponent.self][sensor]?.position == SIMD3<Double>(10, 0, 0))
+        #expect(world.components[MotionComponent.self][sensor]?.velocity == SIMD3<Double>(20, 0, 0))
+        #expect(world.components[ContactDamageComponent.self].entities.isEmpty)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
     }
 
     @Test func pendingRemovalBodyRetainsItsMotionWithoutBouncing() {
         var world = World()
         let body = Entity(in: world, from: .empty).id
         let obstacle = Entity(in: world, from: .empty).id
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
-        world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
             for: body
         )
-        world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: obstacle)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: .zero), for: obstacle)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
             for: obstacle
         )
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
-        #expect(world.destructibleComponents.update(for: body) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: body) { $0.state = .pendingRemoval })
         var system = CollisionResponseSystem()
         system.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[body]?.position == SIMD3<Double>(10, 0, 0))
-        #expect(world.motionComponents[body]?.velocity == SIMD3<Double>(20, 0, 0))
-        #expect(world.collisionBodyComponents[body] != nil)
+        #expect(world.components[PositionComponent.self][body]?.position == SIMD3<Double>(10, 0, 0))
+        #expect(world.components[MotionComponent.self][body]?.velocity == SIMD3<Double>(20, 0, 0))
+        #expect(world.components[CollisionBodyComponent.self][body] != nil)
         #expect(world.entity(for: body)?.lifecycleState == .pendingRemoval)
     }
 
@@ -62,17 +62,17 @@ struct CollisionResponseSystemTests {
         let body = Entity(in: world, from: .empty).id
         let pending = Entity(in: world, from: .empty).id
         let surviving = Entity(in: world, from: .empty).id
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
-        world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: body)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: body)
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: body)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
             for: body
         )
         for (obstacle, position) in [(pending, SIMD3<Double>.zero), (surviving, SIMD3<Double>(5, 0, 0))] {
-            world.positionComponents.insert(PositionComponent(position: position), for: obstacle)
-            world.previousPositionComponents.insert(PreviousPositionComponent(position: position), for: obstacle)
-            world.collisionBodyComponents.insert(
+            world.components[PositionComponent.self].insert(PositionComponent(position: position), for: obstacle)
+            world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: position), for: obstacle)
+            world.components[CollisionBodyComponent.self].insert(
                 CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
                 for: obstacle
             )
@@ -80,13 +80,13 @@ struct CollisionResponseSystemTests {
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
-        #expect(world.destructibleComponents.update(for: pending) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: pending) { $0.state = .pendingRemoval })
         var system = CollisionResponseSystem()
         system.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[body]?.position == SIMD3<Double>(3, 0, 0))
-        #expect(world.motionComponents[body]?.velocity == SIMD3<Double>(-20, 0, 0))
-        #expect(world.collisionBodyComponents[pending] != nil)
+        #expect(world.components[PositionComponent.self][body]?.position == SIMD3<Double>(3, 0, 0))
+        #expect(world.components[MotionComponent.self][body]?.velocity == SIMD3<Double>(-20, 0, 0))
+        #expect(world.components[CollisionBodyComponent.self][pending] != nil)
         #expect(world.entity(for: pending)?.lifecycleState == .pendingRemoval)
     }
 
@@ -94,16 +94,16 @@ struct CollisionResponseSystemTests {
         var world = World()
         let skiff = Entity(in: world, from: .empty).id
         let obstacle = Entity(in: world, from: .empty).id
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: skiff)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: skiff)
-        world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: skiff)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: skiff)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: skiff)
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: SIMD3<Double>(20, 0, 0)), for: skiff)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
             for: skiff
         )
-        world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: obstacle)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: .zero), for: obstacle)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
             for: obstacle
         )
@@ -113,8 +113,8 @@ struct CollisionResponseSystemTests {
         var system = CollisionResponseSystem()
         system.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[skiff]?.position == SIMD3<Double>(-2, 0, 0))
-        #expect(world.motionComponents[skiff]?.velocity == SIMD3<Double>(-7, 0, 0))
+        #expect(world.components[PositionComponent.self][skiff]?.position == SIMD3<Double>(-2, 0, 0))
+        #expect(world.components[MotionComponent.self][skiff]?.velocity == SIMD3<Double>(-7, 0, 0))
     }
 
     @Test func missilesDoNotBounceOrPushDynamicBodies() {
@@ -138,21 +138,21 @@ struct CollisionResponseSystemTests {
         let star = Entity(in: world, from: .empty).id
         let skiff = Entity(in: world, from: .empty).id
         let obstacle = Entity(in: world, from: .empty).id
-        world.positionComponents.insert(PositionComponent(position: .zero), for: star)
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: skiff)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: skiff)
-        world.motionComponents.insert(MotionComponent(velocity: SIMD3<Double>(20, 5, 0)), for: skiff)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: star)
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: skiff)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: SIMD3<Double>(-10, 0, 0)), for: skiff)
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: SIMD3<Double>(20, 5, 0)), for: skiff)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
             for: skiff
         )
-        world.positionComponents.insert(PositionComponent(position: .zero), for: obstacle)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: obstacle)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: obstacle)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: .zero), for: obstacle)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 0.35)),
             for: obstacle
         )
-        world.orbitalRailComponents.insert(
+        world.components[OrbitalRailComponent.self].insert(
             OrbitalRailComponent(
                 primaryEntityID: star,
                 radius: 1,
@@ -168,7 +168,7 @@ struct CollisionResponseSystemTests {
         var system = CollisionResponseSystem()
         system.update(world: &world, deltaTime: 1)
 
-        #expect(world.motionComponents[skiff]?.velocity == SIMD3<Double>(-7, 5, 0))
+        #expect(world.components[MotionComponent.self][skiff]?.velocity == SIMD3<Double>(-7, 5, 0))
     }
 
     @Test func earlierWallBounceInvalidatesTheContactWithABodyBeyondTheWall() {
@@ -193,10 +193,10 @@ struct CollisionResponseSystemTests {
         var response = CollisionResponseSystem()
         response.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[moving]?.position == SIMD3<Double>(-2, 0, 0))
-        #expect(world.motionComponents[moving]?.velocity == SIMD3<Double>(-20, 0, 0))
-        #expect(world.positionComponents[behindWall]?.position == SIMD3<Double>(5, 0, 0))
-        #expect(world.motionComponents[behindWall]?.velocity == .zero)
+        #expect(world.components[PositionComponent.self][moving]?.position == SIMD3<Double>(-2, 0, 0))
+        #expect(world.components[MotionComponent.self][moving]?.velocity == SIMD3<Double>(-20, 0, 0))
+        #expect(world.components[PositionComponent.self][behindWall]?.position == SIMD3<Double>(5, 0, 0))
+        #expect(world.components[MotionComponent.self][behindWall]?.velocity == .zero)
         #expect(world.collisionContacts.count == 2)
         #expect(world.collisionSweeps.first?.position == SIMD2<Double>(10, 0))
     }
@@ -218,8 +218,8 @@ struct CollisionResponseSystemTests {
         var response = CollisionResponseSystem()
         response.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[overlapping]?.position == SIMD3<Double>(2, 0, 0))
-        #expect(world.positionComponents[nearby]?.position == SIMD3<Double>(4, 0, 0))
+        #expect(world.components[PositionComponent.self][overlapping]?.position == SIMD3<Double>(2, 0, 0))
+        #expect(world.components[PositionComponent.self][nearby]?.position == SIMD3<Double>(4, 0, 0))
         #expect(world.collisionContacts.count == 1)
     }
 
@@ -233,18 +233,18 @@ struct CollisionResponseSystemTests {
             velocity: SIMD3<Double>(-10, 0, 0)
         )
         _ = addCollisionBody(in: world, from: .zero, to: .zero)
-        world.lifetimeComponents.insert(LifetimeComponent(remainingLifetime: 1.5), for: moving)
+        world.components[LifetimeComponent.self].insert(LifetimeComponent(remainingLifetime: 1.5), for: moving)
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
         var lifetime = LifetimeSystem()
         lifetime.update(world: &world, deltaTime: 1)
-        #expect(world.lifetimeComponents[moving]?.remainingLifetime == 0.5)
+        #expect(world.components[LifetimeComponent.self][moving]?.remainingLifetime == 0.5)
 
         var response = CollisionResponseSystem()
         response.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[moving]?.position == SIMD3<Double>(4, 0, 0))
-        #expect(world.motionComponents[moving]?.velocity == SIMD3<Double>(10, 0, 0))
+        #expect(world.components[PositionComponent.self][moving]?.position == SIMD3<Double>(4, 0, 0))
+        #expect(world.components[MotionComponent.self][moving]?.velocity == SIMD3<Double>(10, 0, 0))
         #expect(world.entity(for: moving)?.lifecycleState == .active)
     }
 
@@ -264,8 +264,8 @@ struct CollisionResponseSystemTests {
         var response = CollisionResponseSystem()
         response.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[moving]?.position == SIMD3<Double>(2, 0, 0))
-        #expect(world.motionComponents[moving]?.velocity == SIMD3<Double>(20, 0, 0))
+        #expect(world.components[PositionComponent.self][moving]?.position == SIMD3<Double>(2, 0, 0))
+        #expect(world.components[MotionComponent.self][moving]?.velocity == SIMD3<Double>(20, 0, 0))
     }
 
     @Test func equalContactTimesUseTheLowerObstacleIdentity() {
@@ -278,7 +278,7 @@ struct CollisionResponseSystemTests {
             to: SIMD3<Double>(10, 0, 0),
             velocity: SIMD3<Double>(20, 0, 0)
         )
-        world.collisionBodyComponents.insert(
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 0)),
             for: first
         )
@@ -288,8 +288,8 @@ struct CollisionResponseSystemTests {
         var response = CollisionResponseSystem()
         response.update(world: &world, deltaTime: 1)
 
-        #expect(world.positionComponents[moving]?.position == SIMD3<Double>(-2, 0, 0))
-        #expect(world.motionComponents[moving]?.velocity == .zero)
+        #expect(world.components[PositionComponent.self][moving]?.position == SIMD3<Double>(-2, 0, 0))
+        #expect(world.components[MotionComponent.self][moving]?.velocity == .zero)
     }
 
     private func addCollisionBody(
@@ -299,14 +299,14 @@ struct CollisionResponseSystemTests {
         velocity: SIMD3<Double>? = nil
     ) -> EntityID {
         let entity = Entity(in: world, from: .empty)
-        world.positionComponents.insert(PositionComponent(position: position), for: entity.id)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: previousPosition), for: entity.id)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: position), for: entity.id)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: previousPosition), for: entity.id)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
             for: entity.id
         )
         if let velocity {
-            world.motionComponents.insert(MotionComponent(velocity: velocity), for: entity.id)
+            world.components[MotionComponent.self].insert(MotionComponent(velocity: velocity), for: entity.id)
         }
         return entity.id
     }

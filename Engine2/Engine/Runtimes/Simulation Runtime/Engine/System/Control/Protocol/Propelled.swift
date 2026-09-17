@@ -6,14 +6,14 @@ protocol Propelled: Entity {
 
 extension Propelled {
     var exhaustVelocity: Double {
-        guard let propulsion = world.propulsionComponents[id] else {
+        guard let propulsion = world.components[PropulsionComponent.self][id] else {
             fatalError("There is no propulsion component for the propelled entity with ID: \(id)")
         }
         return propulsion.exhaustVelocity
     }
 
     var maximumThrust: Double {
-        guard let propulsion = world.propulsionComponents[id] else {
+        guard let propulsion = world.components[PropulsionComponent.self][id] else {
             fatalError("There is no propulsion component for the propelled entity with ID: \(id)")
         }
         return propulsion.maximumThrust

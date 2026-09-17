@@ -12,14 +12,14 @@ communicates the system's invariant, and gives the store a focused mutation path
 insertion:
 
 ```swift
-world.angularVelocityComponents.insert(
+world.components[AngularVelocityComponent.self].insert(
     AngularVelocityComponent(angularVelocity: updatedAngularVelocity),
     for: entity
 )
-world.rotationComponents.insert(RotationComponent(rotation: updatedRotation), for: entity)
+world.components[RotationComponent.self].insert(RotationComponent(rotation: updatedRotation), for: entity)
 
-if world.angularMotionAccumulatorComponents[entity] != nil {
-    world.angularMotionAccumulatorComponents.insert(zeroAccumulator, for: entity)
+if world.components[AngularMotionAccumulatorComponent.self][entity] != nil {
+    world.components[AngularMotionAccumulatorComponent.self].insert(zeroAccumulator, for: entity)
 }
 ```
 
@@ -33,13 +33,13 @@ must not change which components the entity owns.
 ## Prefer
 
 ```swift
-world.angularVelocityComponents.update(for: entity) { angularVelocity in
+world.components[AngularVelocityComponent.self].update(for: entity) { angularVelocity in
     angularVelocity = AngularVelocityComponent(angularVelocity: updatedAngularVelocity)
 }
-world.rotationComponents.update(for: entity) { rotation in
+world.components[RotationComponent.self].update(for: entity) { rotation in
     rotation = RotationComponent(rotation: updatedRotation)
 }
-world.angularMotionAccumulatorComponents.update(for: entity) { accumulator in
+world.components[AngularMotionAccumulatorComponent.self].update(for: entity) { accumulator in
     accumulator = zeroAccumulator
 }
 ```
@@ -49,7 +49,7 @@ accumulator is a no-op, matching the previous conditional behavior without a sep
 exposes mutable fields, update only those fields instead of replacing the complete value:
 
 ```swift
-world.motionComponents.update(for: entity) { motion in
+world.components[MotionComponent.self].update(for: entity) { motion in
     motion.velocity = updatedVelocity
     motion.accumulator = .zero
 }

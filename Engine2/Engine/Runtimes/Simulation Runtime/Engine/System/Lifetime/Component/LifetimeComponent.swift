@@ -10,3 +10,16 @@ struct LifetimeComponent: Component {
         self.remainingLifetime = remainingLifetime
     }
 }
+
+extension LifetimeComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.lifetime != nil) == (entity is Expirable),
+            "InitialState.lifetime must be present exactly when the entity conforms to Expirable."
+        )
+        guard let lifetime = state.lifetime else {
+            return nil
+        }
+        self.init(remainingLifetime: lifetime)
+    }
+}

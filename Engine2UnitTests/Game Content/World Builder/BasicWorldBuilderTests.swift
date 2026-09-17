@@ -32,19 +32,19 @@ struct BasicWorldBuilderTests {
 
         expectExactStoreMembership(in: world)
         #expect(
-            world.positionComponents.dense.map(\.position) ==
+            world.components[PositionComponent.self].dense.map(\.position) ==
                 Self.expectedPositions
         )
         #expect(
-            world.renderableComponents.dense.map(\.materialID) ==
+            world.components[RenderableComponent.self].dense.map(\.materialID) ==
                 Self.expectedMaterialIDs
         )
         #expect(
-            world.renderableComponents.dense.map(\.meshID) ==
+            world.components[RenderableComponent.self].dense.map(\.meshID) ==
                 Array(repeating: MeshID.ball, count: Self.expectedEntityIDs.count)
         )
-        #expect(world.scaleComponents.entities.isEmpty)
-        #expect(world.scaleComponents.dense.isEmpty)
+        #expect(world.components[ScaleComponent.self].entities.isEmpty)
+        #expect(world.components[ScaleComponent.self].dense.isEmpty)
         expectReferenceCamera(world.camera)
 
         expectQuiescentState(in: world)
@@ -92,56 +92,56 @@ struct BasicWorldBuilderTests {
 
     /// Locks dense-store order to ordinary Ball registration order.
     private func expectExactStoreMembership(in world: World) {
-        #expect(world.positionComponents.entities == Self.expectedEntityIDs)
-        #expect(world.motionComponents.entities == Self.expectedEntityIDs)
-        #expect(world.rotationComponents.entities == Self.expectedEntityIDs)
-        #expect(world.angularVelocityComponents.entities == Self.expectedEntityIDs)
+        #expect(world.components[PositionComponent.self].entities == Self.expectedEntityIDs)
+        #expect(world.components[MotionComponent.self].entities == Self.expectedEntityIDs)
+        #expect(world.components[RotationComponent.self].entities == Self.expectedEntityIDs)
+        #expect(world.components[AngularVelocityComponent.self].entities == Self.expectedEntityIDs)
         #expect(
-            world.angularMotionAccumulatorComponents.entities ==
+            world.components[AngularMotionAccumulatorComponent.self].entities ==
                 Self.expectedEntityIDs
         )
-        #expect(world.renderableComponents.entities == Self.expectedEntityIDs)
-        #expect(world.selectableComponents.entities == Self.expectedEntityIDs)
-        #expect(world.scaleComponents.entities.isEmpty)
+        #expect(world.components[RenderableComponent.self].entities == Self.expectedEntityIDs)
+        #expect(world.components[SelectableComponent.self].entities == Self.expectedEntityIDs)
+        #expect(world.components[ScaleComponent.self].entities.isEmpty)
 
-        #expect(world.positionComponents.dense.count == Self.expectedEntityIDs.count)
-        #expect(world.motionComponents.dense.count == Self.expectedEntityIDs.count)
-        #expect(world.rotationComponents.dense.count == Self.expectedEntityIDs.count)
+        #expect(world.components[PositionComponent.self].dense.count == Self.expectedEntityIDs.count)
+        #expect(world.components[MotionComponent.self].dense.count == Self.expectedEntityIDs.count)
+        #expect(world.components[RotationComponent.self].dense.count == Self.expectedEntityIDs.count)
         #expect(
-            world.angularVelocityComponents.dense.count ==
+            world.components[AngularVelocityComponent.self].dense.count ==
                 Self.expectedEntityIDs.count
         )
         #expect(
-            world.angularMotionAccumulatorComponents.dense.count ==
+            world.components[AngularMotionAccumulatorComponent.self].dense.count ==
                 Self.expectedEntityIDs.count
         )
-        #expect(world.renderableComponents.dense.count == Self.expectedEntityIDs.count)
-        #expect(world.selectableComponents.dense.count == Self.expectedEntityIDs.count)
-        #expect(world.scaleComponents.dense.isEmpty)
+        #expect(world.components[RenderableComponent.self].dense.count == Self.expectedEntityIDs.count)
+        #expect(world.components[SelectableComponent.self].dense.count == Self.expectedEntityIDs.count)
+        #expect(world.components[ScaleComponent.self].dense.isEmpty)
     }
 
     /// Verifies that ordinary movement-capable Balls are quiescent by state.
     private func expectQuiescentState(in world: World) {
         for entity in Self.expectedEntityIDs {
-            #expect(world.motionComponents[entity]?.velocity == .zero)
-            #expect(world.motionComponents[entity]?.accelerationIntent == .idle)
-            #expect(world.motionComponents[entity]?.acceleration == .zero)
-            #expect(world.motionComponents[entity]?.impulse == .zero)
+            #expect(world.components[MotionComponent.self][entity]?.velocity == .zero)
+            #expect(world.components[MotionComponent.self][entity]?.accelerationIntent == .idle)
+            #expect(world.components[MotionComponent.self][entity]?.acceleration == .zero)
+            #expect(world.components[MotionComponent.self][entity]?.impulse == .zero)
             #expect(
-                world.rotationComponents[entity]?.rotation.vector ==
+                world.components[RotationComponent.self][entity]?.rotation.vector ==
                     Self.identityRotation.vector
             )
-            #expect(world.angularVelocityComponents[entity]?.angularVelocity == .zero)
+            #expect(world.components[AngularVelocityComponent.self][entity]?.angularVelocity == .zero)
             #expect(
-                world.angularMotionAccumulatorComponents[entity]?
+                world.components[AngularMotionAccumulatorComponent.self][entity]?
                     .angularAcceleration == .zero
             )
             #expect(
-                world.angularMotionAccumulatorComponents[entity]?
+                world.components[AngularMotionAccumulatorComponent.self][entity]?
                     .angularImpulse == .zero
             )
             #expect(
-                world.selectableComponents[entity]?.selectionState == .unselected
+                world.components[SelectableComponent.self][entity]?.selectionState == .unselected
             )
         }
     }

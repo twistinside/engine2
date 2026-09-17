@@ -8,19 +8,19 @@ import simd
 /// orbiting the same star.
 struct GravitySystem: System {
     mutating func update(world: inout World, deltaTime _: Double) {
-        let receivers = world.gravityReceiverComponents.entities
-        let sources = world.gravitySourceComponents.entities
+        let receivers = world.components[GravityReceiverComponent.self].entities
+        let sources = world.components[GravitySourceComponent.self].entities
 
         for receiver in receivers {
-            guard let receiverPosition = world.positionComponents[receiver]?.position,
-                  world.motionComponents[receiver] != nil else {
+            guard let receiverPosition = world.components[PositionComponent.self][receiver]?.position,
+                  world.components[MotionComponent.self][receiver] != nil else {
                 continue
             }
 
             var acceleration = SIMD3<Double>.zero
             for source in sources where source != receiver {
-                guard let sourcePosition = world.positionComponents[source]?.position,
-                      let sourceComponent = world.gravitySourceComponents[source] else {
+                guard let sourcePosition = world.components[PositionComponent.self][source]?.position,
+                      let sourceComponent = world.components[GravitySourceComponent.self][source] else {
                     continue
                 }
 
@@ -43,7 +43,7 @@ struct GravitySystem: System {
             guard acceleration.isFinite else {
                 continue
             }
-            world.motionComponents.update(for: receiver) { motion in
+            world.components[MotionComponent.self].update(for: receiver) { motion in
                 motion.accumulator.acceleration += acceleration
             }
         }
