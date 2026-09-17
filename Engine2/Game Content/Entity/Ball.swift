@@ -13,7 +13,7 @@ class Ball: Entity, Movable, Rotatable, Renderable, Selectable {
     /// Position, motion, orientation, and selection defaults are neutral per-instance
     /// seed values. Omitting them cannot establish shared Simulation policy, while the
     /// required material identity prevents an authored presentation choice from being hidden.
-    convenience init(
+    init(
         in world: World,
         materialID: MaterialID,
         selectionRadius: Double = 0.5,
@@ -27,7 +27,6 @@ class Ball: Entity, Movable, Rotatable, Renderable, Selectable {
         angularImpulse: SIMD3<Float> = .zero,
         selectionState: SelectableComponent.SelectionState = .unselected
     ) {
-        self.init(unregisteredID: world.reserveEntityID(), in: world)
         let initialState = Entity.InitialState(
             position: position,
             velocity: velocity,
@@ -38,12 +37,10 @@ class Ball: Entity, Movable, Rotatable, Renderable, Selectable {
             angularAcceleration: angularAcceleration,
             angularImpulse: angularImpulse,
             selectionState: selectionState,
-            renderable: RenderableInitialState(
-                meshID: .ball,
-                materialID: materialID
-            ),
-            selectionBounds: SelectionBoundsComponent(radius: selectionRadius)
+            meshID: .ball,
+            materialID: materialID,
+            selectionRadius: selectionRadius
         )
-        world.add(self, from: initialState)
+        super.init(in: world, from: initialState)
     }
 }

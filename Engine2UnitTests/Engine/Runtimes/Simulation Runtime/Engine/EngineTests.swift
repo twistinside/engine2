@@ -23,7 +23,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(0.4, 0),
             cameraZoomTotal: 1.2,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -47,6 +48,50 @@ struct EngineTests {
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
     }
 
+    @Test func productionScheduleCollectsRemovalsAfterTheLastGameContentStage() {
+        let world = World()
+        let owner = Ball(in: world, materialID: .goldMetal)
+        let missile = Missile(
+            in: world,
+            ownerEntityID: owner.id,
+            position: SIMD3<Double>(1, 0, 0),
+            velocity: .zero,
+            radius: 0.1,
+            lifetime: SimulationRuntime.fixedTimeStep.seconds / 2
+        )
+        let probe = EntityRemovalProbeSystem(markedEntityID: missile.id, entityToMark: owner.id)
+        let engine = Engine(
+            world: world,
+            fixedTimeStep: SimulationRuntime.fixedTimeStep,
+            configuration: .basicGame,
+            behavior: EntityRemovalTestBehavior(probe: probe)
+        )
+        let sessionID = SimulationSessionID()
+        let published = world.presentationSnapshot(at: SimulationCursor(sessionID: sessionID, tick: .zero))
+
+        engine.step()
+
+        #expect(probe.observedRegisteredEntity)
+        #expect(probe.observedPendingRemoval)
+        #expect(probe.observedComponents)
+        #expect(probe.markedAnotherEntity)
+        #expect(world.entity(for: missile.id) == nil)
+        #expect(world.entity(for: owner.id) == nil)
+        #expect(world.positionComponents[missile.id] == nil)
+        #expect(world.positionComponents[owner.id] == nil)
+        #expect(world.lifetimeComponents[missile.id] == nil)
+        #expect(world.renderableComponents.entities.isEmpty)
+        #expect(missile.lifecycleState == nil)
+        #expect(owner.lifecycleState == nil)
+        #expect(engine.completedTick == SimulationTick(rawValue: 1))
+
+        let completed = world.presentationSnapshot(
+            at: SimulationCursor(sessionID: sessionID, tick: engine.completedTick)
+        )
+        #expect(completed.entityPresentations.isEmpty)
+        #expect(Set(published.entityPresentations.map(\.id)) == [owner.id, missile.id])
+    }
+
     @Test func malformedSemanticInputCannotPoisonCamera() {
         let world = World()
         let initialCamera = world.camera
@@ -62,7 +107,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(.nan, .infinity),
             cameraZoomTotal: -.infinity,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -136,7 +182,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(3, -2),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.step(inputSnapshot: snapshot)
@@ -161,7 +208,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(1, 0),
             cameraZoomTotal: 1.6,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
 
         engine.replaceWorld(with: replacement, inputBaseline: baseline)
@@ -187,7 +235,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(1, 0),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
         engine.step(inputSnapshot: initialSnapshot)
 
@@ -212,7 +261,8 @@ struct EngineTests {
             cameraOrbitTotal: SIMD2<Float>(0.1, 0),
             cameraZoomTotal: 0,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
         engine.step(inputSnapshot: replacementSnapshot)
 

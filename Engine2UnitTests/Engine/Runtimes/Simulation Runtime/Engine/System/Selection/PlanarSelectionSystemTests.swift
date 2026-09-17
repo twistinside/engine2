@@ -74,7 +74,7 @@ struct PlanarSelectionSystemTests {
             from: Entity.InitialState(
                 position: position,
                 selectionState: .unselected,
-                selectionBounds: SelectionBoundsComponent(radius: radius)
+                selectionRadius: radius
             )
         )
         return entity

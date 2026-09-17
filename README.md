@@ -4,7 +4,7 @@ Engine2 is a compact Swift experiment in building an ECS-first game engine witho
 
 The project is exploring a hybrid architecture:
 
-- ECS component stores are the authoritative simulation state.
+- ECS component stores own authoritative gameplay values and lifecycle state; `Entity` owns identity.
 - Systems operate directly on component stores in hot paths.
 - Authoritative translation and fixed-step seconds use `Double`; completed presentation snapshots narrow positions to
   `Float` for rendering.
@@ -34,6 +34,18 @@ The DocC pages distinguish between behavior that exists today and architecture p
 
 Open [`Engine2.xcodeproj`](Engine2.xcodeproj) in Xcode. App source is under [`Engine2/`](Engine2), direct unit coverage is under [`Engine2UnitTests/`](Engine2UnitTests), and renderer integration coverage is under [`Engine2RenderTests/`](Engine2RenderTests).
 
+
+## Demo controls
+
+The mining demo starts with the Prospector skiff selected. Use WASD or the arrow
+keys to fly, hold Space to mine nearby asteroids or use depot services, and press
+M to fire a missile toward the nearest active asteroid. Each missile
+leads the target's current motion, deals one point of contact damage, and consumes
+itself on impact. Asteroids have one health point. The depot and star stop missiles
+without taking damage. Missiles expire after 20 seconds if they miss.
+Click an entity to select it; flight, mining, and missile controls
+apply only while the skiff is selected. Drag to orbit the camera and scroll to
+zoom.
 
 ## Status
 

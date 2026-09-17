@@ -2,12 +2,100 @@ import Testing
 @testable import Engine2
 
 struct MiningInteractionSystemTests {
+    @Test func pendingRemovalActorCannotMine() {
+        var world = World()
+        let actor = Entity(in: world, from: .empty).id
+        let asteroid = Entity(in: world, from: .empty).id
+        world.positionComponents.insert(PositionComponent(position: .zero), for: actor)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: actor
+        )
+        world.cargoComponents.insert(CargoComponent(capacity: 8_000), for: actor)
+        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 0, 0)), for: asteroid)
+        world.oreDepositComponents.insert(OreDepositComponent(remainingOre: 4_000), for: asteroid)
+        world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: asteroid)
+        world.mineableComponents.insert(MineableComponent(miningRate: 800), for: asteroid)
+        #expect(world.destructibleComponents.update(for: actor) { $0.state = .pendingRemoval })
+
+        var system = MiningInteractionSystem()
+        system.update(world: &world, deltaTime: 1)
+
+        #expect(world.cargoComponents[actor]?.ore == 0)
+        #expect(world.oreDepositComponents[asteroid]?.remainingOre == 4_000)
+        #expect(world.playerControlComponents[actor]?.interactionState == .active)
+        #expect(world.entity(for: actor)?.lifecycleState == .pendingRemoval)
+    }
+
+    @Test func pendingRemovalAsteroidDoesNotBlockMiningASurvivingTarget() {
+        var world = World()
+        let actor = Entity(in: world, from: .empty).id
+        let pending = Entity(in: world, from: .empty).id
+        let surviving = Entity(in: world, from: .empty).id
+        world.positionComponents.insert(PositionComponent(position: .zero), for: actor)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: actor
+        )
+        world.cargoComponents.insert(CargoComponent(capacity: 8_000), for: actor)
+        for (asteroid, position) in [(pending, SIMD3<Double>(10, 0, 0)), (surviving, SIMD3<Double>(20, 0, 0))] {
+            world.positionComponents.insert(PositionComponent(position: position), for: asteroid)
+            world.oreDepositComponents.insert(OreDepositComponent(remainingOre: 4_000), for: asteroid)
+            world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: asteroid)
+            world.mineableComponents.insert(MineableComponent(miningRate: 800), for: asteroid)
+        }
+        #expect(world.destructibleComponents.update(for: pending) { $0.state = .pendingRemoval })
+
+        var system = MiningInteractionSystem()
+        system.update(world: &world, deltaTime: 1)
+
+        #expect(world.cargoComponents[actor]?.ore == 800)
+        #expect(world.oreDepositComponents[pending]?.remainingOre == 4_000)
+        #expect(world.oreDepositComponents[surviving]?.remainingOre == 3_200)
+        #expect(world.entity(for: pending)?.lifecycleState == .pendingRemoval)
+    }
+
+    @Test func pendingRemovalDepotDoesNotBlockServiceAtASurvivingDepot() {
+        var world = World()
+        let actor = Entity(in: world, from: .empty).id
+        let pending = Entity(in: world, from: .empty).id
+        let surviving = Entity(in: world, from: .empty).id
+        world.positionComponents.insert(PositionComponent(position: .zero), for: actor)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: actor
+        )
+        world.cargoComponents.insert(CargoComponent(capacity: 8_000, ore: 1_000), for: actor)
+        world.fuelComponents.insert(FuelComponent(capacity: 2_000, remaining: 1_000), for: actor)
+        for (depot, position) in [(pending, SIMD3<Double>(10, 0, 0)), (surviving, SIMD3<Double>(20, 0, 0))] {
+            world.positionComponents.insert(PositionComponent(position: position), for: depot)
+            world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: depot)
+            world.depotServiceComponents.insert(
+                DepotServiceComponent(unloadingRate: 1_600, refuelingRate: 400),
+                for: depot
+            )
+        }
+        #expect(world.destructibleComponents.update(for: pending) { $0.state = .pendingRemoval })
+
+        var system = MiningInteractionSystem()
+        system.update(world: &world, deltaTime: 1)
+
+        #expect(world.cargoComponents[actor]?.ore == 0)
+        #expect(world.fuelComponents[actor]?.remaining == 1_400)
+        #expect(world.depotServiceComponents[pending]?.deliveredOre == 0)
+        #expect(world.depotServiceComponents[surviving]?.deliveredOre == 1_000)
+        #expect(world.entity(for: pending)?.lifecycleState == .pendingRemoval)
+    }
+
     @Test func heldInteractionMinesFiniteOreIntoAvailableCargo() {
         var world = World()
-        let skiff = EntityID(index: 0, generation: 0)
-        let asteroid = EntityID(index: 1, generation: 0)
+        let skiff = Entity(in: world, from: .empty).id
+        let asteroid = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: skiff)
-        world.playerControlComponents.insert(PlayerControlComponent(interactionState: .active), for: skiff)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: skiff
+        )
         world.cargoComponents.insert(CargoComponent(capacity: 8_000), for: skiff)
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(100, 0, 0)), for: asteroid)
         world.oreDepositComponents.insert(OreDepositComponent(remainingOre: 4_000), for: asteroid)
@@ -23,10 +111,13 @@ struct MiningInteractionSystemTests {
 
     @Test func depotUnloadsAndRefuelsDuringTheSameInterval() {
         var world = World()
-        let skiff = EntityID(index: 0, generation: 0)
-        let depot = EntityID(index: 1, generation: 0)
+        let skiff = Entity(in: world, from: .empty).id
+        let depot = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: skiff)
-        world.playerControlComponents.insert(PlayerControlComponent(interactionState: .active), for: skiff)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: skiff
+        )
         world.cargoComponents.insert(CargoComponent(capacity: 8_000, ore: 1_000), for: skiff)
         world.fuelComponents.insert(FuelComponent(capacity: 2_000, remaining: 1_000), for: skiff)
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(100, 0, 0)), for: depot)
@@ -46,10 +137,13 @@ struct MiningInteractionSystemTests {
 
     @Test func depotCanRefuelAnActorWithoutCargoStorage() {
         var world = World()
-        let tug = EntityID(index: 0, generation: 0)
-        let depot = EntityID(index: 1, generation: 0)
+        let tug = Entity(in: world, from: .empty).id
+        let depot = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: tug)
-        world.playerControlComponents.insert(PlayerControlComponent(interactionState: .active), for: tug)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: tug
+        )
         world.fuelComponents.insert(FuelComponent(capacity: 2_000, remaining: 1_000), for: tug)
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(100, 0, 0)), for: depot)
         world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: depot)
@@ -67,10 +161,13 @@ struct MiningInteractionSystemTests {
 
     @Test func depotCanUnloadAnActorWithoutFuelStorage() {
         var world = World()
-        let hauler = EntityID(index: 0, generation: 0)
-        let depot = EntityID(index: 1, generation: 0)
+        let hauler = Entity(in: world, from: .empty).id
+        let depot = Entity(in: world, from: .empty).id
         world.positionComponents.insert(PositionComponent(position: .zero), for: hauler)
-        world.playerControlComponents.insert(PlayerControlComponent(interactionState: .active), for: hauler)
+        world.playerControlComponents.insert(
+            PlayerControlComponent(interactionState: .active, isFireRequested: false),
+            for: hauler
+        )
         world.cargoComponents.insert(CargoComponent(capacity: 8_000, ore: 1_000), for: hauler)
         world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(100, 0, 0)), for: depot)
         world.interactionComponents.insert(InteractionComponent(interactionRange: 140), for: depot)

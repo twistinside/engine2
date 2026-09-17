@@ -99,10 +99,10 @@ Simulation systems update `World`, the Simulation Runtime publishes an immutable
 
 The same platform view receives AppKit focus, keyboard, pointer, drag, and scroll callbacks because it already defines the interactive scene's coordinate space. It converts those callbacks into physical `InputEvent` values and submits them through `InputEventSink`. ``InputRuntime`` owns semantic mapping. `MetalScenePlatformView` neither encodes render work nor decides what a key, button, or pointer gesture means to gameplay.
 
-## Simulation Truth Stays in ECS
+## Simulation Owns Gameplay State
 
-Rendering should not become a second gameplay state model.
-The authoritative simulation state should remain in ECS component stores. Render code should consume a completed `SimulationPresentationSnapshot`, not read or mutate gameplay state directly through entity objects during drawing.
+Components own authoritative gameplay values and lifecycle state, and Entity owns identity.
+Render code consumes a completed `SimulationPresentationSnapshot`; it does not read or mutate live gameplay values or entity lifecycle during drawing.
 `World` currently owns abstract mesh and material identities plus the
 Simulation-authoritative camera. Future presentation state may add visibility
 or render-style values while remaining backend-neutral. The published camera

@@ -11,6 +11,8 @@ struct InputMappingConfigurationTests {
         #expect(miningConfiguration.upwardKeyCodes == [13, 126])
         #expect(miningConfiguration.downwardKeyCodes == [1, 125])
         #expect(miningConfiguration.interactionKeyCodes == [49])
+        #expect(miningConfiguration.fireKeyCodes == [46])
+        #expect(basicConfiguration.fireKeyCodes == [46])
         #expect(miningConfiguration.selectionButton == .left)
         #expect(miningConfiguration.pointerOrbitSensitivity == 0.01)
         #expect(miningConfiguration.scrollZoomSensitivity == 4)

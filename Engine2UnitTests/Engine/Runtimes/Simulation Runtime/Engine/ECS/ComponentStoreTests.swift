@@ -115,6 +115,92 @@ struct ComponentStoreTests {
         #expect(invocationCount == 0)
     }
 
+    @Test func removeCompactsTheMiddleRowAndRepairsMovedLookup() {
+        var store = ComponentStore<PositionComponent>()
+        let first = EntityID(index: 4, generation: 2)
+        let removed = EntityID(index: 8, generation: 3)
+        let moved = EntityID(index: 12, generation: 4)
+        store.insert(PositionComponent(position: SIMD3<Double>(1, 0, 0)), for: first)
+        store.insert(PositionComponent(position: SIMD3<Double>(2, 0, 0)), for: removed)
+        store.insert(PositionComponent(position: SIMD3<Double>(3, 0, 0)), for: moved)
+
+        let didRemove = store.remove(for: removed)
+
+        #expect(didRemove)
+
+        #expect(store.entities == [first, moved])
+        #expect(store.sparse == [first.index: 0, moved.index: 1])
+        #expect(store[removed] == nil)
+        #expect(store[first]?.position == SIMD3<Double>(1, 0, 0))
+        #expect(store[moved]?.position == SIMD3<Double>(3, 0, 0))
+        let didUpdate = store.update(for: moved) { $0.position.y = 7 }
+        #expect(didUpdate)
+        #expect(store.dense[1].position == SIMD3<Double>(3, 7, 0))
+    }
+
+    @Test func removeRejectsStaleAndMissingIdentitiesWithoutChangingLiveRows() {
+        var store = ComponentStore<PositionComponent>()
+        let live = EntityID(index: 3, generation: 2)
+        let stale = EntityID(index: 3, generation: 1)
+        store.insert(PositionComponent(position: SIMD3<Double>(1, 2, 3)), for: live)
+
+        let didRemoveStale = store.remove(for: stale)
+        let didRemoveMissing = store.remove(for: EntityID(index: 99, generation: 0))
+
+        #expect(didRemoveStale == false)
+        #expect(didRemoveMissing == false)
+
+        #expect(store.entities == [live])
+        #expect(store.sparse == [live.index: 0])
+        #expect(store[live]?.position == SIMD3<Double>(1, 2, 3))
+    }
+
+    @Test func removeLastRowAndRepeatedRemovalLeaveEmptyStorage() {
+        var store = ComponentStore<PositionComponent>()
+        let entity = EntityID(index: 3, generation: 2)
+        store.insert(PositionComponent(position: .zero), for: entity)
+
+        let didRemove = store.remove(for: entity)
+        let didRemoveAgain = store.remove(for: entity)
+
+        #expect(didRemove)
+        #expect(didRemoveAgain == false)
+        #expect(store.dense.isEmpty)
+        #expect(store.entities.isEmpty)
+        #expect(store.sparse.isEmpty)
+    }
+
+    @Test func laterGenerationCanOccupyAnExplicitlyRemovedIndex() {
+        var store = ComponentStore<PositionComponent>()
+        let old = EntityID(index: 3, generation: 2)
+        let replacement = EntityID(index: 3, generation: 3)
+        store.insert(PositionComponent(position: .zero), for: old)
+        store.remove(for: old)
+
+        store.insert(PositionComponent(position: SIMD3<Double>(4, 5, 6)), for: replacement)
+
+        let didRemoveOld = store.remove(for: old)
+
+        #expect(didRemoveOld == false)
+        #expect(store[old] == nil)
+        #expect(store.entities == [replacement])
+        #expect(store[replacement]?.position == SIMD3<Double>(4, 5, 6))
+    }
+
+    @Test func removingFromACopiedStorePreservesTheOriginal() {
+        var original = ComponentStore<PositionComponent>()
+        let entity = EntityID(index: 3, generation: 2)
+        original.insert(PositionComponent(position: .zero), for: entity)
+        var copy = original
+
+        copy.remove(for: entity)
+
+        #expect(original[entity]?.position == .zero)
+        #expect(original.entities == [entity])
+        #expect(copy[entity] == nil)
+        #expect(copy.entities.isEmpty)
+    }
+
     @Test func copiedStoreHasIndependentValueSemantics() {
         let entity = EntityID(index: 1, generation: 0)
         var original = ComponentStore<PositionComponent>()

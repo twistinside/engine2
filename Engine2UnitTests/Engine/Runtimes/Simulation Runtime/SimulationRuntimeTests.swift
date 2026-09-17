@@ -131,7 +131,8 @@ struct SimulationRuntimeTests {
             cameraOrbitTotal: SIMD2<Float>(0.08, -0.03),
             cameraZoomTotal: 0.2,
             latestSelectionPress: nil,
-            selectionPressCount: 0
+            selectionPressCount: 0,
+            firePressCount: 0
         )
         let simulation = SimulationRuntime(
             worldBuilder: TestWorldBuilder(position: .zero),

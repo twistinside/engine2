@@ -44,6 +44,7 @@ Engine construction. The Engine flattens its systems into this fixed order:
 6. Game Content `postMovement`
 7. Game Content `prePresentation`
 8. Engine-owned input cleanup
+9. Engine-owned removal collection
 
 These stages are controlled extension points, not a replacement scheduler. Game
 Content cannot remove the foundation or move a system across a stage boundary
@@ -56,9 +57,9 @@ mining behavior at `worldPreparation`.
 | Stage | Systems in declaration order |
 | --- | --- |
 | `inputConsumption` | ``PlanarSelectionSystem``, ``SelectedEntityControlSystem``, ``OrbitCircularizationSystem`` |
-| `worldPreparation` | ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
+| `worldPreparation` | ``MissileLaunchSystem``, ``PreviousPositionCaptureSystem``, ``OrbitalRailSystem`` |
 | `forceContribution` | ``GravitySystem``, ``OrbitCircularizationAutopilotSystem``, ``FlightControlSystem`` |
-| `postMovement` | ``SweptCollisionSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
+| `postMovement` | ``CollisionSystem``, ``ContactEffectSystem``, ``LifetimeSystem``, ``CollisionResponseSystem``, ``MiningInteractionSystem``, ``CameraFollowSystem`` |
 | `prePresentation` | None |
 
 The circularization system consumes and clears the one-shot command before
@@ -71,10 +72,61 @@ contribution together instead of replacing velocity atomically.
 
 ``MiningInteractionSystem`` joins the shared ``InteractionComponent`` range
 with mining- or depot-specific component rows. The star is the sole gravity
-source, and only the skiff is dynamically integrated. The six asteroids and
-depot use analytic rails. Mining's camera policy orbits about the Z normal of
+source. The skiff and its missiles are dynamically integrated; surviving
+asteroids and the depot use analytic rails. Mining's camera policy orbits about the Z normal of
 the XY gameplay plane, and flight control normalizes the camera's projected
 planar axes before interpreting translation.
+
+``MissileLaunchSystem`` consumes each selected launcher's fire request and
+constructs missiles before collision baselines are captured. Missiles therefore
+move and participate in swept impact checks on their first tick.
+``CollisionSystem`` captures geometric contacts between active collision bodies
+before gameplay response policies run. It stores immutable ``CollisionContact``
+values in ``World/collisionContacts`` and each body's original swept path in
+``World/collisionSweeps``. Contacts identify a canonical entity pair, a fraction
+of the complete tick, and a normal directed from the second entity toward the
+first. Detection includes owners and sensor pairs; the response policy
+decides which contacts matter.
+
+``ContactEffectSystem`` selects the earliest eligible captured contact for each
+source carrying outgoing contact damage or contact consumption. The shared
+``CollisionContactFilter`` requires active participants, acceptance by the source's
+contact scope, and both participants' explicit owner-contact policies. It selects
+all contacts before any writes, applies each outgoing damage amount to a health
+row if present, then sets the consumed sources' and exhausted recipients'
+``DestructibleComponent`` state to `pendingRemoval`. Repeated assignments
+preserve that state. Ownership and lifetime remain independent component rows.
+Every Entity receives a lifecycle row on registration and conforms to the
+standalone ``Destructible`` protocol for read-only visibility of that state.
+
+``LifetimeSystem`` advances lifetime rows and marks expired entities, including
+entities without collision or contact-effect capabilities. Detection runs before
+expiry and captures each body's start-of-tick lifetime fraction in its
+``CollisionSweep``. Both paths are clipped to the shorter remaining lifetime.
+Contacts compare elapsed tick time, so different expiry times cannot change
+which eligible contact occurs first.
+
+``CollisionResponseSystem`` applies bounce policy to active solid bodies using
+the same contact filter. Sensors neither bounce nor push solid bodies. It
+preserves dynamic component-store order. When an earlier
+positional response invalidates a later pair, it re-evaluates that pair through
+the shared ``CollisionEvaluator``, using the captured lifetime baseline. These
+updates affect the response's working data; the World's original contacts remain
+unchanged for other consumers. Mining interactions and camera follow also
+exclude nonactive entities.
+
+Pending entities retain their component rows and registered facades through
+`prePresentation`. After all Game Content systems and input cleanup,
+``EntityRemovalSystem`` snapshots pending identities from the lifecycle store,
+sorts them, and removes each through ``World/destroy(_:)``. Teardown removes the
+lifecycle row with the other components; retained facades then report `nil` for
+lifecycle state. Final collection clears both collision buffers. The Engine
+completes the tick only after this collection, so the next completed presentation
+omits removed entities.
+
+Damage, consumption, and expiry independently decide which entities require
+removal. Targeting remains a Game Content decision. Explosion propagation and
+collision-force contributions remain proposed extensions before final collection.
 
 A future perturbation feature needs an explicit rail-to-dynamics transition. A
 body must not receive rail placement and dynamic integration in the same tick.

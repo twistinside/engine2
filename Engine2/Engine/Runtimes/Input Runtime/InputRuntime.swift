@@ -9,6 +9,7 @@ final class InputRuntime: InputEventSink, InputSnapshotSource {
     private var cameraZoomTotal: Float = 0
     private var latestSelectionPress: SelectionPress?
     private var selectionPressCount: UInt64 = 0
+    private var firePressCount: UInt64 = 0
     private var pressedKeyCodes = Set<UInt16>()
 
     private(set) var isRunning = false
@@ -44,6 +45,7 @@ final class InputRuntime: InputEventSink, InputSnapshotSource {
         cameraZoomTotal = 0
         latestSelectionPress = nil
         selectionPressCount = 0
+        firePressCount = 0
         pressedKeyCodes.removeAll(keepingCapacity: true)
         publishSnapshot()
     }
@@ -123,6 +125,13 @@ final class InputRuntime: InputEventSink, InputSnapshotSource {
             cameraZoomTotal = nextCameraZoomTotal
 
         case let .keyDown(key):
+            if mappingConfiguration.fireKeyCodes.contains(key.keyCode),
+               !pressedKeyCodes.contains(key.keyCode) {
+                guard firePressCount < .max else {
+                    return
+                }
+                firePressCount += 1
+            }
             pressedKeyCodes.insert(key.keyCode)
 
         case let .keyUp(key):
@@ -141,7 +150,8 @@ final class InputRuntime: InputEventSink, InputSnapshotSource {
             cameraOrbitTotal: cameraOrbitTotal,
             cameraZoomTotal: cameraZoomTotal,
             latestSelectionPress: latestSelectionPress,
-            selectionPressCount: selectionPressCount
+            selectionPressCount: selectionPressCount,
+            firePressCount: firePressCount
         )
     }
 

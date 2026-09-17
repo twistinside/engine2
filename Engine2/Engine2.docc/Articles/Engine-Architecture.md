@@ -21,8 +21,8 @@ pause policy; neither concern enters ``Engine``.
 
 Production construction receives one validated ``SimulationConfiguration`` and
 one ``SimulationBehavior``. The Engine builds its invariant camera-input,
-acceleration-intent, movement, rotation, and input-cleanup systems. It inserts
-the behavior's ``SimulationSystemSchedule`` systems only at the named
+acceleration-intent, movement, rotation, input-cleanup, and entity-removal systems.
+It inserts the behavior's ``SimulationSystemSchedule`` systems only at the named
 `inputConsumption`, `worldPreparation`, `forceContribution`, `postMovement`,
 and `prePresentation` stages. ``SimulationConfiguration`` supplies the camera
 policy. Physical bindings and input sensitivity remain
@@ -66,11 +66,43 @@ builder; the Runtime does not discover content through a global registry. See
 ``EntityID`` allocation, and the live-facade registry. It is not the scheduler and
 does not decide when Simulation advances.
 
-Concrete entity constructors assemble one `Entity.InitialState` and call
-``World/add(_:from:)``. The World accepts foundational seeds only for advertised
-capabilities and requires each specialized seed exactly when its capability is
-advertised. It then performs every construction-time component-store write and
-registers the facade. Entity facades do not insert rows directly.
+Each concrete entity has a designated initializer for its authored spawn
+values. It assembles one flat `Entity.InitialState` from scalar and SIMD
+values, enums, and typed identities, then calls `super.init(in:from:)`.
+Initial state contains no intermediate seed structures or component instances.
+The base Entity initializer reserves the identity and calls
+``World/add(_:from:)``, which validates the facts against advertised
+capabilities, constructs the components, and performs every construction-time
+store write. Every specialized capability requires all of its authored fields;
+a renderable entity, for example, must supply both mesh and material identities.
+
+The World derives capability markers and neutral player control from the
+facade's conformances. Every collision body receives a previous position equal
+to its resolved spawn position. Depot delivery totals start at zero, and an
+expirable entity's remaining lifetime starts from its authored duration.
+Ownership and lifetime remain separate authored values.
+
+An ``Orbiting`` entity supplies its complete rail placement through four fields:
+
+```swift
+let initialState = Entity.InitialState(
+    orbitalPrimaryID: star.id,
+    orbitalRadius: 1_800,
+    orbitalAngularSpeed: 0.001,
+    orbitalPhase: 0.35
+)
+```
+
+The World resolves the complete primary identity to a live positioned entity,
+then derives the rail's initial position and velocity. A missing, stale, or
+nonfinite primary position fails registration. An orbital rail cannot be
+combined with explicit position or translational motion seeds. Game Content
+therefore supplies neither a duplicate primary position nor a calculated rail
+position.
+
+Registration returns a complete entity ready for the initial presentation.
+Systems evolve that state on later ticks; no bootstrap tick repairs an
+incomplete spawn.
 
 Capability composition supplies shared invariants. ``Renderable`` refines
 ``Positionable``. ``Selectable`` refines ``Positionable`` and requires a
@@ -82,17 +114,53 @@ provides deterministic enumeration and equal-result tie-breaking; it does not
 encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
+The base ``Entity`` owns its identity. ``DestructibleComponent`` stores the
+authoritative ``DestructibleComponent/State``: `active` or `pendingRemoval`. World creates
+an active lifecycle row on first registration and preserves that state when
+reseeding component values. Systems request final collection by setting the row
+to `pendingRemoval`.
+
+The base Entity declares ``Destructible`` conformance and inherits its default
+read-only ``Destructible/lifecycleState`` projection. It returns the component state only when
+that facade is the registered instance for its complete identity; an unregistered,
+removed, or alias facade reports `nil`. Systems update the lifecycle component
+directly. Marking preserves the registered facade and its component rows, so later
+systems can inspect them before final collection.
+
+Gameplay systems iterate or join component stores and consult lifecycle rows
+when deciding whether a participant is active. Bounce, mining
+interactions, and camera follow exclude nonactive entities.
+
+The Engine's final ``EntityRemovalSystem`` snapshots pending identities from the
+lifecycle store after `prePresentation` and input cleanup. It calls
+``World/destroy(_:)`` in deterministic identity order. World teardown removes
+the facade from the registry and removes all its component rows. It also clears
+selection, camera follow, and any pending orbit command targeting that identity.
+The retained facade then reports `nil` for lifecycle state. Unknown or stale
+identities leave the World unchanged. ``ComponentStore/remove(for:)`` compacts
+dense storage and repairs the moved row's sparse lookup. Final collection also
+clears the current tick's collision data.
+
+Existing presentation snapshots remain unchanged; the next completed snapshot
+omits removed entities. First registration requires an outstanding World
+reservation, so a destroyed facade cannot register again.
+
+Systems collect structural work before applying it. A launch system constructs
+typed entities through ``World/add(_:from:)`` after collecting its launch
+requests. Impact and expiry systems mark entities during gameplay; only the
+final removal system compacts their stores during the production schedule.
+
 ### Systems
 
 ``System`` implementations receive mutable access to ``World`` for one step.
-Systems that process components iterate or join stores directly instead of
-routing hot-path work through entity facades. Existing rows are mutated with
-``ComponentStore/update(for:_:)``.
+Systems that process components iterate or join stores directly, including
+lifecycle rows when needed.
+Existing component rows are mutated with ``ComponentStore/update(for:_:)``.
 
-The production Engine foundation is limited to camera input, acceleration
-intent, movement, rotation, and input cleanup. The current mining behavior
-supplies collision baselines, rail motion, forces, collision resolution,
-interaction, and camera follow at Game Content stages. Game Content can compose
+The production Engine foundation supplies camera input, acceleration intent,
+movement, rotation, input cleanup, and final entity removal. The current mining
+behavior supplies collision baselines, rail motion, forces, collision detection
+and response, expiry marking, interaction, and camera follow at Game Content stages. Game Content can compose
 these systems only through ``SimulationBehavior`` and
 ``SimulationSystemSchedule``; it cannot replace or reorder the Engine-owned
 foundation.
@@ -129,9 +197,72 @@ orbit assistance. ``MassComponent`` derives live mass from dry mass plus the
 current fuel and cargo rows; ``LiveMass`` exposes the same projection through a
 facade.
 
-Six asteroids and one depot follow deterministic circular rails. During
+The selected skiff can fire a missile with M. A cumulative semantic fire press
+becomes a one-tick control request. ``MissileLaunchSystem`` constructs a visible,
+dynamically integrated missile aimed at the nearest active solid body with an
+ore-deposit component, including a depleted deposit, leading its current velocity.
+This choice belongs to Mining Game Content;
+neither health nor removal capability makes an entity a target.
+``Missile`` composes ``ContactDamaging``, ``ContactConsumable``, ``Ownable``,
+and ``Expirable`` with movement, collision, scale, and rendering. Its collision
+response is a sensor with explicit owner exclusion and solid-body contact scope. It supplies one point of
+damage and consumes itself on the first eligible contact. Ownership and lifetime
+remain separate component rows.
+
+``Destructible`` is a standalone protocol exposing read-only lifecycle state
+without requiring Entity inheritance. The base ``Entity`` declares conformance,
+so every subclass inherits that view of its ``DestructibleComponent``.
+Systems request deferred removal through the component store.
+
+``Damageable`` exposes health stored in ``HealthComponent``. ``HitPoints`` keeps
+health and damage finite and nonnegative; initial health and outgoing contact
+damage must be positive. Asteroids start with one health point. The skiff, depot,
+and star have no health rows, so contact damage does not remove them. Their
+universal removal capability remains available for other lifecycle decisions.
+
+``CollisionSystem`` joins collision and position rows for active entities and
+captures contacts before applying gameplay policy. Each ``CollisionContact``
+contains a canonical pair of complete entity identities, its contact fraction
+of the tick, and a normal directed from the second entity toward the first.
+``World/collisionContacts`` retains those original facts for the tick.
+``World/collisionSweeps`` retains each active body's ``CollisionSweep``:
+original start and end positions, radius, and start-of-tick lifetime fraction.
+
+``ContactEffectSystem`` selects the first eligible contact for each source with
+contact damage or contact consumption. ``CollisionContactFilter`` requires active
+participants, acceptance by the source's ``CollisionContactScope``, and both
+participants' owner-contact policies. Ownership attribution alone does not imply
+exclusion. Sensors do not obstruct solid bodies, but may receive damage when a
+source accepts all bodies. The missile explicitly restricts its effects to solids.
+
+The system captures every source's choice before writing effects, applies damage
+only to health-bearing recipients, then marks consumed sources and exhausted
+recipients for final removal. A persistent damaging body and a harmless consumable
+probe can reuse these capabilities independently. A persistent source applies its
+damage once per tick while an eligible contact remains.
+
+``LifetimeSystem`` independently advances lifetime rows and marks expired
+entities. Detection runs first and clips both paths to the time
+both bodies still exist, preserving contacts during the final partial interval
+before expiry.
+
+``CollisionResponseSystem`` applies bounce policy to active solid bodies
+in dynamic component-store order. An earlier positional response can change a
+later collision. The response re-evaluates affected pairs through the same
+``CollisionEvaluator`` used by detection, retaining the captured lifetime
+baseline. It refreshes its own working data and preserves the World's original
+contacts for other consumers.
+
+Component rows, registered facades, and collision data remain available until
+the Engine's final collection. Explosion propagation and collision-force
+contributions remain future direction. The skiff retains its
+existing held Space action for mining and depot service.
+
+Six asteroids and one depot initially follow deterministic circular rails. During
 `worldPreparation`, ``PreviousPositionCaptureSystem`` records collision sweep
 baselines and ``OrbitalRailSystem`` updates rail positions and velocities.
+If a rail's primary is removed, the rail retains its last position and velocity;
+it does not switch to dynamic integration or remove its orbiting entity.
 ``OrbitCircularizationSystem`` consumes the one-shot command during
 `inputConsumption`. In `forceContribution`, gravity runs before
 ``OrbitCircularizationAutopilotSystem``, which runs before manual
@@ -162,9 +293,9 @@ caches.
 
 ### Entity Facades
 
-``Entity`` subclasses such as ``Ball`` are typed, ergonomic views over live ECS
-state for Game Content, UI, and tooling. They are not a second authoritative
-state model.
+``Entity`` owns identity and projects lifecycle state. Subclasses such as ``Ball`` provide
+typed, ergonomic views over live component values for Game Content, UI, and
+tooling. Gameplay values remain authoritative in their component stores.
 
 The selected-entity inspector receives a narrow Simulation-owned source that
 resolves the selected complete ``EntityID`` to its registered facade. It renders
@@ -202,12 +333,12 @@ snapshot, and several ticks may complete before the next draw.
 
 ## Current Limits
 
-- ``EntityID`` reservation is monotonic with generation zero. Destruction,
-  component removal, dense compaction, generation incrementing, and index reuse
-  are not implemented.
+- ``EntityID`` reservation remains monotonic with generation zero. Destruction
+  and component removal compact dense storage; generation incrementing and index
+  reuse remain unimplemented.
 - Calling ``World/add(_:from:)`` again with the same live facade reseeds its
   rows. Registering a different facade for that identity fails a precondition;
-  broader entity lifecycle APIs are not implemented.
+  destroyed facades cannot be registered again.
 - ``World`` has a fixed store list and a fixed capability-to-seed translation.
   External consumer-defined component storage is not supported.
 - Systems execute one flat ordered list with controlled Game Content insertion
@@ -228,6 +359,8 @@ snapshot, and several ticks may complete before the next draw.
 - ``World``
 - ``System``
 - ``Entity``
+- ``DestructibleComponent``
+- ``DestructibleComponent/State``
 - ``ComponentStore``
 
 ### Related Architecture

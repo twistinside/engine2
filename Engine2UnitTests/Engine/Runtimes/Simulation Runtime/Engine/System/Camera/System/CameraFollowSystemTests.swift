@@ -3,9 +3,28 @@ import simd
 @testable import Engine2
 
 struct CameraFollowSystemTests {
+    @Test func pendingRemovalTargetDoesNotMoveTheCamera() {
+        var world = World()
+        let target = Entity(in: world, from: .empty).id
+        let originalCamera = world.camera
+        world.cameraFollowEntityID = target
+        world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: target)
+        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(30, 40, 0)), for: target)
+        #expect(world.destructibleComponents.update(for: target) { $0.state = .pendingRemoval })
+
+        var system = CameraFollowSystem()
+        system.update(world: &world, deltaTime: 1)
+
+        #expect(world.camera.position == originalCamera.position)
+        #expect(world.camera.rotation.vector == originalCamera.rotation.vector)
+        #expect(world.camera.projection == originalCamera.projection)
+        #expect(world.cameraFollowEntityID == target)
+        #expect(world.positionComponents[target]?.position == SIMD3<Double>(30, 40, 0))
+    }
+
     @Test func translatesCameraByTargetDisplacementWithoutChangingViewPolicy() {
         var world = World()
-        let skiff = EntityID(index: 0, generation: 0)
+        let skiff = Entity(in: world, from: .empty).id
         let rotation = simd_quatf(angle: 0.4, axis: simd_normalize(SIMD3<Float>(1, 1, 0)))
         let projection = Camera.Projection.perspective(verticalFieldOfView: .pi / 3, near: 1, far: 10_000)
         world.camera = Camera(
