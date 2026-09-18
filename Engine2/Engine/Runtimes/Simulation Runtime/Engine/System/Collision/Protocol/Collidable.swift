@@ -8,28 +8,28 @@ protocol Collidable: Positionable {
 
 extension Collidable {
     var collisionRadius: Double {
-        guard let body = world.collisionBodyComponents[id] else {
+        guard let body = world.components[CollisionBodyComponent.self][id] else {
             fatalError("There is no collision body for the collidable entity with ID: \(id)")
         }
         return body.radius
     }
 
     var collisionResponse: CollisionResponse {
-        guard let body = world.collisionBodyComponents[id] else {
+        guard let body = world.components[CollisionBodyComponent.self][id] else {
             fatalError("There is no collision body for the collidable entity with ID: \(id)")
         }
         return body.response
     }
 
     var collisionOwnerPolicy: CollisionOwnerPolicy {
-        guard let body = world.collisionBodyComponents[id] else {
+        guard let body = world.components[CollisionBodyComponent.self][id] else {
             fatalError("There is no collision body for the collidable entity with ID: \(id)")
         }
         return body.ownerPolicy
     }
 
     var collisionContactScope: CollisionContactScope {
-        guard let body = world.collisionBodyComponents[id] else {
+        guard let body = world.components[CollisionBodyComponent.self][id] else {
             fatalError("There is no collision body for the collidable entity with ID: \(id)")
         }
         return body.contactScope

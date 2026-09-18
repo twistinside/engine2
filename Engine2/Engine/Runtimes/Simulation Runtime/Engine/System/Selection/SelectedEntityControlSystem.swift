@@ -6,8 +6,8 @@ import simd
 /// non-controllable entity removes the previous skiff command on that tick.
 struct SelectedEntityControlSystem: System {
     mutating func update(world: inout World, deltaTime _: Double) {
-        for entity in world.playerControlComponents.entities {
-            world.playerControlComponents.update(for: entity) { control in
+        for entity in world.components[PlayerControlComponent.self].entities {
+            world.components[PlayerControlComponent.self].update(for: entity) { control in
                 control.translation = .zero
                 control.interactionState = .inactive
                 control.isFireRequested = false
@@ -21,7 +21,7 @@ struct SelectedEntityControlSystem: System {
         let translation = SIMD2<Double>(world.input.translation)
         let interactionState: PlayerInteractionState = world.input.isInteractionActive ? .active : .inactive
         let isFireRequested = world.input.isFireRequested
-        world.playerControlComponents.update(for: selectedEntityID) { control in
+        world.components[PlayerControlComponent.self].update(for: selectedEntityID) { control in
             control.translation = translation
             control.interactionState = interactionState
             control.isFireRequested = isFireRequested

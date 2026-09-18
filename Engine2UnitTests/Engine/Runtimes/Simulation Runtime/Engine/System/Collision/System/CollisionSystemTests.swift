@@ -12,7 +12,7 @@ struct CollisionSystemTests {
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
 
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
         #expect(world.collisionContacts.count == 2)
         #expect(world.collisionContacts.map(\.firstEntityID) == [moving.id, moving.id])
         #expect(world.collisionContacts.map(\.secondEntityID) == [near.id, far.id])
@@ -21,8 +21,8 @@ struct CollisionSystemTests {
         #expect(world.collisionSweeps.map(\.entityID) == registeredIDs)
         #expect(world.registeredEntities.map(\.id) == registeredIDs)
         #expect(world.registeredEntities.allSatisfy { $0.lifecycleState == .active })
-        #expect(world.positionComponents[moving.id]?.position == SIMD3<Double>(10, 0, 0))
-        #expect(world.previousPositionComponents[moving.id]?.position == SIMD3<Double>(-10, 0, 0))
+        #expect(world.components[PositionComponent.self][moving.id]?.position == SIMD3<Double>(10, 0, 0))
+        #expect(world.components[PreviousPositionComponent.self][moving.id]?.position == SIMD3<Double>(-10, 0, 0))
     }
 
     @Test func detectorRetainsOwnerAndSensorPairsForConsumerPolicy() {
@@ -85,7 +85,7 @@ struct CollisionSystemTests {
         let first = addCollisionBody(in: world, from: SIMD3<Double>(-10, 0, 0), to: SIMD3<Double>(10, 0, 0))
         let second = addCollisionBody(in: world, from: .zero, to: .zero)
         let pending = markFirst ? first : second
-        #expect(world.destructibleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: pending.id) { $0.state = .pendingRemoval })
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
@@ -112,8 +112,8 @@ struct CollisionSystemTests {
         #expect(contact.firstEntityID == moving.id)
         #expect(contact.secondEntityID == crossing.id)
         #expect(abs(contact.tickFraction - (0.5 - 2.0.squareRoot() / 100)) < 1e-12)
-        #expect(world.lifetimeComponents[moving.id]?.remainingLifetime == 0.5)
-        #expect(world.lifetimeComponents[crossing.id]?.remainingLifetime == 0.75)
+        #expect(world.components[LifetimeComponent.self][moving.id]?.remainingLifetime == 0.5)
+        #expect(world.components[LifetimeComponent.self][crossing.id]?.remainingLifetime == 0.75)
         #expect(world.collisionSweeps.map(\.travelFraction) == [0.5, 0.75])
     }
 
@@ -135,7 +135,7 @@ struct CollisionSystemTests {
         var world = World()
         let expired = addCollisionBody(in: world, from: .zero, to: .zero, lifetime: 1)
         let surviving = addCollisionBody(in: world, from: .zero, to: .zero)
-        world.lifetimeComponents.update(for: expired.id) { $0.remainingLifetime = 0 }
+        world.components[LifetimeComponent.self].update(for: expired.id) { $0.remainingLifetime = 0 }
 
         var detector = CollisionSystem()
         detector.update(world: &world, deltaTime: 1)
@@ -151,14 +151,14 @@ struct CollisionSystemTests {
         lifetime: Double? = nil
     ) -> Entity {
         let entity = Entity(in: world, from: .empty)
-        world.positionComponents.insert(PositionComponent(position: position), for: entity.id)
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: previousPosition), for: entity.id)
-        world.collisionBodyComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: position), for: entity.id)
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: previousPosition), for: entity.id)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .solid(restitution: 1)),
             for: entity.id
         )
         if let lifetime {
-            world.lifetimeComponents.insert(LifetimeComponent(remainingLifetime: lifetime), for: entity.id)
+            world.components[LifetimeComponent.self].insert(LifetimeComponent(remainingLifetime: lifetime), for: entity.id)
         }
         return entity
     }

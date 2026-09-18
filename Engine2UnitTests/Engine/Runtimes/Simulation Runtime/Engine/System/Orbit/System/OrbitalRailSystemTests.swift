@@ -8,9 +8,9 @@ struct OrbitalRailSystemTests {
         var world = World()
         let primary = EntityID(index: 0, generation: 0)
         let satellite = EntityID(index: 1, generation: 0)
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(10, 20, 0)), for: primary)
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(110, 20, 0)), for: satellite)
-        world.orbitalRailComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(10, 20, 0)), for: primary)
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(110, 20, 0)), for: satellite)
+        world.components[OrbitalRailComponent.self].insert(
             OrbitalRailComponent(
                 primaryEntityID: primary,
                 radius: 100,
@@ -23,8 +23,8 @@ struct OrbitalRailSystemTests {
         var system = OrbitalRailSystem()
         system.update(world: &world, deltaTime: .pi)
 
-        let position = world.positionComponents[satellite]?.position
-        let velocity = world.orbitalRailComponents[satellite]?.velocity
+        let position = world.components[PositionComponent.self][satellite]?.position
+        let velocity = world.components[OrbitalRailComponent.self][satellite]?.velocity
         #expect(position.map { simd_length($0 - SIMD3<Double>(10, 120, 0)) < 1e-10 } == true)
         #expect(velocity.map { simd_length($0 - SIMD3<Double>(-50, 0, 0)) < 1e-10 } == true)
     }
@@ -39,9 +39,9 @@ struct OrbitalRailSystemTests {
         let step = 1.0 / 60
         let stepCount = Int((20 * period / step).rounded())
 
-        world.positionComponents.insert(PositionComponent(position: .zero), for: primary)
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(radius, 0, 0)), for: satellite)
-        world.orbitalRailComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: primary)
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(radius, 0, 0)), for: satellite)
+        world.components[OrbitalRailComponent.self].insert(
             OrbitalRailComponent(
                 primaryEntityID: primary,
                 radius: radius,
@@ -56,7 +56,7 @@ struct OrbitalRailSystemTests {
             system.update(world: &world, deltaTime: step)
         }
 
-        let position = world.positionComponents[satellite]?.position ?? SIMD3<Double>(repeating: .nan)
+        let position = world.components[PositionComponent.self][satellite]?.position ?? SIMD3<Double>(repeating: .nan)
         #expect(abs(simd_length(position) - radius) < 1e-9)
         #expect(position.isFinite)
     }

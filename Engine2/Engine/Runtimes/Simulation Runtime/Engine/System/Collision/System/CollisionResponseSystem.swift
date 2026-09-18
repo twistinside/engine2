@@ -17,9 +17,9 @@ struct CollisionResponseSystem: System {
 
         var contacts = world.collisionContacts
         var sweeps = world.collisionSweeps
-        for entity in world.motionComponents.entities {
-            guard world.destructibleComponents[entity]?.state == .active,
-                  world.collisionBodyComponents[entity]?.response.isSolid == true,
+        for entity in world.components[MotionComponent.self].entities {
+            guard world.components[DestructibleComponent.self][entity]?.state == .active,
+                  world.components[CollisionBodyComponent.self][entity]?.response.isSolid == true,
                   let sweepIndex = sweeps.firstIndex(where: { $0.entityID == entity }),
                   let contact = earliestContact(for: entity, among: contacts, in: world),
                   let position = resolve(contact, for: entity, in: world) else {
@@ -42,7 +42,7 @@ struct CollisionResponseSystem: System {
         var earliestFraction = Double.infinity
         for contact in contacts where contact.firstEntityID == entity || contact.secondEntityID == entity {
             let obstacle = contact.firstEntityID == entity ? contact.secondEntityID : contact.firstEntityID
-            guard world.collisionBodyComponents[obstacle]?.response.isSolid == true,
+            guard world.components[CollisionBodyComponent.self][obstacle]?.response.isSolid == true,
                   contactFilter.allowsResponse(from: entity, to: obstacle, in: world) else {
                 continue
             }
@@ -59,18 +59,18 @@ struct CollisionResponseSystem: System {
     private func resolve(_ contact: CollisionContact, for entity: EntityID, in world: World) -> SIMD2<Double>? {
         let obstacle = contact.firstEntityID == entity ? contact.secondEntityID : contact.firstEntityID
         let normal = contact.firstEntityID == entity ? contact.normal : -contact.normal
-        guard let body = world.collisionBodyComponents[entity],
-              let obstacleBody = world.collisionBodyComponents[obstacle],
+        guard let body = world.components[CollisionBodyComponent.self][entity],
+              let obstacleBody = world.components[CollisionBodyComponent.self][obstacle],
               let restitution = body.response.restitution,
               let obstacleRestitution = obstacleBody.response.restitution,
-              let obstaclePosition = world.positionComponents[obstacle]?.position,
-              world.positionComponents[entity] != nil,
-              let motion = world.motionComponents[entity] else {
+              let obstaclePosition = world.components[PositionComponent.self][obstacle]?.position,
+              world.components[PositionComponent.self][entity] != nil,
+              let motion = world.components[MotionComponent.self][entity] else {
             return nil
         }
 
         let position = SIMD2<Double>(obstaclePosition.x, obstaclePosition.y) + normal * (body.radius + obstacleBody.radius)
-        world.positionComponents.update(for: entity) { component in
+        world.components[PositionComponent.self].update(for: entity) { component in
             component.position.x = position.x
             component.position.y = position.y
         }
@@ -86,7 +86,7 @@ struct CollisionResponseSystem: System {
         }
 
         let reflectedVelocity = relativeVelocity - (1 + min(restitution, obstacleRestitution)) * normalVelocity * normal
-        world.motionComponents.update(for: entity) { component in
+        world.components[MotionComponent.self].update(for: entity) { component in
             component.velocity.x = obstacleVelocity.x + reflectedVelocity.x
             component.velocity.y = obstacleVelocity.y + reflectedVelocity.y
         }
@@ -101,7 +101,7 @@ struct CollisionResponseSystem: System {
     ) {
         contacts.removeAll { $0.firstEntityID == changed.entityID || $0.secondEntityID == changed.entityID }
         for obstacle in sweeps where obstacle.entityID != changed.entityID {
-            guard world.destructibleComponents[obstacle.entityID]?.state == .active else {
+            guard world.components[DestructibleComponent.self][obstacle.entityID]?.state == .active else {
                 continue
             }
             if let contact = evaluator.contact(between: changed, and: obstacle) {
@@ -111,10 +111,10 @@ struct CollisionResponseSystem: System {
     }
 
     private func velocity(of entity: EntityID, in world: World) -> SIMD2<Double> {
-        if let rail = world.orbitalRailComponents[entity] {
+        if let rail = world.components[OrbitalRailComponent.self][entity] {
             return SIMD2<Double>(rail.velocity.x, rail.velocity.y)
         }
-        if let motion = world.motionComponents[entity] {
+        if let motion = world.components[MotionComponent.self][entity] {
             return SIMD2<Double>(motion.velocity.x, motion.velocity.y)
         }
         return .zero

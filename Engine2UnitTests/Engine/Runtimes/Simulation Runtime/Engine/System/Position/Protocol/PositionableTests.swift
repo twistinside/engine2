@@ -11,7 +11,7 @@ struct PositionableTests {
         let expectedPosition = SIMD3<Double>(4, 5, 6)
         let position = PositionComponent(position: expectedPosition)
 
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             position,
             for: entity.id
         )

@@ -17,15 +17,15 @@ struct MovementSystem: System {
         }
 
         // Drive iteration from the motion store and skip incomplete transform rows.
-        let entities = world.motionComponents.entities
+        let entities = world.components[MotionComponent.self].entities
 
         for entity in entities {
-            guard let position = world.positionComponents[entity] else {
+            guard let position = world.components[PositionComponent.self][entity] else {
                 continue
             }
 
             var updatedPosition: SIMD3<Double>?
-            world.motionComponents.update(for: entity) { motion in
+            world.components[MotionComponent.self].update(for: entity) { motion in
                 // Continuous acceleration scales with `deltaTime`; impulse is an immediate
                 // velocity delta. Position then advances using the updated velocity.
                 let updatedVelocity = motion.velocity + motion.acceleration * deltaTime + motion.impulse
@@ -40,7 +40,7 @@ struct MovementSystem: System {
                 continue
             }
 
-            world.positionComponents.update(for: entity) { position in
+            world.components[PositionComponent.self].update(for: entity) { position in
                 position.position = updatedPosition
             }
         }

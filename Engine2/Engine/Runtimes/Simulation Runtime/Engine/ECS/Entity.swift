@@ -20,7 +20,7 @@ class Entity: Destructible {
     /// An orbital rail supplies the complete placement policy; omit explicit position
     /// and motion when providing a rail. World resolves its live primary and seeds
     /// position, rail velocity, and collision history before registration returns.
-    /// Capability markers and transient controls are initialized by World.
+    /// Component initializers supply capability markers and transient controls.
     struct InitialState {
         static let empty = InitialState()
 

@@ -12,11 +12,11 @@ struct MissileLaunchSystem: System {
             return
         }
 
-        let requests = world.playerControlComponents.entities.filter {
-            world.playerControlComponents[$0]?.isFireRequested == true
+        let requests = world.components[PlayerControlComponent.self].entities.filter {
+            world.components[PlayerControlComponent.self][$0]?.isFireRequested == true
         }
         for actor in requests {
-            world.playerControlComponents.update(for: actor) { control in
+            world.components[PlayerControlComponent.self].update(for: actor) { control in
                 control.isFireRequested = false
             }
             guard world.selectedEntityID == actor else {
@@ -27,10 +27,10 @@ struct MissileLaunchSystem: System {
     }
 
     private func launch(from actor: EntityID, in world: World) {
-        guard let launcher = world.missileLauncherComponents[actor],
-              let position = world.positionComponents[actor]?.position,
-              let motion = world.motionComponents[actor],
-              let body = world.collisionBodyComponents[actor],
+        guard let launcher = world.components[MissileLauncherComponent.self][actor],
+              let position = world.components[PositionComponent.self][actor]?.position,
+              let motion = world.components[MotionComponent.self][actor],
+              let body = world.components[CollisionBodyComponent.self][actor],
               position.isFinite, motion.velocity.isFinite else {
             return
         }
@@ -67,13 +67,13 @@ struct MissileLaunchSystem: System {
         let planarVelocity = SIMD2<Double>(velocity.x, velocity.y)
         let fallback = simd_length(planarVelocity) > 0 ? simd_normalize(planarVelocity) : SIMD2<Double>(1, 0)
         guard let target = nearestOreDeposit(to: position, excluding: actor, in: world),
-              let targetPosition = world.positionComponents[target]?.position else {
+              let targetPosition = world.components[PositionComponent.self][target]?.position else {
             return SIMD3<Double>(fallback.x, fallback.y, 0)
         }
 
         let offset = SIMD2<Double>(targetPosition.x - position.x, targetPosition.y - position.y)
-        let targetVelocity = world.orbitalRailComponents[target]?.velocity ??
-            world.motionComponents[target]?.velocity ?? .zero
+        let targetVelocity = world.components[OrbitalRailComponent.self][target]?.velocity ??
+            world.components[MotionComponent.self][target]?.velocity ?? .zero
         let relativeVelocity = SIMD2<Double>(targetVelocity.x, targetVelocity.y) - planarVelocity
         let flightTime = interceptionTime(offset: offset, velocity: relativeVelocity, speed: speed)
         let lead = offset + relativeVelocity * (flightTime ?? 0)
@@ -91,10 +91,10 @@ struct MissileLaunchSystem: System {
     ) -> EntityID? {
         var target: EntityID?
         var nearestDistanceSquared = Double.infinity
-        for candidate in world.oreDepositComponents.entities where candidate != actor {
-            guard world.destructibleComponents[candidate]?.state == .active,
-                  world.collisionBodyComponents[candidate]?.response.isSolid == true,
-                  let candidatePosition = world.positionComponents[candidate]?.position else {
+        for candidate in world.components[OreDepositComponent.self].entities where candidate != actor {
+            guard world.components[DestructibleComponent.self][candidate]?.state == .active,
+                  world.components[CollisionBodyComponent.self][candidate]?.response.isSolid == true,
+                  let candidatePosition = world.components[PositionComponent.self][candidate]?.position else {
                 continue
             }
             let offset = SIMD2<Double>(candidatePosition.x - position.x, candidatePosition.y - position.y)

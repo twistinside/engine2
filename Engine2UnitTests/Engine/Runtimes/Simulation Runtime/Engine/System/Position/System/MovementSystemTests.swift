@@ -12,20 +12,20 @@ struct MovementSystemTests {
         motion.accumulator.acceleration = SIMD3<Double>(2, 0, -2)
 
         let initialPosition = PositionComponent(position: SIMD3<Double>(1, 2, 3))
-        world.positionComponents.insert(initialPosition, for: entity)
-        world.motionComponents.insert(motion, for: entity)
+        world.components[PositionComponent.self].insert(initialPosition, for: entity)
+        world.components[MotionComponent.self].insert(motion, for: entity)
 
         var system = MovementSystem()
         system.update(world: &world, deltaTime: 0.5)
 
         #expect(
-            world.motionComponents[entity]?.velocity == SIMD3<Double>(6, 4, 5.5)
+            world.components[MotionComponent.self][entity]?.velocity == SIMD3<Double>(6, 4, 5.5)
         )
         #expect(
-            world.positionComponents[entity]?.position == SIMD3<Double>(4, 4, 5.75)
+            world.components[PositionComponent.self][entity]?.position == SIMD3<Double>(4, 4, 5.75)
         )
-        #expect(world.motionComponents[entity]?.acceleration == .zero)
-        #expect(world.motionComponents[entity]?.impulse == .zero)
+        #expect(world.components[MotionComponent.self][entity]?.acceleration == .zero)
+        #expect(world.components[MotionComponent.self][entity]?.impulse == .zero)
     }
 
     @Test func incompleteEntityWithoutPositionIsLeftUnchanged() {
@@ -36,12 +36,12 @@ struct MovementSystemTests {
             impulse: SIMD3<Double>(4, 5, 6)
         )
         expectedMotion.accumulator.acceleration = SIMD3<Double>(7, 8, 9)
-        world.motionComponents.insert(expectedMotion, for: entity)
+        world.components[MotionComponent.self].insert(expectedMotion, for: entity)
 
         var system = MovementSystem()
         system.update(world: &world, deltaTime: 0.5)
 
-        #expect(world.motionComponents[entity] == expectedMotion)
-        #expect(world.positionComponents[entity] == nil)
+        #expect(world.components[MotionComponent.self][entity] == expectedMotion)
+        #expect(world.components[PositionComponent.self][entity] == nil)
     }
 }

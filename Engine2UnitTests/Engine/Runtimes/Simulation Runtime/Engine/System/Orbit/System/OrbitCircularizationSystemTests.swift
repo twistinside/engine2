@@ -5,8 +5,8 @@ import simd
 struct OrbitCircularizationSystemTests {
     @Test func successfulCommandEngagesWithoutChangingMotionOrFuel() throws {
         var fixture = makeFixture(remainingFuel: 2_000)
-        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
-        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
+        let originalMotion = try #require(fixture.world.components[MotionComponent.self][fixture.entity])
+        let originalFuel = try #require(fixture.world.components[FuelComponent.self][fixture.entity])
         let estimate = try #require(
             fixture.world.orbitCircularizationEstimate(for: fixture.entity)
         )
@@ -19,19 +19,19 @@ struct OrbitCircularizationSystemTests {
 
         #expect(fixture.world.orbitCircularizationCommand == nil)
         #expect(
-            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+            fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity]
                 == .engaged(direction: estimate.direction)
         )
-        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
-        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
-        #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
+        #expect(fixture.world.components[MotionComponent.self][fixture.entity] == originalMotion)
+        #expect(fixture.world.components[FuelComponent.self][fixture.entity] == originalFuel)
+        #expect(fixture.world.components[PlayerControlComponent.self][fixture.entity]?.translation == .zero)
     }
 
     @Test func insufficientFuelConsumesCommandWithoutChangingPhysicalOrControlState() throws {
         var fixture = makeFixture(remainingFuel: 1)
-        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
-        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
-        let originalControl = try #require(fixture.world.playerControlComponents[fixture.entity])
+        let originalMotion = try #require(fixture.world.components[MotionComponent.self][fixture.entity])
+        let originalFuel = try #require(fixture.world.components[FuelComponent.self][fixture.entity])
+        let originalControl = try #require(fixture.world.components[PlayerControlComponent.self][fixture.entity])
         let estimate = try #require(
             fixture.world.orbitCircularizationEstimate(for: fixture.entity)
         )
@@ -44,10 +44,10 @@ struct OrbitCircularizationSystemTests {
         system.update(world: &fixture.world, deltaTime: 1.0 / 60)
 
         #expect(fixture.world.orbitCircularizationCommand == nil)
-        #expect(fixture.world.orbitCircularizationAutopilotComponents[fixture.entity] == .idle)
-        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
-        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
-        #expect(fixture.world.playerControlComponents[fixture.entity] == originalControl)
+        #expect(fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity] == .idle)
+        #expect(fixture.world.components[MotionComponent.self][fixture.entity] == originalMotion)
+        #expect(fixture.world.components[FuelComponent.self][fixture.entity] == originalFuel)
+        #expect(fixture.world.components[PlayerControlComponent.self][fixture.entity] == originalControl)
     }
 
     @Test func repeatedCommandPreservesTheEngagedManeuverAndPhysicalState() throws {
@@ -58,28 +58,28 @@ struct OrbitCircularizationSystemTests {
         var system = OrbitCircularizationSystem()
         system.update(world: &fixture.world, deltaTime: 1.0 / 60)
         let engagedState = try #require(
-            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+            fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity]
         )
 
-        fixture.world.playerControlComponents.update(for: fixture.entity) {
+        fixture.world.components[PlayerControlComponent.self].update(for: fixture.entity) {
             $0.translation = SIMD2<Double>(-1, 1)
         }
         fixture.world.orbitCircularizationCommand = OrbitCircularizationCommand(
             entityID: fixture.entity
         )
-        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
-        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
+        let originalMotion = try #require(fixture.world.components[MotionComponent.self][fixture.entity])
+        let originalFuel = try #require(fixture.world.components[FuelComponent.self][fixture.entity])
 
         system.update(world: &fixture.world, deltaTime: 1.0 / 60)
 
         #expect(fixture.world.orbitCircularizationCommand == nil)
         #expect(
-            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+            fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity]
                 == engagedState
         )
-        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
-        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
-        #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
+        #expect(fixture.world.components[MotionComponent.self][fixture.entity] == originalMotion)
+        #expect(fixture.world.components[FuelComponent.self][fixture.entity] == originalFuel)
+        #expect(fixture.world.components[PlayerControlComponent.self][fixture.entity]?.translation == .zero)
     }
 
     private func makeFixture(
@@ -89,42 +89,42 @@ struct OrbitCircularizationSystemTests {
         let primary = EntityID(index: 0, generation: 0)
         let entity = EntityID(index: 1, generation: 0)
 
-        world.positionComponents.insert(PositionComponent(position: .zero), for: primary)
-        world.gravitySourceComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: primary)
+        world.components[GravitySourceComponent.self].insert(
             GravitySourceComponent(gravitationalParameter: 4_000_000),
             for: primary
         )
-        world.collisionBodyComponents.insert(
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 100, response: .solid(restitution: 0.35)),
             for: primary
         )
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             PositionComponent(position: SIMD3<Double>(1_200, 0, 0)),
             for: entity
         )
-        world.motionComponents.insert(
+        world.components[MotionComponent.self].insert(
             MotionComponent(velocity: .zero, impulse: SIMD3<Double>(1, 2, 3)),
             for: entity
         )
-        world.orbitPrimaryComponents.insert(
+        world.components[OrbitPrimaryComponent.self].insert(
             OrbitPrimaryComponent(primaryEntityID: primary),
             for: entity
         )
-        world.orbitCircularizationAutopilotComponents.insert(.idle, for: entity)
-        world.collisionBodyComponents.insert(
+        world.components[OrbitCircularizationAutopilotComponent.self].insert(.idle, for: entity)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 10, response: .solid(restitution: 0.35)),
             for: entity
         )
-        world.massComponents.insert(MassComponent(dryMass: 10_000), for: entity)
-        world.propulsionComponents.insert(
+        world.components[MassComponent.self].insert(MassComponent(dryMass: 10_000), for: entity)
+        world.components[PropulsionComponent.self].insert(
             PropulsionComponent(maximumThrust: 300_000, exhaustVelocity: 20_000),
             for: entity
         )
-        world.fuelComponents.insert(
+        world.components[FuelComponent.self].insert(
             FuelComponent(capacity: 2_000, remaining: remainingFuel),
             for: entity
         )
-        world.playerControlComponents.insert(
+        world.components[PlayerControlComponent.self].insert(
             PlayerControlComponent(translation: SIMD2<Double>(1, -1), isFireRequested: false),
             for: entity
         )

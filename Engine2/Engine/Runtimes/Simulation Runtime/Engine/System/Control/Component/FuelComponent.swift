@@ -10,3 +10,18 @@ struct FuelComponent: Component {
         self.remaining = remaining
     }
 }
+
+extension FuelComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isFueled = entity is Fueled
+        precondition(
+            (state.fuelCapacity != nil) == isFueled &&
+                (state.fuelRemaining != nil) == isFueled,
+            "Fueled requires fuel capacity and remaining fuel; other entities must omit both."
+        )
+        guard let fuelCapacity = state.fuelCapacity, let fuelRemaining = state.fuelRemaining else {
+            return nil
+        }
+        self.init(capacity: fuelCapacity, remaining: fuelRemaining)
+    }
+}

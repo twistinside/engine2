@@ -6,7 +6,7 @@ protocol OrbitCircularizable: GravityAffected, Collidable, LiveMass, Propelled, 
 
 extension OrbitCircularizable {
     var isOrbitCircularizationActive: Bool {
-        guard let autopilot = world.orbitCircularizationAutopilotComponents[id] else {
+        guard let autopilot = world.components[OrbitCircularizationAutopilotComponent.self][id] else {
             fatalError("There is no orbit circularization autopilot for the capable entity with ID: \(id)")
         }
         return autopilot.isEngaged

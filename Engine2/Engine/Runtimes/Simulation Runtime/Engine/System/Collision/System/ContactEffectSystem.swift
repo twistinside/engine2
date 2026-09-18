@@ -17,9 +17,9 @@ struct ContactEffectSystem: System {
     }
 
     private func selectImpacts(in world: World) -> [(source: EntityID, target: EntityID)] {
-        let sources = Set(world.contactDamageComponents.entities).union(world.contactConsumptionComponents.entities)
+        let sources = Set(world.components[ContactDamageComponent.self].entities).union(world.components[ContactConsumptionComponent.self].entities)
         var impacts: [(source: EntityID, target: EntityID)] = []
-        for source in sources.sorted() where world.destructibleComponents[source]?.state == .active {
+        for source in sources.sorted() where world.components[DestructibleComponent.self][source]?.state == .active {
             if let target = firstImpact(of: source, in: world) {
                 impacts.append((source: source, target: target))
             }
@@ -53,10 +53,10 @@ struct ContactEffectSystem: System {
 
     private func applyDamage(for impacts: [(source: EntityID, target: EntityID)], in world: World) {
         for impact in impacts {
-            guard let damage = world.contactDamageComponents[impact.source] else {
+            guard let damage = world.components[ContactDamageComponent.self][impact.source] else {
                 continue
             }
-            world.healthComponents.update(for: impact.target) { component in
+            world.components[HealthComponent.self].update(for: impact.target) { component in
                 component.applyDamage(damage.amount)
             }
         }
@@ -65,15 +65,15 @@ struct ContactEffectSystem: System {
     private func markRemovals(for impacts: [(source: EntityID, target: EntityID)], in world: World) {
         var removals: Set<EntityID> = []
         for impact in impacts {
-            if world.contactConsumptionComponents[impact.source] != nil {
+            if world.components[ContactConsumptionComponent.self][impact.source] != nil {
                 removals.insert(impact.source)
             }
-            if world.healthComponents[impact.target]?.health == .zero {
+            if world.components[HealthComponent.self][impact.target]?.health == .zero {
                 removals.insert(impact.target)
             }
         }
         for entity in removals.sorted() {
-            world.destructibleComponents.update(for: entity) {
+            world.components[DestructibleComponent.self].update(for: entity) {
                 $0.state = .pendingRemoval
             }
         }

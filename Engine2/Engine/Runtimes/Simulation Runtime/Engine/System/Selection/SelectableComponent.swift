@@ -13,3 +13,25 @@ struct SelectableComponent: Component {
         case highlighted
     }
 }
+
+extension SelectableComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isSelectable = entity is Selectable
+        precondition(
+            state.selectionState == nil || isSelectable,
+            "Initial state.selectionState requires Selectable conformance"
+        )
+        precondition(
+            (state.selectionRadius != nil) == isSelectable,
+            "InitialState.selectionRadius must be present exactly when the entity conforms to Selectable."
+        )
+        guard isSelectable else {
+            return nil
+        }
+
+        let selectionState: SelectableComponent.SelectionState = entity.world.selectedEntityID == entity.id
+            ? .selected
+            : state.selectionState ?? .unselected
+        self.init(selectionState: selectionState)
+    }
+}

@@ -21,7 +21,7 @@ struct MovableTests {
         )
         motion.accumulator.acceleration = expectedAcceleration
 
-        world.motionComponents.insert(motion, for: entity.id)
+        world.components[MotionComponent.self].insert(motion, for: entity.id)
 
         #expect(entity.velocity == expectedVelocity)
         #expect(entity.acceleration == expectedAcceleration)

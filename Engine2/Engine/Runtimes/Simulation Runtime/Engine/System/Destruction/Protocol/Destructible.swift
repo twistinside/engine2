@@ -13,6 +13,6 @@ extension Destructible where Self: Entity {
         guard world.entity(for: id) === self else {
             return nil
         }
-        return world.destructibleComponents[id]?.state
+        return world.components[DestructibleComponent.self][id]?.state
     }
 }

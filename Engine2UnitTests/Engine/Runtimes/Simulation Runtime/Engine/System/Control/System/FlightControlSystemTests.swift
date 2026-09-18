@@ -14,21 +14,21 @@ struct FlightControlSystemTests {
         system.update(world: &world, deltaTime: 1)
 
         #expect(
-            world.massComponents[lightSkiff]?.totalMass(
-                fuel: world.fuelComponents[lightSkiff],
-                cargo: world.cargoComponents[lightSkiff]
+            world.components[MassComponent.self][lightSkiff]?.totalMass(
+                fuel: world.components[FuelComponent.self][lightSkiff],
+                cargo: world.components[CargoComponent.self][lightSkiff]
             ) == 11_985
         )
         #expect(
-            world.massComponents[loadedSkiff]?.totalMass(
-                fuel: world.fuelComponents[loadedSkiff],
-                cargo: world.cargoComponents[loadedSkiff]
+            world.components[MassComponent.self][loadedSkiff]?.totalMass(
+                fuel: world.components[FuelComponent.self][loadedSkiff],
+                cargo: world.components[CargoComponent.self][loadedSkiff]
             ) == 19_985
         )
-        #expect(world.motionComponents[lightSkiff]?.acceleration == SIMD3<Double>(25, 0, 0))
-        #expect(world.motionComponents[loadedSkiff]?.acceleration == SIMD3<Double>(15, 0, 0))
-        #expect(world.fuelComponents[lightSkiff]?.remaining == 1_985)
-        #expect(world.fuelComponents[loadedSkiff]?.remaining == 1_985)
+        #expect(world.components[MotionComponent.self][lightSkiff]?.acceleration == SIMD3<Double>(25, 0, 0))
+        #expect(world.components[MotionComponent.self][loadedSkiff]?.acceleration == SIMD3<Double>(15, 0, 0))
+        #expect(world.components[FuelComponent.self][lightSkiff]?.remaining == 1_985)
+        #expect(world.components[FuelComponent.self][loadedSkiff]?.remaining == 1_985)
     }
 
     @Test func screenDirectionUsesTheAuthoritativeCameraOrientation() {
@@ -44,20 +44,20 @@ struct FlightControlSystemTests {
         var system = FlightControlSystem(targetSpeed: 90, responseTime: 2)
         system.update(world: &world, deltaTime: 1)
 
-        let acceleration = world.motionComponents[skiff]?.acceleration ?? SIMD3<Double>(repeating: .nan)
+        let acceleration = world.components[MotionComponent.self][skiff]?.acceleration ?? SIMD3<Double>(repeating: .nan)
         #expect(abs(acceleration.x) < 1e-5)
         #expect(abs(acceleration.y - 25) < 1e-5)
     }
 
     private func addControlledSkiff(_ entity: EntityID, cargoOre: Double, to world: World) {
-        world.playerControlComponents.insert(
+        world.components[PlayerControlComponent.self].insert(
             PlayerControlComponent(translation: SIMD2<Double>(1, 0), isFireRequested: false),
             for: entity
         )
-        world.propulsionComponents.insert(PropulsionComponent(maximumThrust: 300_000, exhaustVelocity: 20_000), for: entity)
-        world.fuelComponents.insert(FuelComponent(capacity: 2_000, remaining: 2_000), for: entity)
-        world.cargoComponents.insert(CargoComponent(capacity: 8_000, ore: cargoOre), for: entity)
-        world.massComponents.insert(MassComponent(dryMass: 10_000), for: entity)
-        world.motionComponents.insert(MotionComponent(), for: entity)
+        world.components[PropulsionComponent.self].insert(PropulsionComponent(maximumThrust: 300_000, exhaustVelocity: 20_000), for: entity)
+        world.components[FuelComponent.self].insert(FuelComponent(capacity: 2_000, remaining: 2_000), for: entity)
+        world.components[CargoComponent.self].insert(CargoComponent(capacity: 8_000, ore: cargoOre), for: entity)
+        world.components[MassComponent.self].insert(MassComponent(dryMass: 10_000), for: entity)
+        world.components[MotionComponent.self].insert(MotionComponent(), for: entity)
     }
 }

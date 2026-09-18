@@ -62,3 +62,25 @@ struct MotionComponent: Component {
         case accelerating(SIMD3<Double>)
     }
 }
+
+extension MotionComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (
+                state.velocity == nil &&
+                state.accelerationIntent == nil &&
+                state.impulse == nil
+            ) || entity is Movable,
+            "Initial movement state requires Movable conformance"
+        )
+        guard entity is Movable else {
+            return nil
+        }
+
+        self.init(
+            velocity: state.velocity ?? .zero,
+            accelerationIntent: state.accelerationIntent ?? .idle,
+            impulse: state.impulse ?? .zero
+        )
+    }
+}

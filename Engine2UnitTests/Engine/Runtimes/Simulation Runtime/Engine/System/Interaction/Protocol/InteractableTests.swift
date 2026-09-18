@@ -10,8 +10,8 @@ struct InteractableTests {
         )
         let expectedRange = 140.0
 
-        world.positionComponents.insert(PositionComponent(position: .zero), for: entity.id)
-        world.interactionComponents.insert(InteractionComponent(interactionRange: expectedRange), for: entity.id)
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: entity.id)
+        world.components[InteractionComponent.self].insert(InteractionComponent(interactionRange: expectedRange), for: entity.id)
 
         #expect(entity.interactionRange == expectedRange)
     }

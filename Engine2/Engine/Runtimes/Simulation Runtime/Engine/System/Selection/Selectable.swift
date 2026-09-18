@@ -10,14 +10,14 @@ protocol Selectable: Positionable {
 
 extension Selectable {
     var selectionRadius: Double {
-        guard let bounds = world.selectionBoundsComponents[id] else {
+        guard let bounds = world.components[SelectionBoundsComponent.self][id] else {
             fatalError("There are no selection bounds for the selectable entity with ID: \(id)")
         }
         return bounds.radius
     }
 
     var selectionState: SelectableComponent.SelectionState {
-        guard let selectable = world.selectableComponents[self.id] else {
+        guard let selectable = world.components[SelectableComponent.self][self.id] else {
             fatalError("There is no selectable component for the selectable entity with ID: \(self.id)")
         }
         return selectable.selectionState

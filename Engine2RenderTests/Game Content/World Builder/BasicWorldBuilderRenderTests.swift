@@ -85,10 +85,10 @@ struct BasicWorldBuilderRenderTests {
         // ECS remains authoritative and mutable, while both completed boundary
         // values above stay detached from later world changes.
         let firstEntity = Self.expectedEntityIDs[0]
-        let didMove = world.positionComponents.update(for: firstEntity) {
+        let didMove = world.components[PositionComponent.self].update(for: firstEntity) {
             $0.position = SIMD3<Double>(99, 99, 99)
         }
-        let didChangeMaterial = world.renderableComponents.update(
+        let didChangeMaterial = world.components[RenderableComponent.self].update(
             for: firstEntity
         ) {
             $0.materialID = .goldMetalRough

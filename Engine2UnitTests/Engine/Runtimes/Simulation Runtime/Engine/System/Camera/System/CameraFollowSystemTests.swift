@@ -8,9 +8,9 @@ struct CameraFollowSystemTests {
         let target = Entity(in: world, from: .empty).id
         let originalCamera = world.camera
         world.cameraFollowEntityID = target
-        world.previousPositionComponents.insert(PreviousPositionComponent(position: .zero), for: target)
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(30, 40, 0)), for: target)
-        #expect(world.destructibleComponents.update(for: target) { $0.state = .pendingRemoval })
+        world.components[PreviousPositionComponent.self].insert(PreviousPositionComponent(position: .zero), for: target)
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(30, 40, 0)), for: target)
+        #expect(world.components[DestructibleComponent.self].update(for: target) { $0.state = .pendingRemoval })
 
         var system = CameraFollowSystem()
         system.update(world: &world, deltaTime: 1)
@@ -19,7 +19,7 @@ struct CameraFollowSystemTests {
         #expect(world.camera.rotation.vector == originalCamera.rotation.vector)
         #expect(world.camera.projection == originalCamera.projection)
         #expect(world.cameraFollowEntityID == target)
-        #expect(world.positionComponents[target]?.position == SIMD3<Double>(30, 40, 0))
+        #expect(world.components[PositionComponent.self][target]?.position == SIMD3<Double>(30, 40, 0))
     }
 
     @Test func translatesCameraByTargetDisplacementWithoutChangingViewPolicy() {
@@ -33,11 +33,11 @@ struct CameraFollowSystemTests {
             projection: projection
         )
         world.cameraFollowEntityID = skiff
-        world.previousPositionComponents.insert(
+        world.components[PreviousPositionComponent.self].insert(
             PreviousPositionComponent(position: SIMD3<Double>(100, 100, 0)),
             for: skiff
         )
-        world.positionComponents.insert(PositionComponent(position: SIMD3<Double>(103, 96, 0)), for: skiff)
+        world.components[PositionComponent.self].insert(PositionComponent(position: SIMD3<Double>(103, 96, 0)), for: skiff)
 
         var system = CameraFollowSystem()
         system.update(world: &world, deltaTime: 1.0 / 60)

@@ -31,8 +31,8 @@ struct SimulationRuntimeTests {
         )
         let presentationSource: any SimulationPresentationSource = simulation
 
-        let entity = try #require(simulation.world.positionComponents.entities.first)
-        #expect(simulation.world.positionComponents[entity]?.position == expectedPosition)
+        let entity = try #require(simulation.world.components[PositionComponent.self].entities.first)
+        #expect(simulation.world.components[PositionComponent.self][entity]?.position == expectedPosition)
         #expect(SimulationRuntime.fixedTimeStep == .seconds(1.0 / 60.0))
         #expect(presentationSource.latestPresentationSnapshot.cursor.tick == .zero)
         #expect(
@@ -50,19 +50,19 @@ struct SimulationRuntimeTests {
             inputBaseline: nil
         )
         let firstWorld = simulation.world
-        let firstEntity = try #require(firstWorld.positionComponents.entities.first)
+        let firstEntity = try #require(firstWorld.components[PositionComponent.self].entities.first)
 
-        #expect(firstWorld.positionComponents[firstEntity]?.position == SIMD3<Double>(1, 0, 0))
+        #expect(firstWorld.components[PositionComponent.self][firstEntity]?.position == SIMD3<Double>(1, 0, 0))
         #expect(builder.buildCount == 1)
 
         simulation.rebuildWorld(inputBaseline: nil)
 
-        let secondEntity = try #require(simulation.world.positionComponents.entities.first)
+        let secondEntity = try #require(simulation.world.components[PositionComponent.self].entities.first)
         let secondExpectedPosition = SIMD3<Double>(2, 0, 0)
 
         #expect(builder.buildCount == 2)
         #expect(simulation.world !== firstWorld)
-        #expect(simulation.world.positionComponents[secondEntity]?.position == secondExpectedPosition)
+        #expect(simulation.world.components[PositionComponent.self][secondEntity]?.position == secondExpectedPosition)
         #expect(simulation.latestPresentationSnapshot.cursor.tick == .zero)
         #expect(
             simulation.latestPresentationSnapshot.entityPresentations.first?.position ==
@@ -88,11 +88,11 @@ struct SimulationRuntimeTests {
         simulation.rebuildWorld(inputBaseline: nil)
 
         let entity = try #require(
-            simulation.world.positionComponents.entities.first
+            simulation.world.components[PositionComponent.self].entities.first
         )
         #expect(simulation.world !== originalWorld)
         #expect(
-            simulation.world.positionComponents[entity]?.position ==
+            simulation.world.components[PositionComponent.self][entity]?.position ==
             replacementPosition
         )
     }
@@ -114,11 +114,11 @@ struct SimulationRuntimeTests {
         )
 
         let entity = try #require(
-            simulation.world.positionComponents.entities.first
+            simulation.world.components[PositionComponent.self].entities.first
         )
         #expect(simulation.world !== originalWorld)
         #expect(
-            simulation.world.positionComponents[entity]?.position ==
+            simulation.world.components[PositionComponent.self][entity]?.position ==
             replacementPosition
         )
     }

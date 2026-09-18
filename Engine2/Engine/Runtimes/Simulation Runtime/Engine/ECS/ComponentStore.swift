@@ -2,8 +2,9 @@
 ///
 /// Component values live in `dense`, the owning `EntityID`s stay aligned in
 /// `entities`, and `sparse` maps an entity index back to the dense slot when a
-/// live row exists for that entity generation.
-struct ComponentStore<C: Component> {
+/// live row exists for that entity generation. Each World owns a distinct store;
+/// retaining a store reference preserves access to its live rows.
+final class ComponentStore<C: Component>: ComponentStoring {
     private(set) var dense: [C] = []
     private(set) var entities: [EntityID] = []
     private(set) var sparse: [Int: Int] = [:]
@@ -12,7 +13,7 @@ struct ComponentStore<C: Component> {
     ///
     /// Remove the current owner before inserting a different generation at the
     /// same index. This keeps sparse lookup and dense iteration in agreement.
-    mutating func insert(_ component: C, for entity: EntityID) {
+    func insert(_ component: C, for entity: EntityID) {
         if let denseIndex = sparse[entity.index] {
             precondition(
                 entities[denseIndex] == entity,
@@ -33,7 +34,7 @@ struct ComponentStore<C: Component> {
     /// order. Collect identities before structurally mutating a store during a
     /// system update; dense indices must not survive insertion or removal.
     @discardableResult
-    mutating func remove(for entity: EntityID) -> Bool {
+    func remove(for entity: EntityID) -> Bool {
         guard let denseIndex = sparse[entity.index],
               entities[denseIndex] == entity else {
             return false
@@ -57,7 +58,7 @@ struct ComponentStore<C: Component> {
     /// This keeps hot systems from rebuilding and reinserting whole component
     /// values when they only need to adjust fields on an existing dense row.
     @discardableResult
-    mutating func update(for entity: EntityID, _ body: (inout C) -> Void) -> Bool {
+    func update(for entity: EntityID, _ body: (inout C) -> Void) -> Bool {
         guard let denseIndex = sparse[entity.index] else { return false }
         guard entities.indices.contains(denseIndex), entities[denseIndex] == entity else { return false }
 

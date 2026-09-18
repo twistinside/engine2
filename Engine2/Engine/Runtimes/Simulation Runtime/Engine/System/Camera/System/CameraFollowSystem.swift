@@ -5,9 +5,9 @@
 struct CameraFollowSystem: System {
     mutating func update(world: inout World, deltaTime _: Double) {
         guard let entity = world.cameraFollowEntityID,
-              world.destructibleComponents[entity]?.state == .active,
-              let position = world.positionComponents[entity]?.position,
-              let previousPosition = world.previousPositionComponents[entity]?.position,
+              world.components[DestructibleComponent.self][entity]?.state == .active,
+              let position = world.components[PositionComponent.self][entity]?.position,
+              let previousPosition = world.components[PreviousPositionComponent.self][entity]?.position,
               position.isFinite,
               previousPosition.isFinite else {
             return

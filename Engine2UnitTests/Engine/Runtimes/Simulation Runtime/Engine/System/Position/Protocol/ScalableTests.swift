@@ -11,7 +11,7 @@ struct ScalableTests {
         let expectedScale = SIMD3<Float>(1.5, 2, 0.5)
         let scale = ScaleComponent(scale: expectedScale)
 
-        world.scaleComponents.insert(scale, for: entity.id)
+        world.components[ScaleComponent.self].insert(scale, for: entity.id)
 
         #expect(entity.scale == expectedScale)
     }

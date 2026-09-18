@@ -26,3 +26,10 @@ enum OrbitCircularizationAutopilotComponent: Component {
         direction != nil
     }
 }
+
+extension OrbitCircularizationAutopilotComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        guard entity is OrbitCircularizable else { return nil }
+        self = .idle
+    }
+}

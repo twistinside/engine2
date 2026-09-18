@@ -13,39 +13,39 @@ struct MiningSimulationBehaviorTests {
             configuration: .miningGame,
             behavior: MiningSimulationBehavior()
         )
-        #expect(Set(world.destructibleComponents.entities) == Set(world.registeredEntities.map(\.id)))
-        #expect(world.destructibleComponents.dense.allSatisfy { $0.state == .active })
-        let originalAsteroids = Set(world.oreDepositComponents.entities)
-        let depot = try #require(world.depotServiceComponents.entities.first)
+        #expect(Set(world.components[DestructibleComponent.self].entities) == Set(world.registeredEntities.map(\.id)))
+        #expect(world.components[DestructibleComponent.self].dense.allSatisfy { $0.state == .active })
+        let originalAsteroids = Set(world.components[OreDepositComponent.self].entities)
+        let depot = try #require(world.components[DepotServiceComponent.self].entities.first)
         let skiff = try #require(world.selectedEntityID)
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
         input.receive(.keyUp(KeyboardKey(keyCode: 46)))
 
         engine.step(inputSnapshot: input.latestInputSnapshot)
 
-        let missile = try #require(world.contactConsumptionComponents.entities.first)
-        #expect(world.contactConsumptionComponents.entities.count == 1)
+        let missile = try #require(world.components[ContactConsumptionComponent.self].entities.first)
+        #expect(world.components[ContactConsumptionComponent.self].entities.count == 1)
         #expect(world.entity(for: missile) is Missile)
-        #expect(world.ownershipComponents[missile]?.ownerEntityID == skiff)
-        #expect(world.renderableComponents[missile] != nil)
+        #expect(world.components[OwnershipComponent.self][missile]?.ownerEntityID == skiff)
+        #expect(world.components[RenderableComponent.self][missile] != nil)
         #expect(world.registeredEntities.count == 10)
-        #expect(world.destructibleComponents[missile]?.state == .active)
+        #expect(world.components[DestructibleComponent.self][missile]?.state == .active)
 
         for _ in 0..<300 {
             engine.step(inputSnapshot: input.latestInputSnapshot)
         }
 
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
         #expect(world.entity(for: missile) == nil)
         #expect(world.registeredEntities.count == 8)
-        #expect(world.destructibleComponents[missile] == nil)
-        #expect(Set(world.destructibleComponents.entities) == Set(world.registeredEntities.map(\.id)))
-        let removedAsteroids = originalAsteroids.subtracting(world.oreDepositComponents.entities)
+        #expect(world.components[DestructibleComponent.self][missile] == nil)
+        #expect(Set(world.components[DestructibleComponent.self].entities) == Set(world.registeredEntities.map(\.id)))
+        let removedAsteroids = originalAsteroids.subtracting(world.components[OreDepositComponent.self].entities)
         #expect(removedAsteroids.count == 1)
         #expect(world.entity(for: depot) != nil)
-        #expect(world.collisionBodyComponents[depot] != nil)
-        #expect(world.depotServiceComponents[depot] != nil)
-        #expect(world.orbitalRailComponents[depot] != nil)
+        #expect(world.components[CollisionBodyComponent.self][depot] != nil)
+        #expect(world.components[DepotServiceComponent.self][depot] != nil)
+        #expect(world.components[OrbitalRailComponent.self][depot] != nil)
         #expect(world.selectedEntityID == skiff)
 
         let snapshot = world.presentationSnapshot(
@@ -64,29 +64,29 @@ struct MiningSimulationBehaviorTests {
             configuration: .miningGame,
             behavior: MiningSimulationBehavior()
         )
-        let starID = try #require(world.gravitySourceComponents.entities.first)
+        let starID = try #require(world.components[GravitySourceComponent.self].entities.first)
         let star = try #require(world.entity(for: starID))
-        #expect(world.destructibleComponents.update(for: starID) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: starID) { $0.state = .pendingRemoval })
 
         engine.step()
 
         #expect(star.lifecycleState == nil)
         #expect(world.entity(for: starID) == nil)
-        #expect(world.gravitySourceComponents.entities.isEmpty)
-        let railIDs = world.orbitalRailComponents.entities
-        let retainedRails = world.orbitalRailComponents.dense
-        let retainedPositions = railIDs.map { world.positionComponents[$0] }
+        #expect(world.components[GravitySourceComponent.self].entities.isEmpty)
+        let railIDs = world.components[OrbitalRailComponent.self].entities
+        let retainedRails = world.components[OrbitalRailComponent.self].dense
+        let retainedPositions = railIDs.map { world.components[PositionComponent.self][$0] }
         #expect(railIDs.count == 7)
 
         engine.step()
 
         #expect(engine.completedTick == SimulationTick(rawValue: 2))
-        #expect(world.orbitalRailComponents.entities == railIDs)
-        #expect(world.orbitalRailComponents.dense == retainedRails)
-        #expect(railIDs.map { world.positionComponents[$0] } == retainedPositions)
+        #expect(world.components[OrbitalRailComponent.self].entities == railIDs)
+        #expect(world.components[OrbitalRailComponent.self].dense == retainedRails)
+        #expect(railIDs.map { world.components[PositionComponent.self][$0] } == retainedPositions)
         #expect(world.registeredEntities.count == 8)
-        #expect(world.positionComponents.dense.allSatisfy { $0.position.isFinite })
-        #expect(world.motionComponents.dense.allSatisfy { $0.velocity.isFinite })
+        #expect(world.components[PositionComponent.self].dense.allSatisfy { $0.position.isFinite })
+        #expect(world.components[MotionComponent.self].dense.allSatisfy { $0.velocity.isFinite })
     }
 
     @Test func firingRequiresASelectedLauncherAndDoesNotReplayAfterSelectionChanges() throws {
@@ -101,20 +101,20 @@ struct MiningSimulationBehaviorTests {
             behavior: MiningSimulationBehavior()
         )
         let skiff = try #require(world.selectedEntityID)
-        let asteroid = try #require(world.oreDepositComponents.entities.first)
+        let asteroid = try #require(world.components[OreDepositComponent.self].entities.first)
         #expect(world.select(asteroid))
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
 
         engine.step(inputSnapshot: input.latestInputSnapshot)
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
 
         #expect(world.select(skiff))
         engine.step()
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
 
         input.receive(.keyUp(KeyboardKey(keyCode: 46)))
         input.receive(.keyDown(KeyboardKey(keyCode: 46)))
         engine.step(inputSnapshot: input.latestInputSnapshot)
-        #expect(world.contactConsumptionComponents.entities.count == 1)
+        #expect(world.components[ContactConsumptionComponent.self].entities.count == 1)
     }
 }

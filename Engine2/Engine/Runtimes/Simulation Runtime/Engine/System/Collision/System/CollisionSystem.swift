@@ -25,15 +25,15 @@ struct CollisionSystem: System {
     }
 
     private func captureSweeps(in world: World, deltaTime: Double) {
-        for entity in world.collisionBodyComponents.entities.sorted() {
-            guard world.destructibleComponents[entity]?.state == .active,
-                  let body = world.collisionBodyComponents[entity],
-                  let previous = world.previousPositionComponents[entity]?.position,
-                  let current = world.positionComponents[entity]?.position,
+        for entity in world.components[CollisionBodyComponent.self].entities.sorted() {
+            guard world.components[DestructibleComponent.self][entity]?.state == .active,
+                  let body = world.components[CollisionBodyComponent.self][entity],
+                  let previous = world.components[PreviousPositionComponent.self][entity]?.position,
+                  let current = world.components[PositionComponent.self][entity]?.position,
                   previous.isFinite, current.isFinite else {
                 continue
             }
-            let travelFraction = world.lifetimeComponents[entity].map {
+            let travelFraction = world.components[LifetimeComponent.self][entity].map {
                 min(1, max(0, $0.remainingLifetime / deltaTime))
             } ?? 1
             guard travelFraction > 0 else {

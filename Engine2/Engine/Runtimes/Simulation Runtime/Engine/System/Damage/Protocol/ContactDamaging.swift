@@ -8,7 +8,7 @@ protocol ContactDamaging: Collidable {
 
 extension ContactDamaging {
     var contactDamage: HitPoints {
-        guard let component = world.contactDamageComponents[id] else {
+        guard let component = world.components[ContactDamageComponent.self][id] else {
             fatalError("There is no contact damage component for the entity with ID: \(id)")
         }
         return component.amount

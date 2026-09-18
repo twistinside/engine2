@@ -7,13 +7,13 @@ struct DamageableTests {
         let entity = NonphysicalDamageableTestEntity(in: world, from: Entity.InitialState(health: 3))
 
         #expect(entity.health == HitPoints(rawValue: 3))
-        #expect(world.positionComponents[entity.id] == nil)
-        #expect(world.motionComponents[entity.id] == nil)
-        #expect(world.collisionBodyComponents[entity.id] == nil)
-        #expect(world.contactDamageComponents[entity.id] == nil)
-        #expect(world.contactConsumptionComponents[entity.id] == nil)
+        #expect(world.components[PositionComponent.self][entity.id] == nil)
+        #expect(world.components[MotionComponent.self][entity.id] == nil)
+        #expect(world.components[CollisionBodyComponent.self][entity.id] == nil)
+        #expect(world.components[ContactDamageComponent.self][entity.id] == nil)
+        #expect(world.components[ContactConsumptionComponent.self][entity.id] == nil)
 
-        world.healthComponents.update(for: entity.id) { $0.applyDamage(HitPoints(rawValue: 2)) }
+        world.components[HealthComponent.self].update(for: entity.id) { $0.applyDamage(HitPoints(rawValue: 2)) }
 
         #expect(entity.health == HitPoints(rawValue: 1))
         #expect(entity.lifecycleState == .active)

@@ -105,12 +105,16 @@ The base Entity initializer owns identity reservation and registration. Initial 
 seed structures or component instances, or resolve live World state. Game Content may choose or calculate its authored
 parameters, but concrete entity initializers must not construct authoritative components.
 
-`World.add(_:from:)` validates those facts against the entity's advertised capabilities, constructs every component,
-and resolves World-dependent bootstrap state before registration returns. The World derives capability markers,
-neutral transient controls, and previous collision positions. An orbital rail supplies the complete placement policy:
+`World.add(_:from:)` delegates component construction to its `Components` container. One engine-owned metatype list
+drives store allocation, capability-based initialization, and removal. Each component implements the `Component`
+protocol's `init?(for:from:)` and owns its seed validation and defaults. Removal calls `ComponentStoring.remove(for:)`
+on each registered store; `ComponentStore` supplies the shared implementation.
+Construction order resolves orbital rails before position and position before collision history. Initializers must not
+read their own live capability accessors before the row exists. All World-dependent bootstrap state is resolved before
+registration returns, including markers, neutral controls, and previous collision positions. An orbital rail supplies the complete placement policy:
 resolve its live primary in World, reject explicit position or translational motion seeds, and derive initial rail
 position and velocity there. The entity must be ready for the initial presentation without a bootstrap tick. Systems
-own subsequent evolution. Keep every construction-time component write inside `World.add(_:from:)`.
+own subsequent evolution. Keep construction-time component writes in the container reached through `World.add(_:from:)`.
 
 Preserve complete `EntityID` identity, including `generation`. Sparse lookup may start from the index, but validation,
 equality, enumeration, and tie-breaking must not regress to index-only semantics. Do not introduce index reuse until

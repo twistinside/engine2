@@ -11,13 +11,13 @@ struct OwnableTests {
             from: Entity.InitialState(ownerEntityID: firstOwner.id)
         )
         #expect(entity.ownerEntityID == firstOwner.id)
-        #expect(world.positionComponents[entity.id] == nil)
-        #expect(world.motionComponents[entity.id] == nil)
-        #expect(world.collisionBodyComponents[entity.id] == nil)
-        #expect(world.lifetimeComponents[entity.id] == nil)
-        #expect(world.contactConsumptionComponents[entity.id] == nil)
+        #expect(world.components[PositionComponent.self][entity.id] == nil)
+        #expect(world.components[MotionComponent.self][entity.id] == nil)
+        #expect(world.components[CollisionBodyComponent.self][entity.id] == nil)
+        #expect(world.components[LifetimeComponent.self][entity.id] == nil)
+        #expect(world.components[ContactConsumptionComponent.self][entity.id] == nil)
 
-        world.ownershipComponents.update(for: entity.id) { ownership in
+        world.components[OwnershipComponent.self].update(for: entity.id) { ownership in
             ownership.ownerEntityID = nextOwner.id
         }
         #expect(entity.ownerEntityID == nextOwner.id)

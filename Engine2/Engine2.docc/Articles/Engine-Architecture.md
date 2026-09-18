@@ -71,13 +71,22 @@ values. It assembles one flat `Entity.InitialState` from scalar and SIMD
 values, enums, and typed identities, then calls `super.init(in:from:)`.
 Initial state contains no intermediate seed structures or component instances.
 The base Entity initializer reserves the identity and calls
-``World/add(_:from:)``, which validates the facts against advertised
-capabilities, constructs the components, and performs every construction-time
-store write. Every specialized capability requires all of its authored fields;
-a renderable entity, for example, must supply both mesh and material identities.
+``World/add(_:from:)``, which delegates component registration to its
+``Components`` container. One engine-owned metatype list allocates every typed
+store and drives component initialization and removal. Each ``Component``
+initializer validates its own capability and seeds. Removal calls
+``ComponentStoring/remove(for:)`` on each registered store, with the shared
+implementation in ``ComponentStore``. Every specialized capability requires all
+of its authored fields; a renderable entity, for example, must supply both mesh
+and material identities.
 
-The World derives capability markers and neutral player control from the
-facade's conformances. Every collision body receives a previous position equal
+Each World owns distinct ``ComponentStore`` instances. Typed container access
+returns the live store reference, so retaining a store preserves access to later
+mutations. Reading its arrays or individual component values produces independent
+values suitable for collecting structural work before changing the store.
+
+Component initializers derive capability markers and neutral player control
+from the facade's conformances. Every collision body receives a previous position equal
 to its resolved spawn position. Depot delivery totals start at zero, and an
 expirable entity's remaining lifetime starts from its authored duration.
 Ownership and lifetime remain separate authored values.
@@ -93,8 +102,11 @@ let initialState = Entity.InitialState(
 )
 ```
 
-The World resolves the complete primary identity to a live positioned entity,
-then derives the rail's initial position and velocity. A missing, stale, or
+The orbital rail initializer resolves the complete primary identity to a live
+positioned entity and derives the rail velocity. The registry initializes rails
+before position and position before collision history. Dependent initializers
+read those completed rows; they must not read their own live capability accessors
+before their rows exist. A missing, stale, or
 nonfinite primary position fails registration. An orbital rail cannot be
 combined with explicit position or translational motion seeds. Game Content
 therefore supplies neither a duplicate primary position nor a calculated rail
@@ -115,7 +127,7 @@ encode distance, age, or gameplay priority. Lookup and equality preserve the
 complete identity, including generation.
 
 The base ``Entity`` owns its identity. ``DestructibleComponent`` stores the
-authoritative ``DestructibleComponent/State``: `active` or `pendingRemoval`. World creates
+authoritative ``DestructibleComponent/State``: `active` or `pendingRemoval`. Its initializer creates
 an active lifecycle row on first registration and preserves that state when
 reseeding component values. Systems request final collection by setting the row
 to `pendingRemoval`.
@@ -339,7 +351,7 @@ snapshot, and several ticks may complete before the next draw.
 - Calling ``World/add(_:from:)`` again with the same live facade reseeds its
   rows. Registering a different facade for that identity fails a precondition;
   destroyed facades cannot be registered again.
-- ``World`` has a fixed store list and a fixed capability-to-seed translation.
+- ``Components`` has an engine-owned metatype list; component initializers define the capability-to-seed translation.
   External consumer-defined component storage is not supported.
 - Systems execute one flat ordered list with controlled Game Content insertion
   stages. Dependency-derived ordering and safe parallel execution remain

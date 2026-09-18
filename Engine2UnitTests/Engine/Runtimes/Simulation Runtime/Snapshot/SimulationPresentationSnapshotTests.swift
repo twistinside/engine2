@@ -26,29 +26,29 @@ struct SimulationPresentationSnapshotTests {
             meshID: .ball,
             materialID: .warmDielectric
         )
-        world.renderableComponents.insert(
+        world.components[RenderableComponent.self].insert(
             renderable,
             for: renderableEntity
         )
         let renderablePositionValue = SIMD3<Double>(3, 4, 5)
         let renderablePosition = PositionComponent(position: renderablePositionValue)
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             renderablePosition,
             for: renderableEntity
         )
         let renderableRotation = RotationComponent(rotation: expectedRotation)
-        world.rotationComponents.insert(
+        world.components[RotationComponent.self].insert(
             renderableRotation,
             for: renderableEntity
         )
         let renderableScaleValue = SIMD3<Float>(repeating: 2)
         let renderableScale = ScaleComponent(scale: renderableScaleValue)
-        world.scaleComponents.insert(
+        world.components[ScaleComponent.self].insert(
             renderableScale,
             for: renderableEntity
         )
         let nonRenderablePosition = PositionComponent(position: SIMD3<Double>(9, 9, 9))
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             nonRenderablePosition,
             for: nonRenderableEntity
         )
@@ -65,10 +65,10 @@ struct SimulationPresentationSnapshotTests {
         // Mutating authoritative state after publication must not mutate the
         // already-completed value observed by consumers.
         world.camera.position = .zero
-        world.positionComponents.update(for: renderableEntity) { position in
+        world.components[PositionComponent.self].update(for: renderableEntity) { position in
             position.position = .zero
         }
-        let didUpdateMaterial = world.renderableComponents.update(
+        let didUpdateMaterial = world.components[RenderableComponent.self].update(
             for: renderableEntity
         ) { renderable in
             renderable.materialID = .goldMetal

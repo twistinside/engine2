@@ -72,10 +72,10 @@ struct PlanarSelectionSystem: System {
         var nearestEntity: EntityID?
         var nearestDistance = Double.infinity
 
-        for entity in world.selectionBoundsComponents.entities {
-            guard world.selectableComponents[entity] != nil,
-                  let bounds = world.selectionBoundsComponents[entity],
-                  let position = world.positionComponents[entity]?.position,
+        for entity in world.components[SelectionBoundsComponent.self].entities {
+            guard world.components[SelectableComponent.self][entity] != nil,
+                  let bounds = world.components[SelectionBoundsComponent.self][entity],
+                  let position = world.components[PositionComponent.self][entity]?.position,
                   let distance = hitDistance(
                     rayOrigin: rayOrigin,
                     rayDirection: rayDirection,

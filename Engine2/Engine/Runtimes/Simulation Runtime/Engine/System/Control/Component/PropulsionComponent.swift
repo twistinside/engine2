@@ -55,3 +55,18 @@ struct PropulsionComponent: Component {
         )
     }
 }
+
+extension PropulsionComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isPropelled = entity is Propelled
+        precondition(
+            (state.maximumThrust != nil) == isPropelled &&
+                (state.exhaustVelocity != nil) == isPropelled,
+            "Propelled requires maximum thrust and exhaust velocity; other entities must omit both."
+        )
+        guard let maximumThrust = state.maximumThrust, let exhaustVelocity = state.exhaustVelocity else {
+            return nil
+        }
+        self.init(maximumThrust: maximumThrust, exhaustVelocity: exhaustVelocity)
+    }
+}

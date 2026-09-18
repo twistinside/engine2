@@ -11,7 +11,7 @@ protocol Orientable: Entity {
 
 extension Orientable {
     var rotation: simd_quatf {
-        guard let rotation = world.rotationComponents[self.id]?.rotation else {
+        guard let rotation = world.components[RotationComponent.self][self.id]?.rotation else {
             fatalError("There is no rotation for the rotatable entity with ID: \(self.id)")
         }
         return rotation

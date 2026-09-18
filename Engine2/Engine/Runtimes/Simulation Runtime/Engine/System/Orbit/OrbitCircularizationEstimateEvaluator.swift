@@ -8,22 +8,22 @@ import simd
 /// both directions remain candidates and equal burns select counterclockwise.
 struct OrbitCircularizationEstimateEvaluator {
     func estimate(for entityID: EntityID, in world: World) -> OrbitCircularizationEstimate? {
-        guard let orbitPrimary = world.orbitPrimaryComponents[entityID],
+        guard let orbitPrimary = world.components[OrbitPrimaryComponent.self][entityID],
               orbitPrimary.primaryEntityID != entityID,
-              let entityPosition = world.positionComponents[entityID]?.position,
-              let primaryPosition = world.positionComponents[orbitPrimary.primaryEntityID]?.position,
-              let entityMotion = world.motionComponents[entityID],
-              let gravitySource = world.gravitySourceComponents[orbitPrimary.primaryEntityID],
-              let entityBody = world.collisionBodyComponents[entityID],
-              let primaryBody = world.collisionBodyComponents[orbitPrimary.primaryEntityID],
-              let propulsion = world.propulsionComponents[entityID],
-              let fuel = world.fuelComponents[entityID],
-              let mass = world.massComponents[entityID] else {
+              let entityPosition = world.components[PositionComponent.self][entityID]?.position,
+              let primaryPosition = world.components[PositionComponent.self][orbitPrimary.primaryEntityID]?.position,
+              let entityMotion = world.components[MotionComponent.self][entityID],
+              let gravitySource = world.components[GravitySourceComponent.self][orbitPrimary.primaryEntityID],
+              let entityBody = world.components[CollisionBodyComponent.self][entityID],
+              let primaryBody = world.components[CollisionBodyComponent.self][orbitPrimary.primaryEntityID],
+              let propulsion = world.components[PropulsionComponent.self][entityID],
+              let fuel = world.components[FuelComponent.self][entityID],
+              let mass = world.components[MassComponent.self][entityID] else {
             return nil
         }
         let liveMass = mass.totalMass(
             fuel: fuel,
-            cargo: world.cargoComponents[entityID]
+            cargo: world.components[CargoComponent.self][entityID]
         )
         guard liveMass.isFinite,
               liveMass > 0 else {
@@ -97,7 +97,7 @@ struct OrbitCircularizationEstimateEvaluator {
         let targetVelocity: SIMD3<Double>
         let deltaVelocity: SIMD3<Double>
         let deltaV: Double
-        let latchedDirection = world.orbitCircularizationAutopilotComponents[entityID]?.direction
+        let latchedDirection = world.components[OrbitCircularizationAutopilotComponent.self][entityID]?.direction
         if latchedDirection == .counterclockwise
             || (latchedDirection == nil && counterclockwiseDeltaV <= clockwiseDeltaV) {
             direction = .counterclockwise
@@ -141,10 +141,10 @@ struct OrbitCircularizationEstimateEvaluator {
     }
 
     private func instantaneousVelocity(of entityID: EntityID, in world: World) -> SIMD3<Double> {
-        if let rail = world.orbitalRailComponents[entityID] {
+        if let rail = world.components[OrbitalRailComponent.self][entityID] {
             return rail.velocity
         }
-        if let motion = world.motionComponents[entityID] {
+        if let motion = world.components[MotionComponent.self][entityID] {
             return motion.velocity + motion.accumulator.impulse
         }
         return .zero

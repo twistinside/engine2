@@ -6,14 +6,14 @@ protocol Fueled: Entity {
 
 extension Fueled {
     var fuelCapacity: Double {
-        guard let fuel = world.fuelComponents[id] else {
+        guard let fuel = world.components[FuelComponent.self][id] else {
             fatalError("There is no fuel component for the fueled entity with ID: \(id)")
         }
         return fuel.capacity
     }
 
     var remainingFuel: Double {
-        guard let fuel = world.fuelComponents[id] else {
+        guard let fuel = world.components[FuelComponent.self][id] else {
             fatalError("There is no fuel component for the fueled entity with ID: \(id)")
         }
         return fuel.remaining

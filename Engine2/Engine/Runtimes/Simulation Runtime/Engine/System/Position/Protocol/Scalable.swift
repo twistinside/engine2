@@ -8,7 +8,7 @@ protocol Scalable: Entity {
 
 extension Scalable {
     var scale: SIMD3<Float> {
-        guard let scale = world.scaleComponents[self.id]?.scale else {
+        guard let scale = world.components[ScaleComponent.self][self.id]?.scale else {
             fatalError("There is no scale for the scalable entity with ID: \(self.id)")
         }
         return scale

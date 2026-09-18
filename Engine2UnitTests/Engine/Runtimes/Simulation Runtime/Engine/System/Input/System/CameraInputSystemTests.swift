@@ -9,7 +9,7 @@ struct CameraInputSystemTests {
         let target = followedPosition.singlePrecision
         var world = World()
         world.cameraFollowEntityID = followedEntity
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             PositionComponent(position: followedPosition),
             for: followedEntity
         )

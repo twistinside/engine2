@@ -9,7 +9,7 @@ struct OrbitCircularizationSystem: System {
         }
         world.orbitCircularizationCommand = nil
 
-        guard let autopilot = world.orbitCircularizationAutopilotComponents[command.entityID] else {
+        guard let autopilot = world.components[OrbitCircularizationAutopilotComponent.self][command.entityID] else {
             return
         }
         if autopilot.isEngaged {
@@ -22,14 +22,14 @@ struct OrbitCircularizationSystem: System {
             return
         }
 
-        world.orbitCircularizationAutopilotComponents.update(for: command.entityID) { component in
+        world.components[OrbitCircularizationAutopilotComponent.self].update(for: command.entityID) { component in
             component = .engaged(direction: estimate.direction)
         }
         suppressTranslation(for: command.entityID, in: world)
     }
 
     private func suppressTranslation(for entity: EntityID, in world: World) {
-        world.playerControlComponents.update(for: entity) { component in
+        world.components[PlayerControlComponent.self].update(for: entity) { component in
             component.translation = .zero
         }
     }

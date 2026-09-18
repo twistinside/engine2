@@ -22,3 +22,16 @@ struct ContactDamageComponent: Component {
         self.amount = amount
     }
 }
+
+extension ContactDamageComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.contactDamage != nil) == (entity is ContactDamaging),
+            "ContactDamaging requires contact damage; other entities must omit it."
+        )
+        guard let contactDamage = state.contactDamage else {
+            return nil
+        }
+        self.init(amount: HitPoints(rawValue: contactDamage))
+    }
+}

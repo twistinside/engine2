@@ -21,24 +21,24 @@ struct FlightControlSystem: System {
             return
         }
 
-        let entities = world.playerControlComponents.entities
+        let entities = world.components[PlayerControlComponent.self].entities
         for entity in entities {
             applyControl(to: entity, in: world, deltaTime: deltaTime)
         }
     }
 
     private func applyControl(to entity: EntityID, in world: World, deltaTime: Double) {
-        guard let control = world.playerControlComponents[entity],
-              let propulsion = world.propulsionComponents[entity],
-              let fuel = world.fuelComponents[entity],
-              let motion = world.motionComponents[entity],
-              let massComponent = world.massComponents[entity],
+        guard let control = world.components[PlayerControlComponent.self][entity],
+              let propulsion = world.components[PropulsionComponent.self][entity],
+              let fuel = world.components[FuelComponent.self][entity],
+              let motion = world.components[MotionComponent.self][entity],
+              let massComponent = world.components[MassComponent.self][entity],
               fuel.remaining > 0 else {
             return
         }
         let mass = massComponent.totalMass(
             fuel: fuel,
-            cargo: world.cargoComponents[entity]
+            cargo: world.components[CargoComponent.self][entity]
         )
         guard mass.isFinite, mass > 0 else {
             return
@@ -86,10 +86,10 @@ struct FlightControlSystem: System {
             return
         }
 
-        world.motionComponents.update(for: entity) { component in
+        world.components[MotionComponent.self].update(for: entity) { component in
             component.accumulator.acceleration += burn.acceleration
         }
-        world.fuelComponents.update(for: entity) { component in
+        world.components[FuelComponent.self].update(for: entity) { component in
             component.remaining -= burn.fuelUsed
         }
     }

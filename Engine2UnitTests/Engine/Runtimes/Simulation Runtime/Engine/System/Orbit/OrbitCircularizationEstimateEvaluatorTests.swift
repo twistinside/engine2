@@ -80,7 +80,7 @@ struct OrbitCircularizationEstimateEvaluatorTests {
             primaryVelocity: .zero,
             entityVelocity: SIMD3<Double>(0, 40, 0)
         )
-        fixture.world.orbitCircularizationAutopilotComponents.update(for: fixture.entity) {
+        fixture.world.components[OrbitCircularizationAutopilotComponent.self].update(for: fixture.entity) {
             $0 = .engaged(direction: .clockwise)
         }
 
@@ -155,41 +155,41 @@ struct OrbitCircularizationEstimateEvaluatorTests {
         let primary = EntityID(index: 0, generation: 0)
         let entity = EntityID(index: 1, generation: 0)
 
-        world.positionComponents.insert(PositionComponent(position: .zero), for: primary)
-        world.motionComponents.insert(MotionComponent(velocity: primaryVelocity), for: primary)
-        world.gravitySourceComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: primary)
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: primaryVelocity), for: primary)
+        world.components[GravitySourceComponent.self].insert(
             GravitySourceComponent(gravitationalParameter: 4_000_000),
             for: primary
         )
-        world.collisionBodyComponents.insert(
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 100, response: .solid(restitution: 0.35)),
             for: primary
         )
 
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             PositionComponent(position: SIMD3<Double>(radius, 0, 0)),
             for: entity
         )
-        world.motionComponents.insert(MotionComponent(velocity: entityVelocity), for: entity)
-        world.orbitPrimaryComponents.insert(
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: entityVelocity), for: entity)
+        world.components[OrbitPrimaryComponent.self].insert(
             OrbitPrimaryComponent(primaryEntityID: primary),
             for: entity
         )
-        world.orbitCircularizationAutopilotComponents.insert(.idle, for: entity)
-        world.collisionBodyComponents.insert(
+        world.components[OrbitCircularizationAutopilotComponent.self].insert(.idle, for: entity)
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 10, response: .solid(restitution: 0.35)),
             for: entity
         )
-        world.massComponents.insert(MassComponent(dryMass: 10_000), for: entity)
-        world.propulsionComponents.insert(
+        world.components[MassComponent.self].insert(MassComponent(dryMass: 10_000), for: entity)
+        world.components[PropulsionComponent.self].insert(
             PropulsionComponent(maximumThrust: 300_000, exhaustVelocity: 20_000),
             for: entity
         )
-        world.fuelComponents.insert(
+        world.components[FuelComponent.self].insert(
             FuelComponent(capacity: 2_000, remaining: remainingFuel),
             for: entity
         )
-        world.cargoComponents.insert(
+        world.components[CargoComponent.self].insert(
             CargoComponent(capacity: 8_000, ore: cargoOre),
             for: entity
         )

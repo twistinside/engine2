@@ -24,3 +24,26 @@ struct CollisionBodyComponent: Component {
         self.contactScope = contactScope
     }
 }
+
+extension CollisionBodyComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isCollidable = entity is Collidable
+        precondition(
+            (state.collisionRadius != nil) == isCollidable &&
+                (state.collisionResponse != nil) == isCollidable &&
+                (state.collisionOwnerPolicy == nil || isCollidable) &&
+                (state.collisionContactScope == nil || isCollidable),
+            "Collidable requires radius and response; other entities must omit all collision policy."
+        )
+        guard let collisionRadius = state.collisionRadius,
+              let collisionResponse = state.collisionResponse else {
+            return nil
+        }
+        self.init(
+            radius: collisionRadius,
+            response: collisionResponse,
+            ownerPolicy: state.collisionOwnerPolicy ?? .include,
+            contactScope: state.collisionContactScope ?? .allBodies
+        )
+    }
+}

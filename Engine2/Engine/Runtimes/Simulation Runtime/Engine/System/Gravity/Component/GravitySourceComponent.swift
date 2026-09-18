@@ -14,3 +14,16 @@ struct GravitySourceComponent: Component {
         self.gravitationalParameter = gravitationalParameter
     }
 }
+
+extension GravitySourceComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            (state.gravitationalParameter != nil) == (entity is GravitySource),
+            "InitialState.gravitationalParameter must be present exactly when the entity conforms to GravitySource."
+        )
+        guard let gravitationalParameter = state.gravitationalParameter else {
+            return nil
+        }
+        self.init(gravitationalParameter: gravitationalParameter)
+    }
+}

@@ -17,41 +17,41 @@ struct OrbitCircularizationAutopilotSystemTests {
         )
         var movement = MovementSystem()
         let initialFuel = try #require(
-            fixture.world.fuelComponents[fixture.entity]?.remaining
+            fixture.world.components[FuelComponent.self][fixture.entity]?.remaining
         )
         var previousSpeed = 0.0
 
         for _ in 0..<2 {
-            fixture.world.playerControlComponents.update(for: fixture.entity) {
+            fixture.world.components[PlayerControlComponent.self].update(for: fixture.entity) {
                 $0.translation = SIMD2<Double>(1, -1)
             }
-            let fuel = try #require(fixture.world.fuelComponents[fixture.entity])
+            let fuel = try #require(fixture.world.components[FuelComponent.self][fixture.entity])
             let massComponent = try #require(
-                fixture.world.massComponents[fixture.entity]
+                fixture.world.components[MassComponent.self][fixture.entity]
             )
             let mass = massComponent.totalMass(fuel: fuel, cargo: nil)
 
             system.update(world: &fixture.world, deltaTime: deltaTime)
 
             let acceleration = try #require(
-                fixture.world.motionComponents[fixture.entity]?.acceleration
+                fixture.world.components[MotionComponent.self][fixture.entity]?.acceleration
             )
             #expect(
                 abs(simd_length(acceleration) - maximumThrust / mass) < 1e-12
             )
             #expect(
-                fixture.world.playerControlComponents[fixture.entity]?.translation
+                fixture.world.components[PlayerControlComponent.self][fixture.entity]?.translation
                     == .zero
             )
             #expect(
-                fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+                fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity]
                     == .engaged(direction: .counterclockwise)
             )
 
             movement.update(world: &fixture.world, deltaTime: deltaTime)
 
             let motion = try #require(
-                fixture.world.motionComponents[fixture.entity]
+                fixture.world.components[MotionComponent.self][fixture.entity]
             )
             let speed = simd_length(motion.velocity)
             #expect(speed > previousSpeed)
@@ -61,7 +61,7 @@ struct OrbitCircularizationAutopilotSystemTests {
         let expectedFuel = initialFuel
             - 2 * maximumThrust * deltaTime / exhaustVelocity
         let remainingFuel = try #require(
-            fixture.world.fuelComponents[fixture.entity]?.remaining
+            fixture.world.components[FuelComponent.self][fixture.entity]?.remaining
         )
         #expect(abs(remainingFuel - expectedFuel) < 1e-12)
     }
@@ -83,7 +83,7 @@ struct OrbitCircularizationAutopilotSystemTests {
 
         system.update(world: &fixture.world, deltaTime: deltaTime)
         #expect(
-            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+            fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity]
                 == .engaged(direction: .counterclockwise)
         )
         movement.update(world: &fixture.world, deltaTime: deltaTime)
@@ -93,18 +93,18 @@ struct OrbitCircularizationAutopilotSystemTests {
         )
         #expect(terminalEstimate.deltaV < completionTolerance)
         let fuelAfterBurn = try #require(
-            fixture.world.fuelComponents[fixture.entity]?.remaining
+            fixture.world.components[FuelComponent.self][fixture.entity]?.remaining
         )
-        fixture.world.playerControlComponents.update(for: fixture.entity) {
+        fixture.world.components[PlayerControlComponent.self].update(for: fixture.entity) {
             $0.translation = SIMD2<Double>(-1, 1)
         }
 
         system.update(world: &fixture.world, deltaTime: deltaTime)
 
-        #expect(fixture.world.orbitCircularizationAutopilotComponents[fixture.entity] == .idle)
-        #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
-        #expect(fixture.world.motionComponents[fixture.entity]?.acceleration == .zero)
-        #expect(fixture.world.fuelComponents[fixture.entity]?.remaining == fuelAfterBurn)
+        #expect(fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity] == .idle)
+        #expect(fixture.world.components[PlayerControlComponent.self][fixture.entity]?.translation == .zero)
+        #expect(fixture.world.components[MotionComponent.self][fixture.entity]?.acceleration == .zero)
+        #expect(fixture.world.components[FuelComponent.self][fixture.entity]?.remaining == fuelAfterBurn)
     }
 
     @Test func productionForceOrderBlocksHeldManualThrustUntilCompletion() throws {
@@ -131,16 +131,16 @@ struct OrbitCircularizationAutopilotSystemTests {
         var neutralFlightControl = FlightControlSystem(targetSpeed: 90, responseTime: 2)
         var neutralMovement = MovementSystem()
         let initialFuel = try #require(
-            heldFixture.world.fuelComponents[heldFixture.entity]?.remaining
+            heldFixture.world.components[FuelComponent.self][heldFixture.entity]?.remaining
         )
         let maximumTickCount = 600
         var didComplete = false
 
         for _ in 0..<maximumTickCount {
-            heldFixture.world.playerControlComponents.update(for: heldFixture.entity) {
+            heldFixture.world.components[PlayerControlComponent.self].update(for: heldFixture.entity) {
                 $0.translation = SIMD2<Double>(1, 0)
             }
-            neutralFixture.world.playerControlComponents.update(for: neutralFixture.entity) {
+            neutralFixture.world.components[PlayerControlComponent.self].update(for: neutralFixture.entity) {
                 $0.translation = .zero
             }
 
@@ -155,27 +155,27 @@ struct OrbitCircularizationAutopilotSystemTests {
             neutralMovement.update(world: &neutralFixture.world, deltaTime: deltaTime)
 
             #expect(
-                heldFixture.world.playerControlComponents[heldFixture.entity]?.translation
+                heldFixture.world.components[PlayerControlComponent.self][heldFixture.entity]?.translation
                     == .zero
             )
             #expect(
-                heldFixture.world.positionComponents[heldFixture.entity]
-                    == neutralFixture.world.positionComponents[neutralFixture.entity]
+                heldFixture.world.components[PositionComponent.self][heldFixture.entity]
+                    == neutralFixture.world.components[PositionComponent.self][neutralFixture.entity]
             )
             #expect(
-                heldFixture.world.motionComponents[heldFixture.entity]
-                    == neutralFixture.world.motionComponents[neutralFixture.entity]
+                heldFixture.world.components[MotionComponent.self][heldFixture.entity]
+                    == neutralFixture.world.components[MotionComponent.self][neutralFixture.entity]
             )
             #expect(
-                heldFixture.world.fuelComponents[heldFixture.entity]
-                    == neutralFixture.world.fuelComponents[neutralFixture.entity]
+                heldFixture.world.components[FuelComponent.self][heldFixture.entity]
+                    == neutralFixture.world.components[FuelComponent.self][neutralFixture.entity]
             )
             #expect(
-                heldFixture.world.orbitCircularizationAutopilotComponents[heldFixture.entity]
-                    == neutralFixture.world.orbitCircularizationAutopilotComponents[neutralFixture.entity]
+                heldFixture.world.components[OrbitCircularizationAutopilotComponent.self][heldFixture.entity]
+                    == neutralFixture.world.components[OrbitCircularizationAutopilotComponent.self][neutralFixture.entity]
             )
 
-            if heldFixture.world.orbitCircularizationAutopilotComponents[heldFixture.entity]
+            if heldFixture.world.components[OrbitCircularizationAutopilotComponent.self][heldFixture.entity]
                 == .idle {
                 didComplete = true
                 break
@@ -183,10 +183,10 @@ struct OrbitCircularizationAutopilotSystemTests {
         }
 
         let finalFuel = try #require(
-            heldFixture.world.fuelComponents[heldFixture.entity]?.remaining
+            heldFixture.world.components[FuelComponent.self][heldFixture.entity]?.remaining
         )
         #expect(didComplete)
-        #expect(heldFixture.world.orbitCircularizationAutopilotComponents[heldFixture.entity] == .idle)
+        #expect(heldFixture.world.components[OrbitCircularizationAutopilotComponent.self][heldFixture.entity] == .idle)
         #expect(finalFuel < initialFuel)
     }
 
@@ -195,8 +195,8 @@ struct OrbitCircularizationAutopilotSystemTests {
         var system = OrbitCircularizationAutopilotSystem(
             completionTolerance: completionTolerance
         )
-        let originalMotion = try #require(fixture.world.motionComponents[fixture.entity])
-        let originalFuel = try #require(fixture.world.fuelComponents[fixture.entity])
+        let originalMotion = try #require(fixture.world.components[MotionComponent.self][fixture.entity])
+        let originalFuel = try #require(fixture.world.components[FuelComponent.self][fixture.entity])
         let estimate = try #require(
             fixture.world.orbitCircularizationEstimate(for: fixture.entity)
         )
@@ -204,10 +204,10 @@ struct OrbitCircularizationAutopilotSystemTests {
 
         system.update(world: &fixture.world, deltaTime: deltaTime)
 
-        #expect(fixture.world.orbitCircularizationAutopilotComponents[fixture.entity] == .idle)
-        #expect(fixture.world.playerControlComponents[fixture.entity]?.translation == .zero)
-        #expect(fixture.world.motionComponents[fixture.entity] == originalMotion)
-        #expect(fixture.world.fuelComponents[fixture.entity] == originalFuel)
+        #expect(fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity] == .idle)
+        #expect(fixture.world.components[PlayerControlComponent.self][fixture.entity]?.translation == .zero)
+        #expect(fixture.world.components[MotionComponent.self][fixture.entity] == originalMotion)
+        #expect(fixture.world.components[FuelComponent.self][fixture.entity] == originalFuel)
     }
 
     @Test func burnFollowsTheLatchedDirectionWhenTheOtherTargetIsCloser() throws {
@@ -223,11 +223,11 @@ struct OrbitCircularizationAutopilotSystemTests {
         system.update(world: &fixture.world, deltaTime: deltaTime)
 
         let acceleration = try #require(
-            fixture.world.motionComponents[fixture.entity]?.acceleration
+            fixture.world.components[MotionComponent.self][fixture.entity]?.acceleration
         )
         #expect(acceleration.y < 0)
         #expect(
-            fixture.world.orbitCircularizationAutopilotComponents[fixture.entity]
+            fixture.world.components[OrbitCircularizationAutopilotComponent.self][fixture.entity]
                 == .engaged(direction: .clockwise)
         )
     }
@@ -241,46 +241,46 @@ struct OrbitCircularizationAutopilotSystemTests {
         let primary = EntityID(index: 0, generation: 0)
         let entity = EntityID(index: 1, generation: 0)
 
-        world.positionComponents.insert(PositionComponent(position: .zero), for: primary)
-        world.gravitySourceComponents.insert(
+        world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: primary)
+        world.components[GravitySourceComponent.self].insert(
             GravitySourceComponent(gravitationalParameter: gravitationalParameter),
             for: primary
         )
-        world.collisionBodyComponents.insert(
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 100, response: .solid(restitution: 0.35)),
             for: primary
         )
-        world.positionComponents.insert(
+        world.components[PositionComponent.self].insert(
             PositionComponent(position: SIMD3<Double>(radius, 0, 0)),
             for: entity
         )
-        world.motionComponents.insert(MotionComponent(velocity: entityVelocity), for: entity)
-        world.gravityReceiverComponents.insert(GravityReceiverComponent(), for: entity)
-        world.orbitPrimaryComponents.insert(
+        world.components[MotionComponent.self].insert(MotionComponent(velocity: entityVelocity), for: entity)
+        world.components[GravityReceiverComponent.self].insert(GravityReceiverComponent(), for: entity)
+        world.components[OrbitPrimaryComponent.self].insert(
             OrbitPrimaryComponent(primaryEntityID: primary),
             for: entity
         )
-        world.orbitCircularizationAutopilotComponents.insert(
+        world.components[OrbitCircularizationAutopilotComponent.self].insert(
             .engaged(direction: direction),
             for: entity
         )
-        world.collisionBodyComponents.insert(
+        world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 10, response: .solid(restitution: 0.35)),
             for: entity
         )
-        world.massComponents.insert(MassComponent(dryMass: 10_000), for: entity)
-        world.propulsionComponents.insert(
+        world.components[MassComponent.self].insert(MassComponent(dryMass: 10_000), for: entity)
+        world.components[PropulsionComponent.self].insert(
             PropulsionComponent(
                 maximumThrust: maximumThrust,
                 exhaustVelocity: exhaustVelocity
             ),
             for: entity
         )
-        world.fuelComponents.insert(
+        world.components[FuelComponent.self].insert(
             FuelComponent(capacity: 2_000, remaining: remainingFuel),
             for: entity
         )
-        world.playerControlComponents.insert(
+        world.components[PlayerControlComponent.self].insert(
             PlayerControlComponent(translation: SIMD2<Double>(1, -1), isFireRequested: false),
             for: entity
         )

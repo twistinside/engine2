@@ -89,10 +89,10 @@ struct ContactEffectSystemTests {
         #expect(target.health == HitPoints(rawValue: 0.5))
         #expect(target.lifecycleState == .active)
         #expect(source.lifecycleState == .active)
-        #expect(scene.world.contactConsumptionComponents[source.id] == nil)
-        #expect(scene.world.motionComponents[source.id] == nil)
-        #expect(scene.world.ownershipComponents[source.id] == nil)
-        #expect(scene.world.lifetimeComponents[source.id] == nil)
+        #expect(scene.world.components[ContactConsumptionComponent.self][source.id] == nil)
+        #expect(scene.world.components[MotionComponent.self][source.id] == nil)
+        #expect(scene.world.components[OwnershipComponent.self][source.id] == nil)
+        #expect(scene.world.components[LifetimeComponent.self][source.id] == nil)
 
         detector.update(world: &scene.world, deltaTime: 1)
         response.update(world: &scene.world, deltaTime: 1)
@@ -127,10 +127,10 @@ struct ContactEffectSystemTests {
         #expect(source.lifecycleState == .pendingRemoval)
         #expect(target.lifecycleState == .active)
         #expect(target.health == HitPoints(rawValue: 1))
-        #expect(scene.world.contactDamageComponents[source.id] == nil)
-        #expect(scene.world.motionComponents[source.id] == nil)
-        #expect(scene.world.ownershipComponents[source.id] == nil)
-        #expect(scene.world.lifetimeComponents[source.id] == nil)
+        #expect(scene.world.components[ContactDamageComponent.self][source.id] == nil)
+        #expect(scene.world.components[MotionComponent.self][source.id] == nil)
+        #expect(scene.world.components[OwnershipComponent.self][source.id] == nil)
+        #expect(scene.world.components[LifetimeComponent.self][source.id] == nil)
     }
 
     @Test func simultaneousContactsApplyAllDamageBeforeAnySourceIsRemoved() {
@@ -153,7 +153,7 @@ struct ContactEffectSystemTests {
         #expect(second.health == .zero)
         #expect(first.lifecycleState == .pendingRemoval)
         #expect(second.lifecycleState == .pendingRemoval)
-        #expect(world.contactConsumptionComponents.entities.isEmpty)
+        #expect(world.components[ContactConsumptionComponent.self].entities.isEmpty)
         #expect(world.entity(for: first.id) === first)
         #expect(world.entity(for: second.id) === second)
     }
@@ -176,20 +176,20 @@ struct ContactEffectSystemTests {
         #expect(scene.world.entity(for: missile.id) === missile)
         #expect(scene.world.entity(for: asteroid.id)?.lifecycleState == .pendingRemoval)
         #expect(scene.world.entity(for: missile.id)?.lifecycleState == .pendingRemoval)
-        #expect(scene.world.renderableComponents[asteroid.id] != nil)
-        #expect(scene.world.renderableComponents[missile.id] != nil)
-        #expect(scene.world.collisionBodyComponents[asteroid.id] != nil)
-        #expect(scene.world.contactConsumptionComponents[missile.id] != nil)
+        #expect(scene.world.components[RenderableComponent.self][asteroid.id] != nil)
+        #expect(scene.world.components[RenderableComponent.self][missile.id] != nil)
+        #expect(scene.world.components[CollisionBodyComponent.self][asteroid.id] != nil)
+        #expect(scene.world.components[ContactConsumptionComponent.self][missile.id] != nil)
 
         var removal = EntityRemovalSystem()
         removal.update(world: &scene.world, deltaTime: 1)
 
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: missile.id) == nil)
-        #expect(scene.world.renderableComponents[asteroid.id] == nil)
-        #expect(scene.world.renderableComponents[missile.id] == nil)
-        #expect(scene.world.collisionBodyComponents[asteroid.id] == nil)
-        #expect(scene.world.contactConsumptionComponents.entities.isEmpty)
+        #expect(scene.world.components[RenderableComponent.self][asteroid.id] == nil)
+        #expect(scene.world.components[RenderableComponent.self][missile.id] == nil)
+        #expect(scene.world.components[CollisionBodyComponent.self][asteroid.id] == nil)
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities.isEmpty)
         #expect(scene.world.entity(for: scene.skiff.id) === scene.skiff)
     }
 
@@ -210,7 +210,7 @@ struct ContactEffectSystemTests {
         #expect(scene.world.entity(for: missile.id) == nil)
         #expect(scene.world.entity(for: depot.id) === depot)
         #expect(depot.lifecycleState == .active)
-        #expect(scene.world.healthComponents[depot.id] == nil)
+        #expect(scene.world.components[HealthComponent.self][depot.id] == nil)
         #expect(scene.world.entity(for: asteroid.id) === asteroid)
     }
 
@@ -219,7 +219,7 @@ struct ContactEffectSystemTests {
         let asteroid = scene.asteroid(at: SIMD3<Double>(60, 10, 0), velocity: .zero)
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: SIMD3<Double>(100, 0, 0), lifetime: 5)
         scene.move(deltaTime: 1)
-        scene.world.positionComponents.update(for: asteroid.id) { position in
+        scene.world.components[PositionComponent.self].update(for: asteroid.id) { position in
             position.position.y = -10
         }
 
@@ -269,7 +269,7 @@ struct ContactEffectSystemTests {
         #expect(scene.world.entity(for: asteroid.id) == nil)
         #expect(scene.world.entity(for: first.id) == nil)
         #expect(scene.world.entity(for: second.id) == nil)
-        #expect(scene.world.contactConsumptionComponents.entities.isEmpty)
+        #expect(scene.world.components[ContactConsumptionComponent.self].entities.isEmpty)
     }
 
     @Test func overlappingOwnerAndOtherMissilesAreIgnored() {
@@ -337,7 +337,7 @@ struct ContactEffectSystemTests {
         let asteroid = scene.asteroid(at: SIMD3<Double>(50, 50, 0), velocity: .zero)
         let missile = scene.missile(at: .zero, velocity: SIMD3<Double>(100, 0, 0), lifetime: 0.5)
         scene.move(deltaTime: 1)
-        scene.world.positionComponents.update(for: asteroid.id) { position in
+        scene.world.components[PositionComponent.self].update(for: asteroid.id) { position in
             position.position.y = -50
         }
 
@@ -360,8 +360,8 @@ struct ContactEffectSystemTests {
             from: contactProjectileState()
         )
         scene.move(deltaTime: 1)
-        #expect(scene.world.ownershipComponents[fired.id] == nil)
-        #expect(scene.world.lifetimeComponents[fired.id] == nil)
+        #expect(scene.world.components[OwnershipComponent.self][fired.id] == nil)
+        #expect(scene.world.components[LifetimeComponent.self][fired.id] == nil)
 
         var detector = CollisionSystem()
         detector.update(world: &scene.world, deltaTime: 1)
@@ -424,7 +424,7 @@ struct ContactEffectSystemTests {
     func ownershipExclusionFollowsCollisionPolicy(policy: CollisionOwnerPolicy) {
         var scene = MissileTestScene(velocity: .zero)
         let missile = scene.missile(at: .zero, velocity: .zero, lifetime: 5)
-        scene.world.collisionBodyComponents.insert(
+        scene.world.components[CollisionBodyComponent.self].insert(
             CollisionBodyComponent(radius: 1, response: .sensor, ownerPolicy: policy),
             for: missile.id
         )
@@ -437,7 +437,7 @@ struct ContactEffectSystemTests {
 
         #expect(missile.lifecycleState == (policy == .include ? .pendingRemoval : .active))
         #expect(scene.skiff.lifecycleState == .active)
-        #expect(scene.world.ownershipComponents[missile.id]?.ownerEntityID == scene.skiff.id)
+        #expect(scene.world.components[OwnershipComponent.self][missile.id]?.ownerEntityID == scene.skiff.id)
     }
 
     @Test func aDestructibleStarRemainsImmuneToContactDamage() {
@@ -472,9 +472,9 @@ struct ContactEffectSystemTests {
 
         #expect(source.lifecycleState == .pendingRemoval)
         #expect(star.lifecycleState == .active)
-        #expect(world.healthComponents[star.id] == nil)
+        #expect(world.components[HealthComponent.self][star.id] == nil)
         #expect(world.entity(for: star.id) === star)
-        #expect(world.destructibleComponents.update(for: star.id) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: star.id) { $0.state = .pendingRemoval })
         #expect(star.lifecycleState == .pendingRemoval)
     }
 
@@ -525,7 +525,7 @@ struct ContactEffectSystemTests {
         var scene = MissileTestScene(velocity: .zero)
         let target = expiringTarget(at: SIMD3<Double>(10, 0, 0), lifetime: 1, in: scene.world)
         let missile = scene.missile(at: SIMD3<Double>(10, 0, 0), velocity: .zero, lifetime: 5)
-        scene.world.lifetimeComponents.update(for: target.id) { lifetime in
+        scene.world.components[LifetimeComponent.self].update(for: target.id) { lifetime in
             lifetime.remainingLifetime = 0
         }
 
@@ -547,13 +547,13 @@ struct ContactEffectSystemTests {
         var detector = CollisionSystem()
         detector.update(world: &scene.world, deltaTime: 1)
         let contact = try #require(scene.world.collisionContacts.first)
-        scene.world.positionComponents.update(for: target.id) { position in
+        scene.world.components[PositionComponent.self].update(for: target.id) { position in
             position.position = SIMD3<Double>(1_000, 1_000, 0)
         }
-        scene.world.previousPositionComponents.update(for: target.id) { previous in
+        scene.world.components[PreviousPositionComponent.self].update(for: target.id) { previous in
             previous.position = SIMD3<Double>(1_000, 1_000, 0)
         }
-        scene.world.lifetimeComponents.update(for: missile.id) { lifetime in
+        scene.world.components[LifetimeComponent.self].update(for: missile.id) { lifetime in
             lifetime.remainingLifetime = 0
         }
 
@@ -611,7 +611,7 @@ struct ContactEffectSystemTests {
         scene.move(deltaTime: 1)
         var detector = CollisionSystem()
         detector.update(world: &scene.world, deltaTime: 1)
-        #expect(scene.world.destructibleComponents.update(for: pending.id) { $0.state = .pendingRemoval })
+        #expect(scene.world.components[DestructibleComponent.self].update(for: pending.id) { $0.state = .pendingRemoval })
 
         var response = ContactEffectSystem()
         response.update(world: &scene.world, deltaTime: 1)

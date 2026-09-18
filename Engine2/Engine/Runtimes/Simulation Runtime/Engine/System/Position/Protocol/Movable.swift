@@ -13,28 +13,28 @@ protocol Movable: Positionable {
 
 extension Movable {
     var acceleration: SIMD3<Double> {
-        guard let motion = world.motionComponents[self.id] else {
+        guard let motion = world.components[MotionComponent.self][self.id] else {
             fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
         return motion.acceleration
     }
 
     var accelerationIntent: MotionComponent.AccelerationIntent {
-        guard let motion = world.motionComponents[self.id] else {
+        guard let motion = world.components[MotionComponent.self][self.id] else {
             fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
         return motion.accelerationIntent
     }
 
     var impulse: SIMD3<Double> {
-        guard let motion = world.motionComponents[self.id] else {
+        guard let motion = world.components[MotionComponent.self][self.id] else {
             fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
         return motion.impulse
     }
 
     var velocity: SIMD3<Double> {
-        guard let motion = world.motionComponents[self.id] else {
+        guard let motion = world.components[MotionComponent.self][self.id] else {
             fatalError("There is no motion component for the movable entity with ID: \(self.id)")
         }
         return motion.velocity

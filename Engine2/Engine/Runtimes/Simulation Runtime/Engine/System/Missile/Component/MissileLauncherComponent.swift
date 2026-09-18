@@ -17,3 +17,25 @@ struct MissileLauncherComponent: Component {
         self.radius = radius
     }
 }
+
+extension MissileLauncherComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isMissileLaunching = entity is MissileLaunching
+        precondition(
+            (state.missileSpeed != nil) == isMissileLaunching &&
+                (state.missileLifetime != nil) == isMissileLaunching &&
+                (state.missileRadius != nil) == isMissileLaunching,
+            "MissileLaunching requires missile speed, lifetime, and radius; other entities must omit all three."
+        )
+        guard let missileSpeed = state.missileSpeed,
+              let missileLifetime = state.missileLifetime,
+              let missileRadius = state.missileRadius else {
+            return nil
+        }
+        self.init(
+            speed: missileSpeed,
+            lifetime: missileLifetime,
+            radius: missileRadius
+        )
+    }
+}

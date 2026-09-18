@@ -9,7 +9,7 @@ protocol Positionable: Entity {
 
 extension Positionable {
     var position: SIMD3<Double> {
-        guard let position = world.positionComponents[self.id]?.position else {
+        guard let position = world.components[PositionComponent.self][self.id]?.position else {
             fatalError("There is no position for the positionable entity with ID: \(self.id)")
         }
         return position

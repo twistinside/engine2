@@ -22,3 +22,12 @@ struct PlayerControlComponent: Component {
         self.isFireRequested = isFireRequested
     }
 }
+
+extension PlayerControlComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        guard entity is PlayerControlled else {
+            return nil
+        }
+        self.init(translation: .zero, interactionState: .inactive, isFireRequested: false)
+    }
+}

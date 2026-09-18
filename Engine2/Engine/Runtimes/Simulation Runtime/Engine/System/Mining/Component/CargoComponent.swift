@@ -10,3 +10,18 @@ struct CargoComponent: Component {
         self.ore = ore
     }
 }
+
+extension CargoComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        let isCargoCarrying = entity is CargoCarrying
+        precondition(
+            (state.cargoCapacity != nil) == isCargoCarrying &&
+                (state.cargoOre != nil) == isCargoCarrying,
+            "CargoCarrying requires cargo capacity and ore; other entities must omit both."
+        )
+        guard let cargoCapacity = state.cargoCapacity, let cargoOre = state.cargoOre else {
+            return nil
+        }
+        self.init(capacity: cargoCapacity, ore: cargoOre)
+    }
+}

@@ -77,7 +77,7 @@ struct WorldInitialStateTests {
         let world = World()
         let primary = Ball(in: world, materialID: .goldMetal)
         let primaryPosition = SIMD3<Double>(120, -30, 7)
-        world.positionComponents.update(for: primary.id) { $0.position = primaryPosition }
+        world.components[PositionComponent.self].update(for: primary.id) { $0.position = primaryPosition }
         let entity = InitialStateRailEntity(in: world, from: Entity.InitialState(
             collisionRadius: 2,
             collisionResponse: .solid(restitution: 0.35),
@@ -91,12 +91,12 @@ struct WorldInitialStateTests {
 
         let expectedPosition = SIMD3<Double>(120, -10, 7)
         let expectedVelocity = SIMD3<Double>(5, 0, 0)
-        let rail = try #require(world.orbitalRailComponents[entity.id])
+        let rail = try #require(world.components[OrbitalRailComponent.self][entity.id])
         #expect(rail.elapsedTime == 0)
         #expect(simd_distance(entity.position, expectedPosition) < 1e-12)
         #expect(simd_distance(entity.orbitalVelocity, expectedVelocity) < 1e-12)
-        #expect(world.previousPositionComponents[entity.id]?.position == entity.position)
-        #expect(world.motionComponents[entity.id] == nil)
+        #expect(world.components[PreviousPositionComponent.self][entity.id]?.position == entity.position)
+        #expect(world.components[MotionComponent.self][entity.id] == nil)
         #expect(world.entity(for: entity.id) === entity)
 
         let snapshot = world.presentationSnapshot(
@@ -120,19 +120,19 @@ struct WorldInitialStateTests {
             materialID: .goldMetal
         )
         let entity = InitialStateRailEntity(in: world, from: state)
-        world.orbitalRailComponents.update(for: entity.id) {
+        world.components[OrbitalRailComponent.self].update(for: entity.id) {
             $0.elapsedTime = 10
             $0.velocity = .zero
         }
-        world.positionComponents.update(for: primary.id) { $0.position = SIMD3<Double>(40, 50, 60) }
+        world.components[PositionComponent.self].update(for: primary.id) { $0.position = SIMD3<Double>(40, 50, 60) }
 
         world.add(entity, from: state)
 
         #expect(entity.position == SIMD3<Double>(60, 50, 60))
         #expect(entity.orbitalVelocity == SIMD3<Double>(0, 5, 0))
-        #expect(world.orbitalRailComponents[entity.id]?.elapsedTime == 0)
-        #expect(world.previousPositionComponents[entity.id]?.position == entity.position)
-        #expect(world.orbitalRailComponents.entities.count == 1)
+        #expect(world.components[OrbitalRailComponent.self][entity.id]?.elapsedTime == 0)
+        #expect(world.components[PreviousPositionComponent.self][entity.id]?.position == entity.position)
+        #expect(world.components[OrbitalRailComponent.self].entities.count == 1)
     }
 
     @Test func runtimePublishesCompleteRailPlacementAtTickZero() throws {
@@ -146,15 +146,15 @@ struct WorldInitialStateTests {
         let snapshot = runtime.latestPresentationSnapshot
 
         #expect(snapshot.cursor.tick == .zero)
-        #expect(world.orbitalRailComponents.entities.count == 7)
-        for id in world.orbitalRailComponents.entities {
-            let rail = try #require(world.orbitalRailComponents[id])
-            let primary = try #require(world.positionComponents[rail.primaryEntityID])
+        #expect(world.components[OrbitalRailComponent.self].entities.count == 7)
+        for id in world.components[OrbitalRailComponent.self].entities {
+            let rail = try #require(world.components[OrbitalRailComponent.self][id])
+            let primary = try #require(world.components[PositionComponent.self][rail.primaryEntityID])
             let expected = rail.state(relativeTo: primary.position)
             let presentation = try #require(snapshot.entityPresentations.first { $0.id == id })
             #expect(rail.elapsedTime == 0)
-            #expect(world.positionComponents[id]?.position == expected.position)
-            #expect(world.previousPositionComponents[id]?.position == expected.position)
+            #expect(world.components[PositionComponent.self][id]?.position == expected.position)
+            #expect(world.components[PreviousPositionComponent.self][id]?.position == expected.position)
             #expect(rail.velocity == expected.velocity)
             #expect(presentation.position == expected.position.singlePrecision)
         }
@@ -276,7 +276,7 @@ struct WorldInitialStateTests {
             await MainActor.run {
                 let world = World()
                 let primaryID = world.reserveEntityID()
-                world.positionComponents.insert(PositionComponent(position: .zero), for: primaryID)
+                world.components[PositionComponent.self].insert(PositionComponent(position: .zero), for: primaryID)
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
                     collisionResponse: .solid(restitution: 0.35),
@@ -315,7 +315,7 @@ struct WorldInitialStateTests {
             await MainActor.run {
                 let world = World()
                 let primary = Ball(in: world, materialID: .goldMetal)
-                world.positionComponents.update(for: primary.id) { $0.position = SIMD3<Double>(.nan, 0, 0) }
+                world.components[PositionComponent.self].update(for: primary.id) { $0.position = SIMD3<Double>(.nan, 0, 0) }
                 _ = InitialStateRailEntity(in: world, from: Entity.InitialState(
                     collisionRadius: 2,
                     collisionResponse: .solid(restitution: 0.35),

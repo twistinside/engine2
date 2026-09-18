@@ -35,3 +35,17 @@ extension RotationComponent: Equatable {
         lhs.rotation.vector == rhs.rotation.vector
     }
 }
+
+extension RotationComponent {
+    @MainActor init?(for entity: Entity, from state: Entity.InitialState) {
+        precondition(
+            state.rotation == nil || entity is Orientable,
+            "Initial state.rotation requires Orientable conformance"
+        )
+        guard entity is Orientable else {
+            return nil
+        }
+
+        self = state.rotation.map { RotationComponent(rotation: $0) } ?? .identity
+    }
+}

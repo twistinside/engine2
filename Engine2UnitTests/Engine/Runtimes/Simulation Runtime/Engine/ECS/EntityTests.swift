@@ -10,7 +10,7 @@ struct EntityTests {
         #expect(entity.id == id)
         #expect(entity.world === world)
         #expect(entity.lifecycleState == nil)
-        #expect(world.destructibleComponents[id] == nil)
+        #expect(world.components[DestructibleComponent.self][id] == nil)
         #expect(capabilityComponentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
@@ -23,8 +23,8 @@ struct EntityTests {
         #expect(second.id == EntityID(index: 1, generation: 0))
         #expect(first.lifecycleState == .active)
         #expect(second.lifecycleState == .active)
-        #expect(world.destructibleComponents.entities == [first.id, second.id])
-        #expect(world.destructibleComponents.dense.allSatisfy { $0.state == .active })
+        #expect(world.components[DestructibleComponent.self].entities == [first.id, second.id])
+        #expect(world.components[DestructibleComponent.self].dense.allSatisfy { $0.state == .active })
         #expect(capabilityComponentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
@@ -32,26 +32,26 @@ struct EntityTests {
         let world = World()
         let entity = Entity(in: world, from: .empty)
 
-        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
-        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval })
 
         #expect(entity.lifecycleState == .pendingRemoval)
-        #expect(world.destructibleComponents.entities == [entity.id])
+        #expect(world.components[DestructibleComponent.self].entities == [entity.id])
         #expect(world.entity(for: entity.id) === entity)
-        #expect(world.lifetimeComponents[entity.id] == nil)
+        #expect(world.components[LifetimeComponent.self][entity.id] == nil)
         #expect(capabilityComponentRowCounts(in: world).allSatisfy { $0 == 0 })
     }
 
     @Test func reseedingComponentsPreservesPendingRemoval() {
         let world = World()
         let entity = LifetimeTestEntity(in: world, from: Entity.InitialState(lifetime: 2))
-        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval })
 
         world.add(entity, from: Entity.InitialState(lifetime: 5))
 
         #expect(entity.lifecycleState == .pendingRemoval)
-        #expect(world.destructibleComponents[entity.id]?.state == .pendingRemoval)
-        #expect(world.destructibleComponents.entities == [entity.id])
+        #expect(world.components[DestructibleComponent.self][entity.id]?.state == .pendingRemoval)
+        #expect(world.components[DestructibleComponent.self].entities == [entity.id])
         #expect(entity.remainingLifetime == 5)
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.registeredEntities.map(\.id) == [entity.id])
@@ -69,7 +69,7 @@ struct EntityTests {
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.registeredEntities.map(\.id) == [entity.id])
 
-        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+        #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval })
 
         #expect(entity.lifecycleState == .pendingRemoval)
         #expect(alias.lifecycleState == nil)
@@ -82,13 +82,13 @@ struct EntityTests {
         let otherGeneration = EntityID(index: entity.id.index, generation: entity.id.generation + 1)
         let alias = Entity(unregisteredID: otherGeneration, in: world)
 
-        #expect(world.destructibleComponents.update(for: otherGeneration) { $0.state = .pendingRemoval } == false)
+        #expect(world.components[DestructibleComponent.self].update(for: otherGeneration) { $0.state = .pendingRemoval } == false)
         #expect(world.destroy(otherGeneration) == false)
 
         #expect(alias.lifecycleState == nil)
         #expect(entity.lifecycleState == .active)
-        #expect(world.destructibleComponents[otherGeneration] == nil)
-        #expect(world.destructibleComponents[entity.id]?.state == .active)
+        #expect(world.components[DestructibleComponent.self][otherGeneration] == nil)
+        #expect(world.components[DestructibleComponent.self][entity.id]?.state == .active)
         #expect(world.entity(for: entity.id) === entity)
         #expect(world.entity(for: otherGeneration) == nil)
         #expect(world.registeredEntities.map(\.id) == [entity.id])
@@ -98,16 +98,16 @@ struct EntityTests {
         let world = World()
         let entity = Entity(unregisteredID: world.reserveEntityID(), in: world)
 
-        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval } == false)
+        #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval } == false)
         #expect(entity.lifecycleState == nil)
-        #expect(world.destructibleComponents[entity.id] == nil)
+        #expect(world.components[DestructibleComponent.self][entity.id] == nil)
         #expect(world.entity(for: entity.id) == nil)
         #expect(world.registeredEntities.isEmpty)
 
         world.add(entity)
 
         #expect(entity.lifecycleState == .active)
-        #expect(world.destructibleComponents[entity.id]?.state == .active)
+        #expect(world.components[DestructibleComponent.self][entity.id]?.state == .active)
         #expect(world.entity(for: entity.id) === entity)
     }
 
@@ -116,16 +116,16 @@ struct EntityTests {
         let world = World()
         let entity = Entity(in: world, from: .empty)
         if wasMarked {
-            #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval })
+            #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval })
         }
         #expect(world.destroy(entity.id))
 
-        #expect(world.destructibleComponents.update(for: entity.id) { $0.state = .pendingRemoval } == false)
+        #expect(world.components[DestructibleComponent.self].update(for: entity.id) { $0.state = .pendingRemoval } == false)
         #expect(world.destroy(entity.id) == false)
 
         #expect(entity.lifecycleState == nil)
-        #expect(world.destructibleComponents[entity.id] == nil)
-        #expect(world.destructibleComponents.entities.isEmpty)
+        #expect(world.components[DestructibleComponent.self][entity.id] == nil)
+        #expect(world.components[DestructibleComponent.self].entities.isEmpty)
         #expect(world.entity(for: entity.id) == nil)
         #expect(world.registeredEntities.isEmpty)
     }
@@ -156,14 +156,14 @@ struct EntityTests {
 
     private func capabilityComponentRowCounts(in world: World) -> [Int] {
         [
-            world.angularMotionAccumulatorComponents.dense.count,
-            world.angularVelocityComponents.dense.count,
-            world.motionComponents.dense.count,
-            world.positionComponents.dense.count,
-            world.renderableComponents.dense.count,
-            world.rotationComponents.dense.count,
-            world.scaleComponents.dense.count,
-            world.selectableComponents.dense.count
+            world.components[AngularMotionAccumulatorComponent.self].dense.count,
+            world.components[AngularVelocityComponent.self].dense.count,
+            world.components[MotionComponent.self].dense.count,
+            world.components[PositionComponent.self].dense.count,
+            world.components[RenderableComponent.self].dense.count,
+            world.components[RotationComponent.self].dense.count,
+            world.components[ScaleComponent.self].dense.count,
+            world.components[SelectableComponent.self].dense.count
         ]
     }
 }
